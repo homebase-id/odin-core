@@ -1,5 +1,7 @@
 #nullable enable
 using System;
+using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Odin.Core;
@@ -7,6 +9,7 @@ using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Security.ZeroKnowledge;
+using AesGcm = Odin.Core.Cryptography.Crypto.AesGcm;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -16,7 +19,9 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 /// </summary>
 /// <remarks>
 /// A locked value is base64 of a 12-byte IV followed by the AES-GCM ciphertext and its 16-byte tag.
-/// Keys are 16 bytes, like today's master key and drive keys.
+/// Keys are 16 bytes, like today's master key and drive keys.  A sealed value is base64 of a
+/// throwaway P-384 public key (97 bytes, uncompressed) and a value locked by
+/// hkdf-sha256(ECDH(throwaway, recipient), "homebase-zk-seal").
 /// </remarks>
 internal static class ZkBrowser
 {
@@ -42,12 +47,65 @@ internal static class ZkBrowser
         return AesGcm.Decrypt(bytes[IvLength..], key.ToSensitiveByteArray(), bytes[..IvLength]);
     }
 
+    private const int SealPublicKeyLength = 97;
+    private static readonly byte[] SealInfo = "homebase-zk-seal".ToUtf8ByteArray();
+
+    /// <summary>A P-384 key pair as the browser exports it: the private half PKCS8, the public half a JWK.</summary>
+    public sealed record KeyPair(byte[] PrivateKeyPkcs8, string PublicKeyJwk);
+
+    public static KeyPair MakeKeyPair()
+    {
+        using var ecdh = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP384);
+        var q = ecdh.ExportParameters(false).Q;
+        var jwk = JsonSerializer.Serialize(new
+        {
+            kty = "EC", crv = "P-384", x = Base64UrlEncoder.Encode(q.X!), y = Base64UrlEncoder.Encode(q.Y!)
+        });
+        return new KeyPair(ecdh.ExportPkcs8PrivateKey(), jwk);
+    }
+
+    /// <summary>Seals <paramref name="data"/> to a public key: only its private half opens it.</summary>
+    public static string Seal(byte[] data, string publicKeyJwk)
+    {
+        using var jwk = JsonDocument.Parse(publicKeyJwk);
+        using var recipient = ECDiffieHellman.Create(new ECParameters
+        {
+            Curve = ECCurve.NamedCurves.nistP384,
+            Q = new ECPoint
+            {
+                X = Base64UrlEncoder.Decode(jwk.RootElement.GetProperty("x").GetString()!),
+                Y = Base64UrlEncoder.Decode(jwk.RootElement.GetProperty("y").GetString()!)
+            }
+        });
+        using var throwaway = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP384);
+        var q = throwaway.ExportParameters(false).Q;
+        var locked = Lock(data, SealKey(throwaway, recipient.PublicKey)).FromBase64();
+        return ByteArrayUtil.Combine([0x04], q.X!, q.Y!, locked).ToBase64();
+    }
+
+    public static byte[] Unseal(string sealed64, byte[] privateKeyPkcs8)
+    {
+        var bytes = sealed64.FromBase64();
+        using var me = ECDiffieHellman.Create();
+        me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
+        using var throwaway = ECDiffieHellman.Create(new ECParameters
+        {
+            Curve = ECCurve.NamedCurves.nistP384,
+            Q = new ECPoint { X = bytes[1..49], Y = bytes[49..SealPublicKeyLength] }
+        });
+        return Open(bytes[SealPublicKeyLength..].ToBase64(), SealKey(me, throwaway.PublicKey));
+    }
+
+    private static byte[] SealKey(ECDiffieHellman mine, ECDiffieHellmanPublicKey theirs) =>
+        HKDF.DeriveKey(HashAlgorithmName.SHA256, mine.DeriveRawSecretAgreement(theirs), 16, [], SealInfo);
+
     public sealed record Keys(byte[] MasterKey, ZkKeysRequest Request);
 
     /// <summary>
-    /// Makes the keys at first login, or re-locks <paramref name="masterKey"/> for a password change.
+    /// Makes the keys at first login, or re-locks <paramref name="masterKey"/> for a password change,
+    /// sealing the password to the phrase's public key once there is one.
     /// </summary>
-    public static Keys MakeKeys(string password, byte[]? masterKey = null)
+    public static Keys MakeKeys(string password, byte[]? masterKey = null, string? phrasePublicKeyJwk = null)
     {
         var salt64 = ByteArrayUtil.GetRndByteArray(16).ToBase64();
         masterKey ??= ByteArrayUtil.GetRndByteArray(16);
@@ -56,49 +114,57 @@ internal static class ZkBrowser
         {
             ZkSaltKek64 = salt64,
             ZkKekEncryptedZkMasterKey = Lock(masterKey, SecondPasswordKey(password, salt64)),
-            ZkMasterKeyEncryptedPassword = LockPassword(password, masterKey)
+            PhrasePublicKeyEncryptedPassword = phrasePublicKeyJwk == null ? null : SealPassword(password, phrasePublicKeyJwk)
         });
     }
 
-    public static string LockPassword(string password, byte[] zkMasterKey) => Lock(password.ToUtf8ByteArray(), zkMasterKey);
-
-    public static string OpenPassword(string locked64, byte[] zkMasterKey) => Open(locked64, zkMasterKey).ToStringFromUtf8Bytes();
+    public static string SealPassword(string password, string phrasePublicKeyJwk) =>
+        Seal(password.ToUtf8ByteArray(), phrasePublicKeyJwk);
 
     /// <summary>The recovery phrase's 16 bytes, from its 12 words.</summary>
     public static byte[] PhraseKey(string phrase) => BIP39Util.DecodeBIP39(phrase).GetKey();
 
-    /// <summary>The reset key: hkdf-sha256 of the zero-knowledge master key, no salt, 16 bytes.</summary>
-    public static byte[] ResetKey(byte[] zkMasterKey) => System.Security.Cryptography.HKDF.DeriveKey(
-        System.Security.Cryptography.HashAlgorithmName.SHA256, zkMasterKey, 16, [],
+    /// <summary>The reset key: hkdf-sha256 of the recovery phrase's 16 bytes, no salt, 16 bytes.</summary>
+    public static byte[] ResetKey(byte[] phraseKey) => HKDF.DeriveKey(HashAlgorithmName.SHA256, phraseKey, 16, [],
         "homebase-recovery-reset-key".ToUtf8ByteArray());
 
+    public sealed record PhraseCopies<T>(T Request, KeyPair PhraseKeyPair) where T : ZkPhraseCopiesRequest;
+
     /// <summary>
-    /// The browser's two phrase copies: the zero-knowledge master key locked by the phrase, and the
-    /// phrase locked by the zero-knowledge master key, with the phrase's check value and the reset key.
+    /// What the browser makes from the phrase: the zero-knowledge master key locked by the phrase, the
+    /// phrase locked by the zero-knowledge master key, a new key pair with its private half locked by
+    /// the phrase, the phrase's check value and the reset key.
     /// </summary>
-    public static T MakePhraseCopies<T>(string phrase, byte[] zkMasterKey) where T : ZkPhraseCopiesRequest, new()
+    public static PhraseCopies<T> MakePhraseCopies<T>(string phrase, byte[] zkMasterKey) where T : ZkPhraseCopiesRequest, new()
     {
         var phraseKey = PhraseKey(phrase);
-        return new T
+        var pair = MakeKeyPair();
+        return new PhraseCopies<T>(new T
         {
             PhraseKeyEncryptedZkMasterKey = Lock(zkMasterKey, phraseKey),
             ZkMasterKeyEncryptedPhraseKey = Lock(phraseKey, zkMasterKey),
+            PhrasePublicKeyJwk = pair.PublicKeyJwk,
+            PhraseKeyEncryptedPhrasePrivateKey = Lock(pair.PrivateKeyPkcs8, phraseKey),
             PhraseCheck64 = RecoveryPhraseCheck.Compute(phraseKey),
-            ResetKey64 = ResetKey(zkMasterKey).ToBase64()
-        };
+            ResetKey64 = ResetKey(phraseKey).ToBase64()
+        }, pair);
     }
 
     public static ZkPhraseCopiesRequest MakePhraseCopies(string phrase, byte[] zkMasterKey) =>
-        MakePhraseCopies<ZkPhraseCopiesRequest>(phrase, zkMasterKey);
+        MakePhraseCopies<ZkPhraseCopiesRequest>(phrase, zkMasterKey).Request;
 
     /// <summary>What the forgot-password page gets out of the phrase: the zero-knowledge master key.</summary>
     public static byte[] RecoverZkMasterKey(string phrase, ZkPhraseRecoveryResponse recovery) =>
         Open(recovery.PhraseKeyEncryptedZkMasterKey, PhraseKey(phrase));
 
-    /// <summary>What the forgot-password page does with the phrase: the zero-knowledge master key, then the password.</summary>
+    /// <summary>
+    /// What the forgot-password page does with the phrase: the phrase's private key, then the
+    /// password sealed to it.
+    /// </summary>
     public static string RecoverPassword(string phrase, ZkPhraseRecoveryResponse recovery)
     {
-        return OpenPassword(recovery.ZkMasterKeyEncryptedPassword, RecoverZkMasterKey(phrase, recovery));
+        var privateKey = Open(recovery.PhraseKeyEncryptedPhrasePrivateKey, PhraseKey(phrase));
+        return Unseal(recovery.PhrasePublicKeyEncryptedPassword, privateKey).ToStringFromUtf8Bytes();
     }
 
     public static byte[] OpenMasterKey(string password, ZkStatusResponse status)

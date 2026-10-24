@@ -1,9 +1,11 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Util;
@@ -27,6 +29,7 @@ public class ZeroKnowledgeRecoveryService(
     PasswordKeyRecoveryService passwordKeyRecoveryService,
     ShamirConfigurationService shamirConfigurationService,
     OwnerSecretService secretService,
+    PublicPrivateKeyService publicPrivateKeyService,
     IdentityDatabase db)
 {
     /// <summary>What the browser needs after login: the keys, and where the phrase is.</summary>
@@ -44,22 +47,23 @@ public class ZeroKnowledgeRecoveryService(
         {
             ZkSaltKek64 = keys?.ZkSaltKek64,
             ZkKekEncryptedZkMasterKey = keys?.ZkKekEncryptedZkMasterKey,
-            ZkMasterKeyEncryptedPassword = keys?.ZkMasterKeyEncryptedPassword,
-            RecoveryPhrase = phrase
+            RecoveryPhrase = phrase,
+            PhrasePublicKeyJwk = phrase == RecoveryPhraseState.TakenOver ? keys.PhrasePublicKeyJwk : null,
+            HasPasswordCopy = keys?.PhrasePublicKeyEncryptedPassword != null
         };
     }
 
     /// <summary>
-    /// Writes the password copy, for keys made before recovery in the browser or a copy that no longer
-    /// matches.  Only with the password itself: a stolen session must not be able to replace what
-    /// recovery gives back.
+    /// Writes the password copy when it is missing (after re-entering the phrase, or a password
+    /// change that sent none).  Only with the password itself: a stolen session must not be able to
+    /// replace what recovery gives back.
     /// </summary>
     public async Task SavePasswordAsync(ZkPasswordRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         request.Validate();
         await secretService.AssertValidPasswordAsync(request.CurrentAuthenticationPasswordReply);
-        await zeroKnowledgeKeyService.SavePasswordAsync(request.ZkMasterKeyEncryptedPassword);
+        await zeroKnowledgeKeyService.SavePasswordAsync(request.PhrasePublicKeyEncryptedPassword);
     }
 
     /// <summary>
@@ -79,9 +83,10 @@ public class ZeroKnowledgeRecoveryService(
     }
 
     /// <summary>
-    /// Step 2: stores the browser's copies and forgets the server's.  Needs the password itself and
-    /// the phrase's check value.  Neither proves the copies open: the server can't open them, so it
-    /// takes the browser's word, as with every zero-knowledge copy.  The reset copy it makes itself.
+    /// Step 2: stores what the browser made from the phrase, and the password sealed to the phrase's
+    /// new public key, and forgets the server's copies.  Needs the password itself and the phrase's
+    /// check value.  Neither proves the copies open: the server can't open them, so it takes the
+    /// browser's word, as with every zero-knowledge copy.  The reset copy it makes itself.
     /// </summary>
     /// <remarks>
     /// Server-dealt Shamir that still locks the phrase moves off it first
@@ -95,10 +100,17 @@ public class ZeroKnowledgeRecoveryService(
         await secretService.AssertValidPasswordAsync(request.CurrentAuthenticationPasswordReply);
         await passwordKeyRecoveryService.AssertPhraseCheckAsync(request.PhraseCheck64, odinContext);
 
+        // Everything the transaction below needs, before moving the deal, which can't be undone
+        await passwordKeyRecoveryService.AssertNotTakenOverAsync();
+        if (await zeroKnowledgeKeyService.GetKeysAsync(odinContext) == null)
+        {
+            throw new OdinClientException("Make the zero-knowledge keys first", OdinClientErrorCode.ZeroKnowledgeKeysNotSet);
+        }
+
         await shamirConfigurationService.MoveOffThePhraseAsync(odinContext);
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request, odinContext);
+        await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request, request.PhrasePublicKeyEncryptedPassword, odinContext);
         await passwordKeyRecoveryService.CompleteTakeoverAsync(request.PhraseCheck64);
         tx.Commit();
 
@@ -107,15 +119,20 @@ public class ZeroKnowledgeRecoveryService(
 
     /// <summary>
     /// Recovery with the phrase when the password copy doesn't log in (someone with the password
-    /// rewrote it): the reset key opens today's master key, the password is set as a reset sets it,
-    /// and the recovered zero-knowledge master key is locked by the new password.  No login.
+    /// sealed junk) or is missing: the reset key opens today's master key, the password is set as a
+    /// reset sets it, and the recovered zero-knowledge master key is locked by the new password.  No
+    /// login.
     /// </summary>
-    public async Task ResetPasswordWithPhraseAsync(ZkPhraseResetRequest request)
+    public async Task ResetPasswordWithPhraseAsync(ZkPhraseResetRequest request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         request.Validate();
 
-        using var masterKey = await zeroKnowledgeKeyService.OpenMasterKeyWithResetKeyAsync(request.ResetKey64);
+        var resetKey64 = (await publicPrivateKeyService.EccDecryptPayload(request.EncryptedResetKey, odinContext))
+            .ToStringFromUtf8Bytes();
+        using var resetKey = ZkBlob.AssertBase64(resetKey64, nameof(request.EncryptedResetKey), exactLength: ZkBlob.KeyLength)
+            .ToSensitiveByteArray();
+        using var masterKey = await zeroKnowledgeKeyService.OpenMasterKeyWithResetKeyAsync(resetKey);
         await secretService.ResetPasswordUsingMasterKeyAsync(masterKey, request.PasswordReply, request.ZkKeys);
 
         logger.LogInformation("Password reset with the recovery phrase");
@@ -123,7 +140,8 @@ public class ZeroKnowledgeRecoveryService(
 
     /// <summary>
     /// After a reset with today's master key forgot the phrase copies: the owner typed the phrase in
-    /// again, and the browser locked the new zero-knowledge master key with it.
+    /// again, and the browser locked the new zero-knowledge master key with it and made a new key
+    /// pair.  No password copy: the browser has no password here, so the next password login seals it.
     /// </summary>
     public async Task ReenterAsync(ZkPhraseCopiesRequest request, IOdinContext odinContext)
     {
@@ -140,6 +158,6 @@ public class ZeroKnowledgeRecoveryService(
         }
 
         await passwordKeyRecoveryService.AssertPhraseCheckAsync(request.PhraseCheck64, odinContext);
-        await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request, odinContext);
+        await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request, phrasePublicKeyEncryptedPassword: null, odinContext);
     }
 }

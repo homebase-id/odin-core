@@ -79,8 +79,10 @@ public class PasswordKeyRecoveryService(
         // if they have never viewed the recovery key, allow us to see the key now
         if (recoveryKey?.InitialRecoveryKeyViewingDate == null)
         {
-            await ConfirmInitialRecoveryKeyStorage(odinContext);
+            // The reveal first: a reveal that fails (the phrase waits to be typed in again) must not
+            // spend the one free view.
             var leKeyNow = await GetRecoveryKeyAsync(true, odinContext);
+            await ConfirmInitialRecoveryKeyStorage(odinContext);
             return new RequestRecoveryKeyResult()
             {
                 Key = leKeyNow.Key,
@@ -237,6 +239,12 @@ public class PasswordKeyRecoveryService(
     public async Task<string> GetPhraseForTakeoverAsync(IOdinContext odinContext)
     {
         return OpenPhrase(await GetRecordForTakeoverAsync(), odinContext);
+    }
+
+    /// <summary>Refuses unless the server still holds the phrase for a takeover.</summary>
+    internal async Task AssertNotTakenOverAsync()
+    {
+        await GetRecordForTakeoverAsync();
     }
 
     /// <summary>

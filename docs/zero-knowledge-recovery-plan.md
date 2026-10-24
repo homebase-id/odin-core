@@ -31,6 +31,10 @@ inferred.
    password.** A password change re-locks the password copy only. The phrase and the shards don't
    change, because the ZK master key doesn't (plan A re-locks it under the new password). This
    drops today's re-dealing after every password change for friend setups.
+   - **Changed for the phrase** ([below](#changed-the-phrase-not-the-zk-master-key-guards-the-password)):
+     the password is sealed to a key pair the phrase locks, not locked by the ZK master key, which
+     anyone who once had the password holds. The friends pair must give the Shamir secret the same
+     shape: its own key pair and its own sealed password copy.
 3. **The recovery phrase the owner wrote down is kept** (decided 2026-10-24), so nobody writes
    down a new one. At a password login the browser takes it over, and from then on the server
    can't reach it.
@@ -110,9 +114,11 @@ What the server stores. It can open none of the new rows.
 | Stored | Locked by | Opened when |
 |---|---|---|
 | ZK master key (plan A) | second password key | every password login |
-| **Password** (new) | ZK master key | recovery; written at login, re-locked at password change |
+| **Password** (new) | sealed to the phrase's public key ([changed](#changed-the-phrase-not-the-zk-master-key-guards-the-password)) | recovery; written by the takeover, a password change, or a login that finds it missing |
 | **ZK master key, phrase copy** (new) | phrase key | recovery with the phrase |
 | **Phrase key** (the existing phrase, new copy) | ZK master key | showing the phrase again |
+| **Phrase key pair** (new): public half as is, private half locked | phrase key | recovery with the phrase opens the password |
+| **Master key, reset copy** (new) | reset key = hkdf(phrase key) | recovery with the phrase, when the password copy doesn't log in |
 | Phrase, server copies (today) | master key; the phrase locks the master key | deleted at the takeover |
 | Automated recovery's key (new) | master key; locked by the automated Shamir secret | automated recovery |
 | **ZK master key, Shamir copy** (new) | Shamir secret | recovery with friends |
@@ -131,8 +137,9 @@ What the server stores. It can open none of the new rows.
 After plan A's step (the ZK master key is open), inside the same 10 s cap. A failure never fails
 the login; the next login retries.
 
-1. **Password copy.** The browser opens it. If it's missing or differs from the password just
-   typed, the browser locks the typed one and saves it.
+1. **Password copy.** Sealed to the phrase's public key, so the browser can't open it to compare.
+   It writes one only when the status says it's missing (after the phrase was typed in again, or a
+   password change that sent none).
 2. **Phrase takeover,** if not done yet (decision 3): the server hands over its copy of the
    phrase once, the browser locks the ZK master key with it and locks the phrase with the ZK master
    key, and the server deletes its own copies. An identity with no phrase yet gets one made by the
@@ -145,8 +152,8 @@ the login; the next login retries.
 
 ### Password change
 
-Plan A re-locks the ZK master key under the new password. B adds the new password, locked by the
-ZK master key, to the same `resetpasswd` request; the server saves both in one transaction.
+Plan A re-locks the ZK master key under the new password. B adds the new password, sealed to the
+phrase's public key, to the same `resetpasswd` request; the server saves both in one transaction.
 Nothing else changes.
 
 ### Showing the phrase again
@@ -159,13 +166,15 @@ today **(V)**) moves to the browser: open the phrase copy.
 ### Recovery with the phrase
 
 1. On the login page, "Forgot password", then the 12 words.
-2. The browser fetches the phrase copy of the ZK master key and the password copy. No login is
-   needed: both are useless without the phrase, and a 128-bit key can't be guessed.
-3. The browser opens the ZK master key, then the password, and shows it.
+2. The browser fetches the phrase copy of the ZK master key, the phrase's key pair and the
+   password copy. No login is needed: all of it is useless without the phrase, and a 128-bit key
+   can't be guessed.
+3. The browser opens the phrase's private key, then the password, and shows it.
 4. The owner logs in as usual, and may change it.
-5. If that password doesn't log in (someone with the password rewrote the copy), the browser
-   derives the reset key from the ZK master key and sets a new password with it; the server resets
-   the password with today's master key, and the ZK master key is locked by the new password.
+5. If there is no password copy, or it doesn't open or doesn't log in (someone with the password
+   sealed junk), the browser derives the reset key from the phrase and sets a new password with it,
+   sent encrypted to the host's key; the server resets the password with today's master key, the
+   ZK master key (from its phrase copy) is locked by the new password, and every owner session ends.
 
 Until step 5 the server changes nothing.
 
@@ -392,12 +401,12 @@ odin-js:
 **Review fixes (2026-10-24):**
 - **A reset key, so recovery doesn't rely on copies a hijacker can rewrite.** Anyone with the
   password can rewrite the password copy (a password change writes it), and the server can't check
-  a copy it can't open. So at the takeover the browser also sends `RK = hkdf-sha256(ZKMK,
-  "homebase-recovery-reset-key")`, one way, and the server locks today's master key with it itself
-  (`ZkKeyRecord.ResetKeyEncryptedMasterKey`), correct by construction and written once. Recovery:
-  the phrase gives `ZKMK`; if the password copy logs in, done; otherwise the browser sends `RK` with
-  a new password and `ZKMK` locked by it (`POST authentication/zk-phrase-reset`, no login) and the
-  server resets the password as today's reset does, keeping the zero-knowledge keys.
+  a copy it can't open. So the browser also sends a reset key, one way, and the server locks today's
+  master key with it itself (`ZkKeyRecord.ResetKeyEncryptedMasterKey`), correct by construction.
+  Recovery: if the password copy logs in, done; otherwise the browser sends the reset key with a new
+  password and the ZK master key locked by it (`POST authentication/zk-phrase-reset`, no login) and
+  the server resets the password as today's reset does, keeping the zero-knowledge keys. The first
+  version derived the reset key from the ZK master key; the second review changed that, see below.
 - **The takeover also needs the password itself**, and the browser opens its copies again before
   they go.
 - **An old deal that can't be dealt again is removed**, not left blocking the takeover at every
@@ -410,6 +419,50 @@ odin-js:
   attacker who logs in with a phished password before the owner's next login.
 - `Development:DealsLockThePhrase` makes deals lock the phrase until the takeover, as every deal did
   before, so tests start where existing owners are.
+
+### Changed: the phrase, not the ZK master key, guards the password
+
+> **Second review (2026-10-24). Read this before anything above about the password copy or the reset
+> key.** The terminology document will explain it again, step by step.
+
+**The hole.** The first version locked the password copy with the ZK master key and derived the
+reset key from it. A password change keeps the ZK master key, and anyone with the password (and a
+session) opens it. So someone who learned the password *once* kept, forever and with no login:
+- every later password, by reading the no-login recovery copy;
+- a password reset, with the reset key;
+
+and needed no phrase for either, which skipped the 14-day wait before the phrase is shown.
+
+**The fix.** Both now hang off the phrase:
+- **Reset key** = hkdf-sha256(phrase key, "homebase-recovery-reset-key"), 16 bytes. Only the phrase
+  gives it.
+- **Phrase key pair** (P-384), made by the browser whenever it has the phrase (takeover, re-entry).
+  The public half is stored as is; the private half is locked by the phrase key.
+- **Password copy** = the password sealed to the phrase's public key. Sealing needs only the public
+  key, so a password login or change writes it without the phrase; only the phrase opens it.
+- The reset key travels encrypted to the host's offline key, as `resetpasswdrk` sends the phrase.
+
+**What it buys.** Someone who once had the password can still seal junk as the copy (the reset key
+repairs that), but can neither read the next password nor reset it without the phrase, which takes
+the 14-day wait, as today. The ZK master key itself still never changes, like today's master key;
+using it needs a login with the current password.
+
+**Consequences in the code:**
+- The browser can't open the copy to compare, so a login writes it only when it's missing.
+- Re-entering the phrase makes a new key pair but has no password to seal; the next login writes it.
+- The no-login recovery read returns the phrase copy of the ZK master key, the key pair and the
+  copy; with no copy, or one that doesn't open, the page goes straight to "set a new password".
+- Any password reset ends every owner session (`OwnerSecretService.ResetPasswordUsingMasterKeyAsync`),
+  so an intruder's open session goes with it.
+
+**Other second-review fixes:**
+- The takeover's re-deal waits for a running rotation instead of refusing, ignores the rotation's
+  one-hour failure cooldown, checks the deal again inside the gate, and deletes inside it
+  (`ShardRotationGate.WaitToEnterAsync`).
+- An old deal is removed only for a permanent cause (refused as a client error: a friend not
+  connected, automated recovery off). Anything else fails the takeover; the next login retries.
+- The takeover checks its own preconditions before touching the deal, which can't be undone.
+- A reveal that fails (the phrase waits to be typed in again) no longer spends the one free view.
 
 ## Size estimate
 

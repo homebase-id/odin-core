@@ -75,6 +75,38 @@ public class ShardRotationGateTest
         Assert.That(gate.TryEnter(), Is.False, "left the gate held or the cooldown off");
     }
 
+    /// <summary>The phrase takeover's entry: a failed rotation's cooldown must not block it.</summary>
+    [Test]
+    public async System.Threading.Tasks.Task WaitToEnterIgnoresTheCooldown()
+    {
+        var gate = NewGate();
+        Assert.That(gate.TryEnter(), Is.True);
+        gate.Failed();
+        gate.Exit();
+
+        Assert.That(await gate.WaitToEnterAsync(System.TimeSpan.Zero), Is.True, "held off by the cooldown");
+        Assert.That(gate.TryEnter(), Is.False, "entered while held");
+        gate.Exit();
+    }
+
+    [Test]
+    public async System.Threading.Tasks.Task WaitToEnterWaitsForTheHolder()
+    {
+        var gate = new ShardRotationGate();
+        Assert.That(gate.TryEnter(), Is.True);
+
+        var waiting = gate.WaitToEnterAsync(System.TimeSpan.FromSeconds(10));
+        await System.Threading.Tasks.Task.Delay(100);
+        Assert.That(waiting.IsCompleted, Is.False, "entered while held");
+
+        gate.Exit();
+        Assert.That(await waiting, Is.True);
+        gate.Exit();
+
+        Assert.That(gate.TryEnter(), Is.True);
+        Assert.That(await gate.WaitToEnterAsync(System.TimeSpan.FromMilliseconds(100)), Is.False, "did not give up");
+    }
+
     [Test]
     public void NoFailureMeansNoCooldown()
     {

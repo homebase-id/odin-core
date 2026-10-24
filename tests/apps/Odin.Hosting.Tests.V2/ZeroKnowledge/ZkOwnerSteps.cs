@@ -52,21 +52,25 @@ internal static class ZkOwnerSteps
     }
 
     /// <summary>Writes the password copy with proof of <paramref name="password"/>, as the login does.</summary>
-    public static async Task<ApiResponse<HttpContent>> SavePasswordAsync(OwnerSession owner, string password, string locked)
+    public static async Task<ApiResponse<HttpContent>> SavePasswordAsync(OwnerSession owner, string password, string sealedPassword)
     {
         return await Client(owner).SavePassword(new ZkPasswordRequest
         {
-            ZkMasterKeyEncryptedPassword = locked,
+            PhrasePublicKeyEncryptedPassword = sealedPassword,
             CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
                 owner.Host, owner.Identity.DomainName, password)
         });
     }
 
-    /// <summary>The takeover's request, as the login builds it: the copies and proof of <paramref name="password"/>.</summary>
+    /// <summary>
+    /// The takeover's request, as the login builds it: the copies, <paramref name="password"/> sealed
+    /// to the new public key, and proof of <paramref name="password"/>.
+    /// </summary>
     public static async Task<ZkPhraseTakeoverRequest> MakeTakeoverAsync(OwnerSession owner, string password,
         string phrase, byte[] zkMasterKey)
     {
-        var request = ZkBrowser.MakePhraseCopies<ZkPhraseTakeoverRequest>(phrase, zkMasterKey);
+        var request = ZkBrowser.MakePhraseCopies<ZkPhraseTakeoverRequest>(phrase, zkMasterKey).Request;
+        request.PhrasePublicKeyEncryptedPassword = ZkBrowser.SealPassword(password, request.PhrasePublicKeyJwk);
         request.CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
             owner.Host, owner.Identity.DomainName, password);
         return request;

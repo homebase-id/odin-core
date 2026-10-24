@@ -240,45 +240,52 @@ public class ShamirConfigurationService(
     /// </summary>
     /// <remarks>
     /// A deal that can't be repeated (a friend no longer connected, automated recovery off on this
-    /// host) is removed rather than kept: without the phrase it could never recover anything, and
-    /// keeping it would block the takeover at every login.  The security page then shows recovery
-    /// as not set up (<c>OwnerSecurityHealthService.GetSecurityNeedsAttentionStatus</c>).  Shares
-    /// <see cref="RotateShardKeysIfNeeded"/>'s gate, so the two never deal at once; when it's taken,
-    /// this throws and the next login tries again.
+    /// host: both refused as client errors) is removed rather than kept: without the phrase it could
+    /// never recover anything, and keeping it would block the takeover at every login.  The security
+    /// page then shows recovery as not set up (<c>OwnerSecurityHealthService.GetSecurityNeedsAttentionStatus</c>).
+    /// Anything else (the database, the outbox) fails the takeover, and the next login tries again.
+    /// Shares <see cref="RotateShardKeysIfNeeded"/>'s gate, so the two never deal at once, but waits
+    /// for it and ignores its cooldown: a rotation that keeps failing must not block this.
     /// </remarks>
     internal async Task MoveOffThePhraseAsync(IOdinContext odinContext)
     {
-        var key = await GetKeyInternalAsync();
-        if (key == null || key.ShamirDistributionKeyEncryptedMasterKey != null)
-        {
-            return;
-        }
-
-        if (!rotationGate.TryEnter())
+        if (!await rotationGate.WaitToEnterAsync(MoveOffThePhraseWait))
         {
             throw new OdinClientException("Recovery shards are being dealt; try again later");
         }
 
         try
         {
+            // Inside the gate: a rotation that just finished may have dealt it again already
+            var key = await GetKeyInternalAsync();
+            if (key == null || key.ShamirDistributionKeyEncryptedMasterKey != null)
+            {
+                return;
+            }
+
             var package = await GetDealerShardPackage(odinContext);
             if (package != null)
             {
-                await DealAgainAsync(package, odinContext, movingOffThePhrase: true);
-                return;
+                try
+                {
+                    await DealAgainAsync(package, odinContext, movingOffThePhrase: true);
+                    return;
+                }
+                catch (OdinClientException e)
+                {
+                    Logger.LogWarning(e, "Could not deal the recovery shards again for the phrase takeover; removing the old deal");
+                }
             }
-        }
-        catch (Exception e) when (e is OdinClientException or OdinSystemException)
-        {
-            Logger.LogWarning(e, "Could not deal the recovery shards again for the phrase takeover; removing the old deal");
+
+            await RemoveDealAsync(odinContext);
         }
         finally
         {
             rotationGate.Exit();
         }
-
-        await RemoveDealAsync(odinContext);
     }
+
+    private static readonly TimeSpan MoveOffThePhraseWait = TimeSpan.FromSeconds(5);
 
     private async Task RemoveDealAsync(IOdinContext odinContext)
     {

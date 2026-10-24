@@ -83,6 +83,14 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         var typed = await ZkOwnerSteps.Client(recovered).ReenterPhrase(ZkBrowser.MakePhraseCopies(phrase, keys.MasterKey));
         Assert.That(typed.StatusCode, Is.EqualTo(HttpStatusCode.OK), typed.Error?.Content);
 
+        // Re-entry has no password to seal; the next password login writes the copy.
+        var status = await ZkOwnerSteps.GetStatusAsync(recovered);
+        Assert.That(status.RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.TakenOver));
+        Assert.That(status.HasPasswordCopy, Is.False);
+        var written = await ZkOwnerSteps.SavePasswordAsync(recovered, NewPassword,
+            ZkBrowser.SealPassword(NewPassword, status.PhrasePublicKeyJwk));
+        Assert.That(written.StatusCode, Is.EqualTo(HttpStatusCode.OK), written.Error?.Content);
+
         var recovery = await Host.AnonymousRefitFor<IOwnerAuthenticationClient>(recovered.Identity.DomainName).GetPhraseRecovery();
         Assert.That(recovery.StatusCode, Is.EqualTo(HttpStatusCode.OK), recovery.Error?.Content);
         Assert.That(ZkBrowser.RecoverPassword(phrase, recovery.Content!), Is.EqualTo(NewPassword));

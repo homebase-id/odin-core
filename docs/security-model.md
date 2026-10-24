@@ -26,14 +26,16 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
   never encrypts for one, and no grant on one carries its key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
 - **Recovery in the browser** ([zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md)): once the browser
   takes the recovery phrase over, the server holds no copy of it it can open (`RecoveryKeyRecord.TakenOver`). The
-  phrase locks the zero-knowledge master key, which locks the password. The phrase recovery read
-  (`authentication/zk-phrase-recovery`) needs **no login**: it returns only those two locked values, useless without
-  the 128-bit phrase. The handover, the takeover and the password copy need proof of the password itself, as a
-  password change does (`PasswordReply`, `ZeroKnowledgeRecoveryService`), so a stolen session without the password can
-  do none of them. Someone *with* the password can still write copies the server can't open or check, so recovery
-  doesn't rely on them alone: at the takeover the server locks today's master key with the phrase's reset key itself
-  (`ResetKeyEncryptedMasterKey`), and `authentication/zk-phrase-reset` (no login) resets the password with it.
-  Server-dealt Shamir locks the master key, not the phrase. **(V)**
+  phrase locks the zero-knowledge master key and the private half of a phrase key pair; the password is sealed to the
+  public half, so a login can write it but only the phrase reads it. The phrase recovery read
+  (`authentication/zk-phrase-recovery`) needs **no login**: it returns only those locked values, useless without the
+  128-bit phrase. The handover, the takeover and the password copy need proof of the password itself, as a password
+  change does (`PasswordReply`, `ZeroKnowledgeRecoveryService`), so a stolen session without the password can do none
+  of them. Someone *with* the password can still seal junk the server can't open or check, so recovery doesn't rely on
+  it alone: the server locks today's master key with the phrase's reset key, hkdf(phrase), itself
+  (`ResetKeyEncryptedMasterKey`), and `authentication/zk-phrase-reset` (no login, the key encrypted to the host)
+  resets the password with it and ends every owner session. Nothing the password opens reads the copy or makes the
+  reset key. Server-dealt Shamir locks the master key, not the phrase. **(V)**
 
 ### Callers
 

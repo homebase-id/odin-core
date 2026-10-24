@@ -87,27 +87,35 @@ public class ZeroKnowledgeKeyService(
 
         request.Validate();
 
-        // The phrase copies lock the zero-knowledge master key, which a password change keeps.
+        // The phrase copies lock the zero-knowledge master key, which a password change keeps.  The
+        // password copy is the new password's, or none.
         await SaveRecordAsync(existing with
         {
             ZkSaltKek64 = request.ZkSaltKek64,
             ZkKekEncryptedZkMasterKey = request.ZkKekEncryptedZkMasterKey,
-            ZkMasterKeyEncryptedPassword = request.ZkMasterKeyEncryptedPassword
+            PhrasePublicKeyEncryptedPassword = existing.PhrasePublicKeyJwk == null ? null : request.PhrasePublicKeyEncryptedPassword
         });
     }
 
     /// <summary>Writes the password copy; the caller proved the password.</summary>
-    internal async Task SavePasswordAsync(string zkMasterKeyEncryptedPassword)
+    internal async Task SavePasswordAsync(string phrasePublicKeyEncryptedPassword)
     {
         var existing = await GetRecordOrFailAsync();
-        await SaveRecordAsync(existing with { ZkMasterKeyEncryptedPassword = zkMasterKeyEncryptedPassword });
+        if (existing.PhrasePublicKeyJwk == null)
+        {
+            throw new OdinClientException("No phrase key to seal the password to", OdinClientErrorCode.RecoveryPhraseNotTakenOver);
+        }
+
+        await SaveRecordAsync(existing with { PhrasePublicKeyEncryptedPassword = phrasePublicKeyEncryptedPassword });
     }
 
     /// <summary>
-    /// Stores the browser's two phrase copies, and locks today's master key with its reset key; the
-    /// caller validates them and decides when.
+    /// Stores what the browser made from the phrase, and locks today's master key with its reset key;
+    /// the caller validates it and decides when.  The password copy is sealed to the new public key,
+    /// or none.
     /// </summary>
-    internal async Task SavePhraseCopiesAsync(ZkPhraseCopiesRequest request, IOdinContext odinContext)
+    internal async Task SavePhraseCopiesAsync(ZkPhraseCopiesRequest request, string phrasePublicKeyEncryptedPassword,
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         var existing = await GetRecordOrFailAsync();
@@ -116,34 +124,35 @@ public class ZeroKnowledgeKeyService(
         {
             PhraseKeyEncryptedZkMasterKey = request.PhraseKeyEncryptedZkMasterKey,
             ZkMasterKeyEncryptedPhraseKey = request.ZkMasterKeyEncryptedPhraseKey,
+            PhrasePublicKeyJwk = request.PhrasePublicKeyJwk,
+            PhraseKeyEncryptedPhrasePrivateKey = request.PhraseKeyEncryptedPhrasePrivateKey,
+            PhrasePublicKeyEncryptedPassword = phrasePublicKeyEncryptedPassword,
             ResetKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(secret: resetKey, dataToEncrypt: odinContext.Caller.GetMasterKey())
         });
     }
 
     /// <summary>
     /// Today's master key, from the reset key recovery with the phrase sends.  Refused (a key hash
-    /// mismatch) for any other key.
+    /// mismatch, 403) for any other key.
     /// </summary>
-    internal async Task<SensitiveByteArray> OpenMasterKeyWithResetKeyAsync(string resetKey64)
+    internal async Task<SensitiveByteArray> OpenMasterKeyWithResetKeyAsync(SensitiveByteArray resetKey)
     {
         var record = await GetRecordAsync();
-        if (record?.ResetKeyEncryptedMasterKey == null)
+        if (record?.HasPhraseCopies() != true)
         {
             throw new OdinClientException("The recovery phrase was not taken over", OdinClientErrorCode.RecoveryPhraseNotTakenOver);
         }
 
-        using var resetKey = resetKey64.FromBase64().ToSensitiveByteArray();
         return record.ResetKeyEncryptedMasterKey.DecryptKeyClone(resetKey);
     }
 
     /// <summary>
-    /// What recovery with the phrase fetches, with no login.  Null unless the phrase was taken over
-    /// and the password copy exists.
+    /// What recovery with the phrase fetches, with no login.  Null unless the phrase copies exist.
     /// </summary>
     public async Task<ZkPhraseRecoveryResponse> GetPhraseRecoveryAsync()
     {
         var record = await GetRecordAsync();
-        if (record?.PhraseKeyEncryptedZkMasterKey == null || record.ZkMasterKeyEncryptedPassword == null)
+        if (record?.HasPhraseCopies() != true)
         {
             return null;
         }
@@ -151,7 +160,9 @@ public class ZeroKnowledgeKeyService(
         return new ZkPhraseRecoveryResponse
         {
             PhraseKeyEncryptedZkMasterKey = record.PhraseKeyEncryptedZkMasterKey,
-            ZkMasterKeyEncryptedPassword = record.ZkMasterKeyEncryptedPassword
+            PhraseKeyEncryptedPhrasePrivateKey = record.PhraseKeyEncryptedPhrasePrivateKey,
+            PhrasePublicKeyJwk = record.PhrasePublicKeyJwk,
+            PhrasePublicKeyEncryptedPassword = record.PhrasePublicKeyEncryptedPassword
         };
     }
 
@@ -239,7 +250,6 @@ public class ZeroKnowledgeKeyService(
     {
         ZkSaltKek64 = request.ZkSaltKek64,
         ZkKekEncryptedZkMasterKey = request.ZkKekEncryptedZkMasterKey,
-        ZkMasterKeyEncryptedPassword = request.ZkMasterKeyEncryptedPassword,
         Created = UnixTimeUtc.Now(),
         Updated = UnixTimeUtc.Now()
     };

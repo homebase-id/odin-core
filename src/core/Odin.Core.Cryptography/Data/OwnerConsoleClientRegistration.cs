@@ -25,7 +25,11 @@ namespace Odin.Core.Cryptography.Data
 
         public string IssuedTo { get; init; }
 
-        public int Type => 100;
+        public const int TypeId = 100;
+
+        public static readonly Guid Category = Guid.Parse("cc0b390d-ac32-450f-bbaa-0108debde248");
+
+        public int Type => TypeId;
 
         /// <summary>
         /// How long an owner session lives without use. Named so a token meant to behave like the
@@ -35,7 +39,7 @@ namespace Odin.Core.Cryptography.Data
 
         public int TimeToLiveSeconds => (Int32)Lifetime.TotalSeconds;
 
-        public Guid CategoryId => Guid.Parse("cc0b390d-ac32-450f-bbaa-0108debde248");
+        public Guid CategoryId => Category;
 
         public string GetValue()
         {

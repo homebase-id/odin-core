@@ -578,8 +578,9 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
 recovery gives you back your password,** shown only in your own browser. You log in as usual and
 may then change it.
 
-- The recovery phrase and the Shamir secret each lock the zero-knowledge master key, which locks
-  the password. A password change re-locks only the password copy.
+- The recovery phrase locks the zero-knowledge master key and a key pair the password is sealed
+  to, so only the phrase reads it (the friends pair gives Shamir the same shape). A password
+  change re-seals only the password copy.
 - **Recovery phrase:** the one the owner wrote down is kept. At a password login the browser takes
   it over and the server deletes its copies; the server having seen it before is an accepted risk,
   like converting a drive with its existing key. To show it again, the browser keeps it locked by

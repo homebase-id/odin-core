@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core;
@@ -12,6 +13,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
+using Odin.Services.Authorization;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
@@ -29,6 +31,7 @@ namespace Odin.Services.Authentication.Owner
         TableKeyValueCached tblKeyValue,
         TableNonce nonceTable,
         ZeroKnowledgeKeyService zeroKnowledgeKeyService,
+        ClientRegistrationStorage clientRegistrationStorage,
         IdentityDatabase db)
     {
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
@@ -218,7 +221,8 @@ namespace Odin.Services.Authentication.Owner
         /// A reset with today's master key: the old recovery phrase before its takeover, server-dealt
         /// Shamir, or the phrase's reset key.  Only the last brings the zero-knowledge master key back
         /// (<paramref name="recoveredZkKeys"/>, locked by the new password by the browser that
-        /// recovered it); otherwise the zero-knowledge keys are forgotten.
+        /// recovered it); otherwise the zero-knowledge keys are forgotten.  Every owner session ends:
+        /// whoever made the reset necessary may hold one.
         /// </summary>
         public async Task ResetPasswordUsingMasterKeyAsync(SensitiveByteArray masterKey, PasswordReply reply,
             ZkKeysRequest recoveredZkKeys = null)
@@ -237,7 +241,15 @@ namespace Odin.Services.Authentication.Owner
                 await zeroKnowledgeKeyService.DeleteAsync();
             }
 
+            tx.AddPostCommitAction(EndOwnerSessionsAsync);
             tx.Commit();
+        }
+
+        private async Task EndOwnerSessionsAsync()
+        {
+            var sessions = await clientRegistrationStorage.GetByTypeAndCategoryIdAsync<OwnerConsoleClientRegistration>(
+                OwnerConsoleClientRegistration.TypeId, OwnerConsoleClientRegistration.Category);
+            await clientRegistrationStorage.DeleteManyAsync(sessions.Select(r => r.Id));
         }
 
         public async Task ResetPasswordAsync(ResetPasswordRequest request, IOdinContext odinContext)

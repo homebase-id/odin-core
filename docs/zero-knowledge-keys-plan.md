@@ -31,8 +31,8 @@ Built on branches `zk-keys-plan-a` (odin-core, odin-js) and `zk-drive-columns`
   one locks nothing, and the server refuses it from then on: the drive id is encrypted with the
   new key. The server never encrypts for a zero-knowledge drive at all: an encrypted upload is
   refused with `DriveIsZeroKnowledge`, and a test proves it.
-- **The login keys copy was replaced by the password copy** in plan B (the password, locked by the ZK
-  master key): recovery gives back the password itself.
+- **The login keys copy was replaced by the password copy** in plan B (the password, sealed to the
+  recovery phrase's public key): recovery gives back the password itself.
 - **Shard Recovery is the first Private drive.** It starts Collaborative like every drive, and
   conversion makes it Private. Conversion drops the master-key copy, stores the browser's locked
   keys and the new write-only pair, and resets the whole `OdinContextCache` after commit.

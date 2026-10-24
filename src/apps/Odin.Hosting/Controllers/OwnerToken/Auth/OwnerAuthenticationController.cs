@@ -150,9 +150,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
 
         /// <summary>
         /// Recovery with the phrase (docs/zero-knowledge-recovery-plan.md): the zero-knowledge master key
-        /// locked by the phrase, and the password locked by that key.  No login, because both are
-        /// useless without the phrase, a random 128-bit key.  404 until the browser took the phrase
-        /// over; the page then falls back to <c>resetpasswdrk</c>.
+        /// and the phrase's private key, both locked by the phrase, and the password sealed to the
+        /// phrase's public key.  No login, because all of it is useless without the phrase, a random
+        /// 128-bit key.  404 until the browser took the phrase over; the page then falls back to
+        /// <c>resetpasswdrk</c>.
         /// </summary>
         [HttpGet("zk-phrase-recovery")]
         public async Task<ActionResult<ZkPhraseRecoveryResponse>> GetPhraseRecovery(
@@ -170,7 +171,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<IActionResult> ResetPasswordWithPhrase([FromBody] ZkPhraseResetRequest request,
             [FromServices] ZeroKnowledgeRecoveryService zeroKnowledgeRecoveryService)
         {
-            await zeroKnowledgeRecoveryService.ResetPasswordWithPhraseAsync(request);
+            await zeroKnowledgeRecoveryService.ResetPasswordWithPhraseAsync(request, WebOdinContext);
             return Ok();
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -12,6 +13,7 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir;
 public class ShardRotationGate
 {
     internal const long CooldownMs = 60 * 60 * 1000;
+    private const int WaitStepMs = 50;
 
     private readonly Func<long> _nowMs;
     private int _busy;
@@ -44,6 +46,27 @@ public class ShardRotationGate
         {
             Exit();
             return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// For a deal that must not be skipped (the phrase takeover): waits for the holder to leave, up to
+    /// <paramref name="timeout"/>, and ignores the cooldown, which only throttles the auth handler's
+    /// retries.  A true result must be paired with <see cref="Exit"/>.
+    /// </summary>
+    public async Task<bool> WaitToEnterAsync(TimeSpan timeout)
+    {
+        var giveUpMs = _nowMs() + (long)timeout.TotalMilliseconds;
+        while (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
+        {
+            if (_nowMs() >= giveUpMs)
+            {
+                return false;
+            }
+
+            await Task.Delay(WaitStepMs);
         }
 
         return true;
