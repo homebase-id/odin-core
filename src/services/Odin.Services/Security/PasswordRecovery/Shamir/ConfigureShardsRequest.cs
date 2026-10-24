@@ -35,7 +35,7 @@ public sealed class ConfigureShardsRequest
         OdinValidationUtils.AssertIsTrue(MinMatchingShards >= 2 && MinMatchingShards <= Shards.Count,
             "The minimum number of shards must be between 2 and the number of players");
         OdinValidationUtils.AssertIsTrue(
-            Shards.Select(s => s.Player?.OdinId).Distinct().Count() == Shards.Count &&
+            Shards.Select(s => s.Player.OdinId).Distinct().Count() == Shards.Count &&
             Shards.Select(s => s.ShardId).Distinct().Count() == Shards.Count &&
             Shards.Select(s => s.Index).Distinct().Count() == Shards.Count,
             "Each shard needs its own player, id and index");
@@ -96,7 +96,6 @@ public sealed record DealtShard
 
     public void Validate()
     {
-        OdinValidationUtils.AssertNotNull(Player, nameof(Player));
         OdinValidationUtils.AssertNotEmptyGuid(ShardId, nameof(ShardId));
         OdinValidationUtils.AssertIsTrue(Index >= 1, "A shard's index starts at 1");
         OdinValidationUtils.AssertIsTrue(EncryptionKey?.Length == 16 && EncryptionIv?.Length == 16,

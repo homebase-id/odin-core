@@ -114,17 +114,7 @@ public class ShamirRecoveryService
             return;
         }
 
-        odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
-            WellKnownAppDrives.ShardRecoveryDrive,
-            DrivePermission.Read,
-            odinContext);
-
-        var pkg = await _configurationService.GetDealerShardPackage(odinContext);
-
-        if (null == pkg)
-        {
-            throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
-        }
+        var pkg = await GetDealerPackageOrFailAsync(odinContext);
 
         if (!pkg.UsesAutomatedRecovery)
         {
@@ -152,20 +142,9 @@ public class ShamirRecoveryService
 
     public async Task InitiateRecoveryModeExit(IOdinContext odinContext)
     {
+        // Only the email: anyone can ask, and nothing changes until the owner confirms the exit with it
+        // (ExitRecoveryMode).  Recovery goes on as it was meanwhile.
         await _recoveryNotifier.EnqueueVerificationEmail([], RecoveryEmailType.ExitRecoveryMode);
-
-        // Nothing ends until the owner confirms the exit by email, and anyone can ask for one: collecting
-        // goes on with the recovering browser's key, and once enough friends approved, that browser can
-        // still fetch the bundle
-        var status = await GetStatusRecordInternal() ?? new ShamirRecoveryStatusRecord();
-        if (status.State != ShamirRecoveryState.AwaitingRecoveringBrowser)
-        {
-            await UpdateStatus(status with
-            {
-                Updated = UnixTimeUtc.Now(),
-                State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToExitRecoveryMode
-            });
-        }
     }
 
     public async Task<ShamirRecoveryStatusRedacted> GetStatus(IOdinContext odinContext)
@@ -185,7 +164,8 @@ public class ShamirRecoveryService
         {
             Updated = status.Updated,
             State = status.State,
-            Email = maskedEmail
+            Email = maskedEmail,
+            RecoveryKeyId = status.RecoveryPublicKeyJwk == null ? null : ZkSeal.KeyId(status.RecoveryPublicKeyJwk)
         };
     }
 
@@ -202,36 +182,45 @@ public class ShamirRecoveryService
         // Checked before the link is used up, so the right browser can still open it
         var nonceData = await _recoveryNotifier.PeekNonceDataOrFail(nonceId);
         var startedWith = string.IsNullOrEmpty(nonceData) ? null : nonceData;
-        if (startedWith != null &&
-            (recoveryPublicKeyJwk == null || !ZkSeal.RawPublicKey(recoveryPublicKeyJwk).SequenceEqual(ZkSeal.RawPublicKey(startedWith))))
+        if (startedWith != null && (recoveryPublicKeyJwk == null || !SameKey(recoveryPublicKeyJwk, startedWith)))
         {
             throw new OdinClientException("Open this link in the browser where you started recovery", OdinClientErrorCode.RecoveryNotReady);
         }
 
         // A friend deal needs the key the friends seal to; a link made without one (an automated deal's,
         // or another email's) can't enter it
-        var nc = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
-        var package = await _configurationService.GetDealerShardPackage(nc)
-                      ?? throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
+        var package = await GetDealerPackageOrFailAsync(odinContext);
         if (!package.UsesAutomatedRecovery && startedWith == null)
         {
             throw new OdinClientException("Start recovery again in this browser", OdinClientErrorCode.RecoveryNotReady);
         }
 
+        // A second link ("send it again") to a recovery already under way: only from the browser it is
+        // under way for.  While shards are being collected it asks the friends again (one may have been
+        // unreachable); once they're in, it changes nothing.
+        var current = await GetStatusRecordInternal();
+        var underWay = IsInRecoveryMode(current);
+        if (underWay && !SameKey(current.RecoveryPublicKeyJwk, startedWith))
+        {
+            throw new OdinClientException("Recovery is under way in another browser", OdinClientErrorCode.RecoveryNotReady);
+        }
+
         await _recoveryNotifier.GetNonceDataOrFail(nonceId);
 
-        // An unused second link ("send it again") must not start a recovery under way over again
-        if (await IsInRecoveryMode())
+        if (underWay && current.State != ShamirRecoveryState.AwaitingSufficientDelegateConfirmation)
         {
             return;
         }
 
-        await UpdateStatus(new ShamirRecoveryStatusRecord()
+        if (!underWay)
         {
-            Updated = UnixTimeUtc.Now(),
-            State = ShamirRecoveryState.AwaitingSufficientDelegateConfirmation,
-            RecoveryPublicKeyJwk = startedWith
-        });
+            await UpdateStatus(new ShamirRecoveryStatusRecord()
+            {
+                Updated = UnixTimeUtc.Now(),
+                State = ShamirRecoveryState.AwaitingSufficientDelegateConfirmation,
+                RecoveryPublicKeyJwk = startedWith
+            });
+        }
 
         var hashedRecoveryEmail = await _passwordKeyRecoveryService.GetHashedRecoveryEmail();
         //TODO: move this to an outbox call
@@ -638,6 +627,17 @@ public class ShamirRecoveryService
         };
 
         return (finalRecoveryKey, finalInfo);
+    }
+
+    private static bool SameKey(string jwk, string otherJwk) =>
+        jwk == null ? otherJwk == null : otherJwk != null && ZkSeal.RawPublicKey(jwk).SequenceEqual(ZkSeal.RawPublicKey(otherJwk));
+
+    /// <summary>The dealer package, read as recovery reads it with no login; refused when there is none.</summary>
+    private async Task<DealerShardPackage> GetDealerPackageOrFailAsync(IOdinContext odinContext)
+    {
+        var context = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
+        return await _configurationService.GetDealerShardPackage(context)
+               ?? throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
     }
 
     private async Task<bool> IsInRecoveryMode() => IsInRecoveryMode(await GetStatusRecordInternal());

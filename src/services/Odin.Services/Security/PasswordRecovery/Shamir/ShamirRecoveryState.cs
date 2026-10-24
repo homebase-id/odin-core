@@ -10,7 +10,8 @@ public enum ShamirRecoveryState
     AwaitingOwnerEmailVerificationToEnterRecoveryMode,
 
     /// <summary>
-    /// Email was sent to owner; we are waiting for the owner to click the email link to verify and exit recovery mode
+    /// No longer set: asking to exit only sends the email, and recovery goes on as it was until the
+    /// owner confirms with it (anyone can ask).  Kept so a status stored before that still reads.
     /// </summary>
     AwaitingOwnerEmailVerificationToExitRecoveryMode,
 

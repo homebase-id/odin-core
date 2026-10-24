@@ -761,7 +761,6 @@ counted.
 **Review fixes (first round):**
 - Entering checks the browser's key before it uses up the link (`TableNonce.PeekAsync`), so a wrong
   browser can't burn the email.
-- Asking to exit keeps the throwaway key while collecting goes on.
 - A gated shard handed in must be sealed to the throwaway key, so its holder's server can't count
   junk towards the threshold. The browser rebuilds with the dealer's own index (the envelope's), not
   the one a holder sends. It also tries subsets when one shard spoils the rebuild.
@@ -773,15 +772,24 @@ counted.
 - The threshold is at least 2, and an index is 1 to n.
 - A peer read of a deposit passes its sealed key header through (`ReEncrypt`).
 - Sending still needs the drive key, except for a deposit.
-- The page keeps the throwaway key until recovery ends, and makes a new one for a new recovery.
 
-**Review fixes (second round):**
-- An exit request once the friends approved leaves the state alone, so the bundle stays.
-- An unused second link ("send it again") can't start a recovery under way over again.
+**Review fixes (second and third rounds):**
+- **Asking to exit only sends the email.** Anyone can ask, so nothing changes until the owner confirms
+  with the email: collecting goes on, and the bundle stays. (A first fix kept the key but still moved
+  the state, which stranded a recovery in other ways; the state no longer moves at all, and
+  `AwaitingOwnerEmailVerificationToExitRecoveryMode` is no longer set.)
+- **A second email link** ("send it again") for a recovery under way must carry the same browser key.
+  While shards are being collected it asks the friends again (one may have been unreachable); once
+  they're in, it changes nothing.
 - A link that carries no browser key (the exit email's, say) can't enter a friend deal.
-- A reset with a reset key ends recovery mode, as a finalized recovery does.
-- The page forgets the throwaway key as soon as the bundle is open.
-- Deposits show as sealed in the drive explorer and are skipped by exports.
+- A reset with a reset key ends recovery mode, in the same transaction, as a finalized recovery does.
+- **The page's throwaway key:**
+  - The status gives the key id of the recovery under way (`RecoveryKeyId`). The page trusts only a
+    stored key with that id.
+  - The page forgets a stored key when a status read that started after the key was made shows
+    another recovery or none. It also forgets it after a reset, and at the owner's next login.
+  - It reuses the key only for the recovery under way.
+- Deposits show as sealed in the drive explorer; a download keeps their content as stored.
 
 **Reset:** `POST authentication/zk-reset` (renamed from `zk-phrase-reset`; nothing was released) takes
 either reset key. The friends' is hkdf-sha256(S, no salt, "homebase-shamir-reset-key"), 16 bytes. A

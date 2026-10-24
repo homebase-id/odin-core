@@ -20,5 +20,11 @@ public class ShamirRecoveryStatusRedacted
     public UnixTimeUtc Updated { get; init; }
     public ShamirRecoveryState State { get; init; }
     public string Email { get; init; }
+
+    /// <summary>
+    /// Which throwaway key the recovery under way is for (<c>ZkSeal.KeyId</c>), so a browser can tell
+    /// whether it is the one that started it.  Null when there is none.
+    /// </summary>
+    public uint? RecoveryKeyId { get; init; }
 }
 

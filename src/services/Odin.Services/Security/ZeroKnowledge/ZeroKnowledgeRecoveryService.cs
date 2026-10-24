@@ -158,10 +158,13 @@ public class ZeroKnowledgeRecoveryService(
             exactLength: ZkBlob.KeyLength).ToSensitiveByteArray();
         System.Security.Cryptography.CryptographicOperations.ZeroMemory(decrypted);
         using var masterKey = await zeroKnowledgeKeyService.OpenMasterKeyWithResetKeyAsync(resetKey);
-        await secretService.ResetPasswordUsingMasterKeyAsync(masterKey, request.PasswordReply, request.ZkKeys);
 
-        // Recovery with friends is over once the password is set, as a finalized recovery ends it
+        // Recovery with friends is over once the password is set, as a finalized recovery ends it: both
+        // or neither
+        await using var tx = await db.BeginStackedTransactionAsync();
+        await secretService.ResetPasswordUsingMasterKeyAsync(masterKey, request.PasswordReply, request.ZkKeys);
         await shamirRecoveryService.EndRecoveryModeAfterResetAsync(odinContext);
+        tx.Commit();
 
         logger.LogInformation("Password reset with a recovery reset key");
     }

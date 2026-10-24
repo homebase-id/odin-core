@@ -46,6 +46,9 @@ public class FriendRecoveryTests : ShamirFixture
 
         // The two automatic friends released at once; that is never enough on its own
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
+        Assert.That((await AnonymousSecurityOf(frodo).GetShamirRecoverStatus()).Content!.RecoveryKeyId,
+            Is.EqualTo(Odin.Services.Security.ZeroKnowledge.ZkSeal.KeyId(RecoveringBrowser!.PublicKeyJwk)),
+            "the status says which browser the recovery is for");
         DriveAsserts.AssertRejected(await AnonymousSecurityOf(frodo).GetRecoveryBundle(), OdinClientErrorCode.RecoveryNotReady);
 
         var gated = players.Where(p => config.Envelopes.Single(e => e.Player.OdinId == p.Identity).Player.Type == PlayerType.Delegate).ToList();
@@ -320,5 +323,51 @@ public class FriendRecoveryTests : ShamirFixture
         var stale = await ZkOwnerSteps.SavePasswordAsync(frodo, Password, phraseCopy: null,
             friendsCopy: ZkBrowser.SealPassword(Password, ZkBrowser.MakeKeyPair().PublicKeyJwk));
         DriveAsserts.AssertRejected(stale, OdinClientErrorCode.ArgumentError);
+    }
+
+    [Test]
+    public async Task AnExitRequestChangesNothingUntilTheOwnerConfirmsIt()
+    {
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
+        var security = AnonymousSecurityOf(frodo);
+        var browser = ZkBrowser.MakeKeyPair();
+
+        var initiate = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = browser.PublicKeyJwk });
+        Assert.That(initiate.StatusCode, Is.EqualTo(HttpStatusCode.OK), initiate.Error?.Content);
+        var link = RecoveryLink(frodo, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString();
+
+        // Someone asks to exit before the owner clicked the email: the link still works
+        Assert.That((await security.ExitRecoveryMode()).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingOwnerEmailVerificationToEnterRecoveryMode);
+
+        var entered = await security.EnterRecoveryMode(new EnterRecoveryModeRequest { Id = link, RecoveryPublicKeyJwk = browser.PublicKeyJwk });
+        Assert.That(entered.StatusCode, Is.EqualTo(HttpStatusCode.OK), entered.Error?.Content);
+        RecoveringBrowser = browser;
+        Assert.That(await GetPlayerShardRequestAsync(config, players[0]), Is.Not.Null, "the friends were asked");
+    }
+
+    [Test]
+    public async Task AnotherBrowsersLinkCanNotJoinARecoveryUnderWay()
+    {
+        var (frodo, _, _) = await ArrangeDelegateShardsAsync();
+        var security = AnonymousSecurityOf(frodo);
+        var laptop = ZkBrowser.MakeKeyPair();
+        var phone = ZkBrowser.MakeKeyPair();
+
+        var links = new List<(ZkBrowser.KeyPair Browser, string Link)>();
+        foreach (var browser in new[] { laptop, phone })
+        {
+            var initiate = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = browser.PublicKeyJwk });
+            Assert.That(initiate.StatusCode, Is.EqualTo(HttpStatusCode.OK), initiate.Error?.Content);
+            links.Add((browser, RecoveryLink(frodo, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString()));
+        }
+
+        var fromLaptop = await security.EnterRecoveryMode(new EnterRecoveryModeRequest { Id = links[0].Link, RecoveryPublicKeyJwk = laptop.PublicKeyJwk });
+        Assert.That(fromLaptop.StatusCode, Is.EqualTo(HttpStatusCode.OK), fromLaptop.Error?.Content);
+
+        var fromPhone = await security.EnterRecoveryMode(new EnterRecoveryModeRequest { Id = links[1].Link, RecoveryPublicKeyJwk = phone.PublicKeyJwk });
+        DriveAsserts.AssertRejected(fromPhone, OdinClientErrorCode.RecoveryNotReady);
+        Assert.That((await security.GetShamirRecoverStatus()).Content!.RecoveryKeyId,
+            Is.EqualTo(Odin.Services.Security.ZeroKnowledge.ZkSeal.KeyId(laptop.PublicKeyJwk)));
     }
 }
