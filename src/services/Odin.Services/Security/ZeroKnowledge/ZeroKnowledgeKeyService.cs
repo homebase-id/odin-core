@@ -44,13 +44,11 @@ public class ZeroKnowledgeKeyService(
         odinContext.Caller.AssertHasMasterKey();
 
         var record = await GetRecordAsync();
-        var shardDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
 
         return new ZkStatusResponse
         {
             ZkSaltKek64 = record?.ZkSaltKek64,
-            ZkKekEncryptedZkMasterKey = record?.ZkKekEncryptedZkMasterKey,
-            ShardRecoveryDriveZkMasterKeyEncryptedStorageKey = shardDrive?.ZkMasterKeyEncryptedStorageKey
+            ZkKekEncryptedZkMasterKey = record?.ZkKekEncryptedZkMasterKey
         };
     }
 

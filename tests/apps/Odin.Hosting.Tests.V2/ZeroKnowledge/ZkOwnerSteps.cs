@@ -1,8 +1,10 @@
 #nullable enable
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Drives;
@@ -25,6 +27,10 @@ internal static class ZkOwnerSteps
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return response.Content!;
     }
+
+    /// <summary>Where the browser looks to see whether the drive is converted.</summary>
+    public static async Task<OwnerClientDriveData> GetShardRecoveryDriveAsync(OwnerSession owner) =>
+        (await owner.Admin.GetDrives()).Single(d => d.TargetDriveInfo == WellKnownAppDrives.ShardRecoveryDrive);
 
     public static async Task<ZkBrowser.Keys> CreateKeysAsync(OwnerSession owner, string password, byte[] loginKeys)
     {

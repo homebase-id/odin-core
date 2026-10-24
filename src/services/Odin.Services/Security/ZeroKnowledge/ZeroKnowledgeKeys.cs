@@ -51,13 +51,6 @@ public sealed class ZkStatusResponse
     public string ZkSaltKek64 { get; init; }
 
     public string ZkKekEncryptedZkMasterKey { get; init; }
-
-    /// <summary>
-    /// The Shard Recovery drive's key, locked by the zero-knowledge master key; null until the drive
-    /// is converted.  The browser converts the drive again when this no longer opens: after a reset
-    /// with the recovery key the master key is new.
-    /// </summary>
-    public string ShardRecoveryDriveZkMasterKeyEncryptedStorageKey { get; init; }
 }
 
 /// <summary>

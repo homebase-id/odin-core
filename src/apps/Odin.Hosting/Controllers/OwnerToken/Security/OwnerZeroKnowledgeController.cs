@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Security.ZeroKnowledge;
 
@@ -17,8 +18,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 public class OwnerZeroKnowledgeController(ZeroKnowledgeKeyService zeroKnowledgeKeyService) : OdinControllerBase
 {
     /// <summary>
-    /// What the browser needs after login: its locked master key and salt (null until it makes them),
-    /// and whether the Shard Recovery drive is converted yet.
+    /// What the browser needs after login: its locked master key and salt (null until it makes them).
+    /// Whether a drive is converted is on the drive (<see cref="OwnerClientDriveData"/>).
     /// </summary>
     [HttpGet]
     public async Task<ZkStatusResponse> GetStatus()

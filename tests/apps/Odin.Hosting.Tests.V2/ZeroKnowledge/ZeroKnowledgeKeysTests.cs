@@ -60,7 +60,7 @@ public class ZeroKnowledgeKeysTests : V2Fixture
 
         Assert.That(status.ZkSaltKek64, Is.Null);
         Assert.That(status.ZkKekEncryptedZkMasterKey, Is.Null);
-        Assert.That(status.ShardRecoveryDriveZkMasterKeyEncryptedStorageKey, Is.Null);
+        Assert.That((await GetShardRecoveryDrive(owner)).ZkMasterKeyEncryptedStorageKey, Is.Null);
     }
 
     [Test]
@@ -157,10 +157,6 @@ public class ZeroKnowledgeKeysTests : V2Fixture
             "a drive is labelled Private only once it is converted");
         var driveKeys = await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
 
-        var status = await GetStatus(owner);
-        Assert.That(ZkBrowser.Open(status.ShardRecoveryDriveZkMasterKeyEncryptedStorageKey, keys.MasterKey),
-            Is.EqualTo(driveKeys.DriveKey), "the browser checks the drive key opens before skipping the conversion");
-
         // A fresh login builds the owner's permissions from every drive; the converted one has no
         // master-key copy, and that must not break it.
         var freshOwner = await LoginAsOwner();
@@ -169,7 +165,8 @@ public class ZeroKnowledgeKeysTests : V2Fixture
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Private));
         Assert.That(drive.WriteOnlyPublicKeyJwk, Is.EqualTo(driveKeys.WriteOnlyPublicKeyJwk));
 
-        // The browser's path: master key -> drive key -> write-only private key.
+        // The browser's path: master key -> drive key (its check before skipping the conversion) ->
+        // write-only private key.
         var driveKey = ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, keys.MasterKey);
         Assert.That(driveKey, Is.EqualTo(driveKeys.DriveKey));
         Assert.That(ZkBrowser.Open(drive.ZkStorageKeyEncryptedWriteOnlyPrivateKey, driveKey),
@@ -201,7 +198,7 @@ public class ZeroKnowledgeKeysTests : V2Fixture
         var response = await Client(owner).ConvertShardRecoveryDrive(driveKeys.Request);
 
         DriveAsserts.AssertRejected(response, OdinClientErrorCode.DriveHasEncryptedFiles);
-        Assert.That((await GetStatus(owner)).ShardRecoveryDriveZkMasterKeyEncryptedStorageKey, Is.Null);
+        Assert.That((await GetShardRecoveryDrive(owner)).ZkMasterKeyEncryptedStorageKey, Is.Null);
     }
 
     [Test]
@@ -229,8 +226,7 @@ public class ZeroKnowledgeKeysTests : V2Fixture
 
     private static Task<ZkBrowser.Keys> CreateKeys(OwnerSession owner) => ZkOwnerSteps.CreateKeysAsync(owner, Password, LoginKeys);
 
-    private static async Task<OwnerClientDriveData> GetShardRecoveryDrive(OwnerSession owner) =>
-        (await owner.Admin.GetDrives()).Single(d => d.TargetDriveInfo == WellKnownAppDrives.ShardRecoveryDrive);
+    private static Task<OwnerClientDriveData> GetShardRecoveryDrive(OwnerSession owner) => ZkOwnerSteps.GetShardRecoveryDriveAsync(owner);
 
     private static async Task<IApiResponse> UploadEncryptedFile(OwnerSession owner)
     {
