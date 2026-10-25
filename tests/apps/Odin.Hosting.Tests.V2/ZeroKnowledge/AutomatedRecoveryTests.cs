@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using Autofac;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -76,8 +77,12 @@ public class AutomatedRecoveryTests : ShamirFixture
         await AssertRecoveryStateAsync(recovered, ShamirRecoveryState.None);
     }
 
+    /// <summary>
+    /// A click doesn't use the link up: a failure on the dealer's side must not lose it, and a repeat
+    /// fills nothing more.
+    /// </summary>
     [Test]
-    public async Task AHolderLinkWorksOnceAndOnlyWithItsCode()
+    public async Task AHolderLinkWorksOnlyWithItsCodeAndARepeatFillsNothingMore()
     {
         var (frodo, _) = Cast();
         await ArrangeAutomatedDealAsync(frodo);
@@ -90,12 +95,17 @@ public class AutomatedRecoveryTests : ShamirFixture
         DriveAsserts.AssertRejected(await security.FillSlot(new FillSlotRequest { ShardId = Guid.NewGuid().ToString(), Code = link.Code }),
             OdinClientErrorCode.ShardLinkNoLongerValid);
 
-        var filled = await security.FillSlot(link);
-        Assert.That(filled.StatusCode, Is.EqualTo(HttpStatusCode.OK), filled.Error?.Content);
-        DriveAsserts.AssertRejected(await security.FillSlot(link), OdinClientErrorCode.ShardLinkNoLongerValid);
+        DriveAsserts.AssertRejected(await security.FillSlot(new FillSlotRequest { ShardId = "not-a-shard", Code = link.Code }),
+            OdinClientErrorCode.ShardLinkNoLongerValid);
+
+        for (var click = 0; click < 2; click++)
+        {
+            var filled = await security.FillSlot(link);
+            Assert.That(filled.StatusCode, Is.EqualTo(HttpStatusCode.OK), filled.Error?.Content);
+        }
 
         var status = (await security.GetShamirRecoverStatus()).Content!;
-        Assert.That(status.Filled, Is.EqualTo(1), "a wrong code fills nothing, and a used one nothing more");
+        Assert.That(status.Filled, Is.EqualTo(1), "a wrong code fills nothing, and a repeat nothing more");
     }
 
     [Test]
@@ -178,5 +188,29 @@ public class AutomatedRecoveryTests : ShamirFixture
         Assert.That(rebuilt.Bundle.Copies, Is.Not.Null, "dealt in the browser");
         Assert.That(rebuilt.Password, Is.EqualTo(Password));
         Assert.That(rebuilt.ZkMasterKey, Is.EqualTo(ZkMasterKeyOf(frodo)));
+    }
+
+    /// <summary>
+    /// A friend deal the server made before recovery in the browser has no copies, and its gated
+    /// friends can't release: it can give nothing back, so recovery says so at the start.
+    /// </summary>
+    [Test]
+    public async Task AnOldServerMadeFriendDealIsRefusedAtTheStart()
+    {
+        var (frodo, _) = Cast();
+        await ArrangeServerMadeAutomatedDealAsync(frodo);
+
+        // What an old friend deal looks like: the same package, not automated
+        var (scope, context) = await MigrationContextAsync(frodo);
+        var shamir = scope.Resolve<ShamirConfigurationService>();
+        var package = await shamir.GetDealerShardPackage(context);
+        package.UsesAutomatedRecovery = false;
+        await shamir.SaveDealerPackage(package, context);
+
+        var started = await AnonymousSecurityOf(frodo).InitiateRecoveryMode(new InitiateRecoveryModeRequest
+        {
+            RecoveryPublicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk
+        });
+        DriveAsserts.AssertRejected(started, OdinClientErrorCode.PasswordRecoveryNotConfigured);
     }
 }

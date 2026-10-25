@@ -943,31 +943,54 @@ Facts checked in the code or by a test are marked **(V)**.
 - **A holder's pending release** (`AutomaticShardReleases`, key-value, one per shard): the dealer, the
   recovering browser's key, the code's SHA-256 and when it was emailed **(V)**. The code is 16 random
   bytes in hex. Inside five minutes a new request keeps the code and takes the new key; the link
-  works for seven days, once **(V)** (tests: a used or wrong code fails; starting again soon reuses it).
+  works for seven days, until a newer email replaces it **(V)** (tests: a wrong code fails; a repeat
+  fills nothing more; starting again soon reuses it).
+  - A click doesn't use the link up: a failure on the dealer's side (the shard refused, the reply
+    lost) must not lose it, and the dealer keeps one copy of each shard however often it comes.
+  - The holder checks it can send email before it records the request, so a link that never went out
+    doesn't hold off the next one for five minutes.
 - **Peer and owner endpoints:** `release-automatic-shard` (holder, from the dealer), `fill-slot`
   (anonymous, the page posts the link's shard and code), `automated-recovery-players` (owner: the
   host's automated identities and the threshold) **(V)**. `fill-slot` checks a recovery is collecting
   before it calls the holder, so a link clicked after the recovery is over isn't used up **(V)**.
 - **Every shard handed in must be sealed to the recovering browser**, automatic ones too, and every
   deal ends in `AwaitingRecoveringBrowser`; `AwaitingOwnerFinalization` is no longer set, and one
-  stored before no longer blocks a new start **(V)**.
+  stored before reads as no recovery **(V)**.
+- **One shard is collected at a time** (a node lock per identity): each counts the shards in to
+  decide the threshold, so two clicks at once would each see one short of it.
+- **"Start over" asks only the holders whose shard isn't in** (test).
+- **Only an automated server-made deal recovers without copies.** An old server-made friend deal
+  is refused at the start, as before: its gated friends can't release (test).
 - **Status while collecting:** `Needed`, `Filled`, and `SealedSlots64`, the holders and which are in,
   sealed to the recovering browser's key **(V)** (a test opens it there and fails with another key).
-- **Server-made deals recover in the browser too.** The bundle says `IsServerMadeDeal` and has no
-  copies; the browser rebuilds the secret and posts it with a new password to `finalize`, which opens
-  today's master key with it and forgets the zero-knowledge keys, as every such reset does **(V)**.
-  - Their envelopes kept the position (0-based), not the piece's index, so such a deal is rebuilt with
-    the shard's own index, as the server rebuilt it. `CreateShards` now stores the piece's index
-    **(V)**.
+- **Server-made deals recover in the browser too.** Their bundle has no copies; the browser rebuilds
+  the secret and posts it with a new password to `finalize`, which opens today's master key with it
+  and forgets the zero-knowledge keys, as every such reset does **(V)**.
+  - Their envelopes kept the position (0-based), not the piece's x. No x is 0, so the bundle gives
+    such envelopes their x (position plus one), and every browser rebuilds with the dealer's own
+    index. `CreateShards` now stores the piece's x **(V)**.
+- **First run** deals the automated deal in this browser; if it can't (no zero-knowledge master key
+  in the session yet), the next password login does, if there is still no deal by then.
+- A failed automated deal at login stops nothing else: the takeover moves an old deal itself.
 - **The next password login deals a server-made automated deal again**, before the takeover:
   `ZkStatus.AutomatedDealNeedsDealing`, also set when a reset forgot an automated deal's copies
   **(V)** (test). First run and the security page deal it in the browser; the server deals only for
-  the takeover's move off the phrase, and `enable-auto-password-recovery` works on a development host
-  only, for these tests.
+  the takeover's move off the phrase (a fallback: the login deals in the browser first), and for these
+  tests, in process (`DealServerMadeAutomatedDealAsync`). `enable-auto-password-recovery` goes.
 - **Rotation is gone** for every deal, and with it `RotationPending` (the risk report's paragraph and
   the security page's notice). The per-request hook only removes a friend deal that recovers nothing
-  (`RemoveDeadFriendDealIfNeeded`) **(V)**.
-- New error: `ShardLinkNoLongerValid` (9024).
+  (`RemoveDeadFriendDealIfNeeded`) **(V)**; its gate is `ShamirDealGate` now.
+- The status builds the slots only while shards are awaited: the page shows them then **(V)**.
+- New error: `ShardLinkNoLongerValid` (9024), also for a link a mail client cut.
+- **Known limits:**
+  - Recovery emails go to the registration address (`TenantContext.Email`), while holder links go to
+    the recovery email the holders hashed at the deal; the start email says so. They differ only
+    after the owner changed the recovery email.
+  - A holder on a server without email can't release.
+  - The status reads the package and the collected shards, and seals the slot list, on each poll
+    while shards are awaited (every five seconds per open page). Bounded to that window.
+  - A holder still on the release before this one hands its shard over unsealed, which the dealer
+    refuses: the automated identities' hosts must be on this release with the dealers.
 - **Found, not fixed (pre-existing):** changing the recovery email leaves every deal's stored email
   hash stale, so the holders refuse the requests until the owner deals again
   (`UpdateAccountRecoveryEmail` touches no deal) **(V)**. With this design the holders couldn't email

@@ -38,7 +38,7 @@ public sealed class AutomaticShardReleases(TableKeyValueCached tblKeyValue)
     private static readonly SingleKeyValueStorage Storage =
         TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse("90ae30b1-aabe-49d6-ac3f-cb7765039bb3"));
 
-    /// <summary>How long an emailed link works, unless a newer email replaces it.</summary>
+    /// <summary>How long an emailed link works, unless a newer email replaces it.  A click doesn't use it up.</summary>
     public static readonly TimeSpan CodeLifetime = TimeSpan.FromDays(7);
 
     /// <summary>At most one email per shard this often: a request inside it keeps the code already sent.</summary>
@@ -83,8 +83,6 @@ public sealed class AutomaticShardReleases(TableKeyValueCached tblKeyValue)
 
         return existing;
     }
-
-    public Task DeleteAsync(Guid shardId) => Storage.DeleteAsync(tblKeyValue, shardId);
 
     private static byte[] Hash(string code) => ByteArrayUtil.CalculateSHA256Hash(code.ToUtf8ByteArray());
 }

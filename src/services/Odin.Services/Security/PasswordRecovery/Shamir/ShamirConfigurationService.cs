@@ -486,7 +486,7 @@ public class ShamirConfigurationService(
 
         try
         {
-            // The copies first: they are there for every deal but a dead one, and the check is cheap
+            // The copies first, a cheap check: every deal made in the browser has them while it can recover
             if (await zeroKnowledgeKeyService.HasShamirCopiesAsync())
             {
                 return;

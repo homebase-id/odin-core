@@ -118,7 +118,7 @@ public class RecoveryEmailsTest
         foreach (var body in new[] { text, html })
         {
             Assert.That(body, Does.Match("Ask these friends to approve in their Homebase: (<b>)?sam.example.com"));
-            Assert.That(body, Does.Match("These will each email you a link; click each one: (<b>)?na1.homebase.example"));
+            Assert.That(body, Does.Match("These will each email a link to your recovery email address; click each one: (<b>)?na1.homebase.example"));
         }
     }
 

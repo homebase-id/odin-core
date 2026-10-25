@@ -242,7 +242,7 @@ public class RecoveryNotifier(
     /// except on a development host, where the links are read from the log or the
     /// <see cref="IRecoveryNotificationSink"/> instead.
     /// </summary>
-    private void AssertEmailEnabled()
+    public void AssertEmailEnabled()
     {
         if (!configuration.Mailgun.Enabled && !configuration.Development.Enabled)
         {

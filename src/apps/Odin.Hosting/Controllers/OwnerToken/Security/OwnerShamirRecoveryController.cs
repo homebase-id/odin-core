@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -73,8 +74,13 @@ public class OwnerShamirRecoveryController : OdinControllerBase
     public async Task<IActionResult> FillSlot([FromBody] FillSlotRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        OdinValidationUtils.AssertNotNullOrEmpty(request.ShardId, nameof(request.ShardId));
-        await _recoveryService.FillSlotAsync(Guid.Parse(request.ShardId), request.Code, WebOdinContext);
+        // A link a mail client wrapped or cut: say it no longer works, as for any other bad link
+        if (!Guid.TryParse(request.ShardId, out var shardId))
+        {
+            throw new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid);
+        }
+
+        await _recoveryService.FillSlotAsync(shardId, request.Code, WebOdinContext);
         return Ok();
     }
 
@@ -113,8 +119,10 @@ public class OwnerShamirRecoveryController : OdinControllerBase
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNullOrEmpty(request.Secret64, nameof(request.Secret64));
-        await _recoveryService.FinalizeServerMadeDealAsync(Convert.FromBase64String(request.Secret64), request.PasswordReply,
-            WebOdinContext);
+        var secret = new byte[ShamirConfigurationService.DistributionKeyLength];
+        OdinValidationUtils.AssertIsTrue(Convert.TryFromBase64String(request.Secret64, secret, out var length) && length == secret.Length,
+            $"The secret is {secret.Length} bytes, base64");
+        await _recoveryService.FinalizeServerMadeDealAsync(secret, request.PasswordReply, WebOdinContext);
         return Ok();
     }
     

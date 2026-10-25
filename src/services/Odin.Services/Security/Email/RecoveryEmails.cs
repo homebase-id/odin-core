@@ -62,7 +62,7 @@ public static class RecoveryEmails
 
         if (email.Any())
         {
-            sb.Append($"{lineBreak}These will each email you a link; click each one: {names(string.Join(", ", email))}");
+            sb.Append($"{lineBreak}These will each email a link to your recovery email address; click each one: {names(string.Join(", ", email))}");
         }
 
         return sb.Append(lineBreak).ToString();

@@ -393,14 +393,16 @@ public class FriendRecoveryTests : ShamirFixture
             Assert.That(junk.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"{notAKey}: {junk.Error?.Content}");
         }
 
-        // "Start over" from the same browser: a new link, and the friends are asked again
+        // "Start over" from the same browser: a new link, and the friends still missing are asked again
         var again = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = RecoveringBrowser!.PublicKeyJwk });
         Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.OK), again.Error?.Content);
         var link = RecoveryLink(frodo, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString();
         var entered = await security.EnterRecoveryMode(new EnterRecoveryModeRequest { Id = link, RecoveryPublicKeyJwk = RecoveringBrowser.PublicKeyJwk });
         Assert.That(entered.StatusCode, Is.EqualTo(HttpStatusCode.OK), entered.Error?.Content);
 
-        var asked = await GetPlayerShardRequestAsync(config, approver);
+        // Only the friends whose shard isn't in: the one who approved isn't asked again
+        Assert.That(await GetPlayerShardRequestAsync(config, approver), Is.Null, "a shard already in isn't asked for again");
+        var asked = await GetPlayerShardRequestAsync(config, players[1]);
         Assert.That(asked?.RecoveryPublicKeyJwk, Is.EqualTo(RecoveringBrowser.PublicKeyJwk), "asked again, for the same browser");
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
 
