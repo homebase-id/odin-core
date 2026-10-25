@@ -969,10 +969,17 @@ Facts checked in the code or by a test are marked **(V)**.
   friend approving. The margins are not strict: the holder's 15 seconds start after the call reached
   it (not tested: it needs the lock held).
 - **Collecting checks the shard before it takes the lock** (anyone in the network can hand one in),
-  and reads the status again under it. Its status write is update-only, so an exit that deleted the
-  status meanwhile stands: no lock around exits, which run at login, in transactions and from links.
-  A shard sealed to another key, or for a recovery that has ended, is `ShardLinkNoLongerValid`; a
-  friend's server then drops the stale request.
+  and reads the status again inside its transaction, as stored. Every collect writes the status back
+  through a compare-and-swap on those bytes (`SingleKeyValueStorage.TryReplaceAsync`, an
+  `UPDATE ... WHERE data = @expected`) **(V)** (storage test on SQLite, Redis and Postgres), so an
+  exit or a new start meanwhile is never undone and the shard rolls back with it: no lock around
+  exits, which run at login, in transactions and from links.
+  - A shard sealed to another key, or for a recovery that has ended, is `ShardLinkNoLongerValid`; a
+    friend's server then drops the stale request, only if it is still the one it handled (same
+    `Created` and key): a dealer that started over asked again in the same file (test).
+  - A click on a holder's link that finds no recovery collecting is `RecoveryNotReady`: the link
+    itself still works. One whose shard is sealed to an earlier start's key (the holder wasn't
+    reached at the new start) is `ShardLinkNoLongerValid` (test).
 - The threshold counts only the deal's own shards, as the status's slots do.
 - **A status without a browser key is from before this release** (an automated recovery under way,
   or one waiting on its finalize link): it reads as no recovery, so a new start replaces it, and a
@@ -1010,7 +1017,7 @@ Facts checked in the code or by a test are marked **(V)**.
 - **Known limits:**
   - Recovery emails go to the registration address (`TenantContext.Email`), while holder links go to
     the recovery email the holders hashed at the deal; the start email says so. They differ only
-    after the owner changed the recovery email.
+    after the owner changed the recovery email (#2016).
   - A holder on a server without email can't release.
   - The status reads the package and the collected shards, and seals the slot list, on each poll
     while shards are awaited (every five seconds per open page). Bounded to that window.
@@ -1025,7 +1032,7 @@ Facts checked in the code or by a test are marked **(V)**.
 - **Found, not fixed (pre-existing):** changing the recovery email leaves every deal's stored email
   hash stale, so the holders refuse the requests until the owner deals again
   (`UpdateAccountRecoveryEmail` touches no deal) **(V)**. With this design the holders couldn't email
-  the new address anyway.
+  the new address anyway (#2017).
 
 ## Size estimate
 
