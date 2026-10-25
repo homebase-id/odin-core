@@ -6,6 +6,8 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Services.Security.PasswordRecovery.Shamir.ShardCollection;
+using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Core.Time;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -266,13 +268,25 @@ public class AutomatedRecoveryTests : ShamirFixture
     public async Task ARecoveryFromBeforeThisReleaseDoesNotBlockANewStart()
     {
         var (frodo, _) = Cast();
-        await ArrangeAutomatedDealAsync(frodo);
-        var scope = Host.GetTenantScope(frodo.Identity.DomainName);
+        var config = await ArrangeAutomatedDealAsync(frodo);
+        var (scope, context) = await MigrationContextAsync(frodo);
         await ShamirRecoveryService.Storage.UpsertAsync(scope.Resolve<TableKeyValueCached>(), ShamirRecoveryService.ShamirStatusStorageId,
             new ShamirRecoveryStatusRecord { State = ShamirRecoveryState.AwaitingSufficientDelegateConfirmation, Updated = UnixTimeUtc.Now() });
 
+        // and a shard it collected unsealed, as holders released them before
+        var leftover = config.Envelopes.First();
+        await new PlayerShardCollector(scope.Resolve<StandardFileSystem>()).SavePlayerShard(new PlayerEncryptedShard
+        {
+            Id = leftover.ShardId,
+            Index = 1,
+            Player = leftover.Player,
+            DealerEncryptedShard = ByteArrayUtil.GetRndByteArray(48)
+        }, context);
+
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
         await EnterRecoveryModeAsync(frodo);
+        Assert.That((await AnonymousSecurityOf(frodo).GetShamirRecoverStatus()).Content!.Filled, Is.EqualTo(0),
+            "a fresh entry clears what an older recovery left");
         await FillEverySlotAsync(frodo);
         Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password));
     }

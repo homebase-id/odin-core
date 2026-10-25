@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -98,6 +99,9 @@ public class ShamirRecoveryService
         _automaticReleases = new AutomaticShardReleases(keyValueTable);
     }
 
+    /// <summary>How long entering recovery waits for each holder; one not reached is asked again by "start over".</summary>
+    private static readonly TimeSpan HolderAskTimeout = TimeSpan.FromSeconds(20);
+
     // Internal for the tests that store a status as an older release did
     internal static readonly Guid ShamirStatusStorageId = Guid.Parse("d2180696-2d18-41e3-8699-c90c0d3aa710");
     private const string ContextKey = "aa575e4a-ffc6-44a1-8ea6-077ee1171a9d";
@@ -122,7 +126,7 @@ public class ShamirRecoveryService
         // Under way: do nothing, say nothing, to keep any insights from the wrong eyes.  Except "start
         // over" while shards are being collected, from the browser it is under way for: a new link,
         // which asks the holders again (EnterRecoveryMode).
-        if (IsInRecoveryMode(current) && !(awaitingShards && SameKey(recoveryPublicKeyJwk, current.RecoveryPublicKeyJwk)))
+        if (IsCollecting(current) && !(awaitingShards && SameKey(recoveryPublicKeyJwk, current.RecoveryPublicKeyJwk)))
         {
             return;
         }
@@ -198,7 +202,7 @@ public class ShamirRecoveryService
         return redacted with
         {
             Needed = package.MinMatchingShards,
-            Filled = slots.Count(slot => slot.Filled),
+            Filled = ShardsIn(package, collected),
             SealedSlots64 = ZkSeal.Seal(OdinSystemSerializer.Serialize(slots).ToUtf8ByteArray(), status.RecoveryPublicKeyJwk).ToBase64()
         };
     }
@@ -233,7 +237,7 @@ public class ShamirRecoveryService
         // under way for.  While shards are being collected it asks the holders again (one may have been
         // unreachable); once they're in, it changes nothing.
         var current = await GetStatusRecordInternal();
-        var underWay = IsInRecoveryMode(current);
+        var underWay = IsCollecting(current);
         if (underWay && !SameKey(current.RecoveryPublicKeyJwk, startedWith))
         {
             throw new OdinClientException("Recovery is under way in another browser", OdinClientErrorCode.RecoveryUnderWayElsewhere);
@@ -273,6 +277,8 @@ public class ShamirRecoveryService
             // One holder that can't be reached must not keep the others from being asked
             try
             {
+                // Bounded, so the browser's request never waits on a holder that hangs
+                using var timeout = new CancellationTokenSource(HolderAskTimeout);
                 var client = await CreateClientAsync(envelope.Player.OdinId);
                 var response = await client.RequestShard(new RetrieveShardRequest
                 {
@@ -280,7 +286,7 @@ public class ShamirRecoveryService
                     HashedRecoveryEmail = hashedRecoveryEmail,
                     RecoveryPublicKeyJwk = startedWith,
                     RecoveryEmail = envelope.Player.Type == PlayerType.Automatic ? recoveryEmail : null
-                });
+                }, timeout.Token);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -329,10 +335,10 @@ public class ShamirRecoveryService
         {
             _logger.LogInformation("{holder} did not release shard {shardId}: {status}", envelope.Player.OdinId, shardId, response?.StatusCode);
 
-            // The holder answered and refused (a wrong, replaced or expired link, or a shard it no longer
-            // holds): that is for good.  No answer, or a failure on its side, may pass: the same link
-            // still works.
-            var refused = response != null && (int)response.StatusCode is >= 400 and < 500;
+            // The holder refused (400: a wrong, replaced or expired link; 403: a shard it no longer holds
+            // for this dealer): that is for good.  Anything else (no answer, a timeout, an
+            // authentication or routing failure on the way) may pass: the same link still works.
+            var refused = response?.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden;
             throw refused
                 ? new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid)
                 : new OdinClientException("The holder could not be reached; try the same link again later",
@@ -401,6 +407,10 @@ public class ShamirRecoveryService
             // Early, before the request is recorded: a link that can't be emailed must not hold off the
             // next one (the notifier checks again, for its other callers' sake)
             _recoveryNotifier.AssertEmailEnabled();
+
+            // One request per shard at a time: a second one must see whether the first one's email went
+            await using var oneAtATime = await _nodeLock.LockAsync(
+                NodeLockKey.Create(nameof(ShamirRecoveryService), "release", shard.Id.ToString()));
             var code = await _automaticReleases.RequestAsync(shard.Id, requester, request.RecoveryPublicKeyJwk);
             if (code != null)
             {
@@ -499,7 +509,7 @@ public class ShamirRecoveryService
             NodeLockKey.Create(nameof(ShamirRecoveryService), "collect", _tenantContext.HostOdinId.DomainName));
 
         var status = await GetStatusRecordInternal();
-        if (!IsInRecoveryMode(status))
+        if (!IsCollecting(status))
         {
             throw new OdinClientException("Not in recovery mode");
         }
@@ -541,8 +551,8 @@ public class ShamirRecoveryService
         }
 
         // Only this deal's shards count, as in the status's slots
-        var collected = await CollectedShardIdsAsync(odinContext);
-        if (package.Envelopes.Count(e => collected.Contains(e.ShardId)) >= package.MinMatchingShards)
+        var shardsIn = ShardsIn(package, await CollectedShardIdsAsync(odinContext));
+        if (shardsIn >= package.MinMatchingShards)
         {
             // The dealer can't open the shards: the browser that started recovery rebuilds the secret
             // (GetRecoveryBundleAsync).  The email carries nothing.
@@ -561,7 +571,7 @@ public class ShamirRecoveryService
         else
         {
             // collect the shards, so I can piece together my password
-            int remainingRequired = package.MinMatchingShards - package.Envelopes.Count(e => collected.Contains(e.ShardId));
+            int remainingRequired = package.MinMatchingShards - shardsIn;
             await _mediator.Publish(new ShamirPasswordRecoveryShardCollectedNotification
             {
                 OdinContext = odinContext,
@@ -758,6 +768,10 @@ public class ShamirRecoveryService
                ?? throw new OdinClientException("Password recovery is not set up", OdinClientErrorCode.PasswordRecoveryNotConfigured);
     }
 
+    /// <summary>How many of <paramref name="package"/>'s shards are in: the threshold and the status count the same.</summary>
+    private static int ShardsIn(DealerShardPackage package, HashSet<Guid> collected) =>
+        package.Envelopes.Count(e => collected.Contains(e.ShardId));
+
     /// <summary>Which shards are in, as recovery reads them with no login.</summary>
     private async Task<HashSet<Guid>> CollectedShardIdsAsync(IOdinContext odinContext) =>
         (await _playerShardCollector.GetCollectShards(odinContext)).Select(c => c.Id).ToHashSet();
@@ -772,12 +786,12 @@ public class ShamirRecoveryService
         await GetDealerPackageAsync(odinContext)
         ?? throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
 
-    /// <summary>Whether shards are being collected, or are in and the browser may still need more.</summary>
+    /// <summary>
+    /// Whether a recovery is under way: shards are being collected, or are in and the browser may still
+    /// need more.  (No other state is set now, and one stored before has no key: it reads as none.)
+    /// </summary>
     private static bool IsCollecting(ShamirRecoveryStatusRecord status) =>
         status?.State is ShamirRecoveryState.AwaitingSufficientDelegateConfirmation or ShamirRecoveryState.AwaitingRecoveringBrowser;
-
-    // AwaitingOwnerEmailVerificationToExitRecoveryMode is no longer set, and one stored before has no key
-    private static bool IsInRecoveryMode(ShamirRecoveryStatusRecord status) => IsCollecting(status);
 
     private async Task<ShamirRecoveryStatusRecord> GetStatusRecordInternal()
     {
