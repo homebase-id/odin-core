@@ -450,9 +450,9 @@ internal static class ZkBlob
     }
 
     /// <summary>
-    /// A P-384 public key as a JWK, the only curve the browser makes and seals with: exactly what
-    /// <see cref="ZkSeal.RawPublicKey"/> reads (48-byte coordinates), and a point on the curve.  One rule,
-    /// so a key accepted here can always be read back.
+    /// A P-384 public key as a JWK, the only curve the browser makes and seals with: one that
+    /// <see cref="ZkSeal.RawPublicKey"/> reads (48-byte coordinates), with kty EC and a point on the
+    /// curve.  So a key accepted here can always be read back.
     /// </summary>
     public static void AssertPublicKey(string jwk, string name)
     {
@@ -463,9 +463,9 @@ internal static class ZkBlob
             EccPublicKeyData.FromJwkPublicKey(jwk, 1);
             return;
         }
-        catch (Exception e) when (e is not OdinClientException)
+        catch (Exception)
         {
-            // falls through
+            // falls through to the refusal that names the field
         }
 
         throw new OdinClientException($"{name} is not a P-384 public key", OdinClientErrorCode.ArgumentError);

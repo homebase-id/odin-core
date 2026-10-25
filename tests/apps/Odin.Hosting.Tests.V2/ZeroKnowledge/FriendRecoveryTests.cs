@@ -417,7 +417,7 @@ public class FriendRecoveryTests : ShamirFixture
         var padded = $"{{\"kty\":\"EC\",\"crv\":\"P-384\",\"x\":\"{Base64UrlEncoder.Encode([0, .. x])}\",\"y\":\"{jwk.RootElement.GetProperty("y").GetString()}\"}}";
 
         var start = await AnonymousSecurityOf(frodo).InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = padded });
-        Assert.That(start.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), start.Error?.Content);
+        DriveAsserts.AssertRejected(start, OdinClientErrorCode.ArgumentError);
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
     }
 }
