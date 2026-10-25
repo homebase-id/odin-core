@@ -81,10 +81,9 @@ public class ShamirConfigurationService(
     /// before the browser dealt it, so a test can recover with one and see the next password login deal
     /// it again.  The browser deals the automated deal now (<see cref="ConfigureShards"/>).
     /// </summary>
-    public async Task DealServerMadeAutomatedDealAsync(IOdinContext odinContext)
+    internal async Task DealServerMadeAutomatedDealAsync(IOdinContext odinContext)
     {
-        AssertCanUseAutomatedRecovery();
-        var automated = GetAutomatedRecoveryPlayers();
+        var automated = GetAutomatedRecoveryPlayers() ?? throw new OdinClientException("No automated recovery on this host");
         await DistributeShards(automated.Players, automated.MinMatchingShards, odinContext);
     }
 

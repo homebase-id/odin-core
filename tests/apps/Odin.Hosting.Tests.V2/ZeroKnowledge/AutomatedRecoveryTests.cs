@@ -1,10 +1,13 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using Autofac;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Base;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -204,5 +207,50 @@ public class AutomatedRecoveryTests : ShamirFixture
             RecoveryPublicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk
         });
         DriveAsserts.AssertRejected(started, OdinClientErrorCode.PasswordRecoveryNotConfigured);
+    }
+
+    /// <summary>
+    /// What someone holding the dealer's server, or a copy of its data and peer credentials, can get
+    /// from a holder: a link sent to another address is refused, nothing is released without the code
+    /// the holder emailed the owner, and an identity that isn't the dealer gets nothing either.
+    /// </summary>
+    [Test]
+    public async Task AHolderEmailsOnlyTheHashedAddressAndReleasesOnlyWithItsCode()
+    {
+        var (frodo, players) = Cast();
+        var config = await ArrangeAutomatedDealAsync(frodo);
+        var envelope = config.Envelopes.First();
+        var holder = envelope.Player.OdinId;
+
+        var (scope, _) = await MigrationContextAsync(frodo);
+        var recovery = scope.Resolve<PasswordKeyRecoveryService>();
+        var hash = await recovery.GetHashedRecoveryEmail();
+        var address = (await recovery.GetRecoveryInfo())!.Email;
+        var asDealer = await scope.Resolve<IOdinHttpClientFactory>().CreateClientAsync<IPeerPasswordRecoveryHttpClient>(holder);
+        RetrieveShardRequest Ask(string email) => new()
+        {
+            ShardId = envelope.ShardId,
+            HashedRecoveryEmail = hash,
+            RecoveryPublicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk,
+            RecoveryEmail = email
+        };
+
+        var redirected = await asDealer.RequestShard(Ask("someone-else@example.com"));
+        Assert.That(redirected.IsSuccessStatusCode, Is.False, $"a link to another address was sent: {redirected.StatusCode}");
+        Assert.That(ReleaseLinks(frodo), Is.Empty, "no link went out");
+
+        var noCode = await asDealer.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = envelope.ShardId, Code = new string('0', 32) });
+        Assert.That(noCode.IsSuccessStatusCode, Is.False, $"a shard was released without the code: {noCode.StatusCode}");
+
+        var asSomeoneElse = await Host.GetTenantScope(players[0].Identity.DomainName).Resolve<IOdinHttpClientFactory>()
+            .CreateClientAsync<IPeerPasswordRecoveryHttpClient>(holder);
+        var notTheDealer = await asSomeoneElse.RequestShard(Ask(address));
+        Assert.That(notTheDealer.IsSuccessStatusCode, Is.False, $"someone else asked for the dealer's shard: {notTheDealer.StatusCode}");
+        Assert.That(ReleaseLinks(frodo), Is.Empty, "no link went out");
+
+        // The dealer's own request with the right address does email the owner
+        var asked = await asDealer.RequestShard(Ask(address));
+        Assert.That(asked.IsSuccessStatusCode, Is.True, asked.Error?.Content);
+        Assert.That(ReleaseLinks(frodo).Select(l => l.Holder), Is.EqualTo(new[] { holder }));
     }
 }

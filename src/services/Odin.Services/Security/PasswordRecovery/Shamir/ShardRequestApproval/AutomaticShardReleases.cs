@@ -84,5 +84,8 @@ public sealed class AutomaticShardReleases(TableKeyValueCached tblKeyValue)
         return existing;
     }
 
+    /// <summary>Forgets <paramref name="shardId"/>'s request: its email never went out.</summary>
+    public Task ForgetAsync(Guid shardId) => Storage.DeleteAsync(tblKeyValue, shardId);
+
     private static byte[] Hash(string code) => ByteArrayUtil.CalculateSHA256Hash(code.ToUtf8ByteArray());
 }

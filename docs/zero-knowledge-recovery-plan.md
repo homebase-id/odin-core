@@ -947,8 +947,10 @@ Facts checked in the code or by a test are marked **(V)**.
   fills nothing more; starting again soon reuses it).
   - A click doesn't use the link up: a failure on the dealer's side (the shard refused, the reply
     lost) must not lose it, and the dealer keeps one copy of each shard however often it comes.
-  - The holder checks it can send email before it records the request, so a link that never went out
-    doesn't hold off the next one for five minutes.
+  - The holder checks it can send email before it records the request, and forgets the request if
+    the email can't be scheduled, so a link that never went out doesn't hold off the next one.
+  - A test asks a holder as the dealer with another address (refused, no email), without the code
+    (nothing released), and as another identity (refused) **(V)**.
 - **Peer and owner endpoints:** `release-automatic-shard` (holder, from the dealer), `fill-slot`
   (anonymous, the page posts the link's shard and code), `automated-recovery-players` (owner: the
   host's automated identities and the threshold) **(V)**. `fill-slot` checks a recovery is collecting
@@ -958,7 +960,13 @@ Facts checked in the code or by a test are marked **(V)**.
   stored before reads as no recovery **(V)**.
 - **One shard is collected at a time** (a node lock per identity): each counts the shards in to
   decide the threshold, so two clicks at once would each see one short of it.
-- **"Start over" asks only the holders whose shard isn't in** (test).
+- **"Start over" asks only the holders whose shard isn't in** (test). One holder that can't be reached
+  doesn't keep the others from being asked.
+- **A status without a browser key is from before this release** (an automated recovery under way,
+  or one waiting on its finalize link): it reads as no recovery, so a new start replaces it, and a
+  fresh entry clears the shards it left. Every start records the key now.
+- A click the holder refuses (wrong, replaced, expired) is `ShardLinkNoLongerValid` (9024); a holder
+  that can't be reached is `ShardHolderUnreachable` (9025): the same link still works.
 - **Only an automated server-made deal recovers without copies.** An old server-made friend deal
   is refused at the start, as before: its gated friends can't release (test).
 - **Status while collecting:** `Needed`, `Filled`, and `SealedSlots64`, the holders and which are in,
@@ -991,6 +999,10 @@ Facts checked in the code or by a test are marked **(V)**.
     while shards are awaited (every five seconds per open page). Bounded to that window.
   - A holder still on the release before this one hands its shard over unsealed, which the dealer
     refuses: the automated identities' hosts must be on this release with the dealers.
+  - A first-run deal that failed is retried at the next password login in the same browser only
+    (the flag is in its local storage); elsewhere the security page offers it.
+  - An automated deal whose copies a reset forgot can't recover until the next password login deals
+    it again, and the security page doesn't flag it meanwhile.
 - **Found, not fixed (pre-existing):** changing the recovery email leaves every deal's stored email
   hash stale, so the holders refuse the requests until the owner deals again
   (`UpdateAccountRecoveryEmail` touches no deal) **(V)**. With this design the holders couldn't email

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Mail;
 using System.Threading.Tasks;
 using MediatR;
@@ -30,6 +31,7 @@ using Odin.Services.Security.PasswordRecovery.Shamir.ShardCollection;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
+using Refit;
 
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -181,8 +183,7 @@ public class ShamirRecoveryService
             return redacted;
         }
 
-        var context = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
-        var package = await _configurationService.GetDealerShardPackage(context);
+        var package = await GetDealerPackageAsync(odinContext);
         if (package == null)
         {
             return redacted;
@@ -246,6 +247,9 @@ public class ShamirRecoveryService
 
         if (!underWay)
         {
+            // A fresh recovery starts with none: shards a recovery from before this release left
+            // behind, unsealed, would count without being of use
+            await _playerShardCollector.DeleteCollectedShards(odinContext);
             await UpdateStatus(new ShamirRecoveryStatusRecord()
             {
                 Updated = UnixTimeUtc.Now(),
@@ -264,19 +268,27 @@ public class ShamirRecoveryService
         var collected = await CollectedShardIdsAsync(odinContext);
         foreach (var envelope in package.Envelopes.Where(e => !collected.Contains(e.ShardId)))
         {
-            var client = await CreateClientAsync(envelope.Player.OdinId);
-            var response = await client.RequestShard(new RetrieveShardRequest
+            // One holder that can't be reached must not keep the others from being asked
+            try
             {
-                ShardId = envelope.ShardId,
-                HashedRecoveryEmail = hashedRecoveryEmail,
-                RecoveryPublicKeyJwk = startedWith,
-                RecoveryEmail = envelope.Player.Type == PlayerType.Automatic ? recoveryEmail : null
-            });
+                var client = await CreateClientAsync(envelope.Player.OdinId);
+                var response = await client.RequestShard(new RetrieveShardRequest
+                {
+                    ShardId = envelope.ShardId,
+                    HashedRecoveryEmail = hashedRecoveryEmail,
+                    RecoveryPublicKeyJwk = startedWith,
+                    RecoveryEmail = envelope.Player.Type == PlayerType.Automatic ? recoveryEmail : null
+                });
 
-            if (!response.IsSuccessStatusCode)
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("{holder} did not take the request for shard {shardId}: {status}",
+                        envelope.Player.OdinId, envelope.ShardId, response.StatusCode);
+                }
+            }
+            catch (Exception e)
             {
-                _logger.LogWarning("{holder} did not take the request for shard {shardId}: {status}",
-                    envelope.Player.OdinId, envelope.ShardId, response.StatusCode);
+                _logger.LogWarning(e, "{holder} could not be asked for shard {shardId}", envelope.Player.OdinId, envelope.ShardId);
             }
         }
     }
@@ -290,7 +302,7 @@ public class ShamirRecoveryService
     {
         OdinValidationUtils.AssertNotNullOrEmpty(code, nameof(code));
 
-        // Checked first: a recovery that is over must not use the code up
+        // Checked first: a recovery that is over takes no shard
         if (!IsCollecting(await GetStatusRecordInternal()))
         {
             throw new OdinClientException("There is no recovery under way", OdinClientErrorCode.RecoveryNotReady);
@@ -300,12 +312,27 @@ public class ShamirRecoveryService
         var envelope = package.Envelopes.SingleOrDefault(e => e.ShardId == shardId && e.Player.Type == PlayerType.Automatic)
                        ?? throw new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid);
 
-        var client = await CreateClientAsync(envelope.Player.OdinId);
-        var response = await client.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = shardId, Code = code });
-        if (!response.IsSuccessStatusCode || response.Content?.ResultType != RetrieveShardResultType.Complete)
+        ApiResponse<RetrieveShardResult> response = null;
+        try
         {
-            _logger.LogInformation("{holder} did not release shard {shardId}: {status}", envelope.Player.OdinId, shardId, response.StatusCode);
-            throw new OdinClientException("This link no longer works; start over for a new one", OdinClientErrorCode.ShardLinkNoLongerValid);
+            var client = await CreateClientAsync(envelope.Player.OdinId);
+            response = await client.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = shardId, Code = code });
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "{holder} could not be reached for shard {shardId}", envelope.Player.OdinId, shardId);
+        }
+
+        if (response?.IsSuccessStatusCode != true || response.Content?.ResultType != RetrieveShardResultType.Complete)
+        {
+            _logger.LogInformation("{holder} did not release shard {shardId}: {status}", envelope.Player.OdinId, shardId, response?.StatusCode);
+
+            // The holder refused the link (wrong, replaced or expired); anything else may pass: the
+            // same link still works
+            throw response?.StatusCode == HttpStatusCode.BadRequest
+                ? new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid)
+                : new OdinClientException("The holder could not be reached; try the same link again later",
+                    OdinClientErrorCode.ShardHolderUnreachable);
         }
 
         // From the holder itself: this server called it
@@ -373,7 +400,16 @@ public class ShamirRecoveryService
             var code = await _automaticReleases.RequestAsync(shard.Id, requester, request.RecoveryPublicKeyJwk);
             if (code != null)
             {
-                await _recoveryNotifier.EnqueueReleaseShardEmail(email, requester, shard.Id, code);
+                try
+                {
+                    await _recoveryNotifier.EnqueueReleaseShardEmail(email, requester, shard.Id, code);
+                }
+                catch
+                {
+                    // Nobody received it: it must not hold off the next one
+                    await _automaticReleases.ForgetAsync(shard.Id);
+                    throw;
+                }
             }
 
             return new RetrieveShardResult { ResultType = RetrieveShardResultType.WaitingForPlayer };
@@ -718,19 +754,18 @@ public class ShamirRecoveryService
     }
 
     /// <summary>Which shards are in, as recovery reads them with no login.</summary>
-    private async Task<HashSet<Guid>> CollectedShardIdsAsync(IOdinContext odinContext)
-    {
-        var context = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
-        return (await _playerShardCollector.GetCollectShards(context)).Select(c => c.Id).ToHashSet();
-    }
+    private async Task<HashSet<Guid>> CollectedShardIdsAsync(IOdinContext odinContext) =>
+        (await _playerShardCollector.GetCollectShards(odinContext)).Select(c => c.Id).ToHashSet();
 
-    /// <summary>The dealer package, read as recovery reads it with no login; refused when there is none.</summary>
-    private async Task<DealerShardPackage> GetDealerPackageOrFailAsync(IOdinContext odinContext)
-    {
-        var context = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
-        return await _configurationService.GetDealerShardPackage(context)
-               ?? throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
-    }
+    /// <summary>The dealer package, read as recovery reads it with no login; null when there is none.</summary>
+    private async Task<DealerShardPackage> GetDealerPackageAsync(IOdinContext odinContext) =>
+        await _configurationService.GetDealerShardPackage(
+            OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext));
+
+    /// <summary>The dealer package, as <see cref="GetDealerPackageAsync"/>; refused when there is none.</summary>
+    private async Task<DealerShardPackage> GetDealerPackageOrFailAsync(IOdinContext odinContext) =>
+        await GetDealerPackageAsync(odinContext)
+        ?? throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
 
     /// <summary>Whether shards are being collected, or are in and the browser may still need more.</summary>
     private static bool IsCollecting(ShamirRecoveryStatusRecord status) =>
@@ -743,8 +778,10 @@ public class ShamirRecoveryService
     {
         var record = await Storage.GetAsync<ShamirRecoveryStatusRecord>(_keyValueTable, ShamirStatusStorageId);
 
-        // No longer set, and no recovery reaches it now: one stored before is no recovery at all
-        return record?.State == ShamirRecoveryState.AwaitingOwnerFinalization ? null : record;
+        // Every start records the browser's key now.  A status without one (an automated recovery, or
+        // one waiting on its finalize link, before this release) can't go on: it is no recovery, so a
+        // new start replaces it, and a fresh entry clears its shards.
+        return record?.RecoveryPublicKeyJwk == null ? null : record;
     }
 
     private async Task UpdateStatus(ShamirRecoveryStatusRecord statusRecord)

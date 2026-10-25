@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -70,7 +71,16 @@ public class ZeroKnowledgeRecoveryService(
             return false;
         }
 
-        return (await shamirConfigurationService.GetDealerShardPackage(odinContext))?.UsesAutomatedRecovery == true;
+        // Best effort: the login's key steps read this status, and must not fail over a deal
+        try
+        {
+            return (await shamirConfigurationService.GetDealerShardPackage(odinContext))?.UsesAutomatedRecovery == true;
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not read the dealer package for the zero-knowledge status");
+            return false;
+        }
     }
 
     /// <summary>
