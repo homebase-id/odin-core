@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -101,10 +100,32 @@ public class ShamirRecoveryService
     }
 
     /// <summary>
-    /// How long the dealer waits for a holder's answer (once its client is set up): entering recovery
-    /// asks each for at most this long, and a click on its link too.
+    /// How long the dealer waits for a holder's answer, from setting up the call: entering recovery asks
+    /// each for at most this long, and a click on its link too.
     /// </summary>
     private static readonly TimeSpan HolderAskTimeout = TimeSpan.FromSeconds(20);
+
+    /// <summary>How long a holder waits for its per-shard lock: below the dealer's wait.</summary>
+    private static readonly TimeSpan HolderLockWait = HolderAskTimeout - TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Takes <paramref name="key"/>, waiting at most <paramref name="wait"/>; a wait that runs out is
+    /// logged as such (a canceled wait would read like a client that went away) and is a retryable
+    /// error.
+    /// </summary>
+    private async Task<IAsyncDisposable> LockOrSayBusyAsync(NodeLockKey key, TimeSpan wait, string what)
+    {
+        using var waiting = new CancellationTokenSource(wait);
+        try
+        {
+            return await _nodeLock.LockAsync(key, timeout: wait, cancellationToken: waiting.Token);
+        }
+        catch (Exception e) when (waiting.IsCancellationRequested || e is RedisLockException)
+        {
+            _logger.LogWarning("Waited {wait} for the lock on {what}; it is still taken", wait, what);
+            throw new OdinClientException("Busy with another request; try again", OdinClientErrorCode.ShardHolderUnreachable);
+        }
+    }
 
     // Internal for the tests that store a status as an older release did
     internal static readonly Guid ShamirStatusStorageId = Guid.Parse("d2180696-2d18-41e3-8699-c90c0d3aa710");
@@ -414,11 +435,11 @@ public class ShamirRecoveryService
             _recoveryNotifier.AssertEmailEnabled();
 
             // One request per shard at a time: a second one must see whether the first one's email went.
-            // Bounded below the dealer's own wait, so a queued request never acts after it gave up.
-            using var lockWait = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            await using var oneAtATime = await _nodeLock.LockAsync(
+            // Its wait is bounded below the dealer's, so a queued request rarely acts after the dealer
+            // gave up (and then the email still carries a working link).
+            await using var oneAtATime = await LockOrSayBusyAsync(
                 NodeLockKey.Create(nameof(ShamirRecoveryService), "release", _tenantContext.HostOdinId.DomainName, shard.Id.ToString()),
-                timeout: TimeSpan.FromSeconds(15), cancellationToken: lockWait.Token);
+                HolderLockWait, $"shard {shard.Id}");
             var code = await _automaticReleases.RequestAsync(shard.Id, requester, request.RecoveryPublicKeyJwk);
             if (code != null)
             {
@@ -514,8 +535,9 @@ public class ShamirRecoveryService
     {
         // One at a time: each counts the shards in to decide the threshold, and two clicks at once
         // would each see one short of it
-        await using var collecting = await _nodeLock.LockAsync(
-            NodeLockKey.Create(nameof(ShamirRecoveryService), "collect", _tenantContext.HostOdinId.DomainName));
+        await using var collecting = await LockOrSayBusyAsync(
+            NodeLockKey.Create(nameof(ShamirRecoveryService), "collect", _tenantContext.HostOdinId.DomainName),
+            HolderAskTimeout, "collecting a shard");
 
         var status = await GetStatusRecordInternal();
         if (!IsCollecting(status))
@@ -778,24 +800,9 @@ public class ShamirRecoveryService
     }
 
     /// <summary>Whether <paramref name="response"/> is the holder's own refusal of a link.</summary>
-    private static bool HolderRefused(IApiResponse response)
-    {
-        if (response?.StatusCode != HttpStatusCode.BadRequest || string.IsNullOrEmpty(response.Error?.Content))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var problem = JsonDocument.Parse(response.Error.Content);
-            return problem.RootElement.TryGetProperty("errorCode", out var errorCode) &&
-                   string.Equals(errorCode.GetString(), nameof(OdinClientErrorCode.ShardLinkNoLongerValid), StringComparison.OrdinalIgnoreCase);
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
+    private static bool HolderRefused(IApiResponse response) =>
+        response?.StatusCode == HttpStatusCode.BadRequest && response.Error is { } error &&
+        error.TryParseProblemDetails(out var code) && code == OdinClientErrorCode.ShardLinkNoLongerValid;
 
     /// <summary>How many of <paramref name="package"/>'s shards are in: the threshold and the status count the same.</summary>
     private static int ShardsIn(DealerShardPackage package, HashSet<Guid> collected) =>

@@ -255,8 +255,16 @@ public class AutomatedRecoveryTests : ShamirFixture
         Assert.That(asked.IsSuccessStatusCode, Is.True, asked.Error?.Content);
         Assert.That(ReleaseLinks(frodo).Select(l => l.Holder), Is.EqualTo(new[] { holder }));
 
+        // Refused with the link's own code, which the dealer tells from a failure on the way
         var noCode = await asDealer.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = envelope.ShardId, Code = new string('0', 32) });
-        Assert.That(noCode.IsSuccessStatusCode, Is.False, $"a shard was released without the code: {noCode.StatusCode}");
+        DriveAsserts.AssertRejected(noCode, OdinClientErrorCode.ShardLinkNoLongerValid);
+        var link = ReleaseLinks(frodo).Single().Request;
+        var codeButNotTheDealer = await asSomeoneElse.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest
+        {
+            ShardId = envelope.ShardId,
+            Code = link.Code
+        });
+        DriveAsserts.AssertRejected(codeButNotTheDealer, OdinClientErrorCode.ShardLinkNoLongerValid);
     }
 
     /// <summary>

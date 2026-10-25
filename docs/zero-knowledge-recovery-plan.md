@@ -964,7 +964,9 @@ Facts checked in the code or by a test are marked **(V)**.
 - **"Start over" asks only the holders whose shard isn't in** (test). The holders are asked at once,
   and the dealer waits at most 20 seconds for each answer (here and for a link's click), so one that
   hangs holds up neither the others nor the browser's request (not tested: it needs a holder that
-  hangs). A holder takes its per-shard lock for at most 15 seconds, below that.
+  hangs). A holder waits at most 15 seconds for its per-shard lock, and the dealer at most 20 for
+  the lock it collects under; a wait that runs out is "busy, try again" (9025). The margins are not
+  strict: the holder's 15 seconds start after the call reached it.
 - The threshold counts only the deal's own shards, as the status's slots do.
 - **A status without a browser key is from before this release** (an automated recovery under way,
   or one waiting on its finalize link): it reads as no recovery, so a new start replaces it, and a
