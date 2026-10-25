@@ -964,9 +964,14 @@ Facts checked in the code or by a test are marked **(V)**.
 - **"Start over" asks only the holders whose shard isn't in** (test). The holders are asked at once,
   and the dealer waits at most 20 seconds for each answer (here and for a link's click), so one that
   hangs holds up neither the others nor the browser's request (not tested: it needs a holder that
-  hangs). A holder waits at most 15 seconds for its per-shard lock, and the dealer at most 20 for
-  the lock it collects under; a wait that runs out is "busy, try again" (9025). The margins are not
-  strict: the holder's 15 seconds start after the call reached it.
+  hangs). A holder waits at most 15 seconds for its per-shard lock, and the dealer at most 15 for
+  the lock it collects under; a wait that runs out is `RecoveryBusy` (9026), "try again", also for a
+  friend approving. The margins are not strict: the holder's 15 seconds start after the call reached
+  it (not tested: it needs the lock held).
+- **Collecting checks the shard before it takes the lock** (anyone in the network can hand one in),
+  and reads the status again under it. An exit and a fresh start take the same lock, so a collect
+  can't write back a recovery that just ended. A shard sealed to another key is for an earlier start:
+  `ShardLinkNoLongerValid`.
 - The threshold counts only the deal's own shards, as the status's slots do.
 - **A status without a browser key is from before this release** (an automated recovery under way,
   or one waiting on its finalize link): it reads as no recovery, so a new start replaces it, and a
@@ -976,8 +981,8 @@ Facts checked in the code or by a test are marked **(V)**.
   (no answer, a timeout, an error on the way) is `ShardHolderUnreachable` (9025): the same link may
   work later.
 - The recovery page keeps each message with the state it was shown in, drops it when the state moves
-  on, and ignores a failed status read; a message whose state couldn't be read waits for the next
-  good one.
+  on, and ignores a failed status read; a message whose state couldn't be read waits for a read sent
+  after it. A link's page says "Please wait" until the read after the link's own request.
 - **Only an automated server-made deal recovers without copies.** An old server-made friend deal
   is refused at the start, as before: its gated friends can't release (test).
 - **Status while collecting:** `Needed`, `Filled`, and `SealedSlots64`, the holders and which are in,

@@ -109,6 +109,14 @@ public class ShamirRecoveryService
     private static readonly TimeSpan HolderLockWait = HolderAskTimeout - TimeSpan.FromSeconds(5);
 
     /// <summary>
+    /// How long collecting a shard, an exit or a fresh start waits for the collect lock.  A click waits
+    /// for the holder and then this: well under a proxy's cut.
+    /// </summary>
+    private static readonly TimeSpan CollectLockWait = TimeSpan.FromSeconds(15);
+
+    private NodeLockKey CollectLock => NodeLockKey.Create(nameof(ShamirRecoveryService), "collect", _tenantContext.HostOdinId.DomainName);
+
+    /// <summary>
     /// Takes <paramref name="key"/>, waiting at most <paramref name="wait"/>; a wait that runs out is
     /// logged as such (a canceled wait would read like a client that went away) and is a retryable
     /// error.
@@ -123,7 +131,7 @@ public class ShamirRecoveryService
         catch (Exception e) when (waiting.IsCancellationRequested || e is RedisLockException)
         {
             _logger.LogWarning("Waited {wait} for the lock on {what}; it is still taken", wait, what);
-            throw new OdinClientException("Busy with another request; try again", OdinClientErrorCode.ShardHolderUnreachable);
+            throw new OdinClientException("Busy with another request; try again", OdinClientErrorCode.RecoveryBusy);
         }
     }
 
@@ -278,7 +286,8 @@ public class ShamirRecoveryService
         if (!underWay)
         {
             // A fresh recovery starts with none: shards a recovery from before this release left
-            // behind, unsealed, would count without being of use
+            // behind, unsealed, would count without being of use.  Under the collect lock, as an exit.
+            await using var collecting = await LockOrSayBusyAsync(CollectLock, CollectLockWait, "starting recovery");
             await _playerShardCollector.DeleteCollectedShards(odinContext);
             await UpdateStatus(new ShamirRecoveryStatusRecord()
             {
@@ -533,29 +542,12 @@ public class ShamirRecoveryService
     private async Task CollectShardAsync(RetrieveShardResult result, OdinId player, IOdinContext odinContext,
         DealerShardPackage package = null)
     {
-        // One at a time: each counts the shards in to decide the threshold, and two clicks at once
-        // would each see one short of it
-        await using var collecting = await LockOrSayBusyAsync(
-            NodeLockKey.Create(nameof(ShamirRecoveryService), "collect", _tenantContext.HostOdinId.DomainName),
-            HolderAskTimeout, "collecting a shard");
-
-        var status = await GetStatusRecordInternal();
-        if (!IsCollecting(status))
-        {
-            throw new OdinClientException("Not in recovery mode");
-        }
-
+        // The checks first, outside the lock: anyone in the network can call accept-player-shard, and
+        // junk must not queue on the lock ahead of real shards
         if (result.ResultType != RetrieveShardResultType.Complete)
         {
             throw new OdinClientException("Invalid result type");
         }
-
-        odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
-            WellKnownAppDrives.ShardRecoveryDrive,
-            DrivePermission.Read,
-            odinContext);
-
-        await using var tx = await _db.BeginStackedTransactionAsync();
 
         package ??= await GetDealerPackageAsync(odinContext);
         var envelope = result.Shard?.Player?.OdinId != player
@@ -566,12 +558,36 @@ public class ShamirRecoveryService
             throw new OdinSecurityException($"{player} did not hold shard {result.Shard?.Id}");
         }
 
-        // A gated friend's browser or an automatic holder sealed it to the recovering browser; anything
-        // else is junk that would only spoil the rebuild
-        if (!ZkSeal.IsSealedTo(result.Shard.DealerEncryptedShard, status.RecoveryPublicKeyJwk))
+        var started = await GetStatusRecordInternal();
+        if (!IsCollecting(started))
         {
-            throw new OdinClientException("The shard is not sealed to the recovering browser", OdinClientErrorCode.ArgumentError);
+            throw new OdinClientException("Not in recovery mode");
         }
+
+        // A gated friend's browser or an automatic holder sealed it to the recovering browser.  Sealed
+        // to another key, it is for an earlier start: that holder's link won't do any more.
+        if (!ZkSeal.IsSealedTo(result.Shard.DealerEncryptedShard, started.RecoveryPublicKeyJwk))
+        {
+            throw new OdinClientException("The shard is not sealed to the recovering browser", OdinClientErrorCode.ShardLinkNoLongerValid);
+        }
+
+        // One at a time: each counts the shards in to decide the threshold, and two clicks at once
+        // would each see one short of it.  An exit or a fresh start takes it too.
+        await using var collecting = await LockOrSayBusyAsync(CollectLock, CollectLockWait, "collecting a shard");
+
+        // Again inside the lock: the recovery may have ended, or started over with another key
+        var status = await GetStatusRecordInternal();
+        if (!IsCollecting(status) || status.RecoveryPublicKeyJwk != started.RecoveryPublicKeyJwk)
+        {
+            throw new OdinClientException("Not in recovery mode");
+        }
+
+        odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
+            WellKnownAppDrives.ShardRecoveryDrive,
+            DrivePermission.Read,
+            odinContext);
+
+        await using var tx = await _db.BeginStackedTransactionAsync();
 
         await _playerShardCollector.SavePlayerShard(result.Shard, odinContext);
         if (status.State == ShamirRecoveryState.AwaitingRecoveringBrowser)
@@ -692,18 +708,24 @@ public class ShamirRecoveryService
             throw new OdinClientException("The shard must be sealed to the recovering browser's key", OdinClientErrorCode.ArgumentError);
         }
 
+        using var timeout = new CancellationTokenSource(HolderAskTimeout);
         var client = await CreateClientAsyncWithToken(sender.GetValueOrDefault(), null, odinContext);
         var response = await client.SendPlayerShard(new RetrieveShardResult
         {
             ResultType = RetrieveShardResultType.Complete,
             Shard = shard with { Index = index, DealerEncryptedShard = sealedShard }
-        });
+        }, timeout.Token);
 
         // the dealer refuses a shard from a delegate it is no longer connected to (#1885); say so,
         // and keep the request so the approval can be retried
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Dealer {dealer} did not accept shard {shardId}: {status}", odinId, shardId, response.StatusCode);
+            if (response.Error is { } error && error.TryParseProblemDetails(out var code) && code == OdinClientErrorCode.RecoveryBusy)
+            {
+                throw new OdinClientException($"{odinId} is busy with another piece; approve again in a moment", OdinClientErrorCode.RecoveryBusy);
+            }
+
             throw new OdinClientException(
                 $"{odinId} did not accept the shard ({(int)response.StatusCode}). You may no longer be connected to them.");
         }
@@ -864,6 +886,8 @@ public class ShamirRecoveryService
 
     private async Task ExitRecoveryModeInternal(IOdinContext odinContext)
     {
+        // Under the collect lock: a collect that read the status before must not write it back after
+        await using var collecting = await LockOrSayBusyAsync(CollectLock, CollectLockWait, "ending recovery");
         await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
 
         var drive = await _driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias, false);

@@ -176,4 +176,5 @@ public enum OdinClientErrorCode
     // The automated deal, and every automatic holder's own email (docs/zero-knowledge-recovery-plan.md)
     ShardLinkNoLongerValid = 9024,
     ShardHolderUnreachable = 9025,
+    RecoveryBusy = 9026,
 }
