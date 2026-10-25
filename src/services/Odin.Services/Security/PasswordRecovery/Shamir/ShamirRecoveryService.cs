@@ -13,8 +13,8 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Concurrency;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -188,7 +188,7 @@ public class ShamirRecoveryService
             return redacted;
         }
 
-        var collected = (await _playerShardCollector.GetCollectShards(context)).Select(c => c.Id).ToHashSet();
+        var collected = await CollectedShardIdsAsync(odinContext);
         var slots = package.Envelopes
             .Select(e => new RecoverySlot { Player = e.Player, Filled = collected.Contains(e.ShardId) })
             .ToList();
@@ -261,8 +261,7 @@ public class ShamirRecoveryService
         // Ask every holder whose shard isn't in yet ("start over" asks again).  None answers with its
         // shard: a gated friend approves in their browser, and an automatic holder emails the owner a
         // link (FillSlotAsync).
-        var context = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
-        var collected = (await _playerShardCollector.GetCollectShards(context)).Select(c => c.Id).ToHashSet();
+        var collected = await CollectedShardIdsAsync(odinContext);
         foreach (var envelope in package.Envelopes.Where(e => !collected.Contains(e.ShardId)))
         {
             var client = await CreateClientAsync(envelope.Player.OdinId);
@@ -368,7 +367,8 @@ public class ShamirRecoveryService
                 throw new OdinSecurityException("Invalid recovery email");
             }
 
-            // Before the request is recorded: a link that can't be emailed must not hold off the next one
+            // Early, before the request is recorded: a link that can't be emailed must not hold off the
+            // next one (the notifier checks again, for its other callers' sake)
             _recoveryNotifier.AssertEmailEnabled();
             var code = await _automaticReleases.RequestAsync(shard.Id, requester, request.RecoveryPublicKeyJwk);
             if (code != null)
@@ -549,13 +549,11 @@ public class ShamirRecoveryService
             throw new OdinClientException("Not enough shards are in yet", OdinClientErrorCode.RecoveryNotReady);
         }
 
-        if (!await IsServerMadeAutomatedDealAsync(await GetDealerPackageOrFailAsync(odinContext)))
+        if (!await _configurationService.IsServerMadeAutomatedDealAsync(await GetDealerPackageOrFailAsync(odinContext)))
         {
             throw new OdinClientException("This deal gives back the password in the browser", OdinClientErrorCode.ArgumentError);
         }
 
-        OdinValidationUtils.AssertIsTrue(secret?.Length == ShamirConfigurationService.DistributionKeyLength,
-            $"The secret is {ShamirConfigurationService.DistributionKeyLength} bytes");
         using var distributionKey = secret.ToSensitiveByteArray();
         using var masterKey = await _configurationService.DecryptMasterKeyAsync(distributionKey);
 
@@ -710,7 +708,7 @@ public class ShamirRecoveryService
     /// </summary>
     private async Task<ZkShamirRecoveryCopies> GetRecoveryCopiesOrFailAsync(DealerShardPackage package)
     {
-        if (await IsServerMadeAutomatedDealAsync(package))
+        if (await _configurationService.IsServerMadeAutomatedDealAsync(package))
         {
             return null;
         }
@@ -719,8 +717,12 @@ public class ShamirRecoveryService
                ?? throw new OdinClientException("Password recovery is not set up", OdinClientErrorCode.PasswordRecoveryNotConfigured);
     }
 
-    private async Task<bool> IsServerMadeAutomatedDealAsync(DealerShardPackage package) =>
-        package.UsesAutomatedRecovery && await _configurationService.IsServerMadeDealAsync();
+    /// <summary>Which shards are in, as recovery reads them with no login.</summary>
+    private async Task<HashSet<Guid>> CollectedShardIdsAsync(IOdinContext odinContext)
+    {
+        var context = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
+        return (await _playerShardCollector.GetCollectShards(context)).Select(c => c.Id).ToHashSet();
+    }
 
     /// <summary>The dealer package, read as recovery reads it with no login; refused when there is none.</summary>
     private async Task<DealerShardPackage> GetDealerPackageOrFailAsync(IOdinContext odinContext)

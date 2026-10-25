@@ -127,10 +127,12 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// Whether the deal was made by this server, before the browser dealt every deal: its secret opens
-    /// only today's master key, and the next password login deals it again in the browser.
+    /// Whether <paramref name="package"/> is an automated deal this server made, before the browser
+    /// dealt every deal: its secret opens only today's master key, and the next password login deals it
+    /// again in the browser.  An old server-made friend deal is not: it can recover nothing.
     /// </summary>
-    public async Task<bool> IsServerMadeDealAsync() => await GetKeyInternalAsync() != null;
+    public async Task<bool> IsServerMadeAutomatedDealAsync(DealerShardPackage package) =>
+        package.UsesAutomatedRecovery && await GetKeyInternalAsync() != null;
 
     private bool HasAutomatedPlayers() =>
         (configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Count ?? 0) >= MinimumPlayerCount &&

@@ -295,6 +295,20 @@ public abstract class ShamirFixture : V2Fixture
         return config;
     }
 
+    /// <summary>
+    /// What an old friend deal looks like, as the server made them before recovery in the browser: a
+    /// server-made deal's package, not automated, with no copies.
+    /// </summary>
+    protected async Task ArrangeOldServerMadeFriendDealAsync(OwnerSession dealer)
+    {
+        await ArrangeServerMadeAutomatedDealAsync(dealer);
+        var (scope, context) = await MigrationContextAsync(dealer);
+        var shamir = scope.Resolve<ShamirConfigurationService>();
+        var package = await shamir.GetDealerShardPackage(context);
+        package.UsesAutomatedRecovery = false;
+        await shamir.SaveDealerPackage(package, context);
+    }
+
     /// <summary>Connection request + accept, dealer to each player. Note: no circles.</summary>
     protected static async Task PrepareConnectionsAsync(OwnerSession dealer, IEnumerable<OwnerSession> players)
     {

@@ -105,14 +105,8 @@ public class RecoveryPhraseShamirTests : ShamirFixture
     public async Task AnOldServerMadeFriendDealIsRemovedAndTheSecurityPageSaysSo()
     {
         var (dealer, _) = Cast();
-        await ArrangeServerMadeAutomatedDealAsync(dealer);
-
-        // What an old friend deal looks like: the same package, not automated, locking the phrase
-        var (scope, ctx) = await MigrationContextAsync(dealer);
-        var shamir = scope.Resolve<ShamirConfigurationService>();
-        var package = await shamir.GetDealerShardPackage(ctx);
-        package.UsesAutomatedRecovery = false;
-        await shamir.SaveDealerPackage(package, ctx);
+        // An old friend deal, locking the phrase (Development:DealsLockThePhrase)
+        await ArrangeOldServerMadeFriendDealAsync(dealer);
 
         await TakeOverAsync(dealer);
 

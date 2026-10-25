@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using Autofac;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -198,14 +197,7 @@ public class AutomatedRecoveryTests : ShamirFixture
     public async Task AnOldServerMadeFriendDealIsRefusedAtTheStart()
     {
         var (frodo, _) = Cast();
-        await ArrangeServerMadeAutomatedDealAsync(frodo);
-
-        // What an old friend deal looks like: the same package, not automated
-        var (scope, context) = await MigrationContextAsync(frodo);
-        var shamir = scope.Resolve<ShamirConfigurationService>();
-        var package = await shamir.GetDealerShardPackage(context);
-        package.UsesAutomatedRecovery = false;
-        await shamir.SaveDealerPackage(package, context);
+        await ArrangeOldServerMadeFriendDealAsync(frodo);
 
         var started = await AnonymousSecurityOf(frodo).InitiateRecoveryMode(new InitiateRecoveryModeRequest
         {
