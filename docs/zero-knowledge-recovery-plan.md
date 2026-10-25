@@ -969,9 +969,10 @@ Facts checked in the code or by a test are marked **(V)**.
   friend approving. The margins are not strict: the holder's 15 seconds start after the call reached
   it (not tested: it needs the lock held).
 - **Collecting checks the shard before it takes the lock** (anyone in the network can hand one in),
-  and reads the status again under it. An exit and a fresh start take the same lock, so a collect
-  can't write back a recovery that just ended. A shard sealed to another key is for an earlier start:
-  `ShardLinkNoLongerValid`.
+  and reads the status again under it. Its status write is update-only, so an exit that deleted the
+  status meanwhile stands: no lock around exits, which run at login, in transactions and from links.
+  A shard sealed to another key, or for a recovery that has ended, is `ShardLinkNoLongerValid`; a
+  friend's server then drops the stale request.
 - The threshold counts only the deal's own shards, as the status's slots do.
 - **A status without a browser key is from before this release** (an automated recovery under way,
   or one waiting on its finalize link): it reads as no recovery, so a new start replaces it, and a
@@ -982,7 +983,7 @@ Facts checked in the code or by a test are marked **(V)**.
   work later.
 - The recovery page keeps each message with the state it was shown in, drops it when the state moves
   on, and ignores a failed status read; a message whose state couldn't be read waits for a read sent
-  after it. A link's page says "Please wait" until the read after the link's own request.
+  after it. A link's page says "Please wait" until a read sent after the link's own request is in.
 - **Only an automated server-made deal recovers without copies.** An old server-made friend deal
   is refused at the start, as before: its gated friends can't release (test).
 - **Status while collecting:** `Needed`, `Filled`, and `SealedSlots64`, the holders and which are in,

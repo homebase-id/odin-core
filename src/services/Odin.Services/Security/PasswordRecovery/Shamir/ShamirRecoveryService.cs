@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Mail;
 using System.Threading;
 using System.Threading.Tasks;
@@ -109,8 +110,8 @@ public class ShamirRecoveryService
     private static readonly TimeSpan HolderLockWait = HolderAskTimeout - TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// How long collecting a shard, an exit or a fresh start waits for the collect lock.  A click waits
-    /// for the holder and then this: well under a proxy's cut.
+    /// How long collecting a shard waits for the collect lock.  A click waits for the holder and then
+    /// this: well under a proxy's cut.
     /// </summary>
     private static readonly TimeSpan CollectLockWait = TimeSpan.FromSeconds(15);
 
@@ -286,8 +287,7 @@ public class ShamirRecoveryService
         if (!underWay)
         {
             // A fresh recovery starts with none: shards a recovery from before this release left
-            // behind, unsealed, would count without being of use.  Under the collect lock, as an exit.
-            await using var collecting = await LockOrSayBusyAsync(CollectLock, CollectLockWait, "starting recovery");
+            // behind, unsealed, would count without being of use
             await _playerShardCollector.DeleteCollectedShards(odinContext);
             await UpdateStatus(new ShamirRecoveryStatusRecord()
             {
@@ -549,6 +549,12 @@ public class ShamirRecoveryService
             throw new OdinClientException("Invalid result type");
         }
 
+        var started = await GetStatusRecordInternal();
+        if (!IsCollecting(started))
+        {
+            throw new OdinClientException("There is no recovery under way", OdinClientErrorCode.ShardLinkNoLongerValid);
+        }
+
         package ??= await GetDealerPackageAsync(odinContext);
         var envelope = result.Shard?.Player?.OdinId != player
             ? null
@@ -556,12 +562,6 @@ public class ShamirRecoveryService
         if (envelope == null)
         {
             throw new OdinSecurityException($"{player} did not hold shard {result.Shard?.Id}");
-        }
-
-        var started = await GetStatusRecordInternal();
-        if (!IsCollecting(started))
-        {
-            throw new OdinClientException("Not in recovery mode");
         }
 
         // A gated friend's browser or an automatic holder sealed it to the recovering browser.  Sealed
@@ -572,14 +572,14 @@ public class ShamirRecoveryService
         }
 
         // One at a time: each counts the shards in to decide the threshold, and two clicks at once
-        // would each see one short of it.  An exit or a fresh start takes it too.
+        // would each see one short of it
         await using var collecting = await LockOrSayBusyAsync(CollectLock, CollectLockWait, "collecting a shard");
 
         // Again inside the lock: the recovery may have ended, or started over with another key
         var status = await GetStatusRecordInternal();
         if (!IsCollecting(status) || status.RecoveryPublicKeyJwk != started.RecoveryPublicKeyJwk)
         {
-            throw new OdinClientException("Not in recovery mode");
+            throw new OdinClientException("There is no recovery under way", OdinClientErrorCode.ShardLinkNoLongerValid);
         }
 
         odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
@@ -602,12 +602,17 @@ public class ShamirRecoveryService
         if (shardsIn >= package.MinMatchingShards)
         {
             // The dealer can't open the shards: the browser that started recovery rebuilds the secret
-            // (GetRecoveryBundleAsync).  The email carries nothing.
-            await UpdateStatus(status with
+            // (GetRecoveryBundleAsync).  The email carries nothing.  Update-only: an exit since the
+            // read above deleted the status, and that stands (the shard goes back with the rest).
+            var moved = await Storage.TryUpdateAsync(_keyValueTable, ShamirStatusStorageId, status with
             {
                 Updated = UnixTimeUtc.Now(),
                 State = ShamirRecoveryState.AwaitingRecoveringBrowser
             });
+            if (!moved)
+            {
+                throw new OdinClientException("There is no recovery under way", OdinClientErrorCode.ShardLinkNoLongerValid);
+            }
             await _recoveryNotifier.EnqueueShardsCollectedEmail();
 
             await _mediator.Publish(new ShamirPasswordRecoverySufficientShardsCollectedNotification()
@@ -710,20 +715,38 @@ public class ShamirRecoveryService
 
         using var timeout = new CancellationTokenSource(HolderAskTimeout);
         var client = await CreateClientAsyncWithToken(sender.GetValueOrDefault(), null, odinContext);
-        var response = await client.SendPlayerShard(new RetrieveShardResult
+        ApiResponse<HttpContent> response;
+        try
         {
-            ResultType = RetrieveShardResultType.Complete,
-            Shard = shard with { Index = index, DealerEncryptedShard = sealedShard }
-        }, timeout.Token);
+            response = await client.SendPlayerShard(new RetrieveShardResult
+            {
+                ResultType = RetrieveShardResultType.Complete,
+                Shard = shard with { Index = index, DealerEncryptedShard = sealedShard }
+            }, timeout.Token);
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            _logger.LogWarning("Dealer {dealer} did not answer for shard {shardId} in time", odinId, shardId);
+            throw new OdinClientException($"{odinId} didn't answer in time; approve again in a moment", OdinClientErrorCode.RecoveryBusy);
+        }
 
         // the dealer refuses a shard from a delegate it is no longer connected to (#1885); say so,
         // and keep the request so the approval can be retried
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Dealer {dealer} did not accept shard {shardId}: {status}", odinId, shardId, response.StatusCode);
-            if (response.Error is { } error && error.TryParseProblemDetails(out var code) && code == OdinClientErrorCode.RecoveryBusy)
+            var code = response.Error is { } error && error.TryParseProblemDetails(out var parsed) ? parsed : OdinClientErrorCode.NoErrorCode;
+            if (code == OdinClientErrorCode.RecoveryBusy)
             {
-                throw new OdinClientException($"{odinId} is busy with another piece; approve again in a moment", OdinClientErrorCode.RecoveryBusy);
+                throw new OdinClientException($"{odinId} is busy just now; approve again in a moment", OdinClientErrorCode.RecoveryBusy);
+            }
+
+            if (code == OdinClientErrorCode.ShardLinkNoLongerValid)
+            {
+                // For a recovery that ended or started over: nothing to approve any more
+                await _approvalCollector.DeleteRequest(shardId, odinContext);
+                throw new OdinClientException($"{odinId}'s recovery has ended or started over; this request is gone",
+                    OdinClientErrorCode.ShardLinkNoLongerValid);
             }
 
             throw new OdinClientException(
@@ -886,8 +909,7 @@ public class ShamirRecoveryService
 
     private async Task ExitRecoveryModeInternal(IOdinContext odinContext)
     {
-        // Under the collect lock: a collect that read the status before must not write it back after
-        await using var collecting = await LockOrSayBusyAsync(CollectLock, CollectLockWait, "ending recovery");
+        // No lock: a collect that read the status before writes it back only if it is still there
         await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
 
         var drive = await _driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias, false);
