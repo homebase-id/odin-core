@@ -44,40 +44,28 @@ public static class RecoveryEmails
         (players.Where(p => p.Type == PlayerType.Delegate).Select(p => p.OdinId).ToList(),
             players.Where(p => p.Type == PlayerType.Automatic).Select(p => p.OdinId).ToList());
 
-    private static string HoldersText(List<ShamiraPlayer> players)
+    private static string HoldersText(List<ShamiraPlayer> players) =>
+        HoldersLines(players, "\n            ", names => names);
+
+    private static string HoldersHtml(List<ShamiraPlayer> players) =>
+        HoldersLines(players, "<br />", names => $"<b>{names}</b>");
+
+    /// <summary>The holders, as one sentence per kind, each line opened by <paramref name="lineBreak"/>.</summary>
+    private static string HoldersLines(List<ShamiraPlayer> players, string lineBreak, System.Func<string, string> names)
     {
         var (ask, email) = Holders(players);
-        var sb = new StringBuilder();
-        sb.AppendLine("Once you continue with the link below, these hold a piece of your recovery:");
+        var sb = new StringBuilder("Once you continue with the link below, these hold a piece of your recovery:");
         if (ask.Any())
         {
-            sb.AppendLine($"            Ask these friends to approve in their Homebase: {string.Join(", ", ask)}");
+            sb.Append($"{lineBreak}Ask these friends to approve in their Homebase: {names(string.Join(", ", ask))}");
         }
 
         if (email.Any())
         {
-            sb.AppendLine($"            These will each email you a link; click each one: {string.Join(", ", email)}");
+            sb.Append($"{lineBreak}These will each email you a link; click each one: {names(string.Join(", ", email))}");
         }
 
-        return sb.ToString();
-    }
-
-    private static string HoldersHtml(List<ShamiraPlayer> players)
-    {
-        var (ask, email) = Holders(players);
-        var sb = new StringBuilder();
-        sb.AppendLine("Once you continue with the link below, these hold a piece of your recovery:");
-        if (ask.Any())
-        {
-            sb.AppendLine($"<br />Ask these friends to approve in their Homebase: <b>{string.Join(", ", ask)}</b>");
-        }
-
-        if (email.Any())
-        {
-            sb.AppendLine($"<br />These will each email you a link; click each one: <b>{string.Join(", ", email)}</b>");
-        }
-
-        return sb.ToString();
+        return sb.Append(lineBreak).ToString();
     }
 
     public static string EnterRecoveryModeVerifyEmailHtml(string domain, string link, List<ShamiraPlayer> players)

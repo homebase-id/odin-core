@@ -17,11 +17,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// recovery: the dealer refuses it. So it must not count as usable, and approving its release must
 /// fail visibly rather than report success (#1885).
 /// </summary>
-/// <remarks>
-/// Its own fixture because the recovery test ends in a shard rotation that cannot reach the
-/// disconnected delegate, which trips the tenant's <see cref="ShardRotationGate"/>; see
-/// <see cref="FailedShardRotationTests"/>.
-/// </remarks>
 [TestFixture]
 public class DisconnectedDelegateTests : ShamirFixture
 {

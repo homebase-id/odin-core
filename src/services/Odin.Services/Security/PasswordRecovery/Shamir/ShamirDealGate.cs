@@ -5,12 +5,12 @@ using System.Threading.Tasks;
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
 /// <summary>
-/// Lets one owner request at a time attempt a shard rotation, and none for an hour after one fails.
-/// The owner auth handler checks for rotation on every request, so without this a burst of requests
-/// after a recovery would each rotate, and a failing rotation would be retried on every one.
-/// In memory, one per tenant: a restart costs one retry.
+/// Lets one owner request at a time change the deal (remove a dead friend deal, or move an old deal
+/// off the phrase), and none for an hour after one fails.  The owner auth handler checks on every
+/// request, so without this a burst of requests would each try, and a failing change would be retried
+/// on every one.  In memory, one per tenant: a restart costs one retry.
 /// </summary>
-public class ShardRotationGate
+public class ShamirDealGate
 {
     internal const long CooldownMs = 60 * 60 * 1000;
 
@@ -19,12 +19,12 @@ public class ShardRotationGate
     private long _lastFailureMs;
 
     // monotonic: a wall-clock jump must not stretch or cut the cooldown
-    public ShardRotationGate() : this(() => Environment.TickCount64)
+    public ShamirDealGate() : this(() => Environment.TickCount64)
     {
     }
 
     /// <summary>For tests: <paramref name="nowMs"/> stands in for the clock.</summary>
-    internal ShardRotationGate(Func<long> nowMs)
+    internal ShamirDealGate(Func<long> nowMs)
     {
         _nowMs = nowMs;
     }

@@ -101,6 +101,10 @@ public abstract class ShamirFixture : V2Fixture
         cb.RegisterInstance(_recoveryLinks).As<IRecoveryNotificationSink>().SingleInstance();
     }
 
+    /// <summary>The sink lives as long as the host; each test reads only its own links.</summary>
+    [SetUp]
+    public void ForgetEarlierRecoveryLinks() => _recoveryLinks.Clear();
+
     /// <summary>
     /// The four players, in the order every original listed them. All four are real tenants on the
     /// host: the shards are delivered to them and then verified over a peer call, so a merely-named
@@ -111,7 +115,7 @@ public abstract class ShamirFixture : V2Fixture
 
     /// <summary>
     /// The identities named by <c>AccountRecovery:AutomatedPasswordRecoveryIdentities</c> in
-    /// <c>appsettings.development.json</c> — the players <c>EnableAutoPasswordRecovery</c> deals to.
+    /// <c>appsettings.development.json</c> — the players the automated deal goes to.
     /// </summary>
     internal static readonly string[] AutomatedPlayerIdentities =
         [Identities.TomBombadil, Identities.Collab, Identities.Merry, Identities.Pippin];
@@ -277,13 +281,13 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
-    /// A server-made automated deal, as every one was before the browser dealt them (a development
-    /// host only).  Note: no connections — production has none either.
+    /// A server-made automated deal, as every one was before the browser dealt them, made in process:
+    /// no route makes one any more.  Note: no connections — production has none either.
     /// </summary>
-    protected static async Task<DealerShardConfig> ArrangeServerMadeAutomatedDealAsync(OwnerSession dealer)
+    protected async Task<DealerShardConfig> ArrangeServerMadeAutomatedDealAsync(OwnerSession dealer)
     {
-        var enableResponse = await dealer.RefitFor<IRefitOwnerConfiguration>().EnableAutoPasswordRecovery();
-        Assert.That(enableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), enableResponse.Error?.Content);
+        var (scope, context) = await MigrationContextAsync(dealer);
+        await scope.Resolve<ShamirConfigurationService>().DealServerMadeAutomatedDealAsync(context);
         await dealer.Sync.DrainOutboxAsync();
 
         var config = await GetDealerShardConfigAsync(dealer);
@@ -511,7 +515,7 @@ public abstract class ShamirFixture : V2Fixture
         await EnterRecoveryModeAsync(dealer);
         await FillEverySlotAsync(dealer);
         var rebuilt = await RebuildInTheRecoveringBrowserAsync(dealer);
-        Assert.That(rebuilt.Bundle.IsServerMadeDeal, Is.True);
+        Assert.That(rebuilt.Bundle.Copies, Is.Null, "a server-made deal has no copies");
         return await FinalizeRecoveryAndLoginAsync(dealer, rebuilt.Secret, newPassword);
     }
 
@@ -529,19 +533,14 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
-    /// The newest link each automatic holder emailed for <paramref name="dealer"/>'s recovery under
-    /// <paramref name="config"/>: the shard and the code it carries.  The sink outlives each test's
-    /// reset, so links for an earlier deal's shards are left out.
+    /// The newest link each automatic holder emailed for <paramref name="dealer"/>'s recovery: the shard
+    /// and the code it carries.
     /// </summary>
-    protected IReadOnlyList<(OdinId Holder, FillSlotRequest Request)> ReleaseLinks(OwnerSession dealer, DealerShardConfig config)
-    {
-        var shards = config.Envelopes.Select(e => e.ShardId).ToHashSet();
-        return _recoveryLinks.All(new OdinId(dealer.Identity.DomainName), RecoveryNotificationKind.ReleaseShard)
-            .Where(n => shards.Contains(n.NonceId))
+    protected IReadOnlyList<(OdinId Holder, FillSlotRequest Request)> ReleaseLinks(OwnerSession dealer) =>
+        _recoveryLinks.All(new OdinId(dealer.Identity.DomainName), RecoveryNotificationKind.ReleaseShard)
             .GroupBy(n => n.Holder!.Value)
             .Select(g => (g.Key, FillSlotFrom(g.Last().Link)))
             .ToList();
-    }
 
     /// <summary>What the recovery page posts for a holder's link: <c>?fill=&lt;shard&gt;&amp;code=&lt;code&gt;</c>.</summary>
     protected static FillSlotRequest FillSlotFrom(string link)
@@ -557,7 +556,7 @@ public abstract class ShamirFixture : V2Fixture
     protected async Task FillEverySlotAsync(OwnerSession dealer)
     {
         var filled = (await OpenSlotsAsync(dealer)).Where(s => s.Filled).Select(s => s.Player.OdinId).ToHashSet();
-        foreach (var (holder, request) in ReleaseLinks(dealer, await GetDealerShardConfigAsync(dealer)).Where(l => !filled.Contains(l.Holder)))
+        foreach (var (holder, request) in ReleaseLinks(dealer).Where(l => !filled.Contains(l.Holder)))
         {
             var response = await AnonymousSecurityOf(dealer).FillSlot(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"{holder}: {response.Error?.Content}");

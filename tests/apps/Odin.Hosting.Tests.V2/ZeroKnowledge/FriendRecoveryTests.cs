@@ -48,7 +48,7 @@ public class FriendRecoveryTests : ShamirFixture
         var waiting = (await AnonymousSecurityOf(frodo).GetShamirRecoverStatus()).Content!;
         Assert.That((waiting.Filled, waiting.Needed), Is.EqualTo((0, 3)));
         var automatic = config.Envelopes.Where(e => e.Player.Type == PlayerType.Automatic).Select(e => e.Player.OdinId).ToList();
-        Assert.That(ReleaseLinks(frodo, config).Select(l => l.Holder), Is.EquivalentTo(automatic), "every automatic friend emails the owner");
+        Assert.That(ReleaseLinks(frodo).Select(l => l.Holder), Is.EquivalentTo(automatic), "every automatic friend emails the owner");
 
         // The owner clicks both links; that is never enough on its own
         await FillEverySlotAsync(frodo);

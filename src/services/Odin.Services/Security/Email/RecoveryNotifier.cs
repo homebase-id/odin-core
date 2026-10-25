@@ -159,7 +159,7 @@ public class RecoveryNotifier(
 
         var holder = tenantContext.HostOdinId;
         var link = $"https://{dealer}/owner/shamir-account-recovery?fill={shardId:N}&code={Uri.EscapeDataString(code)}";
-        notificationSink.Notify(new RecoveryNotification(dealer, RecoveryNotificationKind.ReleaseShard, link, shardId, holder));
+        notificationSink.Notify(new RecoveryNotification(dealer, RecoveryNotificationKind.ReleaseShard, link, Guid.Empty, holder));
 
         if (configuration.Mailgun.Enabled)
         {

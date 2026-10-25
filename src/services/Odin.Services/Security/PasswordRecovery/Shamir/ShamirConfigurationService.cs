@@ -50,7 +50,7 @@ public class ShamirConfigurationService(
     IDriveManager driveManager,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
-    ShardRotationGate rotationGate,
+    ShamirDealGate dealGate,
     ZeroKnowledgeKeyService zeroKnowledgeKeyService,
     PeerDriveQueryService peerDriveQueryService,
     ILastSeenService lastSeenService) : ShamirBaseService<ShamirConfigurationService>(logger, fileSystem, driveManager, lastSeenService)
@@ -77,26 +77,15 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// Tests only (a development host): a server-made automated deal, as every one was before the
-    /// browser dealt it, so a test can recover with one and see the next password login deal it again.
-    /// The browser deals the automated deal now (<see cref="ConfigureShards"/>).
+    /// Tests only, in process (no route reaches it): a server-made automated deal, as every one was
+    /// before the browser dealt it, so a test can recover with one and see the next password login deal
+    /// it again.  The browser deals the automated deal now (<see cref="ConfigureShards"/>).
     /// </summary>
-    public async Task ConfigureAutomatedRecovery(IOdinContext odinContext)
+    public async Task DealServerMadeAutomatedDealAsync(IOdinContext odinContext)
     {
-        if (!configuration.Development.Enabled)
-        {
-            throw new OdinClientException("The automated deal is dealt in the browser", OdinClientErrorCode.ArgumentError);
-        }
-
-        var players = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(p => new ShamiraPlayer()
-        {
-            OdinId = (OdinId)p,
-            Type = PlayerType.Automatic
-        }).ToList() ?? [];
-
-        Logger.LogDebug("Configuring automated recovery for auto-players: {players}", string.Join(",", players.Select(p => p.OdinId)));
-
-        await DistributeShards(players, 3, odinContext);
+        AssertCanUseAutomatedRecovery();
+        var automated = GetAutomatedRecoveryPlayers();
+        await DistributeShards(automated.Players, automated.MinMatchingShards, odinContext);
     }
 
     public void AssertCanUseAutomatedRecovery()
@@ -138,17 +127,6 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// Whether <paramref name="request"/> is the automated deal: every player one of this host's
-    /// automated identities, all automatic.  Only it may reach the threshold with automatic shards.
-    /// </summary>
-    private bool IsAutomatedDeal(ConfigureShardsRequest request)
-    {
-        var automated = GetAutomatedRecoveryPlayers()?.Players.Select(p => p.OdinId).ToHashSet();
-        return automated != null && request.Shards?.Count == automated.Count &&
-               request.Shards.All(s => s?.Player?.Type == PlayerType.Automatic && automated.Contains(s.Player.OdinId));
-    }
-
-    /// <summary>
     /// Whether the deal was made by this server, before the browser dealt every deal: its secret opens
     /// only today's master key, and the next password login deals it again in the browser.
     /// </summary>
@@ -168,8 +146,7 @@ public class ShamirConfigurationService(
     {
         odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        var automatedDeal = IsAutomatedDeal(request);
-        request.Validate(automatedDeal);
+        var automatedDeal = request.Validate(GetAutomatedRecoveryPlayers()?.Players.Select(p => p.OdinId).ToHashSet() ?? []);
         OdinValidationUtils.AssertValidRecipientList(request.Shards.Select(s => s.Player.OdinId), false, odinContext.Tenant);
         await zeroKnowledgeKeyService.AssertKeysExistAsync();
 
@@ -419,14 +396,14 @@ public class ShamirConfigurationService(
             return;
         }
 
-        if (!await rotationGate.WaitToEnterAsync(MoveOffThePhraseWait))
+        if (!await dealGate.WaitToEnterAsync(MoveOffThePhraseWait))
         {
             throw new OdinClientException("Recovery shards are being dealt; try again later");
         }
 
         try
         {
-            // Again inside the gate: a rotation that just finished may have dealt it again already
+            // Again inside the gate: a deal that just finished may have moved it already
             if (!await DealLocksThePhraseAsync())
             {
                 return;
@@ -446,7 +423,7 @@ public class ShamirConfigurationService(
         }
         finally
         {
-            rotationGate.Exit();
+            dealGate.Exit();
         }
     }
 
@@ -502,15 +479,21 @@ public class ShamirConfigurationService(
     /// </remarks>
     public async Task RemoveDeadFriendDealIfNeeded(IOdinContext odinContext)
     {
-        if (!rotationGate.TryEnter())
+        if (!dealGate.TryEnter())
         {
             return;
         }
 
         try
         {
+            // The copies first: they are there for every deal but a dead one, and the check is cheap
+            if (await zeroKnowledgeKeyService.HasShamirCopiesAsync())
+            {
+                return;
+            }
+
             var package = await this.GetDealerShardPackage(odinContext);
-            if (package is { UsesAutomatedRecovery: false } && !await zeroKnowledgeKeyService.HasShamirCopiesAsync())
+            if (package is { UsesAutomatedRecovery: false })
             {
                 Logger.LogInformation("Removing a friend deal that can recover nothing (no zero-knowledge copies)");
                 await RemoveDealAsync(odinContext);
@@ -518,12 +501,12 @@ public class ShamirConfigurationService(
         }
         catch (Exception e)
         {
-            rotationGate.Failed();
+            dealGate.Failed();
             Logger.LogError(e, "Failed to remove a dead friend deal");
         }
         finally
         {
-            rotationGate.Exit();
+            dealGate.Exit();
         }
     }
 
@@ -627,8 +610,8 @@ public class ShamirConfigurationService(
 
             dealerRecords.Add(new DealerShardEnvelope()
             {
-                // The piece's x, as the browser deals it.  Deals before this kept the position (0-based),
-                // so a server-made deal is rebuilt with the shard's own index.
+                // The piece's x, as the browser deals it.  Deals before this kept the position (0-based);
+                // the recovery bundle gives those as x.
                 Index = s.Index,
                 Player = player,
                 ShardId = playerShardId,

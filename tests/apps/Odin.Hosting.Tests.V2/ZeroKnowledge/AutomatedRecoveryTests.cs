@@ -44,7 +44,7 @@ public class AutomatedRecoveryTests : ShamirFixture
         await EnterRecoveryModeAsync(frodo);
 
         // Every holder emailed the owner; nothing is released until a link is clicked
-        var links = ReleaseLinks(frodo, config);
+        var links = ReleaseLinks(frodo);
         Assert.That(links.Select(l => l.Holder.DomainName), Is.EquivalentTo(AutomatedPlayerIdentities));
         var status = (await AnonymousSecurityOf(frodo).GetShamirRecoverStatus()).Content!;
         Assert.That((status.Filled, status.Needed), Is.EqualTo((0, config.MinMatchingShards)));
@@ -56,7 +56,6 @@ public class AutomatedRecoveryTests : ShamirFixture
         Assert.Throws(Is.InstanceOf<Exception>(), () => ZkBrowser.Unseal(status.SealedSlots64, ZkBrowser.MakeKeyPair().PrivateKeyPkcs8));
 
         // One click per holder, from any device (the page posts no key), until the threshold
-        var collectedEmails = RecoveryNotificationCount(frodo, RecoveryNotificationKind.ShardsCollected);
         for (var i = 0; i < config.MinMatchingShards; i++)
         {
             var filled = await AnonymousSecurityOf(frodo).FillSlot(links[i].Request);
@@ -64,10 +63,10 @@ public class AutomatedRecoveryTests : ShamirFixture
         }
 
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingRecoveringBrowser);
-        Assert.That(RecoveryNotificationCount(frodo, RecoveryNotificationKind.ShardsCollected) - collectedEmails, Is.EqualTo(1),
+        Assert.That(RecoveryNotificationCount(frodo, RecoveryNotificationKind.ShardsCollected), Is.EqualTo(1),
             "the owner is told once, at the threshold");
         status = (await AnonymousSecurityOf(frodo).GetShamirRecoverStatus()).Content!;
-        Assert.That(OpenSlots(status.SealedSlots64).Count(s => s.Filled), Is.EqualTo(config.MinMatchingShards));
+        Assert.That(status.SealedSlots64, Is.Null, "the slots are shown only while shards are awaited");
 
         var rebuilt = await RebuildInTheRecoveringBrowserAsync(frodo);
         Assert.That(rebuilt.Password, Is.EqualTo(Password), "the automated deal gives back the password");
@@ -81,9 +80,9 @@ public class AutomatedRecoveryTests : ShamirFixture
     public async Task AHolderLinkWorksOnceAndOnlyWithItsCode()
     {
         var (frodo, _) = Cast();
-        var config = await ArrangeAutomatedDealAsync(frodo);
+        await ArrangeAutomatedDealAsync(frodo);
         await EnterRecoveryModeAsync(frodo);
-        var (_, link) = ReleaseLinks(frodo, config).First();
+        var (_, link) = ReleaseLinks(frodo).First();
         var security = AnonymousSecurityOf(frodo);
 
         DriveAsserts.AssertRejected(await security.FillSlot(new FillSlotRequest { ShardId = link.ShardId, Code = new string('0', 32) }),
@@ -103,9 +102,9 @@ public class AutomatedRecoveryTests : ShamirFixture
     public async Task ALinkDoesNothingOnceRecoveryIsOverAndStartingAgainSoonReusesIt()
     {
         var (frodo, _) = Cast();
-        var config = await ArrangeAutomatedDealAsync(frodo);
+        await ArrangeAutomatedDealAsync(frodo);
         await EnterRecoveryModeAsync(frodo);
-        var (holder, link) = ReleaseLinks(frodo, config).First();
+        var (holder, link) = ReleaseLinks(frodo).First();
         var emailed = RecoveryNotificationCount(frodo, RecoveryNotificationKind.ReleaseShard);
 
         await ExitRecoveryModeAsync(frodo);
@@ -176,7 +175,7 @@ public class AutomatedRecoveryTests : ShamirFixture
             "every shard is new");
 
         var rebuilt = await RecoverInBrowserAsync(frodo, [], after);
-        Assert.That(rebuilt.Bundle.IsServerMadeDeal, Is.False);
+        Assert.That(rebuilt.Bundle.Copies, Is.Not.Null, "dealt in the browser");
         Assert.That(rebuilt.Password, Is.EqualTo(Password));
         Assert.That(rebuilt.ZkMasterKey, Is.EqualTo(ZkMasterKeyOf(frodo)));
     }

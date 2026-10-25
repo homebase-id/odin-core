@@ -61,12 +61,16 @@ public class ZeroKnowledgeRecoveryService(
     /// An automated deal that gives back nothing in the browser: made by the server before the browser
     /// dealt every deal, or its copies forgotten by a reset with today's master key.
     /// </summary>
+    /// <remarks>A server-made deal has no copies either: the server forgets them when it deals.</remarks>
     private async Task<bool> AutomatedDealNeedsDealingAsync(ZkKeyRecord keys, IOdinContext odinContext)
     {
-        var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
-        return package?.UsesAutomatedRecovery == true &&
-               shamirConfigurationService.GetAutomatedRecoveryPlayers() != null &&
-               (await shamirConfigurationService.IsServerMadeDealAsync() || keys?.HasShamirCopies() != true);
+        // The cheap checks first; the package is read only for a deal without copies
+        if (keys?.HasShamirCopies() == true || shamirConfigurationService.GetAutomatedRecoveryPlayers() == null)
+        {
+            return false;
+        }
+
+        return (await shamirConfigurationService.GetDealerShardPackage(odinContext))?.UsesAutomatedRecovery == true;
     }
 
     /// <summary>

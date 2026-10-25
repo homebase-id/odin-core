@@ -33,6 +33,15 @@ public sealed class CapturingRecoveryNotificationSink : IRecoveryNotificationSin
         }
     }
 
+    /// <summary>Forgets every notification so far: the sink outlives each test's reset.</summary>
+    public void Clear()
+    {
+        lock (_notifications)
+        {
+            _notifications.Clear();
+        }
+    }
+
     /// <summary>Every <paramref name="kind"/> notification for <paramref name="tenant"/>, oldest first.</summary>
     public IReadOnlyList<RecoveryNotification> All(OdinId tenant, RecoveryNotificationKind kind)
     {

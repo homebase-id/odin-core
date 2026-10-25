@@ -9,7 +9,7 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir;
 /// and used when reconstructing the secret.
 /// </summary>
 [DebuggerDisplay("Player: {Player.OdinId} Type: {Player.Type}")]
-public class DealerShardEnvelope
+public record DealerShardEnvelope
 {
     public ShamiraPlayer Player { get; init; }
     public byte[] EncryptionKey { get; init; }

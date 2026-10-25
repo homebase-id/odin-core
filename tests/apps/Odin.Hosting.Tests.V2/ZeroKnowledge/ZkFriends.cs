@@ -177,16 +177,15 @@ internal static class ZkFriends
         {
             var envelope = bundle.Envelopes.Single(e => e.ShardId == shard.Id);
             var locked = ZkBrowser.Unseal(shard.DealerEncryptedShard, recoveringBrowser.PrivateKeyPkcs8);
-            // The dealer's own index: a holder could send any.  A server-made deal's envelopes kept the
-            // position instead, so it is rebuilt with the shard's, as the server rebuilt it.
-            return new ShamirSecretSharing.ShamirShard(bundle.IsServerMadeDeal ? shard.Index : envelope.Index,
+            // The dealer's own index: a holder could send any
+            return new ShamirSecretSharing.ShamirShard(envelope.Index,
                 AesCbc.Decrypt(locked, envelope.EncryptionKey.ToSensitiveByteArray(), envelope.EncryptionIv));
         }).OrderBy(p => p.Index).ToList();
 
         var secret = ShamirSecretSharing.ReconstructShamirSecret(pieces, 16);
-        if (bundle.IsServerMadeDeal)
+        if (bundle.Copies == null)
         {
-            Assert.That(bundle.Copies, Is.Null, "a server-made deal has no copies");
+            // A server-made deal: its secret goes to finalize with a new password
             return new Recovered(secret, null, null, bundle);
         }
 

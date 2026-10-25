@@ -205,9 +205,14 @@ public class PasswordKeyRecoveryService(
     {
         var recoveryInfo = await GetRecoveryInfo();
         OdinValidationUtils.AssertValidEmail(recoveryInfo?.Email, "Recovery email must be set to configure sharding");
-        var hash = ByteArrayUtil.ReduceSHA256Hash(recoveryInfo?.Email);
-        return hash;
+        return HashRecoveryEmail(recoveryInfo?.Email);
     }
+
+    /// <summary>
+    /// The recovery email as each shard stores it at the deal: an automatic holder checks the address
+    /// a dealer sends against it before it emails a link there.
+    /// </summary>
+    public static Guid HashRecoveryEmail(string email) => ByteArrayUtil.ReduceSHA256Hash(email);
 
     public async Task UpdateAccountRecoveryEmail(Guid nonceId)
     {

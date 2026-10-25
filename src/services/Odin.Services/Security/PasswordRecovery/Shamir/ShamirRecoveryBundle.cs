@@ -25,15 +25,12 @@ public sealed class ShamirRecoveryBundle
     /// </summary>
     public List<PlayerEncryptedShard> Shards { get; init; }
 
-    /// <summary>Null for a server-made deal (<see cref="IsServerMadeDeal"/>).</summary>
-    public ZkShamirRecoveryCopies Copies { get; init; }
-
     /// <summary>
-    /// The deal was made by the server, before the browser dealt every deal: its secret opens only
+    /// Null for a deal made by the server, before the browser dealt every deal: its secret opens only
     /// today's master key, so the browser sends it with a new password (<c>finalize</c>), and the reset
     /// forgets the zero-knowledge keys.
     /// </summary>
-    public bool IsServerMadeDeal { get; init; }
+    public ZkShamirRecoveryCopies Copies { get; init; }
 }
 
 /// <summary><see cref="ShamirRecoveryBundle"/>'s JSON, sealed to the recovering browser's throwaway key.</summary>

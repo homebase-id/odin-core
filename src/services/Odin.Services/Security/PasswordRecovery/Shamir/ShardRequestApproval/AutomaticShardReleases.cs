@@ -16,7 +16,6 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 /// </summary>
 public sealed record AutomaticShardRelease
 {
-    public Guid ShardId { get; init; }
     public OdinId Dealer { get; init; }
 
     /// <summary>The recovering browser's throwaway key, which the shard is sealed to when released.</summary>
@@ -60,10 +59,9 @@ public sealed class AutomaticShardReleases(TableKeyValueCached tblKeyValue)
             return null;
         }
 
-        var code = Convert.ToHexString(ByteArrayUtil.GetRndByteArray(16)).ToLowerInvariant();
+        var code = ByteArrayUtil.GetRandomCryptoGuid().ToString("N");
         await Storage.UpsertAsync(tblKeyValue, shardId, new AutomaticShardRelease
         {
-            ShardId = shardId,
             Dealer = dealer,
             RecoveryPublicKeyJwk = recoveryPublicKeyJwk,
             CodeHash = Hash(code),
@@ -88,5 +86,5 @@ public sealed class AutomaticShardReleases(TableKeyValueCached tblKeyValue)
 
     public Task DeleteAsync(Guid shardId) => Storage.DeleteAsync(tblKeyValue, shardId);
 
-    private static byte[] Hash(string code) => SHA256.HashData(code.ToUtf8ByteArray());
+    private static byte[] Hash(string code) => ByteArrayUtil.CalculateSHA256Hash(code.ToUtf8ByteArray());
 }

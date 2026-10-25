@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
@@ -24,10 +25,11 @@ public sealed class ConfigureShardsRequest
     public ZkShamirCopiesRequest ShamirCopies { get; init; }
 
     /// <summary>
-    /// The checks that need nothing but the request.  <paramref name="automatedDeal"/>: the deal is the
-    /// automated deal, whose automatic shards reach the threshold by design.
+    /// The checks that need nothing but the request and the host's automated identities.  Returns
+    /// whether the deal is the automated deal: every player one of <paramref name="automatedIdentities"/>,
+    /// all automatic.  Only it may reach the threshold with automatic shards.
     /// </summary>
-    public void Validate(bool automatedDeal)
+    public bool Validate(IReadOnlySet<OdinId> automatedIdentities)
     {
         OdinValidationUtils.AssertNotNull(Shards, nameof(Shards));
         OdinValidationUtils.AssertIsTrue(Shards.All(s => s?.Player != null), "Every shard needs a player");
@@ -56,12 +58,16 @@ public sealed class ConfigureShardsRequest
         // design, for owners who want only a password reset; in a friend deal at least one gated
         // friend must always approve (F2).
         var automatic = Shards.Count(s => s.Player.Type == PlayerType.Automatic);
+        var automatedDeal = automatic == Shards.Count && Shards.Count == automatedIdentities.Count &&
+                            Shards.All(s => automatedIdentities.Contains(s.Player.OdinId));
         if (!automatedDeal && automatic >= MinMatchingShards)
         {
             throw new OdinClientException(
                 $"{automatic} automatic shard(s) reach the threshold of {MinMatchingShards}; at least one friend must approve",
                 OdinClientErrorCode.AutomaticShardsReachThreshold);
         }
+
+        return automatedDeal;
     }
 }
 
