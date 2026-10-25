@@ -13,6 +13,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Base;
 using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.OwnerToken.Security;
@@ -22,6 +23,7 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Ported.Shamir;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -136,6 +138,32 @@ public class AutomatedRecoveryTests : ShamirFixture
         await FillEverySlotAsync(frodo);
         var rebuilt = await RebuildInTheRecoveringBrowserAsync(frodo);
         Assert.That(rebuilt.Password, Is.EqualTo(Password));
+    }
+
+    /// <summary>
+    /// A holder not reached when the recovery started over still holds the earlier start's key: its
+    /// shard opens only in the earlier browser, so its link no longer works for this recovery.
+    /// </summary>
+    [Test]
+    public async Task ALinkSealedToAnEarlierStartsKeyNoLongerWorks()
+    {
+        var (frodo, _) = Cast();
+        await ArrangeAutomatedDealAsync(frodo);
+        await EnterRecoveryModeAsync(frodo);
+        var earlierKey = RecoveringBrowser!.PublicKeyJwk;
+        var (holder, link) = ReleaseLinks(frodo).First();
+
+        await ExitRecoveryModeAsync(frodo);
+        await EnterRecoveryModeAsync(frodo);
+
+        // As if the new start's ask never reached the holder: inside the email interval its request
+        // keeps the code, and the key is the earlier one again
+        var holderReleases = new AutomaticShardReleases(Host.GetTenantScope(holder.DomainName).Resolve<TableKeyValueCached>());
+        Assert.That(await holderReleases.RequestAsync(Guid.Parse(link.ShardId), new OdinId(frodo.Identity.DomainName), earlierKey), Is.Null,
+            "inside the interval the code stays");
+
+        DriveAsserts.AssertRejected(await AnonymousSecurityOf(frodo).FillSlot(link), OdinClientErrorCode.ShardLinkNoLongerValid);
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
     }
 
     [Test]

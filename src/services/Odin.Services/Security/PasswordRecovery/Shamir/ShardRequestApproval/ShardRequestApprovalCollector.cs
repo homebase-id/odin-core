@@ -77,12 +77,14 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
 
     /// <summary>
     /// Deletes <paramref name="handled"/>, the request as read before it was handled.  A dealer that
-    /// started over since asked again with another key, in the same file: that newer request stays.
+    /// started over since asked again in the same file, maybe with the same browser's key: that newer
+    /// request, stamped when it came in, stays.
     /// </summary>
     public async Task DeleteRequest(ShardApprovalRequest handled, IOdinContext odinContext)
     {
         var header = await GetRequestFile(handled.ShardId, odinContext);
-        if (header == null || ToRequest(header).RecoveryPublicKeyJwk != handled.RecoveryPublicKeyJwk)
+        var stored = header == null ? null : ToRequest(header);
+        if (stored == null || stored.Created != handled.Created || stored.RecoveryPublicKeyJwk != handled.RecoveryPublicKeyJwk)
         {
             return;
         }

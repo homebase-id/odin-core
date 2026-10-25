@@ -380,17 +380,11 @@ public class ShamirRecoveryService
                     OdinClientErrorCode.ShardHolderUnreachable);
         }
 
-        try
-        {
-            // From the holder itself: this server called it
-            await CollectShardAsync(response.Content, envelope.Player.OdinId, odinContext, package);
-        }
-        catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.ShardLinkNoLongerValid)
-        {
-            // The recovery ended or started over since the check above: the link itself is fine, and
-            // works again for a new start inside the holder's email interval
-            throw new OdinClientException("There is no recovery under way", OdinClientErrorCode.RecoveryNotReady);
-        }
+        // From the holder itself: this server called it.  A recovery that ended or started over since the
+        // check above is no fault of the link, which works again for a new start inside the holder's
+        // email interval; a shard sealed to an earlier start's key is (the holder wasn't reached since).
+        await CollectShardAsync(response.Content, envelope.Player.OdinId, odinContext, package,
+            noRecoveryUnderWay: () => new OdinClientException("There is no recovery under way", OdinClientErrorCode.RecoveryNotReady));
     }
 
     public async Task ExitRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
@@ -546,11 +540,14 @@ public class ShamirRecoveryService
 
     /// <summary>
     /// Collects a shard from <paramref name="player"/>, which must be the player the dealer dealt it to.
-    /// <paramref name="package"/> is the dealer package when the caller has it already.
+    /// <paramref name="package"/> is the dealer package when the caller has it already;
+    /// <paramref name="noRecoveryUnderWay"/> what to throw when no recovery is collecting (by default
+    /// <see cref="NoRecoveryUnderWay"/>, which tells a holder its link or request won't do any more).
     /// </summary>
     private async Task CollectShardAsync(RetrieveShardResult result, OdinId player, IOdinContext odinContext,
-        DealerShardPackage package = null)
+        DealerShardPackage package = null, Func<OdinClientException> noRecoveryUnderWay = null)
     {
+        noRecoveryUnderWay ??= NoRecoveryUnderWay;
         // The checks first, outside the lock: anyone in the network can call accept-player-shard, and
         // junk must not queue on the lock ahead of real shards
         if (result.ResultType != RetrieveShardResultType.Complete)
@@ -561,7 +558,7 @@ public class ShamirRecoveryService
         var started = await GetStatusRecordInternal();
         if (!IsCollecting(started))
         {
-            throw NoRecoveryUnderWay();
+            throw noRecoveryUnderWay();
         }
 
         package ??= await GetDealerPackageAsync(odinContext);
@@ -598,7 +595,7 @@ public class ShamirRecoveryService
         var status = ReadStatus(storedStatus);
         if (!IsCollecting(status) || status.RecoveryPublicKeyJwk != started.RecoveryPublicKeyJwk)
         {
-            throw NoRecoveryUnderWay();
+            throw noRecoveryUnderWay();
         }
 
         await _playerShardCollector.SavePlayerShard(result.Shard, odinContext);
@@ -614,7 +611,7 @@ public class ShamirRecoveryService
         };
         if (!await Storage.TryReplaceAsync(_keyValueTable, ShamirStatusStorageId, storedStatus, written))
         {
-            throw NoRecoveryUnderWay();
+            throw noRecoveryUnderWay();
         }
 
         if (status.State == ShamirRecoveryState.AwaitingRecoveringBrowser)
