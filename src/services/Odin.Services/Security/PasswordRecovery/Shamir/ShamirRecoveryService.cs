@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -99,7 +100,10 @@ public class ShamirRecoveryService
         _automaticReleases = new AutomaticShardReleases(keyValueTable);
     }
 
-    /// <summary>How long entering recovery waits for each holder; one not reached is asked again by "start over".</summary>
+    /// <summary>
+    /// How long the dealer waits for a holder's answer (once its client is set up): entering recovery
+    /// asks each for at most this long, and a click on its link too.
+    /// </summary>
     private static readonly TimeSpan HolderAskTimeout = TimeSpan.FromSeconds(20);
 
     // Internal for the tests that store a status as an older release did
@@ -323,8 +327,10 @@ public class ShamirRecoveryService
         ApiResponse<RetrieveShardResult> response = null;
         try
         {
+            // Bounded, so the browser hears "try again" rather than a cut connection
+            using var timeout = new CancellationTokenSource(HolderAskTimeout);
             var client = await CreateClientAsync(envelope.Player.OdinId);
-            response = await client.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = shardId, Code = code });
+            response = await client.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = shardId, Code = code }, timeout.Token);
         }
         catch (Exception e)
         {
@@ -335,11 +341,10 @@ public class ShamirRecoveryService
         {
             _logger.LogInformation("{holder} did not release shard {shardId}: {status}", envelope.Player.OdinId, shardId, response?.StatusCode);
 
-            // The holder refused (400: a wrong, replaced or expired link; 403: a shard it no longer holds
-            // for this dealer): that is for good.  Anything else (no answer, a timeout, an
-            // authentication or routing failure on the way) may pass: the same link still works.
-            var refused = response?.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden;
-            throw refused
+            // The holder itself refused (its own error code: a wrong, replaced or expired link, or a shard
+            // it doesn't hold for this dealer): that is for good.  Anything else (no answer, a timeout, a
+            // failure on the way) may pass: the same link still works.
+            throw HolderRefused(response)
                 ? new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid)
                 : new OdinClientException("The holder could not be reached; try the same link again later",
                     OdinClientErrorCode.ShardHolderUnreachable);
@@ -408,9 +413,12 @@ public class ShamirRecoveryService
             // next one (the notifier checks again, for its other callers' sake)
             _recoveryNotifier.AssertEmailEnabled();
 
-            // One request per shard at a time: a second one must see whether the first one's email went
+            // One request per shard at a time: a second one must see whether the first one's email went.
+            // Bounded below the dealer's own wait, so a queued request never acts after it gave up.
+            using var lockWait = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             await using var oneAtATime = await _nodeLock.LockAsync(
-                NodeLockKey.Create(nameof(ShamirRecoveryService), "release", shard.Id.ToString()));
+                NodeLockKey.Create(nameof(ShamirRecoveryService), "release", _tenantContext.HostOdinId.DomainName, shard.Id.ToString()),
+                timeout: TimeSpan.FromSeconds(15), cancellationToken: lockWait.Token);
             var code = await _automaticReleases.RequestAsync(shard.Id, requester, request.RecoveryPublicKeyJwk);
             if (code != null)
             {
@@ -470,7 +478,8 @@ public class ShamirRecoveryService
         var (shard, sender, _) = await _configurationService.GetShardStoredForDealer(request.ShardId, odinContext);
         if (shard == null || sender != requester || shard.Player.Type != PlayerType.Automatic)
         {
-            throw new OdinSecurityException("invalid requester");
+            // The link's own code: the dealer tells this refusal from a failure on the way
+            throw new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid);
         }
 
         var release = await _automaticReleases.FindAsync(shard.Id, requester, request.Code)
@@ -766,6 +775,26 @@ public class ShamirRecoveryService
 
         return await _zeroKnowledgeKeyService.GetShamirRecoveryCopiesAsync()
                ?? throw new OdinClientException("Password recovery is not set up", OdinClientErrorCode.PasswordRecoveryNotConfigured);
+    }
+
+    /// <summary>Whether <paramref name="response"/> is the holder's own refusal of a link.</summary>
+    private static bool HolderRefused(IApiResponse response)
+    {
+        if (response?.StatusCode != HttpStatusCode.BadRequest || string.IsNullOrEmpty(response.Error?.Content))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var problem = JsonDocument.Parse(response.Error.Content);
+            return problem.RootElement.TryGetProperty("errorCode", out var errorCode) &&
+                   string.Equals(errorCode.GetString(), nameof(OdinClientErrorCode.ShardLinkNoLongerValid), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     /// <summary>How many of <paramref name="package"/>'s shards are in: the threshold and the status count the same.</summary>

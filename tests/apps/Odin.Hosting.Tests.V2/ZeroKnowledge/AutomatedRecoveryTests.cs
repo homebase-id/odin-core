@@ -275,13 +275,16 @@ public class AutomatedRecoveryTests : ShamirFixture
 
         // and a shard it collected unsealed, as holders released them before
         var leftover = config.Envelopes.First();
-        await new PlayerShardCollector(scope.Resolve<StandardFileSystem>()).SavePlayerShard(new PlayerEncryptedShard
+        var collector = new PlayerShardCollector(scope.Resolve<StandardFileSystem>());
+        await collector.SavePlayerShard(new PlayerEncryptedShard
         {
             Id = leftover.ShardId,
             Index = 1,
             Player = leftover.Player,
             DealerEncryptedShard = ByteArrayUtil.GetRndByteArray(48)
         }, context);
+        Assert.That((await collector.GetCollectShards(context)).Select(c => c.Id), Is.EqualTo(new[] { leftover.ShardId }),
+            "the leftover is where recovery counts shards");
 
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
         await EnterRecoveryModeAsync(frodo);

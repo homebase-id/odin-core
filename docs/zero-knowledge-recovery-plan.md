@@ -962,15 +962,17 @@ Facts checked in the code or by a test are marked **(V)**.
 - **One shard is collected at a time** (a node lock per identity): each counts the shards in to
   decide the threshold, so two clicks at once would each see one short of it.
 - **"Start over" asks only the holders whose shard isn't in** (test). The holders are asked at once,
-  each for at most 20 seconds, so one that hangs or can't be reached holds up neither the others nor
-  the browser's request (not tested: it needs a holder that hangs).
+  and the dealer waits at most 20 seconds for each answer (here and for a link's click), so one that
+  hangs holds up neither the others nor the browser's request (not tested: it needs a holder that
+  hangs). A holder takes its per-shard lock for at most 15 seconds, below that.
 - The threshold counts only the deal's own shards, as the status's slots do.
 - **A status without a browser key is from before this release** (an automated recovery under way,
   or one waiting on its finalize link): it reads as no recovery, so a new start replaces it, and a
   fresh entry clears the shards it left (test). Every start records the key now.
-- A click the holder refuses (400: a wrong, replaced or expired link; 403: a shard it no longer holds
-  for this dealer) is `ShardLinkNoLongerValid` (9024); anything else (no answer, a timeout, an
-  authentication or routing failure) is `ShardHolderUnreachable` (9025): the same link may work later.
+- A click the holder itself refuses (its own `ShardLinkNoLongerValid`: a wrong, replaced or expired
+  link, or a shard it doesn't hold for this dealer) is `ShardLinkNoLongerValid` (9024); anything else
+  (no answer, a timeout, an error on the way) is `ShardHolderUnreachable` (9025): the same link may
+  work later.
 - The recovery page keeps each message with the state it was shown in, drops it when the state moves
   on, and ignores a failed status read; a message whose state couldn't be read waits for the next
   good one.
@@ -1010,6 +1012,8 @@ Facts checked in the code or by a test are marked **(V)**.
     (the flag is in its local storage); elsewhere the security page offers it.
   - An automated deal whose copies a reset forgot can't recover until the next password login deals
     it again, and the security page doesn't flag it meanwhile.
+  - A holder that is gone for good (its identity deleted or disabled) reads as unreachable at every
+    click; the other holders may still be enough.
 - **Found, not fixed (pre-existing):** changing the recovery email leaves every deal's stored email
   hash stale, so the holders refuse the requests until the owner deals again
   (`UpdateAccountRecoveryEmail` touches no deal) **(V)**. With this design the holders couldn't email
