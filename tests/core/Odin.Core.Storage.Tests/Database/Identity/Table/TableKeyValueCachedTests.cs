@@ -238,6 +238,48 @@ public class TableKeyValueCachedTests : IocTestBase
     //
 
     [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_REDIS_TESTS
+    [TestCase(DatabaseType.Sqlite, true)]
+#endif
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, false)]
+#endif
+    public async Task ItShould_ReplaceOnlyWhileUnchanged_AndNotServeTheOldValueAfterwards(DatabaseType databaseType, bool redisEnabled)
+    {
+        await RegisterServicesAsync(databaseType, redisEnabled: redisEnabled);
+        await using var scope = Services.BeginLifetimeScope();
+        var table = scope.Resolve<TableKeyValueCached>();
+
+        var key = Guid.NewGuid().ToByteArray();
+        var v1 = Guid.NewGuid().ToByteArray();
+        var v2 = Guid.NewGuid().ToByteArray();
+        var v3 = Guid.NewGuid().ToByteArray();
+
+        Assert.That(await table.UpdateIfAsync(key, v1, v2), Is.False, "nothing stored: nothing to replace");
+        Assert.That(await table.GetAsync(key, TimeSpan.FromMinutes(1)), Is.Null, "and nothing was stored by it");
+
+        await table.InsertAsync(new KeyValueRecord { key = key, data = v1 });
+        Assert.That((await table.GetAsync(key, TimeSpan.FromMinutes(1)))?.data, Is.EqualTo(v1), "read once, so it is cached");
+
+        Assert.That(await table.UpdateIfAsync(key, v3, v2), Is.False, "another value than the one stored");
+        Assert.That((await table.GetAsync(key, TimeSpan.FromMinutes(1)))?.data, Is.EqualTo(v1), "left as it was");
+
+        Assert.That(await table.UpdateIfAsync(key, v1, v2), Is.True, "the value stored");
+        if (redisEnabled) WipeL1();
+        Assert.That((await table.GetAsync(key, TimeSpan.FromMinutes(1)))?.data, Is.EqualTo(v2), "the cache doesn't serve the old value");
+
+        Assert.That(await table.UpdateIfAsync(key, v1, v3), Is.False, "the value as read before the replace no longer matches");
+        Assert.That((await table.GetAsync(key, TimeSpan.FromMinutes(1)))?.data, Is.EqualTo(v2));
+
+        await table.DeleteAsync(key);
+        Assert.That(await table.UpdateIfAsync(key, v2, v3), Is.False, "gone: a replace doesn't bring it back");
+        Assert.That(await table.GetAsync(key, TimeSpan.FromMinutes(1)), Is.Null);
+    }
+
+    //
+
+    [Test]
     [TestCase(false)]
 #if RUN_REDIS_TESTS
     [TestCase(true)]

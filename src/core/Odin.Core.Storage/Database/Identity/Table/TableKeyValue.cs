@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -67,6 +68,23 @@ public class TableKeyValue(
     {
         item.identityId = odinIdentity;
         return await base.UpdateAsync(item);
+    }
+
+    /// <summary>
+    /// A compare-and-swap: replaces <paramref name="key"/>'s data with <paramref name="data"/> only while
+    /// it is still <paramref name="expectedData"/>.  False when it isn't (changed, or gone).
+    /// </summary>
+    internal async Task<bool> UpdateIfAsync(byte[] key, byte[] expectedData, byte[] data)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var updateCommand = cn.CreateCommand();
+        updateCommand.CommandText = "UPDATE KeyValue SET data = @data " +
+                                    "WHERE identityId = @identityId AND key = @key AND data = @expectedData;";
+        updateCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        updateCommand.AddParameter("@key", DbType.Binary, key);
+        updateCommand.AddParameter("@expectedData", DbType.Binary, expectedData);
+        updateCommand.AddParameter("@data", DbType.Binary, data);
+        return await updateCommand.ExecuteNonQueryAsync() > 0;
     }
 
     public async Task<(List<KeyValueRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)

@@ -411,6 +411,25 @@ public class FriendRecoveryTests : ShamirFixture
         Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password));
     }
 
+    [Test]
+    public async Task AFriendApprovingAfterTheRecoveryEndedIsToldAndTheRequestGoes()
+    {
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
+        await EnterRecoveryModeAsync(frodo);
+        var friend = players[0];
+        var request = await GetPlayerShardRequestAsync(config, friend);
+        Assert.That(request, Is.Not.Null);
+
+        await ExitRecoveryModeAsync(frodo);
+
+        // The dealer refuses it with the link's own code: the friend's server tells that from a
+        // failure on the way, and drops a request there is nothing to approve for any more
+        var approved = await ZkFriends.ApproveAsync(friend, ZkMasterKeyOf(friend), request!);
+        DriveAsserts.AssertRejected(approved, OdinClientErrorCode.ShardLinkNoLongerValid);
+        Assert.That(await GetPlayerShardRequestAsync(config, friend), Is.Null, "the request is gone");
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
+    }
+
     /// <summary>
     /// A key that one parser would take and another couldn't read back (a coordinate with a leading
     /// zero byte) is refused at the start, so it can never be recorded and break the status.

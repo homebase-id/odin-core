@@ -77,12 +77,15 @@ public class SingleKeyValueStorage
         return await tblKeyValue.TryInsertAsync(new KeyValueRecord { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
-    /// <summary>Saves <paramref name="value"/> only when something is stored under <paramref name="key"/>.</summary>
-    /// <returns>False when nothing was; it stays that way.</returns>
-    public async Task<bool> TryUpdateAsync<T>(TableKeyValueCached tblKeyValue, Guid key, T value)
+    /// <summary>
+    /// Saves <paramref name="value"/> only while <paramref name="key"/> still holds
+    /// <paramref name="expected"/>, the bytes as read (<see cref="GetBytesAsync"/>): a compare-and-swap.
+    /// </summary>
+    /// <returns>False when it doesn't (changed since, or gone); it stays as it is.</returns>
+    public async Task<bool> TryReplaceAsync<T>(TableKeyValueCached tblKeyValue, Guid key, byte[] expected, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        return await tblKeyValue.UpdateAsync(new KeyValueRecord { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() }) > 0;
+        return await tblKeyValue.UpdateIfAsync(MakeStorageKey(key), expected, json.ToUtf8ByteArray());
     }
 
     public async Task<int> UpsertBytesAsync(TableKeyValueCached tblKeyValue, Guid key, byte[] value)
