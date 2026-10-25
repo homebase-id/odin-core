@@ -76,9 +76,11 @@ public class ZeroKnowledgeRecoveryService(
         {
             return (await shamirConfigurationService.GetDealerShardPackage(odinContext))?.UsesAutomatedRecovery == true;
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            logger.LogWarning(e, "Could not read the dealer package for the zero-knowledge status");
+            // Loud: a deal that can't be read is never dealt again, and the next recovery loses the
+            // zero-knowledge data
+            logger.LogError(e, "Could not read the dealer package for the zero-knowledge status");
             return false;
         }
     }

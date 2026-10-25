@@ -11,7 +11,8 @@ public enum ShamirRecoveryState
 
     /// <summary>
     /// No longer set: asking to exit only sends the email, and recovery goes on as it was until the
-    /// owner confirms with it (anyone can ask).  Kept so a status stored before that still reads.
+    /// owner confirms with it (anyone can ask).  A status stored with it has no browser key, and
+    /// reads as no recovery.
     /// </summary>
     AwaitingOwnerEmailVerificationToExitRecoveryMode,
 
@@ -23,7 +24,8 @@ public enum ShamirRecoveryState
     
     /// <summary>
     /// No longer set: the server rebuilt a server-made deal's secret and emailed a finalize link.  Every
-    /// deal now waits in <see cref="AwaitingRecoveringBrowser"/>.  Kept so a status stored before still reads.
+    /// deal now waits in <see cref="AwaitingRecoveringBrowser"/>.  A status stored with it has no browser
+    /// key, and reads as no recovery.
     /// </summary>
     AwaitingOwnerFinalization,
 

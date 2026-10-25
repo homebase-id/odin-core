@@ -6,6 +6,8 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Time;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Base;
 using Odin.Core;
@@ -239,18 +241,39 @@ public class AutomatedRecoveryTests : ShamirFixture
         Assert.That(redirected.IsSuccessStatusCode, Is.False, $"a link to another address was sent: {redirected.StatusCode}");
         Assert.That(ReleaseLinks(frodo), Is.Empty, "no link went out");
 
-        var noCode = await asDealer.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = envelope.ShardId, Code = new string('0', 32) });
-        Assert.That(noCode.IsSuccessStatusCode, Is.False, $"a shard was released without the code: {noCode.StatusCode}");
-
         var asSomeoneElse = await Host.GetTenantScope(players[0].Identity.DomainName).Resolve<IOdinHttpClientFactory>()
             .CreateClientAsync<IPeerPasswordRecoveryHttpClient>(holder);
         var notTheDealer = await asSomeoneElse.RequestShard(Ask(address));
         Assert.That(notTheDealer.IsSuccessStatusCode, Is.False, $"someone else asked for the dealer's shard: {notTheDealer.StatusCode}");
         Assert.That(ReleaseLinks(frodo), Is.Empty, "no link went out");
 
-        // The dealer's own request with the right address does email the owner
+        // The dealer's own request with the right address does email the owner, and while it is
+        // pending nothing is released without the code that email carries
         var asked = await asDealer.RequestShard(Ask(address));
         Assert.That(asked.IsSuccessStatusCode, Is.True, asked.Error?.Content);
         Assert.That(ReleaseLinks(frodo).Select(l => l.Holder), Is.EqualTo(new[] { holder }));
+
+        var noCode = await asDealer.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = envelope.ShardId, Code = new string('0', 32) });
+        Assert.That(noCode.IsSuccessStatusCode, Is.False, $"a shard was released without the code: {noCode.StatusCode}");
+    }
+
+    /// <summary>
+    /// A recovery stored by the release before this one has no browser key (an automated one under
+    /// way, or one waiting on its finalize link): it can't go on, so it reads as none, and a new start
+    /// goes ahead.
+    /// </summary>
+    [Test]
+    public async Task ARecoveryFromBeforeThisReleaseDoesNotBlockANewStart()
+    {
+        var (frodo, _) = Cast();
+        await ArrangeAutomatedDealAsync(frodo);
+        var scope = Host.GetTenantScope(frodo.Identity.DomainName);
+        await ShamirRecoveryService.Storage.UpsertAsync(scope.Resolve<TableKeyValueCached>(), ShamirRecoveryService.ShamirStatusStorageId,
+            new ShamirRecoveryStatusRecord { State = ShamirRecoveryState.AwaitingSufficientDelegateConfirmation, Updated = UnixTimeUtc.Now() });
+
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
+        await EnterRecoveryModeAsync(frodo);
+        await FillEverySlotAsync(frodo);
+        Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password));
     }
 }

@@ -25,6 +25,9 @@ public sealed record AutomaticShardRelease
 
     /// <summary>When the code was made and emailed.</summary>
     public UnixTimeUtc Emailed { get; init; }
+
+    /// <summary>The email may not have gone out: the next request emails again.</summary>
+    public bool EmailMayHaveFailed { get; init; }
 }
 
 /// <summary>
@@ -53,7 +56,7 @@ public sealed class AutomaticShardReleases(TableKeyValueCached tblKeyValue)
     {
         var now = UnixTimeUtc.Now();
         var existing = await Storage.GetAsync<AutomaticShardRelease>(tblKeyValue, shardId);
-        if (existing != null && existing.Dealer == dealer && now - existing.Emailed < EmailInterval)
+        if (existing != null && existing.Dealer == dealer && !existing.EmailMayHaveFailed && now - existing.Emailed < EmailInterval)
         {
             await Storage.UpsertAsync(tblKeyValue, shardId, existing with { RecoveryPublicKeyJwk = recoveryPublicKeyJwk });
             return null;
@@ -84,8 +87,26 @@ public sealed class AutomaticShardReleases(TableKeyValueCached tblKeyValue)
         return existing;
     }
 
-    /// <summary>Forgets <paramref name="shardId"/>'s request: its email never went out.</summary>
-    public Task ForgetAsync(Guid shardId) => Storage.DeleteAsync(tblKeyValue, shardId);
+    /// <summary>
+    /// <paramref name="code"/>'s email may not have gone out: the next request emails again.  The code
+    /// keeps working, in case it did; a newer request's code is left alone.  Never throws: the caller
+    /// is already failing.
+    /// </summary>
+    public async Task AllowResendAsync(Guid shardId, string code)
+    {
+        try
+        {
+            var existing = await Storage.GetAsync<AutomaticShardRelease>(tblKeyValue, shardId);
+            if (existing != null && CryptographicOperations.FixedTimeEquals(existing.CodeHash, Hash(code)))
+            {
+                await Storage.UpsertAsync(tblKeyValue, shardId, existing with { EmailMayHaveFailed = true });
+            }
+        }
+        catch
+        {
+            // the request stays as it was: the next email waits for the interval
+        }
+    }
 
     private static byte[] Hash(string code) => ByteArrayUtil.CalculateSHA256Hash(code.ToUtf8ByteArray());
 }
