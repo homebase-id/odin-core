@@ -343,6 +343,12 @@ public sealed class ZkStatusResponse
 
     /// <summary>Whether the friends' password copy exists; written, like the phrase's, only when missing.</summary>
     public bool HasShamirPasswordCopy { get; init; }
+
+    /// <summary>
+    /// The automated deal can give nothing back in the browser (server-made, or its copies forgotten by
+    /// a reset): a password login deals it again, then writes the password copy.
+    /// </summary>
+    public bool AutomatedDealNeedsDealing { get; init; }
 }
 
 /// <summary>The recovery phrase, handed over once for the takeover.</summary>

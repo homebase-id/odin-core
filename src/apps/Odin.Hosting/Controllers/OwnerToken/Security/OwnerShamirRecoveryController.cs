@@ -33,8 +33,8 @@ public class OwnerShamirRecoveryController : OdinControllerBase
     }
 
     /// <summary>
-    /// Starts recovery.  For a friend deal, the browser sends its throwaway public key, and must finish
-    /// recovery itself: the friends seal their shards to that key.
+    /// Starts recovery.  The browser sends its throwaway public key, and must finish recovery itself:
+    /// every holder seals its shard to that key.
     /// </summary>
     [HttpPost("initiate-recovery-mode")]
     public async Task<IActionResult> InitiateRecoveryMode(
@@ -66,8 +66,21 @@ public class OwnerShamirRecoveryController : OdinControllerBase
     }
 
     /// <summary>
-    /// Recovery with friends, once enough approved: the shards, the dealer's keys and the friend deal's
-    /// copies, sealed to the throwaway key of the browser that started recovery.
+    /// An automatic holder's email link, clicked on any device: the page posts its shard and code here,
+    /// and the holder releases the shard sealed to the recovering browser's key.
+    /// </summary>
+    [HttpPost("fill-slot")]
+    public async Task<IActionResult> FillSlot([FromBody] FillSlotRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.ShardId, nameof(request.ShardId));
+        await _recoveryService.FillSlotAsync(Guid.Parse(request.ShardId), request.Code, WebOdinContext);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Once enough shards are in: the shards, the dealer's keys and the deal's copies, sealed to the
+    /// throwaway key of the browser that started recovery.
     /// </summary>
     [HttpGet("recovery-bundle")]
     public async Task<ShamirRecoveryBundleResponse> GetRecoveryBundle()
@@ -92,14 +105,15 @@ public class OwnerShamirRecoveryController : OdinControllerBase
         return Redirect(redirect);
     }
 
+    /// <summary>
+    /// A server-made deal's recovery: the secret the recovering browser rebuilt, and a new password.
+    /// </summary>
     [HttpPost("finalize")]
     public async Task<IActionResult> FinalizeRecovery([FromBody] FinalRecoveryRequest request)
     {
-        OdinValidationUtils.AssertNotNullOrEmpty(request.Id, nameof(request.Id));
-        await _recoveryService.FinalizeRecovery(
-            Guid.Parse(request.Id),
-            Guid.Parse(request.FinalKey), 
-            request.PasswordReply,
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.Secret64, nameof(request.Secret64));
+        await _recoveryService.FinalizeServerMadeDealAsync(Convert.FromBase64String(request.Secret64), request.PasswordReply,
             WebOdinContext);
         return Ok();
     }

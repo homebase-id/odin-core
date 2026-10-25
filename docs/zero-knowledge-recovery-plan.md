@@ -830,6 +830,149 @@ covers old server-made friend deals at ship, and a reset with today's master key
   (`ShardRotationGateTest`).
 - The takeover's delegate cases went: the server can't make an old friend deal any more.
 
+## Building the automated deal
+
+Agreed and built 2026-10-25: the automated deal gives back the password too, and each automatic
+holder checks the owner's email itself before it releases a shard. Same branch, `zk-recovery-friends`,
+so both pairs and this ship once. Names as in [owner-keys.md](owner-keys.md). **(V)** = read on the
+branch. [As built](#as-built-automated-deal) lists where the build differs.
+
+### Why
+
+- **The flaw:** an automated recovery rebuilds `AutoK`, which opens only `MK`. The server sets a new
+  password and deletes the zero-knowledge record, so the owner loses every zero-knowledge drive
+  (`OwnerSecretService`) **(V)**. Automated recovery is on by default at first run: the box is
+  checked (`FirstRun.tsx`, `SetupWizard.tsx`) **(V)**. So most owners would lose Vault and Chat.
+- **The second gap:** an automatic holder releases its shard to anyone who asks as the dealer
+  with the matching email hash; it checks nothing else (`HandleReleaseShardRequest`) **(V)**. The
+  dealer package with every `ShardKey` is a plain file on the dealer's server **(V)**. So whoever
+  has the dealer's server, or a copy of its data and peer credentials, rebuilds the secret without
+  the owner. NA1 plus EU1 is not needed.
+- **What we accept:** a fully automated deal can't be safe against someone who holds the owner's
+  email. That is true of every password reset. Owners who want more add a gated friend: automatic
+  shards stay below the threshold in a friend deal, so email alone never wins there.
+- **What it doesn't fix:** someone actively running the owner's server serves the console's code,
+  so they get the password at the next login anyway (inferred: any web app has this limit).
+
+### The design
+
+1. **One deal model.** The browser deals the automated deal as it deals to friends: `SmrK`, `Smr-PK`,
+   `Smr-RK`, `EncZKMK_smr`, `EncPw_smr`. The players are the configured automated identities, all
+   automatic, threshold as today (3). `AutoK` and `EncMK_auto` are not made any more.
+2. **The rule.** Automatic shards below the threshold (9021) still holds for friend deals. A deal
+   whose players are exactly the configured automated identities is the automated deal, and may
+   pass it.
+3. **Holders check the email themselves.** Every automatic holder (an automated identity, or an
+   automatic friend) works the same:
+   - The dealer's request carries the recovery email address and `Tmp-PK-Pub`. The holder checks
+     the address against the hash it stored at the deal (`RecoveryEmailHash`) **(V)**, so a hijacked
+     dealer can't redirect the mail.
+   - The holder keeps the request with a random one-time code (only its hash), and emails the
+     address: "Click to fill slot 2 of 3 for frodo.dotyou.cloud. If you didn't start a recovery,
+     ignore this."
+   - The link opens the owner's recovery page with the shard id and the code. The page posts them
+     to the owner's server, which passes them to the holder. The holder checks the code, seals
+     `aes(ShardKey, piece)` to `Tmp-PK-Pub` from the request, returns it and forgets the request.
+   - **Any device works.** The piece is sealed to the key of the browser that started, so a click
+     on the phone fills a slot for the laptop. Only the browser that started opens the bundle.
+   - A stranger who calls a holder directly gets nothing: the holder answers only with a code from
+     the owner's inbox, and its answer goes to the real dealer, which isn't in recovery mode and
+     refuses it.
+4. **The owner learns who holds a shard** (decided 2026-10-25): someone who forgot the password
+   has forgotten which friends to ask, too.
+   - **By email,** once the start link is clicked: the friends to ask to approve, by name, and the
+     automated identities that will each email a link.
+   - **On the recovery page, in the browser that started only:** the status carries the slot list
+     (each holder, filled or not, and the count needed) sealed to `Tmp-PK-Pub`. Anyone else gets
+     the counts. The status is anonymous, so names never go out in the clear.
+5. **The emails, in order:** the start email (as today: a stranger can only cause this one); the
+   list of holders; one email per automatic holder; the link-free email at the threshold. The
+   password shows in the browser that started, as with friends.
+6. **Dealing it:**
+   - First run: the console deals it in the browser instead of calling `enable-auto-password-recovery`
+     (`useInit.ts`) **(V)**. That endpoint goes.
+   - The browser gets the automated identities and the threshold from a new owner endpoint.
+   - `configure-shards` sends a shard to an automated identity the way the automated deal does today
+     (the `AutomatedIdentityKey` token), and to a friend through the connection, as now **(V)**.
+7. **Existing owners: nothing to do.** At the next password login, `ensureZeroKnowledgeKeys` finds a
+   server-made automated deal and deals it again in the browser, then writes `EncPw_smr` in the same
+   login. Until then the old deal works as today (account back, zero-knowledge data lost), like the
+   phrase before its takeover.
+8. **Goes:** the server's rotation of the automated deal at a password change
+   (`IsRotationPending`) **(V)**: a password change re-seals `EncPw_smr`. The old finalize path
+   (`PrepareFinalKeys`, `FinalizeRecovery`) stays only for deals not yet dealt again, and is
+   removed once none are left; no owner action.
+
+### Settled (2026-10-25)
+
+1. **Code lifetime:** valid until the recovery ends or a newer request replaces it, at most 7 days.
+   A link only, so the code is long (128 bits) and needs no tries limit.
+2. **Email rate:** a holder emails at most once per shard per 5 minutes; "start over" inside that
+   sends no new email, and the old link still works.
+3. **Automatic friends email too:** one rule for every automatic shard (point 3).
+4. **Names:** by email, and sealed to the starting browser on the page (point 4).
+
+### Work
+
+- odin-core:
+  - holder: keep the request with the code, send the email, a peer endpoint that releases sealed
+    to the request's key;
+  - dealer: an anonymous endpoint that passes a code on; the "sealed to the recovering browser"
+    check for every shard; the email listing the holders; the slot list sealed to `Tmp-PK-Pub` in the status;
+    the automated deal allowed past 9021; the automated
+    identities' delivery in `configure-shards`; an owner endpoint listing the automated identities;
+  - remove `enable-auto-password-recovery` and the automated rotation; the email texts.
+- odin-js: deal the automated deal (first run, and again at login); the slots page; the fill-slot
+  link; security page copy that automated recovery trusts the owner's email, and a gated friend
+  doesn't.
+- Tests (V2): an automated deal gives back the password with three clicks; the email listing the holders
+  names the friends; the status shows names only sealed to the starting browser's key; a click from another
+  device fills the slot; a wrong, used or replaced code fails; a direct holder request without the
+  dealer in recovery mode yields nothing; an old automated deal is dealt again at login and keeps
+  zero-knowledge data; an automatic friend emails too; a password change re-seals and deals nothing.
+- Docs: owner-keys.md (`AutoK` only for old deals), security-model.md.
+- Size (inferred): odin-core ~800–1,300 lines, odin-js ~400–700, tests included.
+
+### As built (automated deal)
+
+Facts checked in the code or by a test are marked **(V)**.
+
+- **No separate email listing the holders.** The start email already listed them; it now says whom
+  to ask to approve and who will email a link (`RecoveryEmails.HoldersText`) **(V)**. So the emails are:
+  start, one per automatic holder, and the link-free one at the threshold.
+- **A holder's pending release** (`AutomaticShardReleases`, key-value, one per shard): the dealer, the
+  recovering browser's key, the code's SHA-256 and when it was emailed **(V)**. The code is 16 random
+  bytes in hex. Inside five minutes a new request keeps the code and takes the new key; the link
+  works for seven days, once **(V)** (tests: a used or wrong code fails; starting again soon reuses it).
+- **Peer and owner endpoints:** `release-automatic-shard` (holder, from the dealer), `fill-slot`
+  (anonymous, the page posts the link's shard and code), `automated-recovery-players` (owner: the
+  host's automated identities and the threshold) **(V)**. `fill-slot` checks a recovery is collecting
+  before it calls the holder, so a link clicked after the recovery is over isn't used up **(V)**.
+- **Every shard handed in must be sealed to the recovering browser**, automatic ones too, and every
+  deal ends in `AwaitingRecoveringBrowser`; `AwaitingOwnerFinalization` is no longer set, and one
+  stored before no longer blocks a new start **(V)**.
+- **Status while collecting:** `Needed`, `Filled`, and `SealedSlots64`, the holders and which are in,
+  sealed to the recovering browser's key **(V)** (a test opens it there and fails with another key).
+- **Server-made deals recover in the browser too.** The bundle says `IsServerMadeDeal` and has no
+  copies; the browser rebuilds the secret and posts it with a new password to `finalize`, which opens
+  today's master key with it and forgets the zero-knowledge keys, as every such reset does **(V)**.
+  - Their envelopes kept the position (0-based), not the piece's index, so such a deal is rebuilt with
+    the shard's own index, as the server rebuilt it. `CreateShards` now stores the piece's index
+    **(V)**.
+- **The next password login deals a server-made automated deal again**, before the takeover:
+  `ZkStatus.AutomatedDealNeedsDealing`, also set when a reset forgot an automated deal's copies
+  **(V)** (test). First run and the security page deal it in the browser; the server deals only for
+  the takeover's move off the phrase, and `enable-auto-password-recovery` works on a development host
+  only, for these tests.
+- **Rotation is gone** for every deal, and with it `RotationPending` (the risk report's paragraph and
+  the security page's notice). The per-request hook only removes a friend deal that recovers nothing
+  (`RemoveDeadFriendDealIfNeeded`) **(V)**.
+- New error: `ShardLinkNoLongerValid` (9024).
+- **Found, not fixed (pre-existing):** changing the recovery email leaves every deal's stored email
+  hash stale, so the holders refuse the requests until the owner deals again
+  (`UpdateAccountRecoveryEmail` touches no deal) **(V)**. With this design the holders couldn't email
+  the new address anyway.
+
 ## Size estimate
 
 Inferred. Lines include tests.

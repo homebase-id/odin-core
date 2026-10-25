@@ -4,6 +4,7 @@ using Odin.Services.Dns.Health;
 using Odin.Services.Security;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.Email;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Services.Tests.Security.Email;
 
@@ -98,47 +99,40 @@ public class RecoveryEmailsTest
         Assert.That(html, Does.Contain("DNSSEC problem"));
     }
 
+    /// <summary>
+    /// Someone who forgot their password has forgotten which friends to ask, too: the start email says
+    /// whom to ask and who will email them a link.
+    /// </summary>
     [Test]
-    public void ItShouldOmitTheRotationSectionWhenShardsAreCurrent()
+    public void TheStartEmailNamesWhomToAskAndWhoWillEmail()
     {
-        var text = RecoveryEmails.FormatRecoveryRiskStatusText(Tenant, ConfiguredInfo());
-        var html = RecoveryEmails.FormatRecoveryRiskStatusHtml(Tenant, ConfiguredInfo());
+        var players = new System.Collections.Generic.List<ShamiraPlayer>
+        {
+            new() { OdinId = (OdinId)"sam.example.com", Type = PlayerType.Delegate },
+            new() { OdinId = (OdinId)"na1.homebase.example", Type = PlayerType.Automatic }
+        };
 
-        Assert.That(text, Does.Not.Contain("not refreshed"));
-        Assert.That(html, Does.Not.Contain("not refreshed"));
-    }
-
-    [Test]
-    public void ItShouldRenderTheRotationSectionWhenRotationIsPending()
-    {
-        var info = ConfiguredInfo();
-        info.RotationPending = true;
-
-        var text = RecoveryEmails.FormatRecoveryRiskStatusText(Tenant, info);
-        var html = RecoveryEmails.FormatRecoveryRiskStatusHtml(Tenant, info);
+        var text = RecoveryEmails.EnterRecoveryModeVerifyEmailText("frodo@example.com", Tenant, "https://link", players);
+        var html = RecoveryEmails.EnterRecoveryModeVerifyEmailHtml(Tenant, "https://link", players);
 
         foreach (var body in new[] { text, html })
         {
-            Assert.That(body, Does.Contain("not refreshed after your password changed"));
-            Assert.That(body, Does.Contain("still connected to"), "a disconnected delegate cannot deliver its shard (#1885)");
-            Assert.That(body, Does.Contain("/owner/security/password-recovery"));
+            Assert.That(body, Does.Match("Ask these friends to approve in their Homebase: (<b>)?sam.example.com"));
+            Assert.That(body, Does.Match("These will each email you a link; click each one: (<b>)?na1.homebase.example"));
         }
     }
 
     [Test]
-    public void ItShouldNotTalkAboutConnectionsForAutomatedRecovery()
+    public void AHoldersEmailSaysWhoHoldsThePieceAndCarriesTheLink()
     {
-        var info = ConfiguredInfo();
-        info.RotationPending = true;
-        info.UsesAutomaticRecovery = true;
-
-        var text = RecoveryEmails.FormatRecoveryRiskStatusText(Tenant, info);
-        var html = RecoveryEmails.FormatRecoveryRiskStatusHtml(Tenant, info);
+        var text = RecoveryEmails.ReleaseShardText(Tenant, (OdinId)"na1.homebase.example", "https://frodo.example.com/fill");
+        var html = RecoveryEmails.ReleaseShardHtml(Tenant, (OdinId)"na1.homebase.example", "https://frodo.example.com/fill");
 
         foreach (var body in new[] { text, html })
         {
-            Assert.That(body, Does.Contain("automated recovery shards"));
-            Assert.That(body, Does.Not.Contain("still connected to"));
+            Assert.That(body, Does.Contain("na1.homebase.example holds a piece of your recovery"));
+            Assert.That(body, Does.Contain("https://frodo.example.com/fill"));
+            Assert.That(body, Does.Contain("If you didn't start a recovery, ignore this email"));
         }
     }
 }

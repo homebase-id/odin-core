@@ -44,7 +44,14 @@ public class FriendRecoveryTests : ShamirFixture
 
         await EnterRecoveryModeAsync(frodo);
 
-        // The two automatic friends released at once; that is never enough on its own
+        // Nothing is released yet: each automatic friend emails the owner itself
+        var waiting = (await AnonymousSecurityOf(frodo).GetShamirRecoverStatus()).Content!;
+        Assert.That((waiting.Filled, waiting.Needed), Is.EqualTo((0, 3)));
+        var automatic = config.Envelopes.Where(e => e.Player.Type == PlayerType.Automatic).Select(e => e.Player.OdinId).ToList();
+        Assert.That(ReleaseLinks(frodo, config).Select(l => l.Holder), Is.EquivalentTo(automatic), "every automatic friend emails the owner");
+
+        // The owner clicks both links; that is never enough on its own
+        await FillEverySlotAsync(frodo);
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
         Assert.That((await AnonymousSecurityOf(frodo).GetShamirRecoverStatus()).Content!.RecoveryKeyId,
             Is.EqualTo(Odin.Services.Security.ZeroKnowledge.ZkSeal.KeyId(RecoveringBrowser!.PublicKeyJwk)),
@@ -52,11 +59,11 @@ public class FriendRecoveryTests : ShamirFixture
         DriveAsserts.AssertRejected(await AnonymousSecurityOf(frodo).GetRecoveryBundle(), OdinClientErrorCode.RecoveryNotReady);
 
         var gated = players.Where(p => config.Envelopes.Single(e => e.Player.OdinId == p.Identity).Player.Type == PlayerType.Delegate).ToList();
-        var emailsBefore = RecoveryNotificationCount(frodo, RecoveryNotificationKind.FriendsApproved);
+        var emailsBefore = RecoveryNotificationCount(frodo, RecoveryNotificationKind.ShardsCollected);
         await ApproveEveryShardRequestAsync(gated, config);
-        Assert.That(RecoveryNotificationCount(frodo, RecoveryNotificationKind.FriendsApproved) - emailsBefore, Is.EqualTo(1),
+        Assert.That(RecoveryNotificationCount(frodo, RecoveryNotificationKind.ShardsCollected) - emailsBefore, Is.EqualTo(1),
             "the owner is told once, at the threshold");
-        Assert.That(RecoveryLink(frodo, RecoveryNotificationKind.FriendsApproved).Link, Is.Null, "the email carries no link");
+        Assert.That(RecoveryLink(frodo, RecoveryNotificationKind.ShardsCollected).Link, Is.Null, "the email carries no link");
 
         var rebuilt = await RebuildInTheRecoveringBrowserAsync(frodo);
         Assert.That(rebuilt.Password, Is.EqualTo(Password));
@@ -94,7 +101,7 @@ public class FriendRecoveryTests : ShamirFixture
         Assert.That(rebuilt.Password, junk ? Is.EqualTo("not the password") : Is.Null);
 
         var reset = await OwnerPasswordFlow.ResetPasswordWithResetKeyAsync(Host, frodo.Identity.DomainName,
-            ZkFriends.ResetKey(rebuilt.Secret), NewPassword, ZkBrowser.MakeKeys(NewPassword, rebuilt.ZkMasterKey).Request);
+            ZkFriends.ResetKey(rebuilt.Secret), NewPassword, ZkBrowser.MakeKeys(NewPassword, rebuilt.ZkMasterKey!).Request);
         Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.OK), reset.Error?.Content);
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
 
@@ -224,8 +231,6 @@ public class FriendRecoveryTests : ShamirFixture
         // Owner requests after the change: a friend deal is never dealt again (the secret didn't change)
         var owner = await OwnerSession.LoginAsync(Host, frodo.Identity.DomainName, NewPassword);
         Assert.That((await owner.RefitFor<IRefitOwnerConfiguration>().GetTenantSettings()).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: 0);
-        Assert.That(await IsRotationPendingAsync(owner), Is.False);
         Assert.That((await GetDealerShardConfigAsync(owner)).Updated.milliseconds, Is.EqualTo(config.Updated.milliseconds));
 
         var rebuilt = await RecoverInBrowserAsync(owner, players, config);

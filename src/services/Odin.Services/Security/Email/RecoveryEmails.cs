@@ -28,30 +28,61 @@ public static class RecoveryEmails
 
             If you did not do this, delete this email.
 
-            The following connections have a portion of your recovery key.  They will receive a notification when you verify using 
-            the link below: {string.Join(",", players.Select(p => $"{p.OdinId} ({p.Type})"))}
-                To continue putting your identity into recovery mode open this link in your browser: {
-                    link
-                }
+            {HoldersText(players)}
+            To continue putting your identity into recovery mode open this link in your browser: {link}
 
         --
             Team Homebase
         ";
     }
 
-    public static string EnterRecoveryModeVerifyEmailHtml(string domain, string link, List<ShamiraPlayer> players)
+    /// <summary>
+    /// Who holds a piece, as the owner must hear it: someone who forgot their password has forgotten
+    /// which friends to ask, too.  Automatic holders each email a link; gated friends approve.
+    /// </summary>
+    private static (List<OdinId> Ask, List<OdinId> Email) Holders(List<ShamiraPlayer> players) =>
+        (players.Where(p => p.Type == PlayerType.Delegate).Select(p => p.OdinId).ToList(),
+            players.Where(p => p.Type == PlayerType.Automatic).Select(p => p.OdinId).ToList());
+
+    private static string HoldersText(List<ShamiraPlayer> players)
     {
-        var builder = new StringBuilder();
-        builder.AppendLine("<ul>");
-        foreach (var player in players)
+        var (ask, email) = Holders(players);
+        var sb = new StringBuilder();
+        sb.AppendLine("Once you continue with the link below, these hold a piece of your recovery:");
+        if (ask.Any())
         {
-            builder.Append("<li>");
-            builder.Append($"{player.OdinId} ({player.Type})");
-            builder.Append("</li>");
+            sb.AppendLine($"            Ask these friends to approve in their Homebase: {string.Join(", ", ask)}");
         }
 
-        builder.AppendLine("</ul>");
-        var playersList = builder.ToString();
+        if (email.Any())
+        {
+            sb.AppendLine($"            These will each email you a link; click each one: {string.Join(", ", email)}");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string HoldersHtml(List<ShamiraPlayer> players)
+    {
+        var (ask, email) = Holders(players);
+        var sb = new StringBuilder();
+        sb.AppendLine("Once you continue with the link below, these hold a piece of your recovery:");
+        if (ask.Any())
+        {
+            sb.AppendLine($"<br />Ask these friends to approve in their Homebase: <b>{string.Join(", ", ask)}</b>");
+        }
+
+        if (email.Any())
+        {
+            sb.AppendLine($"<br />These will each email you a link; click each one: <b>{string.Join(", ", email)}</b>");
+        }
+
+        return sb.ToString();
+    }
+
+    public static string EnterRecoveryModeVerifyEmailHtml(string domain, string link, List<ShamiraPlayer> players)
+    {
+        var playersList = HoldersHtml(players);
 
         return @$"
             <!DOCTYPE html>
@@ -214,10 +245,6 @@ public static class RecoveryEmails
                                                             </p>
 
                                                             <p style='margin-bottom: 15px'>
-                                                                The following connections have a portion of your recovery key.  They will receive a notification when you verify using 
-                                                                the link below.
-                                                            </p>
-                                                            <p style='margin-bottom: 15px'>
                                                                 {playersList}
                                                             </p>
                                                             <p style='margin-bottom: 15px'>
@@ -346,35 +373,33 @@ public static class RecoveryEmails
         return Template(sb.ToString());
     }
 
-    // finalize recovery using recovery key
+    // recovery in the browser: enough shards are in
 
-    // recovery with friends: enough friends approved
-
-    public static string FriendsApprovedText(string domain)
+    public static string ShardsCollectedText(string domain)
     {
         return @$"
             Hi {domain},
 
-            Enough of your friends have approved your recovery.
+            Enough pieces of your recovery are in.
 
             Go back to the browser where you started recovery to see your password.  It works only
-            there: that browser holds the key your friends sealed their shards to.
+            there: that browser holds the key the pieces were sealed to.
 
             --
             Team Homebase
         ";
     }
 
-    public static string FriendsApprovedHtml(string domain)
+    public static string ShardsCollectedHtml(string domain)
     {
         var sb = new StringBuilder();
 
         sb.AppendLine("<div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;'>");
         sb.AppendLine($"    <p style='margin-bottom: 15px;'>Hi {domain},</p>");
-        sb.AppendLine("    <p style='margin-bottom: 15px;'>Enough of your friends have approved your recovery.</p>");
+        sb.AppendLine("    <p style='margin-bottom: 15px;'>Enough pieces of your recovery are in.</p>");
         sb.AppendLine("    <p style='margin-bottom: 15px;'>");
         sb.AppendLine("        Go back to the browser where you started recovery to see your password. It works only there:");
-        sb.AppendLine("        that browser holds the key your friends sealed their shards to.");
+        sb.AppendLine("        that browser holds the key the pieces were sealed to.");
         sb.AppendLine("    </p>");
         sb.AppendLine("    <p style='margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; color: #555; font-size: 14px;'>");
         sb.AppendLine("        Kind regards,<br />");
@@ -385,52 +410,48 @@ public static class RecoveryEmails
         return Template(sb.ToString());
     }
 
-    public static string FinalizeRecoveryUsingRecoveryKeyText(string domain, string link)
+    // an automatic holder's own email: its link hands over the holder's piece
+
+    public static string ReleaseShardText(OdinId dealer, OdinId holder, string link)
     {
         return @$"
-            Hi {domain},
+            Hi {dealer},
 
-            We have assembled your recovery key.
+            {holder} holds a piece of your recovery.  Someone, hopefully you, is recovering your identity.
 
-            To recover your identity, open this link in your browser: {link}
+            To hand over this piece, open this link: {link}
+
+            It works on any device.  If you didn't start a recovery, ignore this email: nothing happens.
 
             --
             Team Homebase
         ";
     }
 
-    public static string FinalizeRecoveryUsingRecoveryKeyHtml(string domain, string link)
+    public static string ReleaseShardHtml(OdinId dealer, OdinId holder, string link)
     {
         var sb = new StringBuilder();
 
         sb.AppendLine("<div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;'>");
-
-        sb.AppendLine($"    <p style='margin-bottom: 15px;'>Hi {domain},</p>");
-        sb.AppendLine("    <p style='margin-bottom: 15px;'>");
-        sb.AppendLine("        We have generated your recovery key to help you regain access to your account.");
-        sb.AppendLine("    </p>");
-
-        sb.AppendLine("    <p style='margin-bottom: 15px;'>");
-        sb.AppendLine("        To complete the recovery process, please click the button below:");
-        sb.AppendLine("    </p>");
-
+        sb.AppendLine($"    <p style='margin-bottom: 15px;'>Hi {dealer},</p>");
+        sb.AppendLine($"    <p style='margin-bottom: 15px;'>{holder} holds a piece of your recovery. Someone, hopefully you, is recovering your identity.</p>");
         sb.AppendLine("    <p style='text-align: center; margin: 30px 0;'>");
         sb.AppendLine($"        <a href='{link}' style='display: inline-block; background-color: #2563eb; color: #fff; " +
                       "padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;'>");
-        sb.AppendLine("            Finalize Recovery");
+        sb.AppendLine("            Hand over this piece");
         sb.AppendLine("        </a>");
         sb.AppendLine("    </p>");
-
+        sb.AppendLine("    <p style='margin-bottom: 15px;'>");
+        sb.AppendLine("        It works on any device. If you didn't start a recovery, ignore this email: nothing happens.");
+        sb.AppendLine("    </p>");
         sb.AppendLine("    <p style='margin-bottom: 15px;'>");
         sb.AppendLine("        If the button above does not work, copy and paste the following link into your browser:<br />");
         sb.AppendLine($"        <a href='{link}' style='color: #2563eb; word-break: break-all;'>{link}</a>");
         sb.AppendLine("    </p>");
-
         sb.AppendLine("    <p style='margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; color: #555; font-size: 14px;'>");
         sb.AppendLine("        Kind regards,<br />");
         sb.AppendLine("        Team Homebase");
         sb.AppendLine("    </p>");
-
         sb.AppendLine("</div>");
 
         return Template(sb.ToString());
@@ -489,7 +510,7 @@ Recovery details:
 - Risk level: {risk.RiskLevel}
 
 {recoverableText}
-{RotationPendingText(info)}
+
 We recommend checking your recovery contacts and ensuring that all listed players are trusted and available.
 
 You can manage your Account Recovery here:
@@ -499,45 +520,6 @@ You can manage your Account Recovery here:
 Team Homebase
 ".Trim();
     }
-
-    /// <summary>
-    /// The shards could not be rotated after a password change, so the ones dealt before it still
-    /// work: automated players release theirs on request, delegates only while still connected
-    /// (#1885). Empty string otherwise.
-    /// </summary>
-    private static string RotationPendingText(RecoveryInfo info)
-    {
-        if (!info.RotationPending)
-        {
-            return "";
-        }
-
-        return $@"
-🔄 Your recovery shards were not refreshed after your password changed.
-{RotationPendingDetail(info)}
-";
-    }
-
-    private static string RotationPendingHtml(RecoveryInfo info)
-    {
-        if (!info.RotationPending)
-        {
-            return "";
-        }
-
-        return $@"
-    <p style='margin-bottom: 15px;'>
-        🔄 <strong>Your recovery shards were not refreshed after your password changed.</strong>
-        {RotationPendingDetail(info)}
-    </p>
-";
-    }
-
-    private static string RotationPendingDetail(RecoveryInfo info) =>
-        (info.UsesAutomaticRecovery
-            ? "The automated recovery shards from before the change can still recover your account."
-            : "Trusted connections you are still connected to can use the shards they held before the change to recover your account.") +
-        " Save your recovery setup again to issue new shards.";
 
     // Rendered only when the DNSSEC state is user-actionable (the caller passes null
     // otherwise): a stale DS that breaks resolution, or a signed parent one DS away
@@ -726,7 +708,6 @@ Review it here: https://{tenant}/owner/security/dns
     <p style='margin-bottom: 15px;'>
         {recoverableText}
     </p>
-{RotationPendingHtml(info)}
     <p style='margin-top: 25px;'>
         We recommend reviewing your Account Recovery configuration and ensuring that all your trusted connections are active and secure.
     </p>

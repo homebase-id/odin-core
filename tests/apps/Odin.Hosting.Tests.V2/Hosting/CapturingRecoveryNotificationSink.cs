@@ -33,6 +33,15 @@ public sealed class CapturingRecoveryNotificationSink : IRecoveryNotificationSin
         }
     }
 
+    /// <summary>Every <paramref name="kind"/> notification for <paramref name="tenant"/>, oldest first.</summary>
+    public IReadOnlyList<RecoveryNotification> All(OdinId tenant, RecoveryNotificationKind kind)
+    {
+        lock (_notifications)
+        {
+            return _notifications.Where(n => n.Tenant == tenant && n.Kind == kind).ToList();
+        }
+    }
+
     /// <summary>
     /// The newest <paramref name="kind"/> notification for <paramref name="tenant"/>. Newest because a
     /// test may enter recovery mode twice and must follow the second link, the first nonce being

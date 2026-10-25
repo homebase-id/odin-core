@@ -13,7 +13,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 
 /// <summary>
 /// Port of <c>OwnerApi/Shamir/ShamirRecoveryConfigurationTests</c>. The rules <c>configure-shards</c>
-/// enforces on a friend deal, which the browser deals (docs/zero-knowledge-recovery-plan.md, "Building
+/// enforces on a deal, which the browser deals (docs/zero-knowledge-recovery-plan.md, "Building
 /// the friends pair"): the happy path, and the refusals.
 /// </summary>
 /// <remarks>
@@ -75,7 +75,11 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
         Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), configureShardsResponse.Error?.Content);
     }
 
-    /// <summary>F2: servers alone (the automatic friends) must never reach the threshold.</summary>
+    /// <summary>
+    /// F2: in a friend deal the automatic shards alone must never reach the threshold.  Only the
+    /// automated deal may, to exactly the host's automated identities; these players include one that
+    /// isn't (Sam) and miss one that is (<see cref="AutomatedRecoveryTests"/> deals the real one).
+    /// </summary>
     [Test]
     public async Task ADealWhoseAutomaticShardsReachTheThresholdIsRefused()
     {

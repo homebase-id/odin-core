@@ -48,7 +48,6 @@ public class ShamirConfigurationService(
     IdentityDatabase db,
     StandardFileSystem fileSystem,
     IDriveManager driveManager,
-    OwnerSecretService secretService,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
     ShardRotationGate rotationGate,
@@ -70,7 +69,6 @@ public class ShamirConfigurationService(
     /// </summary>
     public const int DistributionKeyLength = 16;
     public const int MinimumMatchingShardsOffset = 1;
-    public const string RotateShardsHasStarted = "Rotate shards has started";
     public static Guid SecurityRiskReportNotificationTypeId { get; } = Guid.Parse("959f197f-4f97-4ff1-b36e-eb237b79eda1");
 
     public static int CalculateMinAllowedShardCount(int playerCount)
@@ -78,8 +76,18 @@ public class ShamirConfigurationService(
         return playerCount - MinimumMatchingShardsOffset;
     }
 
+    /// <summary>
+    /// Tests only (a development host): a server-made automated deal, as every one was before the
+    /// browser dealt it, so a test can recover with one and see the next password login deal it again.
+    /// The browser deals the automated deal now (<see cref="ConfigureShards"/>).
+    /// </summary>
     public async Task ConfigureAutomatedRecovery(IOdinContext odinContext)
     {
+        if (!configuration.Development.Enabled)
+        {
+            throw new OdinClientException("The automated deal is dealt in the browser", OdinClientErrorCode.ArgumentError);
+        }
+
         var players = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(p => new ShamiraPlayer()
         {
             OdinId = (OdinId)p,
@@ -109,21 +117,59 @@ public class ShamirConfigurationService(
 
     private bool CanUseAutomatedRecovery() => configuration.AccountRecovery.Enabled && HasAutomatedPlayers();
 
+    /// <summary>
+    /// What the browser deals the automated deal to: this host's automated identities, all automatic,
+    /// and the threshold.  Null when this host has no automated recovery.
+    /// </summary>
+    public AutomatedRecoveryPlayers GetAutomatedRecoveryPlayers()
+    {
+        if (!CanUseAutomatedRecovery())
+        {
+            return null;
+        }
+
+        return new AutomatedRecoveryPlayers
+        {
+            Players = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities
+                .Select(id => new ShamiraPlayer { OdinId = (OdinId)id, Type = PlayerType.Automatic })
+                .ToList(),
+            MinMatchingShards = MinimumPlayerCount
+        };
+    }
+
+    /// <summary>
+    /// Whether <paramref name="request"/> is the automated deal: every player one of this host's
+    /// automated identities, all automatic.  Only it may reach the threshold with automatic shards.
+    /// </summary>
+    private bool IsAutomatedDeal(ConfigureShardsRequest request)
+    {
+        var automated = GetAutomatedRecoveryPlayers()?.Players.Select(p => p.OdinId).ToHashSet();
+        return automated != null && request.Shards?.Count == automated.Count &&
+               request.Shards.All(s => s?.Player?.Type == PlayerType.Automatic && automated.Contains(s.Player.OdinId));
+    }
+
+    /// <summary>
+    /// Whether the deal was made by this server, before the browser dealt every deal: its secret opens
+    /// only today's master key, and the next password login deals it again in the browser.
+    /// </summary>
+    public async Task<bool> IsServerMadeDealAsync() => await GetKeyInternalAsync() != null;
+
     private bool HasAutomatedPlayers() =>
         (configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Count ?? 0) >= MinimumPlayerCount &&
         configuration.AccountRecovery.AutomatedIdentityKey != Guid.Empty;
 
     /// <summary>
-    /// A friend deal, dealt in the browser (<see cref="ConfigureShardsRequest"/>).  Replaces any deal,
-    /// automated or not.  Each gated friend must hold their Shard Recovery drive's keys only in their
-    /// browser, and their shard must be sealed to that drive's current key: anything else would let
-    /// their server release it without them.
+    /// A deal dealt in the browser (<see cref="ConfigureShardsRequest"/>): to friends, or the automated
+    /// deal to this host's automated identities.  Replaces any deal.  Each gated friend must hold their
+    /// Shard Recovery drive's keys only in their browser, and their shard must be sealed to that
+    /// drive's current key: anything else would let their server release it without them.
     /// </summary>
     public async Task ConfigureShards(ConfigureShardsRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        request.Validate();
+        var automatedDeal = IsAutomatedDeal(request);
+        request.Validate(automatedDeal);
         OdinValidationUtils.AssertValidRecipientList(request.Shards.Select(s => s.Player.OdinId), false, odinContext.Tenant);
         await zeroKnowledgeKeyService.AssertKeysExistAsync();
 
@@ -148,28 +194,39 @@ public class ShamirConfigurationService(
                 EncryptionKey = s.EncryptionKey,
                 EncryptionIv = s.EncryptionIv
             }).ToList(),
-            UsesAutomatedRecovery = false
+            UsesAutomatedRecovery = automatedDeal
         }, odinContext);
 
-        var failures = new List<OdinId>();
-        foreach (var shard in request.Shards)
+        PlayerEncryptedShard AsSent(DealtShard shard) => new()
         {
-            var file = shard.IsGated
-                ? await WriteShardToTempDriveAsync(shard.ShardId, shard.DepositContent, new SealedKeyHeader(shard.DepositKeyHeader),
-                    odinContext, hashedRecoveryEmail)
-                : await WritePlayerEncryptedShardToTempDrive(new PlayerEncryptedShard
-                {
-                    Id = shard.ShardId,
-                    Index = shard.Index,
-                    RecoveryEmailHash = hashedRecoveryEmail,
-                    Player = shard.Player,
-                    Created = UnixTimeUtc.Now(),
-                    DealerEncryptedShard = shard.DealerEncryptedShard
-                }, odinContext);
+            Id = shard.ShardId,
+            Index = shard.Index,
+            RecoveryEmailHash = hashedRecoveryEmail,
+            Player = shard.Player,
+            Created = UnixTimeUtc.Now(),
+            DealerEncryptedShard = shard.DealerEncryptedShard
+        };
 
-            if (await SendShardAsync(shard.Player.OdinId, file, odinContext) != TransferStatus.Enqueued)
+        var failures = new List<OdinId>();
+        if (automatedDeal)
+        {
+            // The automated identities take no connection: they are reached with the configured key
+            var results = await EnqueueShardsForDistributionForAutomaticIdentities(request.Shards.Select(AsSent).ToList(), odinContext);
+            failures.AddRange(results.Where(r => r.Value != TransferStatus.Enqueued).Select(r => r.Key));
+        }
+        else
+        {
+            foreach (var shard in request.Shards)
             {
-                failures.Add(shard.Player.OdinId);
+                var file = shard.IsGated
+                    ? await WriteShardToTempDriveAsync(shard.ShardId, shard.DepositContent, new SealedKeyHeader(shard.DepositKeyHeader),
+                        odinContext, hashedRecoveryEmail)
+                    : await WritePlayerEncryptedShardToTempDrive(AsSent(shard), odinContext);
+
+                if (await SendShardAsync(shard.Player.OdinId, file, odinContext) != TransferStatus.Enqueued)
+                {
+                    failures.Add(shard.Player.OdinId);
+                }
             }
         }
 
@@ -178,13 +235,14 @@ public class ShamirConfigurationService(
             throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures)}]");
         }
 
-        // A friend deal locks no master key here: the automated deal's copy goes, and the friends'
+        // A browser deal locks no master key here: a server-made deal's copy goes, and the deal's
         // secret locks the zero-knowledge master key instead.
         await Storage.DeleteAsync(tblKeyValue, ShamirRecordStorageId);
         await zeroKnowledgeKeyService.SaveShamirCopiesAsync(request.ShamirCopies, odinContext);
 
         tx.Commit();
-        Logger.LogInformation("Friend deal saved: {count} shards, {min} needed", request.Shards.Count, request.MinMatchingShards);
+        Logger.LogInformation("Deal saved ({kind}): {count} shards, {min} needed", automatedDeal ? "automated" : "friends",
+            request.Shards.Count, request.MinMatchingShards);
     }
 
     /// <summary>
@@ -351,8 +409,8 @@ public class ShamirConfigurationService(
     /// login.  The security page then shows recovery as not set up
     /// (<c>OwnerSecurityHealthService.GetSecurityNeedsAttentionStatus</c>).  Any other failure throws,
     /// the phrase is not handed over, and the next login tries again.  Shares
-    /// <see cref="RotateShardKeysIfNeeded"/>'s gate, so the two never deal at once, but waits for it
-    /// and ignores its cooldown: a rotation that keeps failing must not block this.
+    /// <see cref="RemoveDeadFriendDealIfNeeded"/>'s gate, so the two never deal at once, but waits for it
+    /// and ignores its cooldown: a removal that keeps failing must not block this.
     /// </remarks>
     internal async Task MoveOffThePhraseAsync(IOdinContext odinContext)
     {
@@ -433,31 +491,16 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// True when the automated deal <paramref name="package"/> was dealt before the password last
-    /// changed.  Never for a friend deal: a password change doesn't change the friends' secret
-    /// (docs/zero-knowledge-recovery-plan.md, decision 2).
-    /// </summary>
-    public async Task<bool> IsRotationPending(DealerShardPackage package)
-    {
-        if (package?.UsesAutomatedRecovery != true)
-        {
-            return false;
-        }
-
-        var passwordLastUpdated = await secretService.GetPasswordLastUpdated();
-        return passwordLastUpdated != null && package.Updated < passwordLastUpdated.Value;
-    }
-
-    /// <summary>
-    /// Runs on owner requests: deals the automated deal again after a password change, and removes a
-    /// friend deal that can recover nothing.
+    /// Runs on owner requests: removes a friend deal that can recover nothing.
     /// </summary>
     /// <remarks>
     /// A friend deal without its zero-knowledge copies was dealt by the server, before recovery in the
     /// browser (its gated shards aren't sealed to the friends, F4), or a reset with today's master key
     /// forgot its copies.  Removing it turns on the security page's red dot, and the owner deals again.
+    /// An automated deal is never removed here: the next password login deals it again in the browser.
+    /// A deal is never rotated: a password change only seals the new password to the deal's public key.
     /// </remarks>
-    public async Task RotateShardKeysIfNeeded(IOdinContext odinContext)
+    public async Task RemoveDeadFriendDealIfNeeded(IOdinContext odinContext)
     {
         if (!rotationGate.TryEnter())
         {
@@ -472,16 +515,11 @@ public class ShamirConfigurationService(
                 Logger.LogInformation("Removing a friend deal that can recover nothing (no zero-knowledge copies)");
                 await RemoveDealAsync(odinContext);
             }
-            else if (await IsRotationPending(package))
-            {
-                Logger.LogDebug(RotateShardsHasStarted);
-                await DealAgainAsync(package, odinContext, movingOffThePhrase: false);
-            }
         }
         catch (Exception e)
         {
             rotationGate.Failed();
-            Logger.LogError(e, "Failed to start shard rotation shards");
+            Logger.LogError(e, "Failed to remove a dead friend deal");
         }
         finally
         {
@@ -589,7 +627,9 @@ public class ShamirConfigurationService(
 
             dealerRecords.Add(new DealerShardEnvelope()
             {
-                Index = i,
+                // The piece's x, as the browser deals it.  Deals before this kept the position (0-based),
+                // so a server-made deal is rebuilt with the shard's own index.
+                Index = s.Index,
                 Player = player,
                 ShardId = playerShardId,
                 EncryptionKey = playerEncryptionKey.GetKey(),

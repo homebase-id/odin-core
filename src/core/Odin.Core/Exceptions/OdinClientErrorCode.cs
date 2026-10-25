@@ -172,4 +172,7 @@ public enum OdinClientErrorCode
     AutomaticShardsReachThreshold = 9021,
     RecoveryNotReady = 9022,
     RecoveryUnderWayElsewhere = 9023,
+
+    // The automated deal, and every automatic holder's own email (docs/zero-knowledge-recovery-plan.md)
+    ShardLinkNoLongerValid = 9024,
 }

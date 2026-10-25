@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.V2.Api;
@@ -254,8 +255,32 @@ public abstract class ShamirFixture : V2Fixture
     protected static ITestSecurityContextOwnerClient PlainSecurityOf(OwnerSession owner)
         => RestService.For<ITestSecurityContextOwnerClient>(owner.NewAdminHttpClient().client);
 
-    /// <summary>Turns on automated recovery. Note: no connections — production has none either.</summary>
-    protected static async Task<DealerShardConfig> ArrangeAutomatedShardsAsync(OwnerSession dealer)
+    /// <summary>
+    /// The automated deal as the console deals it, in the browser, to the host's automated identities,
+    /// and the password copy the same login writes.  Note: no connections — production has none either.
+    /// </summary>
+    protected async Task<DealerShardConfig> ArrangeAutomatedDealAsync(OwnerSession dealer)
+    {
+        await MakeZeroKnowledgeAsync(dealer);
+        var players = await SecurityOf(dealer).GetAutomatedRecoveryPlayers();
+        Assert.That(players.StatusCode, Is.EqualTo(HttpStatusCode.OK), players.Error?.Content);
+
+        var deal = await ZkFriends.MakeAutomatedDealAsync(dealer, ZkMasterKeyOf(dealer), players.Content!);
+        var response = await SecurityOf(dealer).ConfigureShards(deal.Request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        await DrainAndVerifyShardsAsync(dealer, players.Content!.Players.Count);
+        await WriteFriendsPasswordCopyAsync(dealer, OwnerLogin.DefaultPassword);
+
+        var config = await GetDealerShardConfigAsync(dealer);
+        Assert.That(config.UsesAutomaticRecovery, Is.True);
+        return config;
+    }
+
+    /// <summary>
+    /// A server-made automated deal, as every one was before the browser dealt them (a development
+    /// host only).  Note: no connections — production has none either.
+    /// </summary>
+    protected static async Task<DealerShardConfig> ArrangeServerMadeAutomatedDealAsync(OwnerSession dealer)
     {
         var enableResponse = await dealer.RefitFor<IRefitOwnerConfiguration>().EnableAutoPasswordRecovery();
         Assert.That(enableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), enableResponse.Error?.Content);
@@ -403,13 +428,6 @@ public abstract class ShamirFixture : V2Fixture
         return response.Content!;
     }
 
-    /// <summary>
-    /// Whether the owner is told their shards predate the password: the flag behind the console's
-    /// needs-attention indicator and the risk report (#1861).
-    /// </summary>
-    protected static async Task<bool> IsRotationPendingAsync(OwnerSession owner)
-        => (await RecoveryInfoAsync(owner)).RotationPending;
-
     /// <summary>Asserts every player is holding the dealer's release request, and nothing more.</summary>
     protected static async Task AssertEveryPlayerHasRequestAsync(
         DealerShardConfig config, IEnumerable<OwnerSession> players)
@@ -485,54 +503,99 @@ public abstract class ShamirFixture : V2Fixture
         _recoveryLinks.Count(new OdinId(dealer.Identity.DomainName), kind);
 
     /// <summary>
-    /// The automated deal's recovery: enters recovery mode (the automated players release unasked) and
-    /// finalizes with <paramref name="newPassword"/>.
+    /// A server-made deal's recovery: enters recovery mode, clicks every holder's email link, rebuilds
+    /// the secret in the recovering browser, and finalizes with it and <paramref name="newPassword"/>.
     /// </summary>
-    protected async Task<OwnerSession> RecoverAutomatedAsync(OwnerSession dealer, DealerShardConfig config, string newPassword)
+    protected async Task<OwnerSession> RecoverServerMadeDealAsync(OwnerSession dealer, string newPassword)
     {
-        Assert.That(config.UsesAutomaticRecovery, Is.True, "a friend deal recovers in the browser");
         await EnterRecoveryModeAsync(dealer);
-        return await FinalizeRecoveryAndLoginAsync(dealer, newPassword);
+        await FillEverySlotAsync(dealer);
+        var rebuilt = await RebuildInTheRecoveringBrowserAsync(dealer);
+        Assert.That(rebuilt.Bundle.IsServerMadeDeal, Is.True);
+        return await FinalizeRecoveryAndLoginAsync(dealer, rebuilt.Secret, newPassword);
     }
 
     /// <summary>
-    /// A friend deal's recovery: enters recovery mode, has <paramref name="approvers"/> approve, and
-    /// rebuilds in the recovering browser.
+    /// A browser deal's recovery: enters recovery mode, clicks every automatic holder's email link, has
+    /// <paramref name="approvers"/> approve, and rebuilds in the recovering browser.
     /// </summary>
     private protected async Task<ZkFriends.Recovered> RecoverInBrowserAsync(OwnerSession dealer,
         IReadOnlyList<OwnerSession> approvers, DealerShardConfig config)
     {
         await EnterRecoveryModeAsync(dealer);
+        await FillEverySlotAsync(dealer);
         await ApproveEveryShardRequestAsync(approvers, config);
         return await RebuildInTheRecoveringBrowserAsync(dealer);
     }
 
     /// <summary>
-    /// Reads the finalize nonce + final recovery key from the captured link, posts
-    /// <paramref name="newPassword"/> against them, and logs in with it.
+    /// The newest link each automatic holder emailed for <paramref name="dealer"/>'s recovery under
+    /// <paramref name="config"/>: the shard and the code it carries.  The sink outlives each test's
+    /// reset, so links for an earlier deal's shards are left out.
     /// </summary>
-    protected async Task<OwnerSession> FinalizeRecoveryAndLoginAsync(OwnerSession dealer, string newPassword)
+    protected IReadOnlyList<(OdinId Holder, FillSlotRequest Request)> ReleaseLinks(OwnerSession dealer, DealerShardConfig config)
     {
-        // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
-        await AssertRecoveryStateAsync(dealer, ShamirRecoveryState.AwaitingOwnerFinalization);
+        var shards = config.Envelopes.Select(e => e.ShardId).ToHashSet();
+        return _recoveryLinks.All(new OdinId(dealer.Identity.DomainName), RecoveryNotificationKind.ReleaseShard)
+            .Where(n => shards.Contains(n.NonceId))
+            .GroupBy(n => n.Holder!.Value)
+            .Select(g => (g.Key, FillSlotFrom(g.Last().Link)))
+            .ToList();
+    }
 
-        var finalizeLink = RecoveryLink(dealer, RecoveryNotificationKind.FinalizeRecovery);
-        var finalizeNonceId = finalizeLink.NonceId.ToString();
-        var finalRecoveryKey = finalizeLink.FinalRecoveryKey.ToString();
-        Assert.That(finalRecoveryKey, Is.Not.Empty, "the finalize link carried no recovery key");
+    /// <summary>What the recovery page posts for a holder's link: <c>?fill=&lt;shard&gt;&amp;code=&lt;code&gt;</c>.</summary>
+    protected static FillSlotRequest FillSlotFrom(string link)
+    {
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(link).Query);
+        return new FillSlotRequest { ShardId = query["fill"], Code = query["code"] };
+    }
 
+    /// <summary>
+    /// Clicks the newest link of every automatic holder whose slot is still empty, as the owner does
+    /// from the emails (on any device: the page needs no key), and asserts each fills its slot.
+    /// </summary>
+    protected async Task FillEverySlotAsync(OwnerSession dealer)
+    {
+        var filled = (await OpenSlotsAsync(dealer)).Where(s => s.Filled).Select(s => s.Player.OdinId).ToHashSet();
+        foreach (var (holder, request) in ReleaseLinks(dealer, await GetDealerShardConfigAsync(dealer)).Where(l => !filled.Contains(l.Holder)))
+        {
+            var response = await AnonymousSecurityOf(dealer).FillSlot(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"{holder}: {response.Error?.Content}");
+        }
+    }
+
+    /// <summary>The slots, as the recovering browser opens them from the status.</summary>
+    private protected async Task<List<RecoverySlot>> OpenSlotsAsync(OwnerSession dealer)
+    {
+        var status = await AnonymousSecurityOf(dealer).GetShamirRecoverStatus();
+        Assert.That(status.StatusCode, Is.EqualTo(HttpStatusCode.OK), status.Error?.Content);
+        return OpenSlots(status.Content!.SealedSlots64);
+    }
+
+    /// <summary>A status's slot list, opened with the recovering browser's key.</summary>
+    private protected List<RecoverySlot> OpenSlots(string sealedSlots64)
+    {
+        Assert.That(sealedSlots64, Is.Not.Null, "the status seals the slots while shards are collected");
+        var json = ZkBrowser.Unseal(sealedSlots64, RecoveringBrowser!.PrivateKeyPkcs8).ToStringFromUtf8Bytes();
+        return OdinSystemSerializer.DeserializeOrThrow<List<RecoverySlot>>(json);
+    }
+
+    /// <summary>
+    /// Posts the secret the recovering browser rebuilt and <paramref name="newPassword"/>, as the
+    /// recovery page does for a server-made deal, and logs in with it.
+    /// </summary>
+    protected async Task<OwnerSession> FinalizeRecoveryAndLoginAsync(OwnerSession dealer, byte[] secret, string newPassword)
+    {
         var saltyReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(
             Host, dealer.Identity.DomainName, newPassword);
 
-        // here we will call finalize to get the recovery key
         var finalizeRecoveryResponse = await AnonymousSecurityOf(dealer).FinalizeRecovery(new FinalRecoveryRequest
         {
-            Id = finalizeNonceId,
-            FinalKey = finalRecoveryKey,
+            Secret64 = secret.ToBase64(),
             PasswordReply = saltyReply
         });
 
-        Assert.That(finalizeRecoveryResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(finalizeRecoveryResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), finalizeRecoveryResponse.Error?.Content);
 
         var recovered = await OwnerSession.LoginAsync(Host, dealer.Identity.DomainName, newPassword);
         Assert.That(recovered.Token.Id, Is.Not.EqualTo(Guid.Empty));

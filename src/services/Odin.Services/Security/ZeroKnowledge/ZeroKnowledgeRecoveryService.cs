@@ -52,8 +52,21 @@ public class ZeroKnowledgeRecoveryService(
             PhrasePublicKeyJwk = keys?.PhrasePublicKeyJwk,
             HasPasswordCopy = keys?.PhrasePublicKeyEncryptedPassword != null,
             ShamirPublicKeyJwk = keys?.HasShamirCopies() == true ? keys.ShamirPublicKeyJwk : null,
-            HasShamirPasswordCopy = keys?.ShamirPublicKeyEncryptedPassword != null
+            HasShamirPasswordCopy = keys?.ShamirPublicKeyEncryptedPassword != null,
+            AutomatedDealNeedsDealing = await AutomatedDealNeedsDealingAsync(keys, odinContext)
         };
+    }
+
+    /// <summary>
+    /// An automated deal that gives back nothing in the browser: made by the server before the browser
+    /// dealt every deal, or its copies forgotten by a reset with today's master key.
+    /// </summary>
+    private async Task<bool> AutomatedDealNeedsDealingAsync(ZkKeyRecord keys, IOdinContext odinContext)
+    {
+        var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
+        return package?.UsesAutomatedRecovery == true &&
+               shamirConfigurationService.GetAutomatedRecoveryPlayers() != null &&
+               (await shamirConfigurationService.IsServerMadeDealAsync() || keys?.HasShamirCopies() != true);
     }
 
     /// <summary>

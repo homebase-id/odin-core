@@ -22,12 +22,13 @@ public enum ShamirRecoveryState
     AwaitingSufficientDelegateConfirmation,
     
     /// <summary>
-    /// Owner has all things needed to recover their password.  They just need click the email link and reset their password
+    /// No longer set: the server rebuilt a server-made deal's secret and emailed a finalize link.  Every
+    /// deal now waits in <see cref="AwaitingRecoveringBrowser"/>.  Kept so a status stored before still reads.
     /// </summary>
     AwaitingOwnerFinalization,
 
     /// <summary>
-    /// A friend deal collected enough shards.  The browser that started recovery fetches them, sealed
+    /// Enough shards are in, for any deal.  The browser that started recovery fetches them, sealed
     /// to its throwaway key, and rebuilds the secret itself.
     /// </summary>
     AwaitingRecoveringBrowser

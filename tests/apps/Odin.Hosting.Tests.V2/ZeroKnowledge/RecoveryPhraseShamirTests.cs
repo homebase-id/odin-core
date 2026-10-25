@@ -19,7 +19,8 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
 /// <summary>
 /// Server-dealt Shamir around the recovery phrase takeover (docs/zero-knowledge-recovery-plan.md,
-/// decision 6).  <c>Development:DealsLockThePhrase</c> makes every deal here lock the phrase, as every
+/// decision 6), recovered as every deal is now: each holder emails a link, and the recovering browser
+/// rebuilds the secret.  <c>Development:DealsLockThePhrase</c> makes every deal here lock the phrase, as every
 /// deal did before recovery in the browser, until the takeover: so these start where every existing
 /// owner is.
 /// </summary>
@@ -40,16 +41,16 @@ public class RecoveryPhraseShamirTests : ShamirFixture
     public async Task AnOldDealStillRecoversBeforeTheTakeover()
     {
         var (dealer, _) = Cast();
-        var config = await ArrangeAutomatedShardsAsync(dealer);
+        await ArrangeServerMadeAutomatedDealAsync(dealer);
 
-        await RecoverAutomatedAsync(dealer, config, NewPassword);
+        await RecoverServerMadeDealAsync(dealer, NewPassword);
     }
 
     [Test]
     public async Task AnOldDealIsDealtAgainAtTheTakeoverAndRecoversAfterIt()
     {
         var (dealer, _) = Cast();
-        var before = await ArrangeAutomatedShardsAsync(dealer);
+        var before = await ArrangeServerMadeAutomatedDealAsync(dealer);
 
         var phrase = await TakeOverAsync(dealer);
 
@@ -62,7 +63,7 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         Assert.That(after.UsesAutomaticRecovery, Is.EqualTo(before.UsesAutomaticRecovery));
         await DrainAndVerifyShardsAsync(dealer, before.Envelopes.Count);
 
-        var recovered = await RecoverAutomatedAsync(dealer, after, NewPassword);
+        var recovered = await RecoverServerMadeDealAsync(dealer, NewPassword);
 
         // The reset forgot the zero-knowledge keys and every copy tied to them; the phrase is still
         // valid, and the owner types it in once against the new keys.
@@ -72,9 +73,8 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         Assert.That(unusable.StatusCode, Is.EqualTo(HttpStatusCode.Conflict), "the forgot-password page must say why the phrase can't recover");
         DriveAsserts.AssertRejected(await SecurityOf(recovered).RequestRecoveryKey(), OdinClientErrorCode.RecoveryPhraseNeedsReentry);
 
-        // The re-deal after a password change ran on those requests, without a phrase to read.
-        Assert.That(await IsRotationPendingAsync(recovered), Is.False);
-        AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: 1);
+        // The deal is still the server's: the next password login deals it again in the browser
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).AutomatedDealNeedsDealing, Is.True);
 
         var otherPhrase = BIP39Util.GenerateBIP39(ByteArrayUtil.GetRndByteArray(16));
         var mistyped = await ZkOwnerSteps.Client(recovered).ReenterPhrase(ZkBrowser.MakePhraseCopies(otherPhrase, keys.MasterKey));
@@ -105,7 +105,7 @@ public class RecoveryPhraseShamirTests : ShamirFixture
     public async Task AnOldServerMadeFriendDealIsRemovedAndTheSecurityPageSaysSo()
     {
         var (dealer, _) = Cast();
-        await ArrangeAutomatedShardsAsync(dealer);
+        await ArrangeServerMadeAutomatedDealAsync(dealer);
 
         // What an old friend deal looks like: the same package, not automated, locking the phrase
         var (scope, ctx) = await MigrationContextAsync(dealer);

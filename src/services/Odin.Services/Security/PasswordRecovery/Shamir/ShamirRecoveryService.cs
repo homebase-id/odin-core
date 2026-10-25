@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -52,6 +53,7 @@ public class ShamirRecoveryService
     private readonly ILogger<ShamirRecoveryService> _logger;
     private readonly PlayerShardCollector _playerShardCollector;
     private readonly ShardRequestApprovalCollector _approvalCollector;
+    private readonly AutomaticShardReleases _automaticReleases;
     private readonly ZeroKnowledgeKeyService _zeroKnowledgeKeyService;
 
     /// <summary>
@@ -90,6 +92,7 @@ public class ShamirRecoveryService
 
         _playerShardCollector = new PlayerShardCollector(fileSystem);
         _approvalCollector = new ShardRequestApprovalCollector(fileSystem, mediator);
+        _automaticReleases = new AutomaticShardReleases(keyValueTable);
     }
 
     private static readonly Guid ShamirStatusStorageId = Guid.Parse("d2180696-2d18-41e3-8699-c90c0d3aa710");
@@ -100,42 +103,40 @@ public class ShamirRecoveryService
     /// Sets the identity into recovery mode so peer shard holders can give the parts
     /// </summary>
     /// <remarks>
-    /// For a friend deal the browser sends its throwaway public key, and the email's nonce keeps it:
-    /// anyone can start recovery, so entering it must come from the browser that started it
-    /// (<see cref="EnterRecoveryMode"/>), not from whichever email the owner clicks.
+    /// The browser sends its throwaway public key, and the email's nonce keeps it: anyone can start
+    /// recovery, so entering it must come from the browser that started it
+    /// (<see cref="EnterRecoveryMode"/>), not from whichever email the owner clicks.  Every holder's
+    /// shard is sealed to that key.
     /// </remarks>
     public async Task InitiateRecoveryModeEntry(string recoveryPublicKeyJwk, IOdinContext odinContext)
     {
         _logger.LogDebug("Initiating recovery mode");
         var current = await GetStatusRecordInternal();
         var pkg = await GetDealerPackageOrFailAsync(odinContext);
-        var startKey = pkg.UsesAutomatedRecovery ? null : recoveryPublicKeyJwk;
+        var startKey = recoveryPublicKeyJwk;
         var collecting = current?.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation;
 
         // Under way: do nothing, say nothing, to keep any insights from the wrong eyes.  Except "start
-        // over" while shards are being collected: a new link, which asks the friends again
-        // (EnterRecoveryMode).  For a friend deal only from the browser it is under way for; an
-        // automated deal has no browser key, so anyone may ask, and the link goes only to the owner.
+        // over" while shards are being collected, from the browser it is under way for: a new link,
+        // which asks the holders again (EnterRecoveryMode).
         if (IsInRecoveryMode(current) && !(collecting && SameKey(startKey, current.RecoveryPublicKeyJwk)))
         {
             return;
         }
 
-        if (!pkg.UsesAutomatedRecovery)
-        {
-            ZkBlob.AssertPublicKey(recoveryPublicKeyJwk, nameof(InitiateRecoveryModeRequest.RecoveryPublicKeyJwk));
+        ZkBlob.AssertPublicKey(recoveryPublicKeyJwk, nameof(InitiateRecoveryModeRequest.RecoveryPublicKeyJwk));
 
-            // A friend deal without its copies (dealt by the server before recovery in the browser, or
-            // forgotten by a reset) could never give anything back; say so now rather than at the end
-            if (await _zeroKnowledgeKeyService.GetShamirRecoveryCopiesAsync() == null)
-            {
-                throw new OdinClientException("Recovery with friends is not set up", OdinClientErrorCode.PasswordRecoveryNotConfigured);
-            }
+        // A browser deal without its copies (forgotten by a reset, or an old server-made friend deal)
+        // could never give anything back; say so now rather than at the end.  A server-made automated
+        // deal has none and needs none: its secret opens today's master key.
+        if (!await _configurationService.IsServerMadeDealAsync() && await _zeroKnowledgeKeyService.GetShamirRecoveryCopiesAsync() == null)
+        {
+            throw new OdinClientException("Password recovery is not set up", OdinClientErrorCode.PasswordRecoveryNotConfigured);
         }
 
         var players = pkg.Envelopes.Select(p => p.Player).ToList();
 
-        await _recoveryNotifier.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode, nonceData: startKey ?? "");
+        await _recoveryNotifier.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode, nonceData: startKey);
 
         if (!collecting)
         {
@@ -170,12 +171,37 @@ public class ShamirRecoveryService
             };
         }
 
-        return new ShamirRecoveryStatusRedacted
+        var redacted = new ShamirRecoveryStatusRedacted
         {
             Updated = status.Updated,
             State = status.State,
             Email = maskedEmail,
             RecoveryKeyId = status.RecoveryPublicKeyJwk == null ? null : ZkSeal.KeyId(status.RecoveryPublicKeyJwk)
+        };
+
+        if (!IsCollecting(status) || status.RecoveryPublicKeyJwk == null)
+        {
+            return redacted;
+        }
+
+        // The slots: the holders and which are in, by name only to the browser that started
+        var context = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
+        var package = await _configurationService.GetDealerShardPackage(context);
+        if (package == null)
+        {
+            return redacted;
+        }
+
+        var collected = (await _playerShardCollector.GetCollectShards(context)).Select(c => c.Id).ToHashSet();
+        var slots = package.Envelopes
+            .Select(e => new RecoverySlot { Player = e.Player, Filled = collected.Contains(e.ShardId) })
+            .ToList();
+
+        return redacted with
+        {
+            Needed = package.MinMatchingShards,
+            Filled = slots.Count(slot => slot.Filled),
+            SealedSlots64 = ZkSeal.Seal(OdinSystemSerializer.Serialize(slots).ToUtf8ByteArray(), status.RecoveryPublicKeyJwk).ToBase64()
         };
     }
 
@@ -197,16 +223,16 @@ public class ShamirRecoveryService
             throw new OdinClientException("Open this link in the browser where you started recovery", OdinClientErrorCode.RecoveryNotReady);
         }
 
-        // A friend deal needs the key the friends seal to; a link made without one (an automated deal's,
-        // or another email's) can't enter it
+        // Every holder seals to the key the start carried; a link made without one (another email's)
+        // can't enter
         var package = await GetDealerPackageOrFailAsync(odinContext);
-        if (!package.UsesAutomatedRecovery && startedWith == null)
+        if (startedWith == null)
         {
             throw new OdinClientException("Start recovery again in this browser", OdinClientErrorCode.RecoveryNotReady);
         }
 
         // A second link ("send it again") to a recovery already under way: only from the browser it is
-        // under way for.  While shards are being collected it asks the friends again (one may have been
+        // under way for.  While shards are being collected it asks the holders again (one may have been
         // unreachable); once they're in, it changes nothing.
         var current = await GetStatusRecordInternal();
         var underWay = IsInRecoveryMode(current);
@@ -233,9 +259,11 @@ public class ShamirRecoveryService
         }
 
         var hashedRecoveryEmail = await _passwordKeyRecoveryService.GetHashedRecoveryEmail();
+        var recoveryEmail = (await _passwordKeyRecoveryService.GetRecoveryInfo())?.Email;
         //TODO: move this to an outbox call
 
-        // notify all players this identity needs their password shards
+        // Ask every holder.  None answers with its shard: a gated friend approves in their browser, and
+        // an automatic holder emails the owner a link (FillSlotAsync).
         foreach (var envelope in package.Envelopes)
         {
             var client = await CreateClientAsync(envelope.Player.OdinId);
@@ -243,24 +271,47 @@ public class ShamirRecoveryService
             {
                 ShardId = envelope.ShardId,
                 HashedRecoveryEmail = hashedRecoveryEmail,
-                RecoveryPublicKeyJwk = startedWith
+                RecoveryPublicKeyJwk = startedWith,
+                RecoveryEmail = envelope.Player.Type == PlayerType.Automatic ? recoveryEmail : null
             });
 
-            if (response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
             {
-                var retrieveShardResult = response.Content;
-                if (retrieveShardResult.ResultType == RetrieveShardResultType.Complete)
-                {
-                    // From the player itself: this server called it
-                    await CollectShardAsync(retrieveShardResult, envelope.Player.OdinId, odinContext, package);
-                }
-
-                if (retrieveShardResult.ResultType == RetrieveShardResultType.WaitingForPlayer)
-                {
-                    //hmm, do we tell the user anything or just go into waiting mode?
-                }
+                _logger.LogWarning("{holder} did not take the request for shard {shardId}: {status}",
+                    envelope.Player.OdinId, envelope.ShardId, response.StatusCode);
             }
         }
+    }
+
+    /// <summary>
+    /// The owner clicked an automatic holder's email link, on any device: passes its code to the holder,
+    /// which releases its shard sealed to the recovering browser's key.  No login: the code is the
+    /// proof, and only the browser that started opens what it releases.
+    /// </summary>
+    public async Task FillSlotAsync(Guid shardId, string code, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotNullOrEmpty(code, nameof(code));
+
+        // Checked first: a recovery that is over must not use the code up
+        if (!IsCollecting(await GetStatusRecordInternal()))
+        {
+            throw new OdinClientException("There is no recovery under way", OdinClientErrorCode.RecoveryNotReady);
+        }
+
+        var package = await GetDealerPackageOrFailAsync(odinContext);
+        var envelope = package.Envelopes.SingleOrDefault(e => e.ShardId == shardId && e.Player.Type == PlayerType.Automatic)
+                       ?? throw new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid);
+
+        var client = await CreateClientAsync(envelope.Player.OdinId);
+        var response = await client.ReleaseAutomaticShard(new ReleaseAutomaticShardRequest { ShardId = shardId, Code = code });
+        if (!response.IsSuccessStatusCode || response.Content?.ResultType != RetrieveShardResultType.Complete)
+        {
+            _logger.LogInformation("{holder} did not release shard {shardId}: {status}", envelope.Player.OdinId, shardId, response.StatusCode);
+            throw new OdinClientException("This link no longer works; start over for a new one", OdinClientErrorCode.ShardLinkNoLongerValid);
+        }
+
+        // From the holder itself: this server called it
+        await CollectShardAsync(response.Content, envelope.Player.OdinId, odinContext, package);
     }
 
     public async Task ExitRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
@@ -306,12 +357,23 @@ public class ShamirRecoveryService
 
         if (shard.Player.Type == PlayerType.Automatic)
         {
-            // return it now
-            return new RetrieveShardResult
+            // Released only through the owner's inbox: this holder emails the recovery address a link.
+            // The address must match the hash stored at the deal, so a dealer that isn't the owner (its
+            // server taken over, or a copy of its data) can't send the link elsewhere.
+            ZkBlob.AssertPublicKey(request.RecoveryPublicKeyJwk, nameof(request.RecoveryPublicKeyJwk));
+            if (!MailAddress.TryCreate(request.RecoveryEmail, out var email) ||
+                ByteArrayUtil.ReduceSHA256Hash(request.RecoveryEmail) != shard.RecoveryEmailHash)
             {
-                ResultType = RetrieveShardResultType.Complete,
-                Shard = shard
-            };
+                throw new OdinSecurityException("Invalid recovery email");
+            }
+
+            var code = await _automaticReleases.RequestAsync(shard.Id, requester, request.RecoveryPublicKeyJwk);
+            if (code != null)
+            {
+                await _recoveryNotifier.EnqueueReleaseShardEmail(email, requester, shard.Id, code);
+            }
+
+            return new RetrieveShardResult { ResultType = RetrieveShardResultType.WaitingForPlayer };
         }
 
         if (shard.Player.Type == PlayerType.Delegate)
@@ -341,6 +403,41 @@ public class ShamirRecoveryService
         throw new OdinSystemException($"How did we get here?  The player type is not delegate or " +
                                       $"automatic. It is {shard.Player.Type} for Player {shard.Player.OdinId} and " +
                                       $"id {shard.Id}");
+    }
+
+    /// <summary>
+    /// As an automatic holder: the owner clicked the link this holder emailed, and the dealer passes its
+    /// code on.  Releases the shard once, sealed to the key the dealer's request carried.
+    /// </summary>
+    public async Task<RetrieveShardResult> HandleReleaseAutomaticShardAsync(ReleaseAutomaticShardRequest request, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        var requester = odinContext.Caller.OdinId.GetValueOrDefault();
+        var (shard, sender, _) = await _configurationService.GetShardStoredForDealer(request.ShardId, odinContext);
+        if (shard == null || sender != requester || shard.Player.Type != PlayerType.Automatic)
+        {
+            throw new OdinSecurityException("invalid requester");
+        }
+
+        var release = await _automaticReleases.FindAsync(shard.Id, requester, request.Code)
+                      ?? throw new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid);
+
+        var result = new RetrieveShardResult
+        {
+            ResultType = RetrieveShardResultType.Complete,
+            Shard = new PlayerEncryptedShard
+            {
+                Id = shard.Id,
+                Index = shard.Index,
+                RecoveryEmailHash = shard.RecoveryEmailHash,
+                Player = shard.Player,
+                Created = shard.Created,
+                DealerEncryptedShard = ZkSeal.Seal(shard.DealerEncryptedShard, release.RecoveryPublicKeyJwk)
+            }
+        };
+
+        await _automaticReleases.DeleteAsync(shard.Id);
+        return result;
     }
 
     /// <summary>
@@ -387,10 +484,9 @@ public class ShamirRecoveryService
             throw new OdinSecurityException($"{player} did not hold shard {result.Shard?.Id}");
         }
 
-        // A gated friend's browser sealed it to the recovering browser; anything else is junk that
-        // would only spoil the rebuild
-        if (envelope.Player.Type == PlayerType.Delegate && !package.UsesAutomatedRecovery &&
-            (status.RecoveryPublicKeyJwk == null || !ZkSeal.IsSealedTo(result.Shard.DealerEncryptedShard, status.RecoveryPublicKeyJwk)))
+        // A gated friend's browser or an automatic holder sealed it to the recovering browser; anything
+        // else is junk that would only spoil the rebuild
+        if (status.RecoveryPublicKeyJwk == null || !ZkSeal.IsSealedTo(result.Shard.DealerEncryptedShard, status.RecoveryPublicKeyJwk))
         {
             throw new OdinClientException("The shard is not sealed to the recovering browser", OdinClientErrorCode.ArgumentError);
         }
@@ -398,40 +494,23 @@ public class ShamirRecoveryService
         await _playerShardCollector.SavePlayerShard(result.Shard, odinContext);
         if (status.State == ShamirRecoveryState.AwaitingRecoveringBrowser)
         {
-            // Told once, at the threshold; later approvals only add shards the browser may need
+            // Told once, at the threshold; later shards are only ones the browser may need
             tx.Commit();
             return;
         }
 
         var collectedShards = await _playerShardCollector.GetCollectShards(odinContext);
 
-        if (collectedShards.Count >= package.MinMatchingShards && !package.UsesAutomatedRecovery)
+        if (collectedShards.Count >= package.MinMatchingShards)
         {
-
-            // The dealer can't open the gated shards: the browser that started recovery rebuilds the
-            // secret (GetRecoveryBundleAsync).  The email carries nothing.
+            // The dealer can't open the shards: the browser that started recovery rebuilds the secret
+            // (GetRecoveryBundleAsync).  The email carries nothing.
             await UpdateStatus(status with
             {
                 Updated = UnixTimeUtc.Now(),
                 State = ShamirRecoveryState.AwaitingRecoveringBrowser
             });
-            await _recoveryNotifier.EnqueueFriendsApprovedEmail();
-
-            await _mediator.Publish(new ShamirPasswordRecoverySufficientShardsCollectedNotification()
-            {
-                OdinContext = odinContext
-            });
-        }
-        else if (collectedShards.Count >= package.MinMatchingShards)
-        {
-            var (finalRecoveryKey, finalInfo) = await PrepareFinalKeys(collectedShards, package);
-            await _recoveryNotifier.EnqueueFinalizeRecoveryEmail(finalInfo, finalRecoveryKey);
-
-            await UpdateStatus(new ShamirRecoveryStatusRecord
-            {
-                Updated = UnixTimeUtc.Now(),
-                State = ShamirRecoveryState.AwaitingOwnerFinalization,
-            });
+            await _recoveryNotifier.EnqueueShardsCollectedEmail();
 
             await _mediator.Publish(new ShamirPasswordRecoverySufficientShardsCollectedNotification()
             {
@@ -453,17 +532,32 @@ public class ShamirRecoveryService
         tx.Commit();
     }
 
-    public async Task FinalizeRecovery(Guid nonceId, Guid finalKey, PasswordReply passwordReply,
-        IOdinContext odinContext)
+    /// <summary>
+    /// Recovery with a server-made deal (dealt before the browser dealt every deal; the next password
+    /// login deals it again): the browser that started rebuilt the deal's secret from the bundle and
+    /// sends it with a new password.  The secret opens only today's master key, so the reset forgets
+    /// the zero-knowledge keys, as every reset with it does.
+    /// </summary>
+    public async Task FinalizeServerMadeDealAsync(byte[] secret, PasswordReply passwordReply, IOdinContext odinContext)
     {
-        // One transaction, and recovery mode ends last: a failure leaves the link and the collected
-        // shards as they were, so the owner can try again.
+        // One transaction, and recovery mode ends last: a failure leaves the collected shards as they
+        // were, so the owner can try again.
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        var data = await _recoveryNotifier.GetNonceDataOrFail(nonceId);
-        var recoveryInfo = OdinSystemSerializer.DeserializeOrThrow<FinalRecoveryInfo>(data);
-        var finalKeyBytes = finalKey.ToByteArray().ToSensitiveByteArray();
-        using var distributionKey = AesCbc.Decrypt(recoveryInfo.Cipher, finalKeyBytes, recoveryInfo.Iv).ToSensitiveByteArray();
+        var status = await GetStatusRecordInternal();
+        if (status?.State != ShamirRecoveryState.AwaitingRecoveringBrowser)
+        {
+            throw new OdinClientException("Not enough shards are in yet", OdinClientErrorCode.RecoveryNotReady);
+        }
+
+        if (!await _configurationService.IsServerMadeDealAsync())
+        {
+            throw new OdinClientException("This deal gives back the password in the browser", OdinClientErrorCode.ArgumentError);
+        }
+
+        OdinValidationUtils.AssertIsTrue(secret?.Length == ShamirConfigurationService.DistributionKeyLength,
+            $"The secret is {ShamirConfigurationService.DistributionKeyLength} bytes");
+        using var distributionKey = secret.ToSensitiveByteArray();
         using var masterKey = await _configurationService.DecryptMasterKeyAsync(distributionKey);
 
         await _secretService.ResetPasswordUsingMasterKeyAsync(masterKey, passwordReply);
@@ -565,23 +659,24 @@ public class ShamirRecoveryService
     }
 
     /// <summary>
-    /// What the browser that started recovery with friends rebuilds the secret from, sealed to its
-    /// throwaway key, once enough friends approved.  No login: only that browser opens it.
+    /// What the browser that started recovery rebuilds the secret from, sealed to its throwaway key,
+    /// once enough shards are in.  No login: only that browser opens it.
     /// </summary>
     public async Task<ShamirRecoveryBundleResponse> GetRecoveryBundleAsync(IOdinContext odinContext)
     {
         var status = await GetStatusRecordInternal();
         if (status?.State != ShamirRecoveryState.AwaitingRecoveringBrowser || status.RecoveryPublicKeyJwk == null)
         {
-            throw new OdinClientException("Not enough friends have approved yet", OdinClientErrorCode.RecoveryNotReady);
+            throw new OdinClientException("Not enough shards are in yet", OdinClientErrorCode.RecoveryNotReady);
         }
 
         odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
         var package = await _configurationService.GetDealerShardPackage(odinContext);
-        var copies = await _zeroKnowledgeKeyService.GetShamirRecoveryCopiesAsync();
-        if (package == null || copies == null)
+        var serverMade = await _configurationService.IsServerMadeDealAsync();
+        var copies = serverMade ? null : await _zeroKnowledgeKeyService.GetShamirRecoveryCopiesAsync();
+        if (package == null || (copies == null && !serverMade))
         {
-            throw new OdinClientException("Recovery with friends is not set up", OdinClientErrorCode.PasswordRecoveryNotConfigured);
+            throw new OdinClientException("Password recovery is not set up", OdinClientErrorCode.PasswordRecoveryNotConfigured);
         }
 
         var bundle = new ShamirRecoveryBundle
@@ -589,54 +684,12 @@ public class ShamirRecoveryService
             MinMatchingShards = package.MinMatchingShards,
             Envelopes = package.Envelopes,
             Shards = await _playerShardCollector.GetCollectShards(odinContext),
-            Copies = copies
+            Copies = copies,
+            IsServerMadeDeal = serverMade
         };
 
         var json = OdinSystemSerializer.Serialize(bundle).ToUtf8ByteArray();
         return new ShamirRecoveryBundleResponse { SealedBundle64 = ZkSeal.Seal(json, status.RecoveryPublicKeyJwk).ToBase64() };
-    }
-
-    private async Task<(Guid finalRecoveryKey, FinalRecoveryInfo finalInfo)> PrepareFinalKeys(
-        List<PlayerEncryptedShard> collectedShards,
-        DealerShardPackage package)
-    {
-        var decryptedShards = new List<ShamirSecretSharing.ShamirShard>();
-        foreach (var shard in collectedShards)
-        {
-            var envelope = package.Envelopes.FirstOrDefault(e => e.Player.OdinId == shard.Player.OdinId
-                                                                 && e.ShardId == shard.Id);
-            if (null == envelope?.EncryptionKey)
-            {
-                _logger.LogWarning("Missing key for player: [{player}] for shardId: [{sid}]; continuing.",
-                    shard.Player.OdinId,
-                    shard.Id);
-
-                continue;
-            }
-
-            var decryptedShard = AesCbc.Decrypt(shard.DealerEncryptedShard, envelope.EncryptionKey, envelope.EncryptionIv);
-            var shamirShard = new ShamirSecretSharing.ShamirShard(shard.Index, decryptedShard);
-            decryptedShards.Add(shamirShard);
-        }
-
-        // decrypt all the shards
-        var distributionKey = ShamirSecretSharing.ReconstructShamirSecret(decryptedShards.OrderBy(s => s.Index).ToList(),
-            ShamirConfigurationService.DistributionKeyLength);
-
-        // Put the distribution key in the nonce, locked by the key the email carries; finalize opens the
-        // master key with it.  Opened here once, so a wrong rebuild fails now and not at finalize.
-        (await _configurationService.DecryptMasterKeyAsync(distributionKey.ToSensitiveByteArray())).Wipe();
-
-        var finalRecoveryKey = ByteArrayUtil.GetRandomCryptoGuid();
-
-        var (iv, cipher) = AesCbc.Encrypt(distributionKey, finalRecoveryKey.ToByteArray().ToSensitiveByteArray());
-        var finalInfo = new FinalRecoveryInfo()
-        {
-            Iv = iv,
-            Cipher = cipher
-        };
-
-        return (finalRecoveryKey, finalInfo);
     }
 
     /// <summary>Whether two public keys are the same key; a malformed one matches nothing.</summary>
@@ -665,6 +718,10 @@ public class ShamirRecoveryService
                ?? throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
     }
 
+    /// <summary>Whether shards are being collected, or are in and the browser may still need more.</summary>
+    private static bool IsCollecting(ShamirRecoveryStatusRecord status) =>
+        status?.State is ShamirRecoveryState.AwaitingSufficientDelegateConfirmation or ShamirRecoveryState.AwaitingRecoveringBrowser;
+
     private static bool IsInRecoveryMode(ShamirRecoveryStatusRecord status)
     {
         if (status == null)
@@ -672,9 +729,9 @@ public class ShamirRecoveryService
             return false;
         }
 
+        // Not AwaitingOwnerFinalization: no longer set, and one stored before must not block a new start
         return status.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation ||
                status.State == ShamirRecoveryState.AwaitingOwnerEmailVerificationToExitRecoveryMode ||
-               status.State == ShamirRecoveryState.AwaitingOwnerFinalization ||
                status.State == ShamirRecoveryState.AwaitingRecoveringBrowser;
     }
 

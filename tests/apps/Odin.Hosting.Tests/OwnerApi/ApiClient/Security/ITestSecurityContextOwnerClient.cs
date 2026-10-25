@@ -62,6 +62,12 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/finalize")]
         Task<ApiResponse<HttpContent>> FinalizeRecovery(FinalRecoveryRequest request);
 
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/fill-slot")]
+        Task<ApiResponse<HttpContent>> FillSlot([Body] FillSlotRequest request);
+
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/automated-recovery-players")]
+        Task<ApiResponse<AutomatedRecoveryPlayers>> GetAutomatedRecoveryPlayers();
+
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/reject-shard-request")]
         Task<ApiResponse<HttpContent>> RejectShardRequest(RejectShardRequest request);
        

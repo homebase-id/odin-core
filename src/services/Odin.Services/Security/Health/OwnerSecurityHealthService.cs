@@ -109,8 +109,7 @@ public class OwnerSecurityHealthService(
             EmailLastVerified = recoveryInfo?.EmailLastVerified,
             Status = await GetVerificationStatusInternalAsync(),
             HasRecoveryKeyBeenViewed = await recoveryService.HasRecoveryKeyBeenViewed(),
-            RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus),
-            RotationPending = await shamirConfigurationService.IsRotationPending(package)
+            RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus)
         };
     }
 
@@ -230,8 +229,7 @@ public class OwnerSecurityHealthService(
         if (!recoveryInfo.IsConfigured ||
             string.IsNullOrEmpty(recoveryInfo.Email) ||
             !recoveryInfo.EmailLastVerified.HasValue ||
-            !recoveryInfo.RecoveryRisk.IsRecoverable ||
-            recoveryInfo.RotationPending)
+            !recoveryInfo.RecoveryRisk.IsRecoverable)
         {
             return true;
         }

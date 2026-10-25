@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
@@ -40,10 +41,22 @@ internal static class ZkFriends
 
     /// <summary>
     /// What the console's deal dialog makes: a random secret split into shards, each locked by its own
-    /// shard key, a gated friend's sealed to them as a deposit, and the friend deal's copies.
+    /// shard key, a gated friend's sealed to them as a deposit, and the deal's copies.
     /// </summary>
+    public static Task<Deal> MakeDealAsync(OwnerSession dealer, byte[] dealerZkMasterKey,
+        IReadOnlyList<(OwnerSession Player, PlayerType Type)> players, int minMatchingShards) =>
+        MakeDealAsync(dealer, dealerZkMasterKey, players.Select(p => (p.Player.Identity, p.Type)).ToList(), minMatchingShards);
+
+    /// <summary>
+    /// The automated deal, as the console deals it at first run or a password login: to the host's
+    /// automated identities, all automatic (<c>automated-recovery-players</c>).
+    /// </summary>
+    public static Task<Deal> MakeAutomatedDealAsync(OwnerSession dealer, byte[] dealerZkMasterKey, AutomatedRecoveryPlayers automated) =>
+        MakeDealAsync(dealer, dealerZkMasterKey, automated.Players.Select(p => (p.OdinId, PlayerType.Automatic)).ToList(),
+            automated.MinMatchingShards);
+
     public static async Task<Deal> MakeDealAsync(OwnerSession dealer, byte[] dealerZkMasterKey,
-        IReadOnlyList<(OwnerSession Player, PlayerType Type)> players, int minMatchingShards)
+        IReadOnlyList<(OdinId Player, PlayerType Type)> players, int minMatchingShards)
     {
         var secret = ByteArrayUtil.GetRndByteArray(16);
         var pieces = ShamirSecretSharing.GenerateShamirShares(players.Count, minMatchingShards, secret);
@@ -55,7 +68,7 @@ internal static class ZkFriends
             var piece = pieces[i];
             var shardKey = ByteArrayUtil.GetRndByteArray(16);
             var (shardIv, lockedPiece) = AesCbc.Encrypt(piece.Shard, shardKey.ToSensitiveByteArray());
-            var playerRecord = new ShamiraPlayer { OdinId = player.Identity, Type = type };
+            var playerRecord = new ShamiraPlayer { OdinId = player, Type = type };
             var shardId = Guid.NewGuid();
 
             var shard = new DealtShard
@@ -103,11 +116,14 @@ internal static class ZkFriends
     }
 
     /// <summary>The holder's Shard Recovery write-only key, as the dealer's browser fetches it.</summary>
-    public static async Task<DrivePublicKeyResponse> GetShardRecoveryPublicKeyAsync(OwnerSession dealer, OwnerSession holder)
+    public static Task<DrivePublicKeyResponse> GetShardRecoveryPublicKeyAsync(OwnerSession dealer, OwnerSession holder) =>
+        GetShardRecoveryPublicKeyAsync(dealer, holder.Identity);
+
+    private static async Task<DrivePublicKeyResponse> GetShardRecoveryPublicKeyAsync(OwnerSession dealer, OdinId holder)
     {
         var (client, ss) = dealer.NewAdminHttpClient();
         var response = await RefitCreator.RestServiceFor<IPeerAppDriveHttpClientApiV2>(client, ss)
-            .GetDriveWriteOnlyPublicKey(holder.Identity.DomainName, "recovery", BuiltinDrives.ShardRecoveryDrive.DriveSlug.ToString());
+            .GetDriveWriteOnlyPublicKey(holder.DomainName, "recovery", BuiltinDrives.ShardRecoveryDrive.DriveSlug.ToString());
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return response.Content!;
     }
@@ -141,11 +157,16 @@ internal static class ZkFriends
         return OdinSystemSerializer.DeserializeOrThrow<PlayerEncryptedShard>(json);
     }
 
-    public sealed record Recovered(byte[] Secret, byte[] ZkMasterKey, string? Password, ShamirRecoveryBundle Bundle);
+    /// <summary>
+    /// What the recovering browser got back.  <see cref="ZkMasterKey"/> and <see cref="Password"/> are
+    /// null for a server-made deal, whose secret only opens today's master key (<c>finalize</c>).
+    /// </summary>
+    public sealed record Recovered(byte[] Secret, byte[]? ZkMasterKey, string? Password, ShamirRecoveryBundle Bundle);
 
     /// <summary>
-    /// What the recovering browser does with the bundle: opens it with its throwaway key, rebuilds the
-    /// secret as <c>PrepareFinalKeys</c> does, and opens the zero-knowledge master key and the password.
+    /// What the recovering browser does with the bundle: opens it with its throwaway key, opens every
+    /// shard (each sealed to that key) with its shard key, rebuilds the secret, and opens the
+    /// zero-knowledge master key and the password.
     /// </summary>
     public static Recovered Rebuild(ShamirRecoveryBundleResponse response, ZkBrowser.KeyPair recoveringBrowser)
     {
@@ -155,15 +176,20 @@ internal static class ZkFriends
         var pieces = bundle.Shards.Select(shard =>
         {
             var envelope = bundle.Envelopes.Single(e => e.ShardId == shard.Id);
-            var locked = envelope.Player.Type == PlayerType.Delegate
-                ? ZkBrowser.Unseal(shard.DealerEncryptedShard, recoveringBrowser.PrivateKeyPkcs8)
-                : shard.DealerEncryptedShard;
-            // The dealer's own index: a holder could send any
-            return new ShamirSecretSharing.ShamirShard(envelope.Index,
+            var locked = ZkBrowser.Unseal(shard.DealerEncryptedShard, recoveringBrowser.PrivateKeyPkcs8);
+            // The dealer's own index: a holder could send any.  A server-made deal's envelopes kept the
+            // position instead, so it is rebuilt with the shard's, as the server rebuilt it.
+            return new ShamirSecretSharing.ShamirShard(bundle.IsServerMadeDeal ? shard.Index : envelope.Index,
                 AesCbc.Decrypt(locked, envelope.EncryptionKey.ToSensitiveByteArray(), envelope.EncryptionIv));
         }).OrderBy(p => p.Index).ToList();
 
         var secret = ShamirSecretSharing.ReconstructShamirSecret(pieces, 16);
+        if (bundle.IsServerMadeDeal)
+        {
+            Assert.That(bundle.Copies, Is.Null, "a server-made deal has no copies");
+            return new Recovered(secret, null, null, bundle);
+        }
+
         var zkMasterKey = ZkBrowser.Open(bundle.Copies.ShamirKeyEncryptedZkMasterKey, secret);
         string? password = null;
         if (bundle.Copies.ShamirPublicKeyEncryptedPassword != null)

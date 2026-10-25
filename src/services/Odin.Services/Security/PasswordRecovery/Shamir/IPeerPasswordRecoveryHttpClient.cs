@@ -19,6 +19,10 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir
         [Post(PasswdRoot + "/request-shard")]
         Task<ApiResponse<RetrieveShardResult>> RequestShard([Body] RetrieveShardRequest request, CancellationToken cancellationToken = default);
 
+        [Post(PasswdRoot + "/release-automatic-shard")]
+        Task<ApiResponse<RetrieveShardResult>> ReleaseAutomaticShard([Body] ReleaseAutomaticShardRequest request,
+            CancellationToken cancellationToken = default);
+
         [Post(PasswdRoot + "/accept-player-shard")]
         Task<ApiResponse<HttpContent>> SendPlayerShard([Body] RetrieveShardResult request, CancellationToken cancellationToken = default);
     }

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
@@ -124,43 +123,15 @@ public class RecoveryNotifier(
         }
     }
 
-    public async Task EnqueueFinalizeRecoveryEmail(FinalRecoveryInfo finalInfo, Guid finalRecoveryKey)
-    {
-        var nonceId = await MakeNonce(OdinSystemSerializer.Serialize(finalInfo));
-        var tenant = tenantContext.HostOdinId;
-        var link = BuildResetUrl($"https://{tenant}/owner/shamir-account-recovery", nonceId,
-            finalRecoveryKey.ToString());
-
-        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.FinalizeRecovery, link, nonceId,
-            finalRecoveryKey));
-#if DEBUG
-        logger.LogInformation("\n\n\n{link}\n\n\n{finalRecoveryEmailNonceId} with token {finalRecoveryKey}", link, nonceId,
-            finalRecoveryKey);
-#endif
-
-        AssertEmailEnabled();
-
-        if (configuration.Mailgun.Enabled) //for #debug state
-        {
-            await EnqueueEmailAsync(new Envelope
-            {
-                To = [new NameAndEmailAddress { Email = tenantContext.Email }],
-                Subject = "We have assembled your recovery key!",
-                TextMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyText(tenant, link),
-                HtmlMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyHtml(tenant, link)
-            });
-        }
-    }
-
     /// <summary>
-    /// Enough friends approved: the owner goes back to the browser where recovery started, which
-    /// rebuilds the secret.  The email carries no link and no key (docs/zero-knowledge-recovery-plan.md,
+    /// Enough shards are in: the owner goes back to the browser where recovery started, which rebuilds
+    /// the secret.  The email carries no link and no key (docs/zero-knowledge-recovery-plan.md,
     /// decision 11).
     /// </summary>
-    public async Task EnqueueFriendsApprovedEmail()
+    public async Task EnqueueShardsCollectedEmail()
     {
         var tenant = tenantContext.HostOdinId;
-        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.FriendsApproved, null, Guid.Empty));
+        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.ShardsCollected, null, Guid.Empty));
 
         AssertEmailEnabled();
 
@@ -169,9 +140,35 @@ public class RecoveryNotifier(
             await EnqueueEmailAsync(new Envelope
             {
                 To = [new NameAndEmailAddress { Email = tenantContext.Email }],
-                Subject = "Your friends have approved your recovery",
-                TextMessage = RecoveryEmails.FriendsApprovedText(tenant),
-                HtmlMessage = RecoveryEmails.FriendsApprovedHtml(tenant)
+                Subject = "Your recovery is ready",
+                TextMessage = RecoveryEmails.ShardsCollectedText(tenant),
+                HtmlMessage = RecoveryEmails.ShardsCollectedHtml(tenant)
+            });
+        }
+    }
+
+    /// <summary>
+    /// As an automatic holder: emails <paramref name="dealer"/>'s recovery address, which the dealer
+    /// sent and this holder checked against the hash it stored at the deal, a link that releases the
+    /// shard (docs/zero-knowledge-recovery-plan.md, "Building the automated deal").  The link opens the
+    /// dealer's recovery page, on any device.
+    /// </summary>
+    public async Task EnqueueReleaseShardEmail(MailAddress email, OdinId dealer, Guid shardId, string code)
+    {
+        AssertEmailEnabled();
+
+        var holder = tenantContext.HostOdinId;
+        var link = $"https://{dealer}/owner/shamir-account-recovery?fill={shardId:N}&code={Uri.EscapeDataString(code)}";
+        notificationSink.Notify(new RecoveryNotification(dealer, RecoveryNotificationKind.ReleaseShard, link, shardId, holder));
+
+        if (configuration.Mailgun.Enabled)
+        {
+            await EnqueueEmailAsync(new Envelope
+            {
+                To = [new NameAndEmailAddress { Email = email.Address }],
+                Subject = $"Your recovery: a piece from {holder}",
+                TextMessage = RecoveryEmails.ReleaseShardText(dealer, holder, link),
+                HtmlMessage = RecoveryEmails.ReleaseShardHtml(dealer, holder, link)
             });
         }
     }

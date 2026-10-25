@@ -9,10 +9,11 @@ using Odin.Services.Util;
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
 /// <summary>
-/// A friend deal, made in the browser (docs/zero-knowledge-recovery-plan.md, "Building the friends
-/// pair"): the browser does what <c>CreateShards</c> does for an automated deal, plus sealing each gated
-/// friend's shard to them, and the server sends the shards and keeps the dealer package as it does for
-/// an automated deal.  The secret the shards rebuild never reaches the server.
+/// A deal made in the browser (docs/zero-knowledge-recovery-plan.md, "Building the friends pair" and
+/// "Building the automated deal"): to friends, or the automated deal to the host's automated
+/// identities.  The browser does what <c>CreateShards</c> did on the server, plus sealing each gated
+/// friend's shard to them, and the server sends the shards and keeps the dealer package.  The secret
+/// the shards rebuild never reaches the server.
 /// </summary>
 public sealed class ConfigureShardsRequest
 {
@@ -22,8 +23,11 @@ public sealed class ConfigureShardsRequest
 
     public ZkShamirCopiesRequest ShamirCopies { get; init; }
 
-    /// <summary>The checks that need nothing but the request.</summary>
-    public void Validate()
+    /// <summary>
+    /// The checks that need nothing but the request.  <paramref name="automatedDeal"/>: the deal is the
+    /// automated deal, whose automatic shards reach the threshold by design.
+    /// </summary>
+    public void Validate(bool automatedDeal)
     {
         OdinValidationUtils.AssertNotNull(Shards, nameof(Shards));
         OdinValidationUtils.AssertIsTrue(Shards.All(s => s?.Player != null), "Every shard needs a player");
@@ -46,11 +50,13 @@ public sealed class ConfigureShardsRequest
             OdinValidationUtils.AssertIsTrue(shard.Index <= Shards.Count, "A shard's index is at most the number of players");
         }
 
-        // The automatic shards are released by servers with no human, as is the dealer package, so
-        // reaching the threshold with them alone would let servers rebuild the secret, and so open the
-        // zero-knowledge master key.  At least one gated friend must always approve (F2).
+        // The automatic shards are released with no human but the owner clicking each holder's
+        // email, so reaching the threshold with them alone makes the owner's inbox enough to rebuild
+        // the secret, and so open the zero-knowledge master key.  The automated deal is that by
+        // design, for owners who want only a password reset; in a friend deal at least one gated
+        // friend must always approve (F2).
         var automatic = Shards.Count(s => s.Player.Type == PlayerType.Automatic);
-        if (automatic >= MinMatchingShards)
+        if (!automatedDeal && automatic >= MinMatchingShards)
         {
             throw new OdinClientException(
                 $"{automatic} automatic shard(s) reach the threshold of {MinMatchingShards}; at least one friend must approve",
