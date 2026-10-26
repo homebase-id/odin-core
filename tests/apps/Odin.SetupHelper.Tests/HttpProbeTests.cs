@@ -55,6 +55,7 @@ public class HttpProbeTests
 
     [Test]
     [Retry(3)]
+    [Explicit("Live network: HTTP to www.google.com")]
     public async Task ItShouldErrorIfProbePageNotFound()
     {
         var httpProbe = _serviceProvider.GetRequiredService<HttpProbe>();

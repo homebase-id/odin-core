@@ -36,6 +36,7 @@ public class DynamicHttpClientFactoryTests
     }
 
     [Test]
+    [Explicit("Live network: HTTPS GET to www.google.com")]
     public async Task CreateClient_WorksWith_DefaultConfig()
     {
         using var factory = new DynamicHttpClientFactory(_logger);
@@ -47,6 +48,7 @@ public class DynamicHttpClientFactoryTests
     //
 
     [Test]
+    [Explicit("Live network: HTTPS GET to www.google.com")]
     public async Task CreateClient_WithSameNameAndConfig_ReusesExistingHandler()
     {
         // Arrange
@@ -99,6 +101,7 @@ public class DynamicHttpClientFactoryTests
     //
 
     [Test]
+    [Explicit("Live network: HTTPS GET to www.google.com")]
     public async Task CreateClient_WithMultipleHandlers_LogsMessagesFromBothHandlers()
     {
         // Arrange
@@ -165,6 +168,7 @@ public class DynamicHttpClientFactoryTests
     //
 
     [Test]
+    [Explicit("Live network: HTTPS GET to www.google.com")]
     public async Task FactoryShould_IncrementAndDecrement_ActiveRequests()
     {
         // Arrange
@@ -186,6 +190,7 @@ public class DynamicHttpClientFactoryTests
     //
 
     [Test]
+    [Explicit("Live network: HTTPS GET to www.google.com")]
     public async Task CreateClient_WithSameCertificate_ReusesExistingHandler()
     {
         // Arrange
@@ -220,6 +225,7 @@ public class DynamicHttpClientFactoryTests
     //
 
     [Test]
+    [Explicit("Live network: HTTPS GET to www.google.com")]
     public async Task CreateClient_WithDifferentCertificate_DontReusExistingHandler()
     {
         // Arrange
