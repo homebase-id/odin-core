@@ -115,11 +115,12 @@ public class RecoveryEmailsTest
         var text = RecoveryEmails.EnterRecoveryModeVerifyEmailText("frodo@example.com", Tenant, "https://link", players);
         var html = RecoveryEmails.EnterRecoveryModeVerifyEmailHtml(Tenant, "https://link", players);
 
-        foreach (var body in new[] { text, html })
-        {
-            Assert.That(body, Does.Match("Ask these friends to approve in their Homebase: (<b>)?sam.example.com"));
-            Assert.That(body, Does.Match("These will each email you a link here; click each one: (<b>)?na1.homebase.example"));
-        }
+        Assert.That(text, Does.Contain("Ask these friends to approve in their Homebase: sam.example.com"));
+        Assert.That(text, Does.Contain("These will each email you a link here; click each one: na1.homebase.example"));
+
+        // Each one linked to its home page, so the owner can see who it is
+        Assert.That(html, Does.Match("Ask these friends to approve in their Homebase: <a href='https://sam.example.com'[^>]*>sam.example.com</a>"));
+        Assert.That(html, Does.Match("click each one: <a href='https://na1.homebase.example'[^>]*>na1.homebase.example</a>"));
     }
 
     [Test]
@@ -128,9 +129,11 @@ public class RecoveryEmailsTest
         var text = RecoveryEmails.ReleaseShardText(Tenant, (OdinId)"na1.homebase.example", "https://frodo.example.com/fill");
         var html = RecoveryEmails.ReleaseShardHtml(Tenant, (OdinId)"na1.homebase.example", "https://frodo.example.com/fill");
 
+        Assert.That(text, Does.Contain("na1.homebase.example holds a piece of your recovery"));
+        Assert.That(html, Does.Match("<a href='https://na1.homebase.example'[^>]*>na1.homebase.example</a> holds a piece of your recovery"),
+            "the holder linked to its home page");
         foreach (var body in new[] { text, html })
         {
-            Assert.That(body, Does.Contain("na1.homebase.example holds a piece of your recovery"));
             Assert.That(body, Does.Contain("https://frodo.example.com/fill"));
             Assert.That(body, Does.Contain("If you didn't start a recovery, ignore this email"));
         }

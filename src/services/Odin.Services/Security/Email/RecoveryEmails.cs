@@ -45,24 +45,32 @@ public static class RecoveryEmails
             players.Where(p => p.Type == PlayerType.Automatic).Select(p => p.OdinId).ToList());
 
     private static string HoldersText(List<ShamiraPlayer> players) =>
-        HoldersLines(players, "\n            ", names => names);
+        HoldersLines(players, "\n            ", id => id.DomainName);
 
     private static string HoldersHtml(List<ShamiraPlayer> players) =>
-        HoldersLines(players, "<br />", names => $"<b>{names}</b>");
+        HoldersLines(players, "<br />", IdentityLink);
+
+    /// <summary>
+    /// An identity in an email, linked to its home page so the owner can see who it is.  An
+    /// <see cref="OdinId"/> is a validated domain name: nothing in it needs escaping.
+    /// </summary>
+    private static string IdentityLink(OdinId id) =>
+        $"<a href='https://{id.DomainName}' style='color: #2563eb; font-weight: bold;'>{id.DomainName}</a>";
 
     /// <summary>The holders, as one sentence per kind, each line opened by <paramref name="lineBreak"/>.</summary>
-    private static string HoldersLines(List<ShamiraPlayer> players, string lineBreak, System.Func<string, string> names)
+    private static string HoldersLines(List<ShamiraPlayer> players, string lineBreak, System.Func<OdinId, string> name)
     {
         var (ask, email) = Holders(players);
+        string names(List<OdinId> ids) => string.Join(", ", ids.Select(name));
         var sb = new StringBuilder("Once you continue with the link below, these hold a piece of your recovery:");
         if (ask.Any())
         {
-            sb.Append($"{lineBreak}Ask these friends to approve in their Homebase: {names(string.Join(", ", ask))}");
+            sb.Append($"{lineBreak}Ask these friends to approve in their Homebase: {names(ask)}");
         }
 
         if (email.Any())
         {
-            sb.Append($"{lineBreak}These will each email you a link here; click each one: {names(string.Join(", ", email))}");
+            sb.Append($"{lineBreak}These will each email you a link here; click each one: {names(email)}");
         }
 
         return sb.Append(lineBreak).ToString();
@@ -422,7 +430,7 @@ public static class RecoveryEmails
 
         sb.AppendLine("<div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;'>");
         sb.AppendLine($"    <p style='margin-bottom: 15px;'>Hi {dealer},</p>");
-        sb.AppendLine($"    <p style='margin-bottom: 15px;'>{holder} holds a piece of your recovery. Someone, hopefully you, is recovering your identity.</p>");
+        sb.AppendLine($"    <p style='margin-bottom: 15px;'>{IdentityLink(holder)} holds a piece of your recovery. Someone, hopefully you, is recovering your identity.</p>");
         sb.AppendLine("    <p style='text-align: center; margin: 30px 0;'>");
         sb.AppendLine($"        <a href='{link}' style='display: inline-block; background-color: #2563eb; color: #fff; " +
                       "padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;'>");
