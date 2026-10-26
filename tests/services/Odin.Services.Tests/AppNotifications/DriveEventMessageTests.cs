@@ -49,7 +49,7 @@ public class DriveEventMessageTests
             }
         };
 
-        foreach (var (current, previous) in new[] { (header, (ServerFileHeader)null), (null, header) })
+        foreach (var (current, previous) in new (ServerFileHeader? Current, ServerFileHeader? Previous)[] { (header, null), (null, header) })
         {
             var message = new DriveEventMessage(ClientNotificationType.FileAdded, null, current, previous);
             Assert.That(await message.VisibleToAsync(socket, aclService), Is.EqualTo(expected));
