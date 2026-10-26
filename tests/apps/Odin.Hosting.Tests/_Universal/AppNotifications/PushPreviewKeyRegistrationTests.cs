@@ -32,7 +32,11 @@ public class PushPreviewKeyRegistrationTests
     }
 
     [TearDown]
-    public void TearDown() => _scaffold.AssertLogEvents();
+    public async Task TearDown()
+    {
+        await _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise).AppNotifications.UnsubscribeAll();
+        _scaffold.AssertLogEvents();
+    }
 
     private static PushNotificationSubscribeFirebaseRequest Request(string previewKey) => new()
     {
@@ -47,36 +51,22 @@ public class PushPreviewKeyRegistrationTests
     {
         var ownerSam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
-        try
-        {
-            var subscribe = await ownerSam.AppNotifications.SubscribeFirebase(Request(key));
-            Assert.That(subscribe.IsSuccessStatusCode, Is.True, $"subscribe failed: {subscribe.StatusCode}");
+        var subscribe = await ownerSam.AppNotifications.SubscribeFirebase(Request(key));
+        Assert.That(subscribe.IsSuccessStatusCode, Is.True, $"subscribe failed: {subscribe.StatusCode}");
 
-            var subscription = await ownerSam.AppNotifications.GetSubscription();
-            Assert.That(subscription.Content!.HasPreviewKey, Is.True);
-            Assert.That(typeof(Odin.Services.AppNotifications.Push.RedactedPushNotificationSubscription).GetProperty("PreviewKey"), Is.Null,
-                "the key is a secret shared with the device; the API never returns it");
-        }
-        finally
-        {
-            await ownerSam.AppNotifications.UnsubscribeAll();
-        }
+        var subscription = await ownerSam.AppNotifications.GetSubscription();
+        Assert.That(subscription.Content!.HasPreviewKey, Is.True);
+        Assert.That(typeof(Odin.Services.AppNotifications.Push.RedactedPushNotificationSubscription).GetProperty("PreviewKey"), Is.Null,
+            "the key is a secret shared with the device; the API never returns it");
     }
 
     [Test]
     public async Task WithoutPreviewKey_TheDeviceGetsNoPreviews()
     {
         var ownerSam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        try
-        {
-            await ownerSam.AppNotifications.SubscribeFirebase(Request(""));
-            var subscription = await ownerSam.AppNotifications.GetSubscription();
-            Assert.That(subscription.Content!.HasPreviewKey, Is.False, "an older client never sends a key");
-        }
-        finally
-        {
-            await ownerSam.AppNotifications.UnsubscribeAll();
-        }
+        await ownerSam.AppNotifications.SubscribeFirebase(Request(""));
+        var subscription = await ownerSam.AppNotifications.GetSubscription();
+        Assert.That(subscription.Content!.HasPreviewKey, Is.False, "an older client never sends a key");
     }
 
     [TestCase("c2hvcnQ=")]
@@ -84,14 +74,7 @@ public class PushPreviewKeyRegistrationTests
     public async Task MalformedPreviewKey_IsRejected(string previewKey)
     {
         var ownerSam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        try
-        {
-            var subscribe = await ownerSam.AppNotifications.SubscribeFirebase(Request(previewKey));
-            Assert.That(subscribe.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        }
-        finally
-        {
-            await ownerSam.AppNotifications.UnsubscribeAll();
-        }
+        var subscribe = await ownerSam.AppNotifications.SubscribeFirebase(Request(previewKey));
+        Assert.That(subscribe.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 }

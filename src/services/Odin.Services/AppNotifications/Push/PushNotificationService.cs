@@ -501,8 +501,8 @@ public class PushNotificationService(
 
         try
         {
-            var content = preview();
-            return devices.ToDictionary(d => d.AccessRegistrationId, d => PushPreviewSealer.Seal(content, d.PreviewKey));
+            var plaintext = PushPreviewSealer.ToPlaintext(preview());
+            return devices.ToDictionary(d => d.AccessRegistrationId, d => PushPreviewSealer.SealPlaintext(plaintext, d.PreviewKey));
         }
         catch (Exception e)
         {

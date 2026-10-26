@@ -1,8 +1,8 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -78,17 +78,16 @@ public static class PushPreviewSealer
         };
     }
 
-    public static bool IsValidKey(string? base64Key) =>
-        !string.IsNullOrWhiteSpace(base64Key) && TryDecodeKey(base64Key, out _);
+    public static bool IsValidKey(string? base64Key) => TryDecodeKey(base64Key, out _);
 
-    public static string Seal(PushPreview preview, string base64Key)
+    public static string Seal(PushPreview preview, string base64Key) => SealPlaintext(ToPlaintext(preview), base64Key);
+
+    /// <summary>The fitted JSON every device's seal encrypts; build it once per push.</summary>
+    public static byte[] ToPlaintext(PushPreview preview) => Serialize(FitToBudget(preview));
+
+    public static string SealPlaintext(byte[] plaintext, string base64Key)
     {
-        if (!TryDecodeKey(base64Key, out var key))
-        {
-            throw new ArgumentException("Preview key must be 16 bytes of base64", nameof(base64Key));
-        }
-
-        var plaintext = Serialize(FitToBudget(preview));
+        var key = DecodeKeyOrThrow(base64Key);
         var nonce = RandomNumberGenerator.GetBytes(NonceLength);
         var sealedBytes = Odin.Core.Cryptography.Crypto.AesGcm.Encrypt(plaintext, key.ToSensitiveByteArray(), nonce);
         return Convert.ToBase64String(ByteArrayUtil.Combine(nonce, sealedBytes));
@@ -96,11 +95,7 @@ public static class PushPreviewSealer
 
     public static PushPreview Open(string sealedPreview, string base64Key)
     {
-        if (!TryDecodeKey(base64Key, out var key))
-        {
-            throw new ArgumentException("Preview key must be 16 bytes of base64", nameof(base64Key));
-        }
-
+        var key = DecodeKeyOrThrow(base64Key);
         var bytes = Convert.FromBase64String(sealedPreview);
         var nonce = bytes[..NonceLength];
         var plaintext = Odin.Core.Cryptography.Crypto.AesGcm.Decrypt(bytes[NonceLength..], key.ToSensitiveByteArray(), nonce);
@@ -157,12 +152,17 @@ public static class PushPreviewSealer
     /// <summary>The longest prefix of whole code points for which <paramref name="build"/> fits; empty when none does.</summary>
     private static string LongestPrefixThatFits(string text, Func<string, PushPreview> build)
     {
-        var runes = text.EnumerateRunes().ToArray();
-        int low = 0, high = runes.Length;
+        var ends = new List<int> { 0 };
+        foreach (var rune in text.EnumerateRunes())
+        {
+            ends.Add(ends[^1] + rune.Utf16SequenceLength);
+        }
+
+        int low = 0, high = ends.Count - 1;
         while (low < high)
         {
             var mid = (low + high + 1) / 2;
-            if (Fits(build(Join(runes, mid))))
+            if (Fits(build(text[..ends[mid]])))
             {
                 low = mid;
             }
@@ -172,18 +172,7 @@ public static class PushPreviewSealer
             }
         }
 
-        return Join(runes, low);
-    }
-
-    private static string Join(Rune[] runes, int count)
-    {
-        var builder = new StringBuilder();
-        for (var i = 0; i < count; i++)
-        {
-            builder.Append(runes[i].ToString());
-        }
-
-        return builder.ToString();
+        return text[..ends[low]];
     }
 
     private static PushPreview Copy(PushPreview preview, string? content) => new()
@@ -209,6 +198,11 @@ public static class PushPreviewSealer
             return null;
         }
     }
+
+    private static byte[] DecodeKeyOrThrow(string base64Key) =>
+        TryDecodeKey(base64Key, out var key)
+            ? key
+            : throw new ArgumentException("Preview key must be 16 bytes of base64", nameof(base64Key));
 
     private static bool TryDecodeKey(string? base64Key, out byte[] key)
     {
