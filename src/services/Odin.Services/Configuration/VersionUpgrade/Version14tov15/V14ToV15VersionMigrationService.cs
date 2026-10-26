@@ -16,7 +16,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version14tov15
     /// <see cref="DriveManager.CreateDriveAsync"/> now mints one at creation, so only drives made before
     /// that need filling in.  The keypair is what lets a caller with no prior relationship deposit to a
     /// drive: they fetch the public half and seal to it, and only a holder of the drive's storage key can
-    /// unseal (docs/drive-addressing.md).
+    /// unseal (docs/security-model.md, Drive addressing).
     ///
     /// <para>
     /// The backfill runs here rather than lazily because the caller who most needs the public half is a

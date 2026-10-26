@@ -6,7 +6,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query;
 /// <remarks>
 /// Only the public half ever leaves the host.  The private half is escrowed under the drive's storage
 /// key and is what makes deposit-collection custody equal to existing read access
-/// (docs/drive-addressing.md).
+/// (docs/security-model.md, Drive addressing).
 /// </remarks>
 public class DrivePublicKeyResponse
 {

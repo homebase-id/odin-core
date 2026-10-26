@@ -18,8 +18,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         /// </summary>
         /// <remarks>
         /// <see cref="AppId"/>, <see cref="DriveSlug"/> and <see cref="DriveTypeSlug"/> are columns on
-        /// the Drives table.  Null on every drive today -- nothing derives a slug or assigns ownership
-        /// yet; see <c>docs/drive-addressing.md</c>.
+        /// the Drives table, set on every drive since #1901; see <c>docs/security-model.md, Drive
+        /// addressing</c>.
         /// </remarks>
         public Guid? AppId { get; set; }
 

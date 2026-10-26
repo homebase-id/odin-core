@@ -10,7 +10,7 @@ namespace Odin.Services.Tests.Drives;
 /// <summary>
 /// The drive's write-only keypair: an ECC-384 key whose private half is escrowed under the drive's
 /// own storage key, so that anyone can seal a deposit to the drive but only a holder of the storage
-/// key can unseal it (docs/drive-addressing.md).
+/// key can unseal it (docs/security-model.md, Drive addressing).
 /// </summary>
 /// <remarks>
 /// What is worth pinning here is the escrow, not the curve.  The whole security claim is "custody of

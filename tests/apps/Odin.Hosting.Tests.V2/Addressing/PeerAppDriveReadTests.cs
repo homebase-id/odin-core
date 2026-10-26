@@ -26,7 +26,7 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 
 /// <summary>
 /// Reading another identity's drive by slug: <c>/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/…</c>
-/// (docs/drive-addressing.md).  This is the case the addressing columns exist for -- Frodo reaches
+/// (docs/security-model.md, Drive addressing).  This is the case the addressing columns exist for -- Frodo reaches
 /// Sam's drive knowing only the names Sam registered it under, sharing no guid constants with him.
 /// </summary>
 /// <remarks>

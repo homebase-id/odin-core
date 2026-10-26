@@ -8,7 +8,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
@@ -44,7 +43,6 @@ namespace Odin.Hosting.Middleware
         private const int MaxEncryptedRequestBodyBytes = 48 * 1024 * 1024;
 
         private readonly RequestDelegate _next;
-        private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
         private readonly List<string> _ignoredPathsForRequests;
 
         /// <summary>
@@ -53,12 +51,9 @@ namespace Odin.Hosting.Middleware
         private readonly List<string> _ignoredPathsForResponses;
 
         /// <summary />
-        public SharedSecretEncryptionMiddleware(
-            RequestDelegate next,
-            ILogger<SharedSecretEncryptionMiddleware> logger)
+        public SharedSecretEncryptionMiddleware(RequestDelegate next)
         {
             _next = next;
-            _logger = logger;
 
             _ignoredPathsForRequests =
             [
@@ -198,10 +193,6 @@ namespace Odin.Hosting.Middleware
                     var newQs = newQsBytes.ToStringFromUtf8Bytes();
                     var prefix = newQs.FirstOrDefault() == '?' ? "" : "?";
                     request.QueryString = new QueryString($"{prefix}{newQs}");
-                    if (_logger.IsEnabled(LogLevel.Trace))
-                    {
-                        _logger.LogTrace("qs: {querystring}", request.QueryString.ToString());
-                    }
                 }
                 else if (request.Method.ToUpper() == "DELETE")
                 {

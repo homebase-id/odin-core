@@ -41,8 +41,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public Guid? AppId { get; set; }
 
         /// <summary>
-        /// The drive's portable name, and the readable form of its type.  Both null until the
-        /// addressing work assigns them; see <c>docs/drive-addressing.md</c>.
+        /// The drive's portable name, and the readable form of its type, set on every drive since
+        /// #1901; see <c>docs/security-model.md, Drive addressing</c>.
         /// </summary>
         public OdinSlug DriveSlug { get; set; }
 

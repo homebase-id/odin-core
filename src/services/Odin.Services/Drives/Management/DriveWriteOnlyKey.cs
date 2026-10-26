@@ -7,7 +7,7 @@ namespace Odin.Services.Drives.Management;
 /// <summary>
 /// The write-without-read primitive for a drive: an ECC-384 keypair whose private half is escrowed
 /// under the drive's own storage key.  Anyone holding the public half can seal a deposit TO the
-/// drive; only a holder of the storage key can unseal it (docs/drive-addressing.md).
+/// drive; only a holder of the storage key can unseal it (docs/security-model.md, Drive addressing).
 /// </summary>
 /// <remarks>
 /// Deliberately the same shape as the shipped <c>PeerKeyStoreWriteOnlyKey</c>, which does this for a

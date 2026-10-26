@@ -130,7 +130,7 @@ outstanding set is small and drains itself.
 ### Candidate: a `PendingWork` flags column on `Connections`
 
 The same move `ReviewedAt` already made on this table, and for the same stated reason
-(`drive-addressing.md`: point lookups did not need a column, filtering did).
+(`archive/drive-addressing.md`: point lookups did not need a column, filtering did).
 
 ```sql
 PendingWork INT NOT NULL DEFAULT 0    -- 1 = deposited grants, 2 = pending enrollments, ...

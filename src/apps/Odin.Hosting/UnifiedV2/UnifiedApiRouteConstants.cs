@@ -26,7 +26,7 @@ public static class UnifiedApiRouteConstants
     public const string Plan = BasePath + "/plan";
     public const string Capi = BasePath + "/capi";
 
-    // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/drive-addressing.md). Rooted at
+    // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/security-model.md, Drive addressing). Rooted at
     // /apps rather than nested under /drives, because /drives/feed would read as "the drive named
     // feed" rather than "the feed app's drives".
     public const string AppsRoot = BasePath + "/apps";

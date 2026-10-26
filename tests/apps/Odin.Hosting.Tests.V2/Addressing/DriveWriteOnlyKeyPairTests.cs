@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 
 /// <summary>
 /// Every drive is minted a write-only keypair at creation: an ECC-384 key whose private half is
-/// escrowed under that drive's own storage key (docs/drive-addressing.md).
+/// escrowed under that drive's own storage key (docs/security-model.md, Drive addressing).
 /// </summary>
 /// <remarks>
 /// Nothing serves the public half yet -- the peer <c>public-key</c> endpoint is not built -- so these
