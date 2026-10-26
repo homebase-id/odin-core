@@ -18,6 +18,7 @@ namespace Odin.Core.Tests.Dns;
 public class AuthoritativeDnsLookupTest
 {
     [Test]
+    [Explicit("Live network: the system resolver for the root zone")]
     public async Task ItShouldGetTheRootServers()
     {
         var logStore = new LogEventMemoryStore();
