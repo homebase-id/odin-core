@@ -1,3 +1,7 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
@@ -14,69 +18,100 @@ namespace Odin.Services.Drives;
 /// </summary>
 public static class ZkDriveFiles
 {
-    public static bool IsZkDriveFile(ServerFileHeader header) =>
-        header.FileMetadata.IsEncrypted && header.EncryptedKeyHeader?.IsZkDrive() == true;
+    public static bool IsZkDriveFile(ServerFileHeader? header) =>
+        header?.FileMetadata?.IsEncrypted == true && header.EncryptedKeyHeader?.IsZkDrive() == true;
 
     /// <summary>
     /// The key header a client sent to write to <paramref name="drive"/>, decided by its type before
-    /// anything is opened.  A zero-knowledge drive takes its own key headers, and refuses one locked
-    /// with the shared secret unopened: the server would see the file key, and store a key header
-    /// nobody could open.  Any other drive refuses a zero-knowledge drive's key header.  A deposit
-    /// passes through as today (<see cref="Deposits"/>).
+    /// anything is opened.  A zero-knowledge drive takes its own key headers, only from a caller holding
+    /// its key, and refuses one locked with the shared secret unopened: the server would see the file
+    /// key, and store a key header nobody could open.  Any other drive refuses a zero-knowledge drive's
+    /// key header.  A deposit passes through as today (<see cref="Deposits"/>).
     /// </summary>
-    public static KeyHeader OpenForWrite(EncryptedKeyHeader sent, StorageDrive drive, ref SensitiveByteArray sharedSecret)
+    public static KeyHeader OpenForWrite(EncryptedKeyHeader sent, StorageDrive drive, ref SensitiveByteArray sharedSecret,
+        IOdinContext odinContext)
     {
         if (sent.IsSealed())
         {
             return new SealedKeyHeader(sent);
         }
 
-        if (drive.IsZeroKnowledge)
+        if (!drive.IsZeroKnowledge)
         {
-            if (!sent.IsZkDrive())
+            if (sent.IsZkDrive())
             {
-                throw new OdinClientException("A zero-knowledge drive takes only key headers locked with its own key",
-                    OdinClientErrorCode.DriveIsZeroKnowledge);
+                ThrowNeedsZeroKnowledgeDrive();
             }
 
-            sent.AssertValidZkDrive();
-            return new ZkDriveKeyHeader(sent);
+            return sent.DecryptAesToKeyHeader(ref sharedSecret);
         }
 
-        if (sent.IsZkDrive())
+        if (!sent.IsZkDrive())
         {
-            throw new OdinClientException("Only a zero-knowledge drive takes a key header locked with its own key",
-                OdinClientErrorCode.ZkDriveKeyHeaderNeedsZeroKnowledgeDrive);
+            throw new OdinClientException("A zero-knowledge drive takes only key headers locked with its own key",
+                OdinClientErrorCode.DriveIsZeroKnowledge);
         }
 
-        return sent.DecryptAesToKeyHeader(ref sharedSecret);
+        AssertCallerHoldsDriveKey(drive.Id, odinContext);
+        sent.AssertValidZkDrive();
+        return new ZkDriveKeyHeader(sent);
     }
 
-    /// <summary>
-    /// Whether the caller may read a zero-knowledge drive's own files.  Only the owner console, for now:
-    /// it opens the drive's key with the zero-knowledge master key.  An app learns the drive's key only
-    /// at consent (docs/zero-knowledge-drives.md, item 4), and an app that can't open the key header
-    /// must not be handed one: chat-kmp stalls its whole sync on a file it can't open.
-    /// </summary>
-    public static bool CallerMayRead(IOdinContext odinContext) => odinContext.Caller.HasMasterKey;
-
-    /// <summary>Refuses the read the way a file is refused to a caller without the drive's key.</summary>
-    public static void AssertCallerMayRead(ServerFileHeader header, IOdinContext odinContext)
+    /// <summary>Only a zero-knowledge drive stores a <see cref="ZkDriveKeyHeader"/>.</summary>
+    public static void AssertCanHold(StorageDrive drive)
     {
-        if (!CallerMayRead(odinContext))
+        if (!drive.IsZeroKnowledge)
         {
-            throw new OdinSecurityException($"No access permitted to drive {header.FileMetadata.File.DriveId}");
+            ThrowNeedsZeroKnowledgeDrive();
         }
     }
 
     /// <summary>
-    /// An update must change the key header's IV, as for any encrypted file.  The server compares the
-    /// IVs both key headers show; it can't check that the file key stayed the same, which is the
-    /// writer's to keep, or the payloads no longer open.
+    /// Whether the caller holds a zero-knowledge drive's key, so may read and write its own files.  Only
+    /// the owner console, for now: it opens the drive's key with the zero-knowledge master key.  An app
+    /// learns the drive's key only at consent (docs/zero-knowledge-drives.md, item 4); an app that can't
+    /// open a key header must not be handed one (chat-kmp stalls its whole sync on it), and one that
+    /// can't lock a key header can only write junk over the owner's.
     /// </summary>
-    public static void AssertIvChanged(EncryptedKeyHeader stored, ZkDriveKeyHeader update)
+    public static bool CallerHoldsDriveKey(IOdinContext odinContext) => odinContext.Caller?.HasMasterKey == true;
+
+    /// <summary>
+    /// Whether <paramref name="header"/> may reach the caller: a zero-knowledge drive's own file only
+    /// reaches one holding the drive's key, whatever else it holds (a grant from before the drive was
+    /// converted still carries the old key).  Says nothing about any other file.
+    /// </summary>
+    public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
+        !IsZkDriveFile(header) || CallerHoldsDriveKey(odinContext);
+
+    /// <summary>Refuses the caller the way a file is refused to a caller without the drive's key.</summary>
+    public static void AssertCallerHoldsDriveKey(Guid driveId, IOdinContext odinContext)
     {
-        if (ByteArrayUtil.EquiByteArrayCompare(update.Iv, stored.Iv))
+        if (!CallerHoldsDriveKey(odinContext))
+        {
+            throw new OdinSecurityException($"No access permitted to drive {driveId}");
+        }
+    }
+
+    /// <summary>
+    /// An encrypted update of a zero-knowledge drive's file takes its own key header with a new IV, as for
+    /// any encrypted file.  The server compares the IVs both key headers show; it can't check that the file
+    /// key stayed the same, which is the writer's to keep, or the payloads no longer open.  Any other file
+    /// never gets a <see cref="ZkDriveKeyHeader"/>: <see cref="OpenForWrite"/> refuses one for its drive.
+    /// </summary>
+    public static void AssertFitsUpdate(ServerFileHeader existing, KeyHeader update)
+    {
+        if (!IsZkDriveFile(existing))
+        {
+            return;
+        }
+
+        if (update is not ZkDriveKeyHeader)
+        {
+            throw new OdinClientException("A zero-knowledge drive's file takes only a key header locked with its own key",
+                OdinClientErrorCode.DriveIsZeroKnowledge);
+        }
+
+        if (ByteArrayUtil.EquiByteArrayCompare(update.Iv, existing.EncryptedKeyHeader.Iv))
         {
             throw new OdinClientException("When updating a file, you must change the Iv",
                 OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
@@ -84,37 +119,31 @@ public static class ZkDriveFiles
     }
 
     /// <summary>
-    /// The new key header an update to <paramref name="existing"/> stores.  A zero-knowledge drive's file
-    /// takes only its own key header, with a new IV; any other file takes none of those.
+    /// A zero-knowledge drive's own file isn't sent to anyone: the recipient would need the drive's key.
+    /// Writes refuse recipients before they store anything; Chat will send through deposits
+    /// (docs/zero-knowledge-drive-api-plan.md, step 2).
     /// </summary>
-    public static void AssertFitsUpdate(ServerFileHeader existing, KeyHeader update)
+    public static void AssertNotSent<T>(KeyHeader keyHeader, IEnumerable<T>? recipients)
     {
-        if (IsZkDriveFile(existing))
+        if (keyHeader is ZkDriveKeyHeader && recipients?.Any() == true)
         {
-            if (update is not ZkDriveKeyHeader zkUpdate)
-            {
-                throw new OdinClientException("A zero-knowledge drive's file takes only a key header locked with its own key",
-                    OdinClientErrorCode.DriveIsZeroKnowledge);
-            }
-
-            AssertIvChanged(existing.EncryptedKeyHeader, zkUpdate);
-        }
-        else if (update is ZkDriveKeyHeader)
-        {
-            throw new OdinClientException("Only a zero-knowledge drive's file takes a key header locked with its own key",
-                OdinClientErrorCode.ZkDriveKeyHeaderNeedsZeroKnowledgeDrive);
+            ThrowCannotBeSent();
         }
     }
 
-    /// <summary>
-    /// A zero-knowledge drive's own file isn't sent to anyone: the recipient would need the drive's
-    /// key.  Chat sends through deposits (docs/zero-knowledge-drive-api-plan.md, step 2).
-    /// </summary>
+    /// <summary>The same, for a stored file about to be sent.</summary>
     public static void AssertNotSent(ServerFileHeader header)
     {
         if (IsZkDriveFile(header))
         {
-            throw new OdinClientException("A zero-knowledge drive's file can't be sent", OdinClientErrorCode.ZkDriveFileCannotBeSent);
+            ThrowCannotBeSent();
         }
     }
+
+    private static void ThrowCannotBeSent() =>
+        throw new OdinClientException("A zero-knowledge drive's file can't be sent", OdinClientErrorCode.ZkDriveFileCannotBeSent);
+
+    private static void ThrowNeedsZeroKnowledgeDrive() =>
+        throw new OdinClientException("Only a zero-knowledge drive takes a key header locked with its own key",
+            OdinClientErrorCode.ZkDriveKeyHeaderNeedsZeroKnowledgeDrive);
 }

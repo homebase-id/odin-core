@@ -289,8 +289,9 @@ public class ZeroKnowledgeKeyService(
 
     /// <summary>
     /// Gives the Shard Recovery drive keys made in the browser.  Allowed again later (after a reset
-    /// with the recovery key, say) because the drive never holds a file encrypted with its key; the
-    /// deposits sealed to the old write-only key are deleted.
+    /// with the recovery key, say) because the server never encrypts a file on it; what the browser
+    /// locked with the old keys (deposits sealed to the old write-only key, files locked with the old
+    /// drive key) can't be opened again, and is deleted.
     /// </summary>
     public async Task ConvertShardRecoveryDriveAsync(ZkConvertDriveRequest request, IOdinContext odinContext)
     {
@@ -305,10 +306,10 @@ public class ZeroKnowledgeKeyService(
 
         await using var tx = await db.BeginStackedTransactionAsync();
 
-        // Nothing may use the key being dropped.  Shamir writes only unencrypted files and deposits
-        // here, so this only fails if something else wrote there.
+        // Nothing the server locked may use the key being dropped.  Shamir writes only unencrypted files,
+        // deposits and the browser's own files here, so this only fails if something else wrote there.
         var files = (await driveMainIndex.GetAllByDriveIdAsync(driveId)).Select(ServerFileHeader.FromDriveMainIndexRecord).ToList();
-        var lockedByTheDriveKey = files.Count(h => h.FileMetadata.IsEncrypted && !Deposits.IsDeposit(h));
+        var lockedByTheDriveKey = files.Count(h => h.FileMetadata.IsEncrypted && !Deposits.IsDeposit(h) && !ZkDriveFiles.IsZkDriveFile(h));
         if (lockedByTheDriveKey > 0)
         {
             throw new OdinClientException(
@@ -319,9 +320,11 @@ public class ZeroKnowledgeKeyService(
         // Deposits are sealed to the write-only key being dropped, so nothing can open them again: a
         // friend's shard dies with their reset, and the dealer is told to deal again (its check sees
         // the shard gone).  The requests to release them go too: only gated shards, all deposits, get one.
+        // So do the browser's own files, locked with the drive key being dropped.
         var ownerContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.ReadWrite, odinContext);
-        foreach (var dead in files.Where(h => Deposits.IsDeposit(h) || ShardRequestApprovalCollector.IsReleaseRequest(h)))
+        foreach (var dead in files.Where(h =>
+                     Deposits.IsDeposit(h) || ZkDriveFiles.IsZkDriveFile(h) || ShardRequestApprovalCollector.IsReleaseRequest(h)))
         {
             await fileSystem.Storage.HardDeleteLongTermFile(dead.FileMetadata.File, ownerContext);
         }

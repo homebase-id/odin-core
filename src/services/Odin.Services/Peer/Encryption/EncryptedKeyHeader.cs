@@ -65,6 +65,13 @@ namespace Odin.Services.Peer.Encryption
                 return sealedKeyHeader.Sealed;
             }
 
+            if (keyHeader is ZkDriveKeyHeader)
+            {
+                // It has no AES key here: re-locking it would make a key header that opens to nothing
+                throw new OdinClientException("A zero-knowledge drive's key header can't be re-locked on the server",
+                    OdinClientErrorCode.InvalidKeyHeader);
+            }
+
             var secureKeyHeader = keyHeader.Combine();
             var data = AesCbc.Encrypt(secureKeyHeader.GetKey(), key, iv);
             secureKeyHeader.Wipe();

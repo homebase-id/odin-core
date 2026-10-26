@@ -468,7 +468,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
             ? ZkDriveFiles.OpenForWrite(transferKeyEncryptedKeyHeader,
-                await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true), ref clientSharedSecret)
+                await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true), ref clientSharedSecret, odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -493,7 +493,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(
         FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
-        KeyHeader newKeyHeader = new KeyHeader { AesKey = new SensitiveByteArray(Guid.Empty.ToByteArray()) };
+        byte[] iv = null;
+        KeyHeader zkDriveKeyHeader = null;
 
         if (uploadDescriptor.FileMetadata.IsEncrypted)
         {
@@ -509,7 +510,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true);
-            var keyHeader = ZkDriveFiles.OpenForWrite(transferKeyEncryptedKeyHeader, drive, ref clientSharedSecret);
+            var keyHeader = ZkDriveFiles.OpenForWrite(transferKeyEncryptedKeyHeader, drive, ref clientSharedSecret, odinContext);
 
             if (!ByteArrayUtil.IsStrongKey(keyHeader.Iv))
             {
@@ -519,7 +520,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
             if (keyHeader is ZkDriveKeyHeader)
             {
-                newKeyHeader = keyHeader;
+                zkDriveKeyHeader = keyHeader;
             }
             else if (!ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), Guid.Empty.ToByteArray()))
             {
@@ -527,10 +528,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     $"You must specify a 16-byte all-zero Aes Key when file is encrypted and  storage intent is {StorageIntent.MetadataOnly}",
                     OdinClientErrorCode.MalformedMetadata);
             }
-            else
-            {
-                newKeyHeader.Iv = keyHeader.Iv;
-            }
+
+            iv = keyHeader.Iv;
         }
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -556,6 +555,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution
         };
 
+        var newKeyHeader = zkDriveKeyHeader ?? new KeyHeader { Iv = iv, AesKey = new SensitiveByteArray(Guid.Empty.ToByteArray()) };
         return (newKeyHeader, metadata, serverMetadata);
     }
 
@@ -565,6 +565,9 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     private async Task ValidateUploadCoreAsync(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata, IOdinContext odinContext)
     {
+        // Before anything is stored, whatever the storage intent
+        ZkDriveFiles.AssertNotSent(keyHeader, package.InstructionSet.TransitOptions?.Recipients);
+
         if (null == serverMetadata.AccessControlList)
         {
             throw new OdinClientException("Access control list must be specified", OdinClientErrorCode.MissingUploadData);
@@ -654,16 +657,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 Deposits.AssertValid(metadata, sealedKeyHeader.Sealed);
                 Deposits.AssertCanHold(await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true));
             }
-            else if (keyHeader is ZkDriveKeyHeader)
-            {
-                // Refused before it's stored, rather than when it's sent (ZkDriveFiles.AssertNotSent)
-                if (package.InstructionSet.TransitOptions?.Recipients?.Any() == true)
-                {
-                    throw new OdinClientException("A zero-knowledge drive's file can't be sent",
-                        OdinClientErrorCode.ZkDriveFileCannotBeSent);
-                }
-            }
-            else if (metadata.IsEncrypted)
+            else if (metadata.IsEncrypted && keyHeader is not ZkDriveKeyHeader) // checked unopened (AssertValidZkDrive)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
                 {

@@ -83,9 +83,10 @@ namespace Odin.Services.DataSubscription
                 return;
             }
 
-            if (drive.IsZeroKnowledge)
+            var deleted = notification as DriveFileDeletedNotification;
+            if (ZkDriveFiles.IsZkDriveFile(notification.ServerFileHeader) || ZkDriveFiles.IsZkDriveFile(deleted?.PreviousServerFileHeader))
             {
-                // Nothing on it is shared: the server can't open its key headers to re-lock them for anyone
+                // Never distributed: the server can't open its key header to re-lock it for anyone
                 return;
             }
 

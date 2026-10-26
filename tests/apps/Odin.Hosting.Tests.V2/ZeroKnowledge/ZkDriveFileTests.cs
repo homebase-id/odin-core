@@ -1,11 +1,13 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -54,23 +56,47 @@ public class ZkDriveFileTests : V2Fixture
         AssertOpens(batch.Content!.SearchResults.Single(), driveKey, locked, Content);
     }
 
-    [Test]
-    public async Task AnAppThatCannotOpenItDoesNotSeeIt()
+    [TestCase(false, TestName = "AnAppThatCannotOpenItDoesNotSeeIt")]
+    [TestCase(true, TestName = "AnAppHoldingTheDriveKeyFromBeforeTheConversionDoesNotSeeItEither")]
+    public async Task AnAppThatCannotOpenItDoesNotSeeIt(bool grantedBeforeTheConversion)
     {
-        var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
+        // An app with read on the drive holds no key for it, and an app that can't open a key header must
+        // not be handed one: chat-kmp would stall its sync on it.  A grant made before the conversion still
+        // carries the old drive key, which opens nothing here.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var earlyApp = grantedBeforeTheConversion ? await AppSession.SetupAsync(frodo, Drive, DrivePermission.Read) : null;
+        var (_, driveKey) = await ZeroKnowledgeDriveAsync(frodo);
+        var app = earlyApp ?? await AppSession.SetupAsync(frodo, Drive, DrivePermission.Read);
+
         var uniqueId = Guid.NewGuid();
-        await UploadAsync(frodo, driveKey, uniqueId);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var (upload, _, _) = await UploadAsync(frodo, driveKey, uniqueId, payload);
 
-        // An app with read on the drive holds no drive key for it, and an app that can't open a key header
-        // must not be handed one: chat-kmp would stall its sync on it
-        var app = await AppSession.SetupAsync(frodo, Drive, DrivePermission.Read);
-
+        // Left out of the page, not a failed page
         var batch = await app.Drives.Reader.GetBatchAsync(Drive.Alias, QueryFor(uniqueId));
         Assert.That(batch.StatusCode, Is.EqualTo(HttpStatusCode.OK), batch.Error?.Content);
         Assert.That(batch.Content!.SearchResults, Is.Empty);
 
-        var read = await app.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
-        Assert.That(read.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK), "a single read leaves it out too");
+        var byUniqueId = await app.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
+        Assert.That(byUniqueId.IsSuccessStatusCode, Is.False, "a read by unique id leaves it out too");
+        var byFileId = await app.Drives.Reader.GetFileHeaderAsync(Drive.Alias, upload.FileId);
+        Assert.That(byFileId.IsSuccessStatusCode, Is.False, "so does a read by file id");
+        var payloadRead = await app.Drives.Reader.GetPayloadAsync(Drive.Alias, upload.FileId, payload.Key);
+        Assert.That(payloadRead.IsSuccessStatusCode, Is.False, "and a payload read");
+    }
+
+    [Test]
+    public async Task AnAppCannotWriteAZkDriveKeyHeader()
+    {
+        // It holds no drive key, so whatever it sent would be junk the owner's devices can't open
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (_, driveKey) = await ZeroKnowledgeDriveAsync(frodo);
+        var app = await AppSession.SetupAsync(frodo, Drive, DrivePermission.ReadWrite);
+
+        var fileKey = KeyHeader.NewRandom16();
+        var (upload, _, _, _) = await app.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(Guid.NewGuid()),
+            transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: ZkBrowser.LockFileKey(fileKey, driveKey));
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), upload.Error?.Content);
     }
 
     [Test]
@@ -182,6 +208,91 @@ public class ZkDriveFileTests : V2Fixture
     }
 
     [Test]
+    public async Task AMetadataOnlyUploadWithRecipientsIsRefusedBeforeAnythingIsStored()
+    {
+        var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
+        var uniqueId = Guid.NewGuid();
+        var (upload, fileKey, locked) = await UploadAsync(frodo, driveKey, uniqueId);
+
+        var newKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };
+        var metadata = Metadata(uniqueId, "updated", upload.NewVersionTag);
+        metadata.AllowDistribution = true;
+        var (update, _) = await frodo.V1.Drive.UpdateExistingEncryptedMetadata(
+            new ExternalFileIdentifier { TargetDrive = Drive, FileId = upload.FileId }, newKeyHeader, metadata,
+            lockedKeyHeader: ZkBrowser.LockFileKey(newKeyHeader, driveKey),
+            transitOptions: new TransitOptions { Recipients = [Identities.Sam] });
+        Assert.That(update.ErrorCode(), Is.EqualTo(OdinClientErrorCode.ZkDriveFileCannotBeSent), update.Error?.Content);
+
+        var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
+        Assert.That(read.Content!.FileMetadata.VersionTag, Is.EqualTo(upload.NewVersionTag), "nothing was stored");
+        AssertOpens(read.Content!, driveKey, locked, Content);
+    }
+
+    [Test]
+    public async Task AnUpdateWithRecipientsIsRefused()
+    {
+        var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
+        var uniqueId = Guid.NewGuid();
+        var (upload, fileKey, _) = await UploadAsync(frodo, driveKey, uniqueId);
+
+        var newKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };
+        var update = await UpdateAsync(frodo, upload.FileId, uniqueId, newKeyHeader, ZkBrowser.LockFileKey(newKeyHeader, driveKey),
+            upload.NewVersionTag, recipients: [(OdinId)Identities.Sam]);
+        Assert.That(update.ErrorCode(), Is.EqualTo(OdinClientErrorCode.ZkDriveFileCannotBeSent), update.Error?.Content);
+    }
+
+    [Test]
+    public async Task AnUnencryptedUpdateOfAZkDriveFileIsRefusedAsAChangeOfEncryption()
+    {
+        var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
+        var uniqueId = Guid.NewGuid();
+        var (upload, _, _) = await UploadAsync(frodo, driveKey, uniqueId);
+
+        var metadata = Metadata(uniqueId, "in the clear", upload.NewVersionTag);
+        metadata.IsEncrypted = false;
+        var update = await frodo.Drives.Writer.UpdateFileByFileId(Drive.Alias, upload.FileId, new FileUpdateInstructionSetV2
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            Manifest = new UploadManifest { PayloadDescriptors = [] }
+        }, metadata, []);
+        Assert.That(update.ErrorCode(), Is.EqualTo(OdinClientErrorCode.ArgumentError), update.Error?.Content);
+    }
+
+    [Test]
+    public async Task ConvertingTheDriveAgainDeletesTheFilesTheOldDriveKeyLocked()
+    {
+        // The browser converts again only when the old drive key no longer opens (a reset forgot it), so
+        // those files can't be opened by anyone
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var keys = await ZkOwnerSteps.CreateKeysAsync(frodo, OwnerLogin.DefaultPassword);
+        var driveKeys = await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, keys.MasterKey);
+        var uniqueId = Guid.NewGuid();
+        await UploadAsync(frodo, driveKeys.DriveKey, uniqueId);
+
+        await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, keys.MasterKey);
+
+        var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
+        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), read.Error?.Content);
+    }
+
+    [Test]
+    public async Task AnUnencryptedFileOnAZeroKnowledgeDriveCanBeOverwritten()
+    {
+        // An unencrypted file has no key header to lock, as for a new one
+        var (frodo, _) = await ZeroKnowledgeDriveAsync();
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.OwnerOnly);
+        var upload = await frodo.V1.Drive.UploadNewMetadata(Drive, metadata, new TransitOptions());
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+
+        var overwrite = SampleMetadataData.Create(fileType: 101, acl: AccessControlList.OwnerOnly);
+        overwrite.VersionTag = upload.Content!.NewVersionTag;
+        var response = await frodo.V1.Drive.UploadNewMetadata(Drive, overwrite, new TransitOptions(),
+            overwriteFileId: upload.Content.File.FileId);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+    }
+
+    [Test]
     public async Task APayloadAndThumbnailComeWithoutAKeyHeaderAndOpenWithTheFileKeyAndTheirIv()
     {
         var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
@@ -227,9 +338,9 @@ public class ZkDriveFileTests : V2Fixture
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>Frodo's Shard Recovery drive made zero knowledge, and the drive key his device then holds.</summary>
-    private async Task<(OwnerSession Owner, byte[] DriveKey)> ZeroKnowledgeDriveAsync()
+    private async Task<(OwnerSession Owner, byte[] DriveKey)> ZeroKnowledgeDriveAsync(OwnerSession? owner = null)
     {
-        var frodo = await LoginAsOwner(Identities.Frodo);
+        var frodo = owner ?? await LoginAsOwner(Identities.Frodo);
         var keys = await ZkOwnerSteps.CreateKeysAsync(frodo, OwnerLogin.DefaultPassword);
         var driveKeys = await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, keys.MasterKey);
         return (frodo, driveKeys.DriveKey);
@@ -256,7 +367,7 @@ public class ZkDriveFileTests : V2Fixture
 
     /// <summary>An update with its content encrypted under <paramref name="keyHeader"/> and <paramref name="locked"/> as its key header.</summary>
     private static Task<Refit.ApiResponse<UpdateFileResult>> UpdateAsync(OwnerSession owner, Guid fileId, Guid uniqueId,
-        KeyHeader keyHeader, EncryptedKeyHeader locked, Guid versionTag)
+        KeyHeader keyHeader, EncryptedKeyHeader locked, Guid versionTag, List<OdinId>? recipients = null)
     {
         var metadata = Metadata(uniqueId, "updated", versionTag);
         metadata.AppData.Content = keyHeader.EncryptDataAes(metadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
@@ -266,7 +377,8 @@ public class ZkDriveFileTests : V2Fixture
         {
             Locale = UpdateLocale.Local,
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            Manifest = new UploadManifest { PayloadDescriptors = [] }
+            Manifest = new UploadManifest { PayloadDescriptors = [] },
+            Recipients = recipients
         }, metadata, [], locked);
     }
 
