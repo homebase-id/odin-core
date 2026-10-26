@@ -337,7 +337,8 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
 - The key header format (`EncryptKeyHeaderAes`) encrypts `IV ‖ key` with AES-CBC under that same IV, so
   the IV cancels out of the first block: the 48 bytes depend only on the locking key and the file key,
   and the IV the reader gets back is the visible `Iv` field **(V, `ZkDriveFileTests`)**. Two key
-  headers for the same file key show it, and whoever stores a key header can change its IV.
+  headers for the same file key show it, and whoever stores a key header can change its IV. Key header
+  version 2 fixes it, with per-file integrity ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
 - Ciphers: AES-CBC in `KeyHeader`, AES-GCM preferred for newer paths (CLAUDE.md, `youauth` docs).
 - Write-without-read keys: drive `WriteOnlyKeyPair` (data deposits) and `PeerKeyStore.WriteOnlyKeyPair` (grant deposits)
   **(V)**.

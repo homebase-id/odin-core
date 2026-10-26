@@ -67,8 +67,8 @@ Each step is its own PR (pair), and each targets main.
      gets is the visible field **(V, `ZkDriveFileTests`)**. So the server sees which `zkDrive` headers
      share a file key (every update of a file does), and could change a header's IV, which flips chosen bits in the
      first 16 bytes of `appData.content` for the reader. The same holds for `aes` headers today. Kept for
-     version 1 as agreed; a version 2 (a separate random IV, or GCM) is the fix, with the integrity
-     issue below.
+     version 1 as agreed. Key header version 2 (likely GCM) fixes it, together with per-file integrity:
+     [#2024](https://github.com/homebase-id/odin-core/issues/2024).
 4. **No packed `SharedSecretEncryptedHeader64` for a header the server can't open.**
    - The client decrypts a payload with FileKey and the payload's IV (`payloads[].iv`), the same
      values the server packs today (`DriveFileUtility.GetPayloadEncryptedKeyHeader`) **(V)**.
@@ -233,5 +233,5 @@ it as it is (read 2026-10-26) **(V)**.
 - **chat-kmp:** comes with consent. Two small bugs found on the way, both harmless today:
   - `EncryptedKeyHeader.toBase64()` writes the version big-endian, but has no production caller;
   - the `MissingEncryptedHeader` check compares by reference, so it never fires.
-- **File a separate issue: per-file integrity.** CBC has none, so zero knowledge means
-  confidential from the server, not tamper-proof **(I, standard CBC malleability)**.
+- **Per-file integrity, with key header version 2:** [#2024](https://github.com/homebase-id/odin-core/issues/2024).
+  CBC has none, so zero knowledge means confidential from the server, not tamper-proof.
