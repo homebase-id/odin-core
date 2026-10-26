@@ -63,7 +63,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 VoipDeviceToken = string.IsNullOrWhiteSpace(request.VoipDeviceToken) ? null : request.VoipDeviceToken,
             };
 
-            _logger.LogDebug("SubscribeDevice: adding {DeviceToken}", subscription.FirebaseDeviceToken);
+            _logger.LogDebug("SubscribeDevice: adding a {DevicePlatform} device", subscription.FirebaseDevicePlatform);
 
             if (string.IsNullOrWhiteSpace(subscription.FirebaseDeviceToken))
             {
