@@ -74,7 +74,7 @@ public class TableKeyValue(
     /// A compare-and-swap: replaces <paramref name="key"/>'s data with <paramref name="data"/> only while
     /// it is still <paramref name="expectedData"/>.  False when it isn't (changed, or gone).
     /// </summary>
-    internal async Task<bool> UpdateIfAsync(byte[] key, byte[] expectedData, byte[] data)
+    internal async Task<bool> UpdateIfUnchangedAsync(byte[] key, byte[] expectedData, byte[] data)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();

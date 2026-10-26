@@ -18,6 +18,7 @@ using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests.V2.ZeroKnowledge;
+using Odin.Services.Base;
 using Odin.Services.Security;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -258,7 +259,11 @@ public abstract class ShamirFixture : V2Fixture
     /// serializer cannot read.
     /// </summary>
     protected static ITestSecurityContextOwnerClient PlainSecurityOf(OwnerSession owner)
-        => RestService.For<ITestSecurityContextOwnerClient>(owner.NewAdminHttpClient().client);
+        => RestService.For<ITestSecurityContextOwnerClient>(owner.Factory.CreatePlainHttpClient(owner.Identity));
+
+    /// <summary>The recovery peer API as <paramref name="from"/>'s server calls <paramref name="to"/>'s.</summary>
+    protected async Task<IPeerPasswordRecoveryHttpClient> PeerRecoveryClientAsync(OdinId from, OdinId to) =>
+        await Host.GetTenantScope(from.DomainName).Resolve<IOdinHttpClientFactory>().CreateClientAsync<IPeerPasswordRecoveryHttpClient>(to);
 
     /// <summary>
     /// The automated deal as the console deals it, in the browser, to the host's automated identities,
@@ -523,7 +528,7 @@ public abstract class ShamirFixture : V2Fixture
     protected RecoveryNotification RecoveryLink(OwnerSession dealer, RecoveryNotificationKind kind) =>
         _recoveryLinks.Latest(new OdinId(dealer.Identity.DomainName), kind);
 
-    /// <summary>How many <paramref name="kind"/> notifications the host sent <paramref name="dealer"/> so far.</summary>
+    /// <summary>Every <paramref name="kind"/> notification the host sent <paramref name="dealer"/> so far, oldest first.</summary>
     protected IReadOnlyList<RecoveryNotification> RecoveryNotifications(OwnerSession dealer, RecoveryNotificationKind kind) =>
         _recoveryLinks.All(new OdinId(dealer.Identity.DomainName), kind);
 
@@ -534,7 +539,8 @@ public abstract class ShamirFixture : V2Fixture
     protected async Task<ApiResponse<HttpContent>> ChangeRecoveryEmailAsync(OwnerSession owner, string address)
     {
         // Plain: both endpoints are exempt from shared-secret encryption
-        var started = await PlainSecurityOf(owner).UpdateRecoveryEmail(new UpdateRecoveryEmailRequest
+        var security = PlainSecurityOf(owner);
+        var started = await security.UpdateRecoveryEmail(new UpdateRecoveryEmailRequest
         {
             Email = address,
             PasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(Host, owner.Identity.DomainName,
@@ -544,14 +550,15 @@ public abstract class ShamirFixture : V2Fixture
 
         var link = RecoveryLink(owner, RecoveryNotificationKind.VerifyRecoveryEmail);
         Assert.That(link.To, Is.EqualTo(address), "the link goes to the new address");
-        return await RestService.For<ITestSecurityContextOwnerClient>(owner.Factory.CreatePlainHttpClient(owner.Identity))
-            .VerifyRecoveryEmail(link.NonceId.ToString());
+        var verified = await security.VerifyRecoveryEmail(link.NonceId.ToString());
+        Assert.That(verified.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), verified.Error?.Content);
+        return verified;
     }
 
-    /// <summary>Where <paramref name="response"/> redirected to, whether or not the client followed it.</summary>
-    protected static string RedirectOf(IApiResponse response) =>
-        response.Headers.Location?.OriginalString ?? response.RequestMessage?.RequestUri?.PathAndQuery ?? "";
+    /// <summary>Where a redirect sends the browser (the in-process clients don't follow it).</summary>
+    protected static string RedirectOf(IApiResponse response) => response.Headers.Location?.OriginalString ?? "";
 
+    /// <summary>How many <paramref name="kind"/> notifications the host sent <paramref name="dealer"/> so far.</summary>
     protected int RecoveryNotificationCount(OwnerSession dealer, RecoveryNotificationKind kind) =>
         _recoveryLinks.Count(new OdinId(dealer.Identity.DomainName), kind);
 

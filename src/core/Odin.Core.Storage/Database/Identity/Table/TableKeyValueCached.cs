@@ -75,11 +75,15 @@ public class TableKeyValueCached(TableKeyValue table, IIdentityTransactionalCach
 
     //
 
-    /// <summary>A compare-and-swap; see <see cref="TableKeyValue.UpdateIfAsync"/>.</summary>
-    public async Task<bool> UpdateIfAsync(byte[] key, byte[] expectedData, byte[] data)
+    /// <summary>A compare-and-swap; see <see cref="TableKeyValue.UpdateIfUnchangedAsync"/>.</summary>
+    public async Task<bool> UpdateIfUnchangedAsync(byte[] key, byte[] expectedData, byte[] data)
     {
-        var result = await table.UpdateIfAsync(key, expectedData, data);
-        await InvalidateAsync(key);
+        var result = await table.UpdateIfUnchangedAsync(key, expectedData, data);
+        if (result)
+        {
+            await InvalidateAsync(key);
+        }
+
         return result;
     }
 

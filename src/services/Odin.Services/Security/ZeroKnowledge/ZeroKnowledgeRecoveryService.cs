@@ -80,17 +80,19 @@ public class ZeroKnowledgeRecoveryService(
                 return false;
             }
 
-            // Only a deal the browser can deal again: an automated deal needs this host's automated
-            // identities, or the flag would stay up for a login that deals nothing
-            var canDealAgain = !package.UsesAutomatedRecovery || shamirConfigurationService.GetAutomatedRecoveryPlayers() != null;
-            if (!canDealAgain)
+            if (package.UsesAutomatedRecovery)
             {
-                return false;
-            }
+                // Only a deal the browser can deal again: without this host's automated identities the
+                // flag would stay up for a login that deals nothing
+                if (shamirConfigurationService.GetAutomatedRecoveryPlayers() == null)
+                {
+                    return false;
+                }
 
-            if (package.UsesAutomatedRecovery && keys?.HasShamirCopies() != true)
-            {
-                return true;
+                if (keys?.HasShamirCopies() != true)
+                {
+                    return true;
+                }
             }
 
             // A deal from before deals recorded the hash can't tell: a server-made automated one is

@@ -71,8 +71,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     /// <summary>The request for <paramref name="shardId"/>; null when there is none.</summary>
     public async Task<ShardApprovalRequest> GetRequest(Guid shardId, IOdinContext odinContext)
     {
-        var header = await GetRequestFile(shardId, odinContext);
-        return header == null ? null : ToRequest(header);
+        return ToRequest(await GetRequestFile(shardId, odinContext));
     }
 
     /// <summary>
@@ -83,7 +82,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     public async Task DeleteRequest(ShardApprovalRequest handled, IOdinContext odinContext)
     {
         var header = await GetRequestFile(handled.ShardId, odinContext);
-        var stored = header == null ? null : ToRequest(header);
+        var stored = ToRequest(header);
         if (stored == null || stored.Created != handled.Created || stored.RecoveryPublicKeyJwk != handled.RecoveryPublicKeyJwk)
         {
             return;
@@ -169,8 +168,6 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
     }
 
-    private ShardApprovalRequest ToRequest(SharedSecretEncryptedFileHeader header)
-    {
-        return ShardApprovalRequest.Deserialize(header.FileMetadata.AppData.Content);
-    }
+    private static ShardApprovalRequest ToRequest(SharedSecretEncryptedFileHeader header) =>
+        header == null ? null : ShardApprovalRequest.Deserialize(header.FileMetadata.AppData.Content);
 }

@@ -215,14 +215,10 @@ public class AutomatedRecoveryTests : ShamirFixture
         await ArrangeAutomatedDealAsync(frodo);
         var (scope, context) = await MigrationContextAsync(frodo);
         var shamir = scope.Resolve<ShamirConfigurationService>();
-        var dealt = (await shamir.GetDealerShardPackage(context))!;
-        Assert.That(dealt.RecoveryEmailHash, Is.Not.Null, "a deal records it now");
-        await shamir.SaveDealerPackage(new DealerShardPackage
-        {
-            MinMatchingShards = dealt.MinMatchingShards,
-            Envelopes = dealt.Envelopes,
-            UsesAutomatedRecovery = dealt.UsesAutomatedRecovery
-        }, context);
+        var package = (await shamir.GetDealerShardPackage(context))!;
+        Assert.That(package.RecoveryEmailHash, Is.Not.Null, "a deal records it now");
+        package.RecoveryEmailHash = null;
+        await shamir.SaveDealerPackage(package, context);
 
         Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.False);
         var rebuilt = await RecoverInBrowserAsync(frodo, [], await GetDealerShardConfigAsync(frodo));
@@ -320,7 +316,7 @@ public class AutomatedRecoveryTests : ShamirFixture
         var (scope, _) = await MigrationContextAsync(frodo);
         var recovery = scope.Resolve<PasswordKeyRecoveryService>();
         var hash = await recovery.GetHashedRecoveryEmail();
-        var address = (await recovery.GetRecoveryInfo())!.Email;
+        var address = await recovery.GetRecoveryEmailAsync();
         var asDealer = await scope.Resolve<IOdinHttpClientFactory>().CreateClientAsync<IPeerPasswordRecoveryHttpClient>(holder);
         RetrieveShardRequest Ask(string email) => new()
         {
@@ -334,8 +330,7 @@ public class AutomatedRecoveryTests : ShamirFixture
         Assert.That(redirected.IsSuccessStatusCode, Is.False, $"a link to another address was sent: {redirected.StatusCode}");
         Assert.That(ReleaseLinks(frodo), Is.Empty, "no link went out");
 
-        var asSomeoneElse = await Host.GetTenantScope(players[0].Identity.DomainName).Resolve<IOdinHttpClientFactory>()
-            .CreateClientAsync<IPeerPasswordRecoveryHttpClient>(holder);
+        var asSomeoneElse = await PeerRecoveryClientAsync(players[0].Identity, holder);
         var notTheDealer = await asSomeoneElse.RequestShard(Ask(address));
         Assert.That(notTheDealer.IsSuccessStatusCode, Is.False, $"someone else asked for the dealer's shard: {notTheDealer.StatusCode}");
         Assert.That(ReleaseLinks(frodo), Is.Empty, "no link went out");

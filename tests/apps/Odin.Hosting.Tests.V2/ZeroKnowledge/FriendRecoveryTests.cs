@@ -182,8 +182,7 @@ public class FriendRecoveryTests : ShamirFixture
         var automatic = players.First(p => config.Envelopes.Single(e => e.Player.OdinId == p.Identity).Player.Type == PlayerType.Automatic);
         var gatedEnvelope = config.Envelopes.First(e => e.Player.Type == PlayerType.Delegate);
 
-        var factory = Host.GetTenantScope(automatic.Identity.DomainName).Resolve<IOdinHttpClientFactory>();
-        var client = await factory.CreateClientAsync<IPeerPasswordRecoveryHttpClient>(frodo.Identity);
+        var client = await PeerRecoveryClientAsync(automatic.Identity, frodo.Identity);
         var response = await client.SendPlayerShard(new RetrieveShardResult
         {
             ResultType = RetrieveShardResultType.Complete,
@@ -200,8 +199,7 @@ public class FriendRecoveryTests : ShamirFixture
 
         // The gated friend's own server, without them, hands in junk as their shard
         var gated = players.Single(p => p.Identity == gatedEnvelope.Player.OdinId);
-        var gatedClient = await Host.GetTenantScope(gated.Identity.DomainName).Resolve<IOdinHttpClientFactory>()
-            .CreateClientAsync<IPeerPasswordRecoveryHttpClient>(frodo.Identity);
+        var gatedClient = await PeerRecoveryClientAsync(gated.Identity, frodo.Identity);
         var junk = await gatedClient.SendPlayerShard(new RetrieveShardResult
         {
             ResultType = RetrieveShardResultType.Complete,

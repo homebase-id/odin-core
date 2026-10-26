@@ -205,7 +205,7 @@ public class PasswordKeyRecoveryService(
     /// The owner's one email, the security page's: every recovery email goes there, and the deals hash
     /// it.  The registration address until the owner sets one.
     /// </summary>
-    public async Task<string> GetRecoveryEmailAsync() => (await GetRecoveryInfo())?.Email;
+    public async Task<string> GetRecoveryEmailAsync() => (await GetRecoveryInfo()).Email;
 
     public async Task<Guid> GetHashedRecoveryEmail()
     {
@@ -226,6 +226,10 @@ public class PasswordKeyRecoveryService(
     /// exactly as stored.  Only server-made deals have it; the next password login deals them again.
     /// </summary>
     public static Guid LegacyHashRecoveryEmail(string email) => ByteArrayUtil.ReduceSHA256Hash(email);
+
+    /// <summary>Whether <paramref name="email"/> is the address a shard's <paramref name="hash"/> was taken of, either way.</summary>
+    public static bool MatchesRecoveryEmailHash(string email, Guid hash) =>
+        HashRecoveryEmail(email) == hash || LegacyHashRecoveryEmail(email) == hash;
 
     public async Task UpdateAccountRecoveryEmail(Guid nonceId)
     {

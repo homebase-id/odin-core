@@ -30,7 +30,7 @@ public class DealerShardPackage
     /// means the email changed since: the browser deals again.  Null for a deal from before deals
     /// recorded it.
     /// </summary>
-    public Guid? RecoveryEmailHash { get; init; }
+    public Guid? RecoveryEmailHash { get; set; }
 
     public static string Serialize(DealerShardPackage package)
     {
