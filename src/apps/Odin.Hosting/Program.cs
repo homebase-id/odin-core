@@ -111,7 +111,7 @@ namespace Odin.Hosting
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                 .Enrich.WithCaller()
                 .Enrich.WithExceptionMessage()
-                .Enrich.WithRequestPathRedaction()
+                .Enrich.WithUrlRedaction()
                 .WriteTo.Filter(sink => sink
                     .Async(s => s.Console(
                         outputTemplate: logOutputTemplate,

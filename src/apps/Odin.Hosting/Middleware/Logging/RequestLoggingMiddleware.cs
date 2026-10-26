@@ -26,7 +26,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
 
     public async Task Invoke(HttpContext context)
     {
-        var path = LogRedaction.Url(context.Request.Path + context.Request.QueryString);
+        var path = context.Request.Path + context.Request.QueryString;
 
         if (!logger.IsEnabled(LogLevel.Trace) && !IsLoggable(path))
         {

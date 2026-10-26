@@ -1,83 +1,65 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Odin.Core.Logging.Redaction;
 
 #nullable enable
 
 /// <summary>
-/// Keeps the credentials that travel in a request's URL and headers out of the logs. One set of rules for every
-/// place that logs a request: the request logger, the exception middleware, and the RequestPath attribute that
-/// ASP.NET Core puts on every log line of a request (see <see cref="Odin.Core.Logging.Redaction.Serilog.RequestPathRedactionEnricher"/>).
+/// Keeps the credentials that travel in URLs and headers out of the logs. Headers and query parameters are logged with
+/// their values only when they are on an allowlist, so a credential nobody has looked at yet stays out by default.
+/// <see cref="Odin.Core.Logging.Redaction.Serilog.UrlRedactionEnricher"/> applies <see cref="Url"/> to every log line.
 /// </summary>
 public static class LogRedaction
 {
     public const string Redacted = "[redacted]";
 
-    // A query parameter is a credential when its name contains one of these (token, invitation-code, ...)
-    private static readonly string[] SecretQueryNameParts = ["token", "secret", "password", "invitation"];
-
-    // ... or is one of these: the first-run token
-    private static readonly HashSet<string> SecretQueryNames = new(StringComparer.OrdinalIgnoreCase) { "frt" };
-
-    // A path segment is a credential when it follows one of these: GET .../is-valid-invitation-code/{code}
-    private static readonly HashSet<string> SegmentsBeforeASecret = new(StringComparer.OrdinalIgnoreCase)
+    // Query parameters whose values may be logged; any other parameter is logged by name only. A credential travels
+    // in the query as id (the recovery links' nonce), token, invitation-code, frt, url (a pasted link's own query),
+    // and so on, none of which are here.
+    private static readonly HashSet<string> LoggableQueryParameters = new(StringComparer.OrdinalIgnoreCase)
     {
-        "is-valid-invitation-code"
+        "alias", "appId", "archivalStatus", "batchSize", "clientUniqueId", "count", "cursor", "cursorState",
+        "directMatchOnly", "discard-mail", "enabled", "extension", "fileId", "fileState", "fileType", "globalTransitId",
+        "groupId", "height", "iac", "include-payload", "includeAlias", "includeMetadataHeader", "includeSystemCircle",
+        "key", "live", "maxRecords", "notifyRemote", "odinId", "pageNumber", "pageSize", "payloadKey",
+        "removeMembers", "ss", "type", "uniqueId", "version", "versionTag", "width", "xfst",
+        "client_id", "client_type", "redirect_uri", "error", "error_description",
     };
 
-    // Headers whose values may be logged. Any other header is logged by name only: Authorization, Cookie, the
-    // client auth token headers and Sec-WebSocket-Protocol (which carries the V2 socket's token) all carry
-    // credentials, and a header nobody has looked at yet must not leak by default.
+    // A path segment that follows one of these carries a credential
+    private static readonly string[] SegmentsBeforeASecret =
+    [
+        "/capi/validate/",              // the peer's CAPI session id: {remoteDomain}~{sessionId}
+        "/is-valid-invitation-code/",   // the invitation code
+    ];
+
+    // Headers whose values may be logged; any other header is logged by name only. Authorization, Cookie, the client
+    // auth token headers and Sec-WebSocket-Protocol (which carries the V2 socket's token) all carry credentials.
     private static readonly HashSet<string> LoggableHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Accept",
-        "Accept-Encoding",
-        "Accept-Language",
-        "Cache-Control",
-        "Connection",
-        "Content-Encoding",
-        "Content-Length",
-        "Content-Type",
-        "Expect",
-        "Host",
-        "If-Modified-Since",
-        "If-None-Match",
-        "Odin-Correlation-Id",
-        "Origin",
-        "Range",
-        "Sec-WebSocket-Version",
-        "traceparent",
-        "Transfer-Encoding",
-        "Upgrade",
-        "User-Agent",
-        "X-Forwarded-For",
-        "X-Forwarded-Host",
-        "X-Forwarded-Proto",
-        "X-ODIN-FILE-SYSTEM-TYPE",
-        "X-Odin-Version",
+        "Accept", "Accept-Encoding", "Accept-Language", "Cache-Control", "Connection", "Content-Encoding",
+        "Content-Length", "Content-Type", "Expect", "Host", "If-Modified-Since", "If-None-Match", "Odin-Correlation-Id",
+        "Origin", "Range", "Sec-WebSocket-Version", "traceparent", "Transfer-Encoding", "Upgrade", "User-Agent",
+        "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-ODIN-FILE-SYSTEM-TYPE", "X-Odin-Version",
         "X-Real-IP",
     };
 
     /// <summary>
-    /// A request path, with or without its query string, with the values of its credentials replaced
+    /// A URL or a request path, with or without its query string, with its credentials replaced
     /// </summary>
-    public static string Url(string pathAndQuery)
+    public static string Url(string url)
     {
-        if (string.IsNullOrEmpty(pathAndQuery))
+        if (!MayCarryACredential(url))
         {
-            return pathAndQuery;
+            return url;
         }
 
-        var q = pathAndQuery.IndexOf('?');
-        if (q < 0)
-        {
-            return Path(pathAndQuery);
-        }
-
-        return Path(pathAndQuery[..q]) + "?" + Query(pathAndQuery[(q + 1)..]);
+        var q = url.IndexOf('?');
+        return q < 0 ? Path(url) : Path(url[..q]) + "?" + Query(url[(q + 1)..]);
     }
 
     /// <summary>
@@ -88,18 +70,68 @@ public static class LogRedaction
         return LoggableHeaders.Contains(name) ? value : Redacted;
     }
 
-    private static string Path(string path)
+    /// <summary>
+    /// Stands in for a secret where log lines must still be told apart (which device a push went to): the first
+    /// 8 hex characters of its SHA-256
+    /// </summary>
+    public static string Fingerprint(string? secret)
     {
-        var segments = path.Split('/');
-        for (var i = 1; i < segments.Length; i++)
+        if (string.IsNullOrEmpty(secret))
         {
-            if (segments[i].Length > 0 && SegmentsBeforeASecret.Contains(segments[i - 1]))
+            return "(none)";
+        }
+
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(secret)))[..8];
+    }
+
+    // Cheap test that keeps the common case (a path with no query and no secret segment) allocation-free
+    private static bool MayCarryACredential(string url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return false;
+        }
+
+        if (url.Contains('?'))
+        {
+            return true;
+        }
+
+        foreach (var segment in SegmentsBeforeASecret)
+        {
+            if (url.Contains(segment, StringComparison.OrdinalIgnoreCase))
             {
-                segments[i] = Redacted;
+                return true;
             }
         }
 
-        return string.Join('/', segments);
+        return false;
+    }
+
+    private static string Path(string path)
+    {
+        foreach (var segment in SegmentsBeforeASecret)
+        {
+            var at = path.IndexOf(segment, StringComparison.OrdinalIgnoreCase);
+            if (at < 0)
+            {
+                continue;
+            }
+
+            var start = at + segment.Length;
+            var end = path.IndexOf('/', start);
+            if (end < 0)
+            {
+                end = path.Length;
+            }
+
+            if (end > start)
+            {
+                path = path[..start] + Redacted + path[end..];
+            }
+        }
+
+        return path;
     }
 
     private static string Query(string query)
@@ -108,18 +140,12 @@ public static class LogRedaction
         for (var i = 0; i < parameters.Length; i++)
         {
             var eq = parameters[i].IndexOf('=');
-            if (eq > 0 && IsSecretQueryName(WebUtility.UrlDecode(parameters[i][..eq])))
+            if (eq > 0 && eq < parameters[i].Length - 1 && !LoggableQueryParameters.Contains(WebUtility.UrlDecode(parameters[i][..eq])))
             {
                 parameters[i] = parameters[i][..(eq + 1)] + Redacted;
             }
         }
 
         return string.Join('&', parameters);
-    }
-
-    private static bool IsSecretQueryName(string name)
-    {
-        return SecretQueryNames.Contains(name) ||
-               SecretQueryNameParts.Any(part => name.Contains(part, StringComparison.OrdinalIgnoreCase));
     }
 }

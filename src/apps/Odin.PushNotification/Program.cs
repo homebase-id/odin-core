@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Dto;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
+using Odin.Core.Logging.Redaction;
 using Odin.PushNotification;
 using Odin.PushNotification.Apns;
 using Serilog;
@@ -85,7 +86,7 @@ app.MapPost("/message/v1", async (
         logger.LogInformation(
             "Received push request id {id} platform {platform} from {from} to {to} origin {origin} device {device}",
             request.Id, request.DevicePlatform, request.FromDomain, request.ToDomain, request.OriginDomain,
-            request.DeviceToken);
+            LogRedaction.Fingerprint(request.DeviceToken));
 
         var validationResult = validator.Validate(request);
         if (!validationResult.IsValid)
@@ -127,7 +128,7 @@ app.MapPost("/message/v1", async (
             var response = await pushRouter.SendAsync(request);
             logger.LogInformation("Successfully sent {platform} {kind} message with id {id} from {from} to {to} for device {device}: {response}",
                 request.DevicePlatform, request.KindOrNotify(), request.Id, request.FromDomain,
-                request.ToDomain, request.DeviceToken, response);
+                request.ToDomain, LogRedaction.Fingerprint(request.DeviceToken), response);
             return Results.Ok("Message sent successfully.");
         }
         catch (ApnsException e)
@@ -157,7 +158,7 @@ app.MapPost("/message/v1", async (
             logger.LogError(e,
                 "Firebase send failed for {platform} message {id} from {from} to {to} device {device}: " +
                 "errorCode={errorCode} messagingErrorCode={messagingErrorCode} fcmStatus={fcmStatus} fcmBody={fcmBody} message={message}",
-                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken,
+                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, LogRedaction.Fingerprint(request.DeviceToken),
                 e.ErrorCode, e.MessagingErrorCode, httpStatus, httpBody, e.Message);
 
             return Results.Problem(type: e.ErrorCode.ToString(), detail: e.Message, statusCode: 502);
@@ -167,7 +168,7 @@ app.MapPost("/message/v1", async (
             logger.LogError(e,
                 "Firebase send failed (non-messaging) for {platform} message {id} from {from} to {to} device {device}: " +
                 "errorCode={errorCode} message={message}",
-                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken,
+                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, LogRedaction.Fingerprint(request.DeviceToken),
                 e.ErrorCode, e.Message);
             return Results.Problem(type: e.ErrorCode.ToString(), detail: e.Message, statusCode: 502);
         }
@@ -175,7 +176,7 @@ app.MapPost("/message/v1", async (
         {
             logger.LogError(e,
                 "Unexpected error sending {platform} message {id} from {from} to {to} for device {device}: {error}",
-                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, e.Message);
+                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, LogRedaction.Fingerprint(request.DeviceToken), e.Message);
             return Results.Problem("An internal error occurred.", statusCode: 500);
         }
     });
