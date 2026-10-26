@@ -299,8 +299,8 @@ public class ShamirRecoveryService
             });
         }
 
-        // The hash the deal was dealt with: after an email change the holders refuse until the browser
-        // deals again (ZkStatusResponse.DealNeedsDealing).  A deal from before deals recorded it is
+        // The hash the deal was dealt with: after an email change the automatic holders refuse until the
+        // browser deals again (ZkStatusResponse.DealNeedsDealing).  A deal from before deals recorded it is
         // server-made, and hashed the address as stored.
         var recoveryEmail = await _passwordKeyRecoveryService.GetRecoveryEmailAsync();
         var hashedRecoveryEmail = package.RecoveryEmailHash ?? PasswordKeyRecoveryService.LegacyHashRecoveryEmail(recoveryEmail);

@@ -111,7 +111,7 @@ public class SecurityVerificationController(
 
         const string redirect = "/owner/security/overview?fv=1";
 
-        // Every deal hashed the old address, so every holder now refuses it: the login deals again, to
+        // The deal hashed the old address, so its automatic holders now refuse it: the login deals again, to
         // the same holders, and only it has the password the new deal's password copy needs
         if (await zeroKnowledgeRecoveryService.DealNeedsDealingAsync(WebOdinContext))
         {

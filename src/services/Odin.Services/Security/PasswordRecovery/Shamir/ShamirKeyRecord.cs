@@ -6,9 +6,9 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir;
 public class ShamirKeyRecord
 {
     /// <summary>
-    /// The master key, locked by the distribution key the shards rebuild.  Every deal since recovery
-    /// in the browser writes this (docs/zero-knowledge-recovery-plan.md, decision 6), so server-dealt
-    /// recovery never touches the recovery phrase.
+    /// The master key, locked by the distribution key the shards rebuild (docs/owner-keys.md,
+    /// <c>EncMK_auto</c>): a server-made deal only, so its recovery never touches the recovery phrase.
+    /// A deal the browser makes deletes it.
     /// </summary>
     public SymmetricKeyEncryptedAes ShamirDistributionKeyEncryptedMasterKey { get; set; }
 

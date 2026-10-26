@@ -52,11 +52,11 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 |---|---|---|---|---|
 | `AutoK` | automated-recovery key (the server's distribution key, `distributionKey` in code) | 16 random bytes, split into shards | the server, for a server-made deal only: every automated deal before the browser dealt it, and the takeover's move off the phrase **(V)** | never stored; the shards go to the automated identities. The next password login deals the automated deal again in the browser, with `SmrK`, and that deletes `EncMK_auto` **(V)** |
 | `SmrK` | Shamir key: the deal's secret, `BipK`'s twin | 16 random bytes, split into one piece per holder | the browser, at each deal: to friends, or the automated deal to the host's automated identities (`dealToFriends`) **(V)** | never stored; only enough shards rebuild it |
-| `Smr-PK` (`Smr-PK-Pub` / `Smr-PK-Priv`) | Shamir recovery key pair | a P-384 key pair; the BIP key pair's twin | the browser, at each friend deal | `Smr-PK-Pub` stored as is (a JWK); `Smr-PK-Priv` locked, next line |
-| `EncSmr-PK-Priv` | the stored Shamir private key | `aes(SmrK, Smr-PK-Priv)`: the private half as PKCS8, locked by `SmrK` with AES-GCM: base64 of a 12-byte IV, the ciphertext and its 16-byte tag (`zkLock`) **(V)** | the browser, at each friend deal | the server (`ZkKeyRecord.ShamirKeyEncryptedShamirPrivateKey`) **(V)**, which can't open it |
+| `Smr-PK` (`Smr-PK-Pub` / `Smr-PK-Priv`) | Shamir recovery key pair | a P-384 key pair; the BIP key pair's twin | the browser, at each deal it makes (friends or the automated deal) | `Smr-PK-Pub` stored as is (a JWK); `Smr-PK-Priv` locked, next line |
+| `EncSmr-PK-Priv` | the stored Shamir private key | `aes(SmrK, Smr-PK-Priv)`: the private half as PKCS8, locked by `SmrK` with AES-GCM: base64 of a 12-byte IV, the ciphertext and its 16-byte tag (`zkLock`) **(V)** | the browser, at each deal it makes | the server (`ZkKeyRecord.ShamirKeyEncryptedShamirPrivateKey`) **(V)**, which can't open it |
 | `Smr-RK` | Shamir reset key | `hkdf(SmrK, "homebase-shamir-reset-key")`, 16 bytes **(V)** | the browser, from `SmrK` | never stored; the server keeps only what it locks |
 | `ShardKey` | per-shard key | 16 random bytes and a 16-byte IV per shard, AES-CBC: the dealer's lock on each piece, so a holder never sees a raw piece **(V)** | whoever deals: the browser (`dealToFriends`), or the server for a server-made deal (`CreateShards`) **(V)** | the dealer package (below), which the dealer's own server can read **(V)** |
-| `Tmp-PK` (`Tmp-PK-Pub` / `Tmp-PK-Priv`) | throwaway key pair | P-384, made when friend recovery starts, and reused for that recovery only **(V)** | the recovering browser | `Tmp-PK-Priv` in that browser's localStorage (`shamir-recovery-key`) until the recovery is over, a reset, or the next login **(V)**; `Tmp-PK-Pub` goes to the server with the start and to each friend with the shard request **(V)** |
+| `Tmp-PK` (`Tmp-PK-Pub` / `Tmp-PK-Priv`) | throwaway key pair | P-384, made when a recovery starts in this browser, and reused for the next start from it unless a recovery is under way for another browser **(V)** | the recovering browser | `Tmp-PK-Priv` in that browser's localStorage (`shamir-recovery-key`) until the recovery is over, a reset, or the next login **(V)**; `Tmp-PK-Pub` goes to the server with the start and to each friend with the shard request **(V)** |
 
 ### Session keys
 
@@ -103,11 +103,11 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 | `EncMK_bip` | `aes(BipK, MK)` | `RecoveryKeyRecord.RecoveryKeyEncryptedMasterKey` **(V)** | with the phrase | setup (today); **deleted at the takeover** |
 | `EncMK_auto` | `aes(AutoK, MK)` | `ShamirKeyRecord.ShamirDistributionKeyEncryptedMasterKey` **(V)** | when enough shards come back | a server-made deal; deleted when the browser deals |
 | `EncBipK_auto` (old) | `aes(AutoK, BipK)` | `ShamirKeyRecord.ShamirDistributionKeyEncryptedRecoveryKey` **(V)** | when enough shards come back | deals made before this change; re-dealt at the handover |
-| `EncZKMK_smr` | `aes(SmrK, ZKMK)` | `ZkKeyRecord.ShamirKeyEncryptedZkMasterKey` **(V)** | no | each friend deal |
-| `Smr-PK-Pub` | as is | `ZkKeyRecord.ShamirPublicKeyJwk` **(V)** | it's public | each friend deal |
-| `EncSmr-PK-Priv` | `aes(SmrK, Smr-PK-Priv)` | `ZkKeyRecord.ShamirKeyEncryptedShamirPrivateKey` **(V)** | no | each friend deal |
+| `EncZKMK_smr` | `aes(SmrK, ZKMK)` | `ZkKeyRecord.ShamirKeyEncryptedZkMasterKey` **(V)** | no | each browser deal |
+| `Smr-PK-Pub` | as is | `ZkKeyRecord.ShamirPublicKeyJwk` **(V)** | it's public | each browser deal |
+| `EncSmr-PK-Priv` | `aes(SmrK, Smr-PK-Priv)` | `ZkKeyRecord.ShamirKeyEncryptedShamirPrivateKey` **(V)** | no | each browser deal |
 | `EncPw_smr` | `seal(Smr-PK-Pub, pw)` | `ZkKeyRecord.ShamirPublicKeyEncryptedPassword` **(V)** | no | the next password login after a deal (the console deals without `pw`); password change **(V)** |
-| `EncMK_smrRK` | `aes(Smr-RK, MK)` | `ZkKeyRecord.ShamirResetKeyEncryptedMasterKey` **(V)** | only with `Smr-RK` | each friend deal: the browser sends `Smr-RK`, the server locks `MK` with it and keeps nothing else of it **(V)** |
+| `EncMK_smrRK` | `aes(Smr-RK, MK)` | `ZkKeyRecord.ShamirResetKeyEncryptedMasterKey` **(V)** | only with `Smr-RK` | each browser deal: the browser sends `Smr-RK`, the server locks `MK` with it and keeps nothing else of it **(V)** |
 | the dealer package | each shard's `ShardKey`, IV, index and player | an unencrypted, owner-only file on the dealer's Shard Recovery drive (`DealerShardPackage`) **(V)** | yes | each deal |
 | a gated friend's shard | a deposit. Content: `aes(FileKey, {id, index, player, aes(ShardKey, piece of SmrK)})`; key header: `seal(WO-PK-Pub_friend, IV ‖ FileKey)`. The holder's checks read plain metadata: the shard id (`UniqueId`) and the recovery email hash (`GroupId`) **(V)** | a file on the friend's Shard Recovery drive, which must be zero knowledge (9020) **(V)** | no: only the friend's browser opens `WO-PK-Priv_friend` | each friend deal |
 | an automatic holder's shard (an automatic friend, or an automated identity) | `aes(ShardKey, piece of SmrK)`, unencrypted file **(V)** | a file on the holder's Shard Recovery drive | the holder's server holds it, but releases it only once the owner clicks the link it emailed, sealed to `Tmp-PK-Pub` **(V)** | each deal |
@@ -142,7 +142,8 @@ ciphertext and tag`. The AES key is `hkdf-sha256(ECDH(throwaway, recipient), no 
 
 ### The takeover (once per owner)
 1. **Handover.** With a fresh proof of `pw`, the server first moves any old Shamir deal off the
-   phrase (`EncBipK_auto` → `EncMK_auto`), then opens `EncBipK_server` with `MK` and hands `BipK` to
+   phrase: an automated deal on a host with automated recovery is dealt again (`EncBipK_auto` →
+   `EncMK_auto`), any other is removed. Then it opens `EncBipK_server` with `MK` and hands `BipK` to
    the browser **(V)**. If moving the deal fails, nothing is handed over **(V)**.
 2. The browser makes `EncZKMK_bip`, `EncBipK_zk`, a new `Bip-PK-Pub`/`Bip-PK-Priv`, `EncBip-PK-Priv`,
    `EncPw_bip`, `PhraseCheck` and `Bip-RK` **(V)**.
@@ -250,7 +251,7 @@ as phrase recovery, step 4.
 ### Dealing to friends
 1. The owner console's browser makes `SmrK`, `Smr-PK` and `Smr-RK`, and the copies above **(V)**.
 2. It splits `SmrK` into one piece per friend and locks each piece with its own `ShardKey`, as
-   `CreateShards` does for the automated deal **(V)**.
+   `CreateShards` does for a server-made deal **(V)**.
 3. **Gated friend** (must approve): the browser fetches the friend's Shard Recovery `WO-PK-Pub` and
    makes the shard a deposit sealed to it. The server refuses a friend whose drive isn't zero
    knowledge (9020), or a shard not sealed to their current key **(V)**.
@@ -267,9 +268,11 @@ as phrase recovery, step 4.
 
 The automated deal is dealt the same way, at first run, from the security page, or by a password
 login that finds the server-made one (`DealNeedsDealing`), which also writes `EncPw_smr` at once
-**(V)**. A recovery email change deals every deal again the same way: each shard hashed the address
-(trimmed, lower case), so the verify link sends the owner to the login, which re-deals to the same
-holders and writes `EncPw_smr` **(V)**.
+**(V)**. A recovery email change deals the deal again the same way: each shard hashed the address
+(trimmed, lower case; a server-made deal hashed it as stored), so the verify link sends the owner to
+the login, which re-deals to the same holders and writes `EncPw_smr` **(V)**. Not flagged: a deal
+whose package records no hash (from before), and an automated deal on a host without automated
+identities, which no login could deal again **(V)**.
 
 ### Password change (with the friends pair)
 As above, plus `seal(Smr-PK-Pub, new pw)` in the same request. Nothing is dealt again **(V)**.
@@ -283,9 +286,11 @@ As above, plus `seal(Smr-PK-Pub, new pw)` in the same request. Nothing is dealt 
 3. The dealer's server asks each holder, with `Tmp-PK-Pub`. The start email already said whom to ask
    and who will email a link **(V)**.
    - **An automatic holder** checks the recovery address the dealer sends against the hash it stored
-     at the deal, and emails it a one-time link (only its hash is kept; seven days; at most one email
-     per five minutes). The click, on any device, posts the code to the dealer's server, which passes
-     it on; the holder seals `aes(ShardKey, piece)` to `Tmp-PK-Pub` and releases it once **(V)**.
+     at the deal, and emails it a link with a code (only the code's hash is kept; seven days, until a
+     newer email replaces it; at most one email per five minutes). The click, on any device, posts the
+     code to the dealer's server, which passes it on; the holder seals `aes(ShardKey, piece)` to
+     `Tmp-PK-Pub` and releases it. A click doesn't use the link up, and the dealer keeps one copy of
+     each shard however often it comes **(V)**.
    - **A gated friend** approves in their console: their browser opens `ZKMK`, then `DrvK`, then
      `WO-PK-Priv_friend`, then `FileKey`, then the content, and seals `aes(ShardKey, piece)` to
      `Tmp-PK-Pub`.
@@ -303,8 +308,8 @@ As above, plus `seal(Smr-PK-Pub, new pw)` in the same request. Nothing is dealt 
 7. If `EncPw_smr` is missing or junk: `Smr-RK` and a new password, as phrase recovery step 4. The
    same request ends recovery mode **(V)**.
 8. **A server-made deal** (not yet dealt again): the bundle has no copies, and the browser rebuilds
-   `AutoK` with the shards' own indexes (the old envelopes kept the position) and sends it with a new
-   password. That is a reset with today's master key (above) **(V)**.
+   `AutoK` with the dealer's envelope indexes (the server shifts old 0-based positions to the piece's
+   x first) and sends it with a new password. That is a reset with today's master key (above) **(V)**.
 
 ## Who can do what
 

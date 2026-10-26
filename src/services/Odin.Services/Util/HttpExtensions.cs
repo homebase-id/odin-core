@@ -25,14 +25,14 @@ public static class HttpExtensions
         return code;
     }
 
-    /// <summary>
-    /// Best-effort version of <see cref="ParseProblemDetails"/> for cases where the response might not be
-    /// problem-details at all (a proxy error page, an older peer, an empty body).
-    /// </summary>
     /// <summary>The Odin error code a failed response carries; <c>NoErrorCode</c> when it carries none.</summary>
     public static OdinClientErrorCode ErrorCode(this IApiResponse response) =>
         response?.Error is { } error && error.TryParseProblemDetails(out var code) ? code : OdinClientErrorCode.NoErrorCode;
 
+    /// <summary>
+    /// Best-effort version of <see cref="ParseProblemDetails"/> for cases where the response might not be
+    /// problem-details at all (a proxy error page, an older peer, an empty body).
+    /// </summary>
     public static bool TryParseProblemDetails(this ApiException apiException, out OdinClientErrorCode code)
     {
         code = OdinClientErrorCode.NoErrorCode;

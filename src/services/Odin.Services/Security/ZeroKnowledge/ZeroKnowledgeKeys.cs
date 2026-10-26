@@ -58,8 +58,8 @@ public sealed record ZkKeyRecord
     public SymmetricKeyEncryptedAes ResetKeyEncryptedMasterKey { get; init; }
 
     /// <summary>
-    /// The friends' public key (P-384, a JWK), made by the browser at each friend deal: the phrase
-    /// key pair's twin (docs/owner-keys.md, <c>ShamirPub</c>).
+    /// The friends' public key (P-384, a JWK), made by the browser at each deal it makes: the phrase
+    /// key pair's twin (docs/owner-keys.md, <c>Smr-PK-Pub</c>).
     /// </summary>
     public string ShamirPublicKeyJwk { get; init; }
 

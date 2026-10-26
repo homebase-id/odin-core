@@ -735,7 +735,9 @@ P-384 public key (97 bytes) ‖ 12-byte IV ‖ AES-GCM`. The phrase pair's seal 
   the new `IsZeroKnowledge` on `DrivePublicKeyResponse`.
 
 A friend deal replaces the automated deal's master-key copy; an automated deal forgets the friend
-copies. The server deals only the automated deal now.
+copies. The server deals only the automated deal now. (Changed by the automated deal below: the
+browser deals it too and writes the copies; the server deals only a server-made deal, for the
+takeover's move off the phrase.)
 
 **A gated shard on the holder** is a deposit. What the holder's checks read sits in plain metadata:
 the shard id (`UniqueId`), the recovery email hash (`GroupId`), and when it arrived. Being a deposit
@@ -787,13 +789,15 @@ counted.
 - **The page's throwaway key:**
   - The status gives the key id of the recovery, pending or under way (`RecoveryKeyId`). Starting
     records the key the email's link carries, and the last start wins.
-  - The page trusts only a stored key with that id, and reuses it only for that recovery. It reads a
-    fresh status before it replaces a key.
+  - The page trusts only a stored key with that id, and reuses it for the next start from this
+    browser unless a recovery is under way for another key. It reads a fresh status before it
+    replaces a key.
   - It forgets a stored key only when the status shows no recovery, or one under way for another
     key, after a two-minute grace. A pending start never makes it forget: anyone can start one. It
     forgets the key after a reset, and at the owner's next login. A failed status read changes
     nothing.
-  - "Start over" works for the automated deal too, which has no browser key.
+  - "Start over" works for the automated deal too. (Since the automated deal below, it records a
+    browser key like every deal.)
 - **Limit:** two links clicked at the same moment from two browsers can both get in; one friend's
   approval may then be refused. It is unlikely, and a transaction alone wouldn't close it on Postgres.
 - Deposits show as sealed in the drive explorer; a download keeps their content as stored.
@@ -809,7 +813,8 @@ reset keeps the zero-knowledge master key.
   deals without the password). Status shows `ShamirPublicKeyJwk` / `HasShamirPasswordCopy`.
 - A password change re-seals it.
 
-**Ship (F4) and resets:** a friend deal is never rotated. On owner requests (where rotation runs),
+**Ship (F4) and resets:** a friend deal is never rotated. On owner requests (`RemoveDeadFriendDealIfNeeded`; rotation went
+with the automated deal),
 a friend deal whose copies are missing is removed, and the security page's red dot comes on. That
 covers old server-made friend deals at ship, and a reset with today's master key afterwards.
 
@@ -825,9 +830,9 @@ covers old server-made friend deals at ship, and a reset with today's master key
 - `DepositTests`: write, read, query, send and receive; refused on a drive that isn't zero
   knowledge; no payloads.
 - The Shamir suite is rewritten for friend deals with a C# browser (`ZkFriends`). The automated
-  rotation tests stay.
+  rotation tests stayed until the automated deal removed rotation.
 - `FailedShardRotationTests` went: friend deals don't rotate, and the gate keeps its unit test
-  (`ShardRotationGateTest`).
+  (`ShardRotationGateTest`, now `ShamirDealGateTest`).
 - The takeover's delegate cases went: the server can't make an old friend deal any more.
 
 ## Building the automated deal
@@ -976,7 +981,8 @@ Facts checked in the code or by a test are marked **(V)**.
   exits, which run at login, in transactions and from links.
   - A shard sealed to another key, or for a recovery that has ended, is `ShardLinkNoLongerValid`; a
     friend's server then drops the stale request, only if it is still the one it handled (same
-    `Created` and key): a dealer that started over asked again in the same file (test).
+    `Created` and key): a dealer that started over asked again in the same file (the drop is
+    tested; the same-request guard is not).
   - A click on a holder's link that finds no recovery collecting is `RecoveryNotReady`: the link
     itself still works. One whose shard is sealed to an earlier start's key (the holder wasn't
     reached at the new start) is `ShardLinkNoLongerValid` (test).
@@ -1005,7 +1011,7 @@ Facts checked in the code or by a test are marked **(V)**.
   in the session yet), the next password login does, if there is still no deal by then.
 - A failed automated deal at login stops nothing else: the takeover moves an old deal itself.
 - **The next password login deals a server-made automated deal again**, before the takeover:
-  `ZkStatus.DealNeedsDealing`, also set when a reset forgot an automated deal's copies, and for any
+  `ZkStatusResponse.DealNeedsDealing` (`ZkStatus.dealNeedsDealing` in js-lib), also set when a reset forgot an automated deal's copies, and for any
   deal dealt for another recovery email than today's (below) **(V)** (test). First run and the security page deal it in the browser; the server deals only for
   the takeover's move off the phrase (a fallback: the login deals in the browser first), and for these
   tests, in process (`DealServerMadeAutomatedDealAsync`). `enable-auto-password-recovery` goes.
@@ -1056,8 +1062,10 @@ Facts checked in the code or by a test are marked **(V)**.
     it again; the security page says so meanwhile.
   - A holder that is gone for good (its identity deleted or disabled) reads as unreachable at every
     click; the other holders may still be enough.
-- A deal stays stale between the email change and the login that deals it again: a recovery started
-  in that window collects nothing (every holder refuses the old hash).
+- A deal stays stale between the email change and the login that deals it again. A recovery started
+  in that window: the automatic holders refuse (the new address doesn't match the old hash), while a
+  gated friend checks only the hash, which the dealer sends as dealt, so a friend deal can still
+  complete (not tested).
 
 ## Size estimate
 

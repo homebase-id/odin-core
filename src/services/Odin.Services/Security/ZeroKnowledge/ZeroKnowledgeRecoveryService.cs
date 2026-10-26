@@ -63,7 +63,7 @@ public class ZeroKnowledgeRecoveryService(
     /// with the same threshold, then writes the password copy: an automated deal that gives back nothing
     /// in the browser (made by the server before the browser dealt every deal, or its copies forgotten
     /// by a reset with today's master key), or any deal dealt for another recovery email than today's,
-    /// which every holder now refuses.
+    /// which its automatic holders now refuse.
     /// </summary>
     /// <remarks>A server-made deal has no copies either: the server forgets them when it deals.</remarks>
     public async Task<bool> DealNeedsDealingAsync(IOdinContext odinContext) =>
