@@ -690,16 +690,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return sealedKeyHeader.Sealed;
             }
 
+            ZkDriveFiles.AssertDriveTakes(drive, keyHeader is ZkDriveKeyHeader ? EncryptionType.ZkDrive : EncryptionType.Aes);
             if (keyHeader is ZkDriveKeyHeader zkDriveKeyHeader)
             {
-                ZkDriveFiles.AssertCanHold(drive);
                 return zkDriveKeyHeader.Locked;
-            }
-
-            if (drive.IsZeroKnowledge)
-            {
-                throw new OdinClientException("The server cannot encrypt for a zero-knowledge drive",
-                    OdinClientErrorCode.DriveIsZeroKnowledge);
             }
 
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
@@ -1061,11 +1055,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             payloads = newMetadata.Payloads ?? [];
 
-            // Before any payload is copied, so a refusal leaves nothing behind; an unencrypted file has no key
-            // header to lock, as for a new file (CreateServerHeaderInternal)
-            var encryptedKeyHeader = newMetadata.IsEncrypted
-                ? await EncryptKeyHeader(originFile.DriveId, keyHeader, odinContext)
-                : EncryptedKeyHeader.Empty();
+            // Before any payload is copied, so a refusal leaves nothing behind
+            var encryptedKeyHeader = await LockKeyHeaderAsync(originFile.DriveId, keyHeader, newMetadata, odinContext);
 
             // Snapshot what the committed header points at before anything is copied over it. Both the mid-copy
             // rollback and the post-commit-failure rollback below must leave these objects alone.
@@ -1238,10 +1229,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
-            if (newMetadata.IsEncrypted)
-            {
-                ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader);
-            }
+            ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader, newMetadata);
 
             await OverwriteMetadataInternal(newKeyHeader, existingServerHeader, newMetadata, newServerMetadata, odinContext);
 
@@ -1606,11 +1594,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             Deposits.AssertNotDeposit(existingHeader);
             if (ZkDriveFiles.IsZkDriveFile(existingHeader))
             {
-                // Can't be opened to check its AES key; an unencrypted update is refused when it's stored
-                if (metadata?.IsEncrypted == true)
-                {
-                    ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader);
-                }
+                // Can't be opened to check its AES key
+                ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader, metadata);
             }
             else if (existingHeader.FileMetadata.IsEncrypted)
             {
@@ -1625,11 +1610,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         OdinClientErrorCode.InvalidKeyHeader);
                 }
 
-                if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
-                {
-                    throw new OdinClientException("When updating a file, you must change the Iv",
-                        OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
-                }
+                KeyHeader.AssertIvRotated(manifest.KeyHeader.Iv, existingKeyHeader.Iv);
             }
 
             //
@@ -2200,13 +2181,16 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return new ServerFileHeader()
             {
-                EncryptedKeyHeader = metadata.IsEncrypted
-                    ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext)
-                    : EncryptedKeyHeader.Empty(),
+                EncryptedKeyHeader = await LockKeyHeaderAsync(targetFile.DriveId, keyHeader, metadata, odinContext),
                 FileMetadata = metadata,
                 ServerMetadata = serverMetadata
             };
         }
+
+        /// <summary>The key header a file is stored with: locked for the drive, or none for an unencrypted file.</summary>
+        private async Task<EncryptedKeyHeader> LockKeyHeaderAsync(Guid driveId, KeyHeader keyHeader, FileMetadata metadata,
+            IOdinContext odinContext) =>
+            metadata.IsEncrypted ? await EncryptKeyHeader(driveId, keyHeader, odinContext) : EncryptedKeyHeader.Empty();
 
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext,
             bool includeExpired = false, bool aclDeniedAsMissing = false)

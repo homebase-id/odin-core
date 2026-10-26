@@ -41,7 +41,7 @@ public class DepositTests : V2Fixture
     public async Task ADepositIsStoredAndReturnedSealedAndOnlyTheOwnersBrowserOpensIt()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
-        var (_, writeOnlyPrivateKey) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
+        var (_, writeOnlyPrivateKey, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
         var publicKeyJwk = (await ZkOwnerSteps.GetShardRecoveryDriveAsync(frodo)).WriteOnlyPublicKeyJwk;
 
         var uniqueId = Guid.NewGuid();

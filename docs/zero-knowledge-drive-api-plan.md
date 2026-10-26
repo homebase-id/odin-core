@@ -217,6 +217,12 @@ it as it is (read 2026-10-26) **(V)**.
   - zero-knowledge-recovery-plan.md, "Deposits";
   - the remarks in `Deposits.cs`.
 
+**Simplify when deposits move (found in step 1's /simplify)**
+- `SealedKeyHeader` and `ZkDriveKeyHeader` have the same shape: an unopened key header carried through
+  a write. One base class (a locked key header whose `Type` says which) would merge
+  `EncryptKeyHeader`'s two pass-through branches and the per-type "no AES key" exemptions in both
+  writers.
+
 **Stays, because it fits the model**
 - The `Sealed` type and `seal()`: a key header on its way, or waiting in the inbox.
 - `PeerOutgoingTransferService` sending a deposit from the transient drive: that is the outbox

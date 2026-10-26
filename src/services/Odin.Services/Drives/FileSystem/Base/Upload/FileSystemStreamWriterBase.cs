@@ -465,10 +465,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 OdinClientErrorCode.InvalidKeyHeader);
         }
 
-        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? ZkDriveFiles.OpenForWrite(transferKeyEncryptedKeyHeader,
-                await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true), ref clientSharedSecret, odinContext)
+            ? await OpenForWriteAsync(transferKeyEncryptedKeyHeader, package, odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -490,11 +488,11 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     /// The new IV with an all-zero AES key, which the stored file key joins; or, on a zero-knowledge
     /// drive, the new key header itself (<see cref="ZkDriveKeyHeader"/>), stored as sent
     /// </returns>
+    /// <remarks>For an unencrypted file the key header is empty, and never read.</remarks>
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(
         FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
-        byte[] iv = null;
-        KeyHeader zkDriveKeyHeader = null;
+        var keyHeader = KeyHeader.Empty();
 
         if (uploadDescriptor.FileMetadata.IsEncrypted)
         {
@@ -508,9 +506,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
             Deposits.AssertNotDeposit(true, transferKeyEncryptedKeyHeader);
 
-            var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-            var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true);
-            var keyHeader = ZkDriveFiles.OpenForWrite(transferKeyEncryptedKeyHeader, drive, ref clientSharedSecret, odinContext);
+            keyHeader = await OpenForWriteAsync(transferKeyEncryptedKeyHeader, package, odinContext);
 
             if (!ByteArrayUtil.IsStrongKey(keyHeader.Iv))
             {
@@ -518,18 +514,14 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.MalformedMetadata);
             }
 
-            if (keyHeader is ZkDriveKeyHeader)
-            {
-                zkDriveKeyHeader = keyHeader;
-            }
-            else if (!ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), Guid.Empty.ToByteArray()))
+            // A zero-knowledge drive's key header is stored as sent; any other carries only the new IV
+            if (keyHeader is not ZkDriveKeyHeader &&
+                !ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), Guid.Empty.ToByteArray()))
             {
                 throw new OdinClientException(
                     $"You must specify a 16-byte all-zero Aes Key when file is encrypted and  storage intent is {StorageIntent.MetadataOnly}",
                     OdinClientErrorCode.MalformedMetadata);
             }
-
-            iv = keyHeader.Iv;
         }
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -555,8 +547,15 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution
         };
 
-        var newKeyHeader = zkDriveKeyHeader ?? new KeyHeader { Iv = iv, AesKey = new SensitiveByteArray(Guid.Empty.ToByteArray()) };
-        return (newKeyHeader, metadata, serverMetadata);
+        return (keyHeader, metadata, serverMetadata);
+    }
+
+    /// <summary>The key header the client sent, for the package's drive (<see cref="ZkDriveFiles.OpenForWrite"/>).</summary>
+    private async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader sent, FileUploadPackage package, IOdinContext odinContext)
+    {
+        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true);
+        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
+        return ZkDriveFiles.OpenForWrite(sent, drive, ref clientSharedSecret, odinContext);
     }
 
     /// <summary>

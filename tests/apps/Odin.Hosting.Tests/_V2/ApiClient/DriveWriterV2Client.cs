@@ -270,21 +270,21 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
     }
 
 
-    /// <param name="encryptedKeyHeader">For an encrypted file: its new key header, sent as it is</param>
+    /// <param name="lockedKeyHeader">For an encrypted file: its new key header, sent as it is</param>
     public Task<ApiResponse<UpdateFileResult>> UpdateFileByFileId(
         Guid driveId,
         Guid fileId,
         FileUpdateInstructionSetV2 uploadInstructionSet,
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads,
-        EncryptedKeyHeader encryptedKeyHeader = null)
+        EncryptedKeyHeader lockedKeyHeader = null)
     {
         return UpdateFileInternal(
             (svc, parts) => svc.UpdateFileByFileId(driveId, fileId, parts),
             uploadInstructionSet,
             fileMetadata,
             payloads,
-            encryptedKeyHeader);
+            lockedKeyHeader);
     }
 
     public Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(
@@ -322,7 +322,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         FileUpdateInstructionSetV2 uploadInstructionSet,
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads,
-        EncryptedKeyHeader encryptedKeyHeader = null)
+        EncryptedKeyHeader lockedKeyHeader = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
 
@@ -331,7 +331,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         var descriptor = new UpdateFileDescriptor
         {
-            EncryptedKeyHeader = encryptedKeyHeader,
+            EncryptedKeyHeader = lockedKeyHeader,
             FileMetadata = fileMetadata
         };
 

@@ -168,7 +168,7 @@ public class ZkDriveFileTests : V2Fixture
         var file = new ExternalFileIdentifier { TargetDrive = Drive, FileId = upload.FileId };
 
         // Same file key, new IV, as a device updates it
-        var newKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };
+        var newKeyHeader = WithNewIv(fileKey);
         var newLocked = ZkBrowser.LockFileKey(newKeyHeader, driveKey);
         var (update, _) = await frodo.V1.Drive.UpdateExistingEncryptedMetadata(file, newKeyHeader,
             Metadata(uniqueId, "updated", upload.NewVersionTag), lockedKeyHeader: newLocked);
@@ -189,7 +189,7 @@ public class ZkDriveFileTests : V2Fixture
         var uniqueId = Guid.NewGuid();
         var (upload, fileKey, _) = await UploadAsync(frodo, driveKey, uniqueId);
 
-        var newKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };
+        var newKeyHeader = WithNewIv(fileKey);
         var newLocked = ZkBrowser.LockFileKey(newKeyHeader, driveKey);
         var update = await UpdateAsync(frodo, upload.FileId, uniqueId, newKeyHeader, newLocked, upload.NewVersionTag);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
@@ -214,7 +214,7 @@ public class ZkDriveFileTests : V2Fixture
         var uniqueId = Guid.NewGuid();
         var (upload, fileKey, locked) = await UploadAsync(frodo, driveKey, uniqueId);
 
-        var newKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };
+        var newKeyHeader = WithNewIv(fileKey);
         var metadata = Metadata(uniqueId, "updated", upload.NewVersionTag);
         metadata.AllowDistribution = true;
         var (update, _) = await frodo.V1.Drive.UpdateExistingEncryptedMetadata(
@@ -235,7 +235,7 @@ public class ZkDriveFileTests : V2Fixture
         var uniqueId = Guid.NewGuid();
         var (upload, fileKey, _) = await UploadAsync(frodo, driveKey, uniqueId);
 
-        var newKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };
+        var newKeyHeader = WithNewIv(fileKey);
         var update = await UpdateAsync(frodo, upload.FileId, uniqueId, newKeyHeader, ZkBrowser.LockFileKey(newKeyHeader, driveKey),
             upload.NewVersionTag, recipients: [(OdinId)Identities.Sam]);
         Assert.That(update.ErrorCode(), Is.EqualTo(OdinClientErrorCode.ZkDriveFileCannotBeSent), update.Error?.Content);
@@ -265,12 +265,11 @@ public class ZkDriveFileTests : V2Fixture
         // The browser converts again only when the old drive key no longer opens (a reset forgot it), so
         // those files can't be opened by anyone
         var frodo = await LoginAsOwner(Identities.Frodo);
-        var keys = await ZkOwnerSteps.CreateKeysAsync(frodo, OwnerLogin.DefaultPassword);
-        var driveKeys = await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, keys.MasterKey);
+        var (zkMasterKey, _, driveKey) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
         var uniqueId = Guid.NewGuid();
-        await UploadAsync(frodo, driveKeys.DriveKey, uniqueId);
+        await UploadAsync(frodo, driveKey, uniqueId);
 
-        await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, keys.MasterKey);
+        await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, zkMasterKey);
 
         var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), read.Error?.Content);
@@ -341,10 +340,12 @@ public class ZkDriveFileTests : V2Fixture
     private async Task<(OwnerSession Owner, byte[] DriveKey)> ZeroKnowledgeDriveAsync(OwnerSession? owner = null)
     {
         var frodo = owner ?? await LoginAsOwner(Identities.Frodo);
-        var keys = await ZkOwnerSteps.CreateKeysAsync(frodo, OwnerLogin.DefaultPassword);
-        var driveKeys = await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, keys.MasterKey);
-        return (frodo, driveKeys.DriveKey);
+        var (_, _, driveKey) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
+        return (frodo, driveKey);
     }
+
+    /// <summary>The same file key with a new IV, as a device updates a file.</summary>
+    private static KeyHeader WithNewIv(KeyHeader fileKey) => new() { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };
 
     private static async Task<(CreateFileResult File, KeyHeader FileKey, EncryptedKeyHeader Locked)> UploadAsync(OwnerSession owner,
         byte[] driveKey, Guid uniqueId, TestPayloadDefinition? payload = null)

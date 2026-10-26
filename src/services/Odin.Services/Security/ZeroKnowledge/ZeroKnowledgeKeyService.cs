@@ -309,7 +309,7 @@ public class ZeroKnowledgeKeyService(
         // Nothing the server locked may use the key being dropped.  Shamir writes only unencrypted files,
         // deposits and the browser's own files here, so this only fails if something else wrote there.
         var files = (await driveMainIndex.GetAllByDriveIdAsync(driveId)).Select(ServerFileHeader.FromDriveMainIndexRecord).ToList();
-        var lockedByTheDriveKey = files.Count(h => h.FileMetadata.IsEncrypted && !Deposits.IsDeposit(h) && !ZkDriveFiles.IsZkDriveFile(h));
+        var lockedByTheDriveKey = files.Count(h => h.FileMetadata.IsEncrypted && !h.EncryptedKeyHeader.IsLockedByClient());
         if (lockedByTheDriveKey > 0)
         {
             throw new OdinClientException(
@@ -324,7 +324,7 @@ public class ZeroKnowledgeKeyService(
         var ownerContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.ReadWrite, odinContext);
         foreach (var dead in files.Where(h =>
-                     Deposits.IsDeposit(h) || ZkDriveFiles.IsZkDriveFile(h) || ShardRequestApprovalCollector.IsReleaseRequest(h)))
+                     (h.FileMetadata.IsEncrypted && h.EncryptedKeyHeader.IsLockedByClient()) || ShardRequestApprovalCollector.IsReleaseRequest(h)))
         {
             await fileSystem.Storage.HardDeleteLongTermFile(dead.FileMetadata.File, ownerContext);
         }

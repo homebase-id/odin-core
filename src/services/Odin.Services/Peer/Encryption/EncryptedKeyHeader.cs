@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Encryption
         /// </remarks>
         public KeyHeader DecryptAesToKeyHeader(ref SensitiveByteArray key)
         {
-            if (IsSealed() || IsZkDrive())
+            if (IsLockedByClient())
             {
                 throw new OdinClientException($"A {Type} key header can't be opened on the server",
                     OdinClientErrorCode.InvalidKeyHeader);
@@ -106,6 +106,9 @@ namespace Odin.Services.Peer.Encryption
         /// the IV kept as is), only with a key the server doesn't hold.
         /// </summary>
         public bool IsZkDrive() => Type == EncryptionType.ZkDrive;
+
+        /// <summary>A key header a client locked with a key the server doesn't hold: a deposit, or a zero-knowledge drive's own.</summary>
+        public bool IsLockedByClient() => IsSealed() || IsZkDrive();
 
         /// <summary>
         /// Refuses a zero-knowledge drive's key header that isn't one: version 1, a strong IV, and the

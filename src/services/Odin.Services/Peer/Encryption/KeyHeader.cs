@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 
 namespace Odin.Services.Peer.Encryption
 {
@@ -69,6 +70,16 @@ namespace Odin.Services.Peer.Encryption
                 Iv = Guid.Empty.ToByteArray(),
                 AesKey = Guid.Empty.ToByteArray().ToSensitiveByteArray()
             };
+        }
+
+        /// <summary>An update of an encrypted file must change its key header's IV.</summary>
+        public static void AssertIvRotated(byte[] newIv, byte[] existingIv)
+        {
+            if (ByteArrayUtil.EquiByteArrayCompare(newIv, existingIv))
+            {
+                throw new OdinClientException("When updating a file, you must change the Iv",
+                    OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
+            }
         }
 
         public byte[] Decrypt(byte[] encryptedData)
