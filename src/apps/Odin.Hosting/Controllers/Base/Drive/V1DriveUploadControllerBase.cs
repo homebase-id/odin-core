@@ -218,7 +218,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             section = await ReadNextMultipartSectionAsync(reader);
             logger.LogDebug("ReceiveFileStream: AddMetadata");
-            await AddNewFileMetadataAsync(driveUploadService, section);
+            await AddMetadataPartAsync(driveUploadService, section);
 
             await ReadUploadPartsAsync(reader, driveUploadService);
 
@@ -300,11 +300,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
         }
 
         /// <summary>
-        /// Adds a new file's metadata part, which is checked before any payload is read. A refusal therefore leaves the
+        /// Adds the metadata part, which the writer checks before any payload is read. A refusal therefore leaves the
         /// rest of the body unread, so the response says the connection closes: Kestrel needn't drain the body first,
         /// and an HTTP/1.1 client that watches for a response while it sends stops sending (RFC 9112 9.6).
         /// </summary>
-        private protected async Task AddNewFileMetadataAsync(FileSystemStreamWriterBase writer, MultipartSection section)
+        private protected async Task AddMetadataPartAsync(FileSystemStreamWriterBase writer, MultipartSection section)
         {
             AssertIsPart(section, MultipartUploadParts.Metadata);
             try

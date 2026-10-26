@@ -386,11 +386,9 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         FileUploadPackage package,
         IOdinContext odinContext)
     {
-        var uploadDescriptor = package.Descriptor;
-
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
-            var (iv, metadata, serverMetadata) = await UnpackForMetadataUpdate(package, uploadDescriptor, odinContext);
+            var (iv, metadata, serverMetadata) = await UnpackForMetadataUpdate(package, package.Descriptor, odinContext);
             return (keyHeader: new KeyHeader()
                 {
                     Iv = iv,
@@ -402,7 +400,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            return await UnpackMetadataForNewFileOrOverwrite(package, uploadDescriptor, odinContext);
+            return await UnpackMetadataForNewFileOrOverwrite(package, package.Descriptor, odinContext);
         }
 
         throw new OdinSystemException("Unhandled storage intent");

@@ -113,7 +113,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             await fileSystemWriter.StartUpload(driveId, uploadInstructionSet, WebOdinContext);
 
             section = await reader.ReadNextSectionAsync();
-            await AddNewFileMetadataAsync(fileSystemWriter, section);
+            await AddMetadataPartAsync(fileSystemWriter, section);
 
             await ReadUploadPartsAsync(reader, fileSystemWriter);
 
