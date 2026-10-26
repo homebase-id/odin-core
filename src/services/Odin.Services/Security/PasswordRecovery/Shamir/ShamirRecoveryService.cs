@@ -172,7 +172,8 @@ public class ShamirRecoveryService
 
         var players = pkg.Envelopes.Select(p => p.Player).ToList();
 
-        await _recoveryNotifier.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode, nonceData: recoveryPublicKeyJwk);
+        await _recoveryNotifier.EnqueueVerificationEmail(await _passwordKeyRecoveryService.GetRecoveryEmailAsync(), players,
+            RecoveryEmailType.EnterRecoveryMode, nonceData: recoveryPublicKeyJwk);
 
         if (!awaitingShards)
         {
@@ -191,13 +192,14 @@ public class ShamirRecoveryService
     {
         // Only the email: anyone can ask, and nothing changes until the owner confirms the exit with it
         // (ExitRecoveryMode).  Recovery goes on as it was meanwhile.
-        await _recoveryNotifier.EnqueueVerificationEmail([], RecoveryEmailType.ExitRecoveryMode);
+        await _recoveryNotifier.EnqueueVerificationEmail(await _passwordKeyRecoveryService.GetRecoveryEmailAsync(), [],
+            RecoveryEmailType.ExitRecoveryMode);
     }
 
     public async Task<ShamirRecoveryStatusRedacted> GetStatus(IOdinContext odinContext)
     {
         var status = await GetStatusRecordInternal();
-        var maskedEmail = EmailMasker.Mask(_tenantContext.Email);
+        var maskedEmail = EmailMasker.Mask(await _passwordKeyRecoveryService.GetRecoveryEmailAsync());
         if (null == status)
         {
             return new ShamirRecoveryStatusRedacted()
@@ -297,8 +299,11 @@ public class ShamirRecoveryService
             });
         }
 
-        var recoveryEmail = (await _passwordKeyRecoveryService.GetRecoveryInfo())?.Email;
-        var hashedRecoveryEmail = PasswordKeyRecoveryService.HashRecoveryEmail(recoveryEmail);
+        // The hash the deal was dealt with: after an email change the holders refuse until the browser
+        // deals again (ZkStatusResponse.DealNeedsDealing).  A deal from before deals recorded it is
+        // server-made, and hashed the address as stored.
+        var recoveryEmail = await _passwordKeyRecoveryService.GetRecoveryEmailAsync();
+        var hashedRecoveryEmail = package.RecoveryEmailHash ?? PasswordKeyRecoveryService.LegacyHashRecoveryEmail(recoveryEmail);
         //TODO: move this to an outbox call
 
         // Ask every holder whose shard isn't in yet ("start over" asks again), all at once: one that
@@ -437,7 +442,8 @@ public class ShamirRecoveryService
             // The address must match the hash stored at the deal, so a dealer that isn't the owner (its
             // server taken over, or a copy of its data) can't send the link elsewhere.
             if (!MailAddress.TryCreate(request.RecoveryEmail, out var email) ||
-                PasswordKeyRecoveryService.HashRecoveryEmail(request.RecoveryEmail) != shard.RecoveryEmailHash)
+                (PasswordKeyRecoveryService.HashRecoveryEmail(request.RecoveryEmail) != shard.RecoveryEmailHash &&
+                 PasswordKeyRecoveryService.LegacyHashRecoveryEmail(request.RecoveryEmail) != shard.RecoveryEmailHash))
             {
                 throw new OdinSecurityException("Invalid recovery email");
             }
@@ -624,7 +630,7 @@ public class ShamirRecoveryService
         {
             // The dealer can't open the shards: the browser that started recovery rebuilds the secret
             // (GetRecoveryBundleAsync).  The email carries nothing.
-            await _recoveryNotifier.EnqueueShardsCollectedEmail();
+            await _recoveryNotifier.EnqueueShardsCollectedEmail(await _passwordKeyRecoveryService.GetRecoveryEmailAsync());
 
             await _mediator.Publish(new ShamirPasswordRecoverySufficientShardsCollectedNotification()
             {

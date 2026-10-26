@@ -266,8 +266,10 @@ as phrase recovery, step 4.
 6. The next password login writes `EncPw_smr` **(V)**.
 
 The automated deal is dealt the same way, at first run, from the security page, or by a password
-login that finds the server-made one (`AutomatedDealNeedsDealing`), which also writes `EncPw_smr`
-at once **(V)**.
+login that finds the server-made one (`DealNeedsDealing`), which also writes `EncPw_smr` at once
+**(V)**. A recovery email change deals every deal again the same way: each shard hashed the address
+(trimmed, lower case), so the verify link sends the owner to the login, which re-deals to the same
+holders and writes `EncPw_smr` **(V)**.
 
 ### Password change (with the friends pair)
 As above, plus `seal(Smr-PK-Pub, new pw)` in the same request. Nothing is dealt again **(V)**.

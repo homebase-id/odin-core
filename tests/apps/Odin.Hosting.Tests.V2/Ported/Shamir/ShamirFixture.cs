@@ -4,6 +4,7 @@ using Autofac;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -266,6 +267,12 @@ public abstract class ShamirFixture : V2Fixture
     protected async Task<DealerShardConfig> ArrangeAutomatedDealAsync(OwnerSession dealer)
     {
         await MakeZeroKnowledgeAsync(dealer);
+        return await DealAutomatedRecoveryAsync(dealer);
+    }
+
+    /// <summary>The automated deal dealt (again) as a password login deals it, with its password copy.</summary>
+    protected async Task<DealerShardConfig> DealAutomatedRecoveryAsync(OwnerSession dealer)
+    {
         var players = await SecurityOf(dealer).GetAutomatedRecoveryPlayers();
         Assert.That(players.StatusCode, Is.EqualTo(HttpStatusCode.OK), players.Error?.Content);
 
@@ -517,6 +524,34 @@ public abstract class ShamirFixture : V2Fixture
         _recoveryLinks.Latest(new OdinId(dealer.Identity.DomainName), kind);
 
     /// <summary>How many <paramref name="kind"/> notifications the host sent <paramref name="dealer"/> so far.</summary>
+    protected IReadOnlyList<RecoveryNotification> RecoveryNotifications(OwnerSession dealer, RecoveryNotificationKind kind) =>
+        _recoveryLinks.All(new OdinId(dealer.Identity.DomainName), kind);
+
+    /// <summary>
+    /// Changes the recovery email as the security page does: with the password, then the link emailed to
+    /// <paramref name="address"/>.  Returns the link's answer, a redirect.
+    /// </summary>
+    protected async Task<ApiResponse<HttpContent>> ChangeRecoveryEmailAsync(OwnerSession owner, string address)
+    {
+        // Plain: both endpoints are exempt from shared-secret encryption
+        var started = await PlainSecurityOf(owner).UpdateRecoveryEmail(new UpdateRecoveryEmailRequest
+        {
+            Email = address,
+            PasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(Host, owner.Identity.DomainName,
+                OwnerLogin.DefaultPassword)
+        });
+        Assert.That(started.StatusCode, Is.EqualTo(HttpStatusCode.OK), started.Error?.Content);
+
+        var link = RecoveryLink(owner, RecoveryNotificationKind.VerifyRecoveryEmail);
+        Assert.That(link.To, Is.EqualTo(address), "the link goes to the new address");
+        return await RestService.For<ITestSecurityContextOwnerClient>(owner.Factory.CreatePlainHttpClient(owner.Identity))
+            .VerifyRecoveryEmail(link.NonceId.ToString());
+    }
+
+    /// <summary>Where <paramref name="response"/> redirected to, whether or not the client followed it.</summary>
+    protected static string RedirectOf(IApiResponse response) =>
+        response.Headers.Location?.OriginalString ?? response.RequestMessage?.RequestUri?.PathAndQuery ?? "";
+
     protected int RecoveryNotificationCount(OwnerSession dealer, RecoveryNotificationKind kind) =>
         _recoveryLinks.Count(new OdinId(dealer.Identity.DomainName), kind);
 

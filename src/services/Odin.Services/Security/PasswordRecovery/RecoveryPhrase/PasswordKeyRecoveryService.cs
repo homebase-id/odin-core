@@ -201,18 +201,31 @@ public class PasswordKeyRecoveryService(
         };
     }
 
+    /// <summary>
+    /// The owner's one email, the security page's: every recovery email goes there, and the deals hash
+    /// it.  The registration address until the owner sets one.
+    /// </summary>
+    public async Task<string> GetRecoveryEmailAsync() => (await GetRecoveryInfo())?.Email;
+
     public async Task<Guid> GetHashedRecoveryEmail()
     {
-        var recoveryInfo = await GetRecoveryInfo();
-        OdinValidationUtils.AssertValidEmail(recoveryInfo?.Email, "Recovery email must be set to configure sharding");
-        return HashRecoveryEmail(recoveryInfo?.Email);
+        var email = await GetRecoveryEmailAsync();
+        OdinValidationUtils.AssertValidEmail(email, "Recovery email must be set to configure sharding");
+        return HashRecoveryEmail(email);
     }
 
     /// <summary>
     /// The recovery email as each shard stores it at the deal: an automatic holder checks the address
-    /// a dealer sends against it before it emails a link there.
+    /// a dealer sends against it before it emails a link there.  Of the address trimmed and in lower
+    /// case, so <c>Michael@example.com</c> and <c>michael@example.com</c> are the same address.
     /// </summary>
-    public static Guid HashRecoveryEmail(string email) => ByteArrayUtil.ReduceSHA256Hash(email);
+    public static Guid HashRecoveryEmail(string email) => ByteArrayUtil.ReduceSHA256Hash(email.Trim().ToLowerInvariant());
+
+    /// <summary>
+    /// The hash as deals took it before <see cref="HashRecoveryEmail"/> ignored case: of the address
+    /// exactly as stored.  Only server-made deals have it; the next password login deals them again.
+    /// </summary>
+    public static Guid LegacyHashRecoveryEmail(string email) => ByteArrayUtil.ReduceSHA256Hash(email);
 
     public async Task UpdateAccountRecoveryEmail(Guid nonceId)
     {

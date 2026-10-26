@@ -166,6 +166,44 @@ public class AutomatedRecoveryTests : ShamirFixture
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
     }
 
+    /// <summary>
+    /// The owner has one email, the security page's (#2016), and the deals follow it (#2017): every
+    /// holder hashed the old address, so a change sends the verify link to the login, which deals again.
+    /// The same address in another case is the same address.
+    /// </summary>
+    [Test]
+    public async Task AnEmailChangeDealsAgainAndEveryRecoveryEmailGoesToTheOneAddress()
+    {
+        var (frodo, _) = Cast();
+        await ArrangeAutomatedDealAsync(frodo);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.False);
+
+        const string address = "Frodo.Baggins@Example.com";
+        var changed = await ChangeRecoveryEmailAsync(frodo, address);
+        Assert.That(RedirectOf(changed), Does.StartWith("/owner/login?redeal=1&returnUrl="), "the login deals again");
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.True, "every holder hashed the old address");
+
+        await DealAutomatedRecoveryAsync(frodo);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.False);
+
+        var lowerCase = address.ToLowerInvariant();
+        var sameAgain = await ChangeRecoveryEmailAsync(frodo, lowerCase);
+        Assert.That(RedirectOf(sameAgain), Is.EqualTo("/owner/security/overview?fv=1"), "the same address: nothing to deal");
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.False);
+
+        // Every recovery email goes to it, and the holders take it
+        await EnterRecoveryModeAsync(frodo);
+        Assert.That(RecoveryLink(frodo, RecoveryNotificationKind.EnterRecoveryMode).To, Is.EqualTo(lowerCase));
+        Assert.That((await AnonymousSecurityOf(frodo).GetShamirRecoverStatus()).Content!.Email, Is.EqualTo(EmailMasker.Mask(lowerCase)));
+        var holderEmails = RecoveryNotifications(frodo, RecoveryNotificationKind.ReleaseShard);
+        Assert.That(holderEmails, Is.Not.Empty);
+        Assert.That(holderEmails.Select(n => n.To), Is.All.EqualTo(lowerCase));
+
+        await FillEverySlotAsync(frodo);
+        Assert.That(RecoveryLink(frodo, RecoveryNotificationKind.ShardsCollected).To, Is.EqualTo(lowerCase));
+        Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password));
+    }
+
     [Test]
     public async Task APasswordChangeSealsTheNewPasswordAndDealsNothingAgain()
     {
@@ -196,13 +234,13 @@ public class AutomatedRecoveryTests : ShamirFixture
         var (frodo, _) = Cast();
         await MakeZeroKnowledgeAsync(frodo);
         await ArrangeServerMadeAutomatedDealAsync(frodo);
-        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).AutomatedDealNeedsDealing, Is.True);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.True);
 
         var recovered = await RecoverServerMadeDealAsync(frodo, NewPassword);
 
         var status = await ZkOwnerSteps.GetStatusAsync(recovered);
         Assert.That(status.ZkSaltKek64, Is.Null, "a reset with today's master key forgets the zero-knowledge keys");
-        Assert.That(status.AutomatedDealNeedsDealing, Is.True, "the next password login deals it in the browser");
+        Assert.That(status.DealNeedsDealing, Is.True, "the next password login deals it in the browser");
     }
 
     [Test]
@@ -214,7 +252,7 @@ public class AutomatedRecoveryTests : ShamirFixture
 
         // What the login does when the status asks for it
         var after = await ArrangeAutomatedDealAsync(frodo);
-        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).AutomatedDealNeedsDealing, Is.False);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.False);
         Assert.That(after.Envelopes.Select(e => e.ShardId), Has.None.AnyOf(before.Envelopes.Select(e => e.ShardId).ToArray()),
             "every shard is new");
 

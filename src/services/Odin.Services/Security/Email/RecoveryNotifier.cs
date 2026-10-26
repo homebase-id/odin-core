@@ -57,7 +57,7 @@ public class RecoveryNotifier(
 
         var link = BuildResetUrl($"https://{tenant}{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email-fwd", nonceId, "");
 
-        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.VerifyRecoveryEmail, link, nonceId));
+        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.VerifyRecoveryEmail, link, nonceId, To: email.Address));
 #if DEBUG
         logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
 #endif
@@ -77,7 +77,8 @@ public class RecoveryNotifier(
     }
 
     /// <param name="nonceData">Kept with the link's nonce: the recovering browser's public key, for a friend deal.</param>
-    public async Task EnqueueVerificationEmail(List<ShamiraPlayer> players, RecoveryEmailType emailType, string nonceData = "")
+    /// <param name="email">The recovery email (<c>PasswordKeyRecoveryService.GetRecoveryEmailAsync</c>).</param>
+    public async Task EnqueueVerificationEmail(string email, List<ShamiraPlayer> players, RecoveryEmailType emailType, string nonceData = "")
     {
         AssertEmailEnabled();
 
@@ -86,7 +87,7 @@ public class RecoveryNotifier(
         job.Data = new SendRecoveryModeVerificationEmailJobData()
         {
             Domain = tenantContext.HostOdinId,
-            Email = tenantContext.Email,
+            Email = email,
             Players = players,
             NonceId = await MakeNonce(nonceData),
             EmailType = emailType,
@@ -98,7 +99,7 @@ public class RecoveryNotifier(
             emailType == RecoveryEmailType.EnterRecoveryMode
                 ? RecoveryNotificationKind.EnterRecoveryMode
                 : RecoveryNotificationKind.ExitRecoveryMode,
-            link, job.Data.NonceId));
+            link, job.Data.NonceId, To: email));
 #if DEBUG
         if (emailType == RecoveryEmailType.EnterRecoveryMode)
         {
@@ -128,10 +129,10 @@ public class RecoveryNotifier(
     /// the secret.  The email carries no link and no key (docs/zero-knowledge-recovery-plan.md,
     /// decision 11).
     /// </summary>
-    public async Task EnqueueShardsCollectedEmail()
+    public async Task EnqueueShardsCollectedEmail(string email)
     {
         var tenant = tenantContext.HostOdinId;
-        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.ShardsCollected, null, Guid.Empty));
+        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.ShardsCollected, null, Guid.Empty, To: email));
 
         AssertEmailEnabled();
 
@@ -139,7 +140,7 @@ public class RecoveryNotifier(
         {
             await EnqueueEmailAsync(new Envelope
             {
-                To = [new NameAndEmailAddress { Email = tenantContext.Email }],
+                To = [new NameAndEmailAddress { Email = email }],
                 Subject = "Your recovery is ready",
                 TextMessage = RecoveryEmails.ShardsCollectedText(tenant),
                 HtmlMessage = RecoveryEmails.ShardsCollectedHtml(tenant)
@@ -159,7 +160,7 @@ public class RecoveryNotifier(
 
         var holder = tenantContext.HostOdinId;
         var link = $"https://{dealer}/owner/shamir-account-recovery?fill={shardId:N}&code={Uri.EscapeDataString(code)}";
-        notificationSink.Notify(new RecoveryNotification(dealer, RecoveryNotificationKind.ReleaseShard, link, Guid.Empty, holder));
+        notificationSink.Notify(new RecoveryNotification(dealer, RecoveryNotificationKind.ReleaseShard, link, Guid.Empty, holder, email.Address));
 #if DEBUG
         logger.LogInformation("\n\n\n{link}\n\n\n{holder} releases shard {shardId}", link, holder, shardId);
 #endif

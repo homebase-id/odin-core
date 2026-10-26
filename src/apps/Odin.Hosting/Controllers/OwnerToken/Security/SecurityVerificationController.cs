@@ -12,6 +12,7 @@ using Odin.Services.Security;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.Job;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
 
@@ -21,6 +22,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiExplorerSettings(GroupName = "owner-v1")]
 public class SecurityVerificationController(
     OwnerSecurityHealthService securityHealthService,
+    ZeroKnowledgeRecoveryService zeroKnowledgeRecoveryService,
     TenantConfigService tenantConfigService,
     TenantContext tenantContext,
     IJobManager jobManager) : OdinControllerBase
@@ -108,6 +110,14 @@ public class SecurityVerificationController(
         await securityHealthService.FinalizeUpdateRecoveryEmail(Guid.Parse(id), WebOdinContext);
 
         const string redirect = "/owner/security/overview?fv=1";
+
+        // Every deal hashed the old address, so every holder now refuses it: the login deals again, to
+        // the same holders, and only it has the password the new deal's password copy needs
+        if (await zeroKnowledgeRecoveryService.DealNeedsDealingAsync(WebOdinContext))
+        {
+            return Redirect($"/owner/login?redeal=1&returnUrl={Uri.EscapeDataString(redirect)}");
+        }
+
         return Redirect(redirect);
     }
 

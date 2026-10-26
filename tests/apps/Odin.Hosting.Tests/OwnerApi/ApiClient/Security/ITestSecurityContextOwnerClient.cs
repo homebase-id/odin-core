@@ -95,6 +95,14 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-recovery-key")]
         Task<ApiResponse<HttpContent>> VerifyRecoveryKey([Body] VerifyRecoveryKeyRequest request);
 
+        /// <summary>Starts a recovery email change: the link goes to the new address.</summary>
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/update-recovery-email")]
+        Task<ApiResponse<HttpContent>> UpdateRecoveryEmail([Body] UpdateRecoveryEmailRequest request);
+
+        /// <summary>The new address's link: finishes the change, and redirects.</summary>
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-email")]
+        Task<ApiResponse<HttpContent>> VerifyRecoveryEmail(string id);
+
         /// <summary>The red dot on the security page.</summary>
         [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/needs-attention")]
         Task<ApiResponse<NeedsAttentionResponse>> GetNeedsAttention();

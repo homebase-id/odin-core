@@ -172,7 +172,8 @@ public class ShamirConfigurationService(
                 EncryptionKey = s.EncryptionKey,
                 EncryptionIv = s.EncryptionIv
             }).ToList(),
-            UsesAutomatedRecovery = automatedDeal
+            UsesAutomatedRecovery = automatedDeal,
+            RecoveryEmailHash = hashedRecoveryEmail
         }, odinContext);
 
         PlayerEncryptedShard AsSent(DealtShard shard) => new()
@@ -322,7 +323,8 @@ public class ShamirConfigurationService(
         {
             MinMatchingShards = minShards,
             Envelopes = shards.DealerEnvelops,
-            UsesAutomatedRecovery = true
+            UsesAutomatedRecovery = true,
+            RecoveryEmailHash = hashedRecoveryEmail
         };
 
         await SaveDealerPackage(package, odinContext);

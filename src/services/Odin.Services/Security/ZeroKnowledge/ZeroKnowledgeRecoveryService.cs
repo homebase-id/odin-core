@@ -54,27 +54,40 @@ public class ZeroKnowledgeRecoveryService(
             HasPasswordCopy = keys?.PhrasePublicKeyEncryptedPassword != null,
             ShamirPublicKeyJwk = keys?.HasShamirCopies() == true ? keys.ShamirPublicKeyJwk : null,
             HasShamirPasswordCopy = keys?.ShamirPublicKeyEncryptedPassword != null,
-            AutomatedDealNeedsDealing = await AutomatedDealNeedsDealingAsync(keys, odinContext)
+            DealNeedsDealing = await DealNeedsDealingAsync(keys, odinContext)
         };
     }
 
     /// <summary>
-    /// An automated deal that gives back nothing in the browser: made by the server before the browser
-    /// dealt every deal, or its copies forgotten by a reset with today's master key.
+    /// Whether the deal can't recover as it is, so a password login deals it again, to the same holders
+    /// with the same threshold, then writes the password copy: an automated deal that gives back nothing
+    /// in the browser (made by the server before the browser dealt every deal, or its copies forgotten
+    /// by a reset with today's master key), or any deal dealt for another recovery email than today's,
+    /// which every holder now refuses.
     /// </summary>
     /// <remarks>A server-made deal has no copies either: the server forgets them when it deals.</remarks>
-    private async Task<bool> AutomatedDealNeedsDealingAsync(ZkKeyRecord keys, IOdinContext odinContext)
-    {
-        // The cheap checks first; the package is read only for a deal without copies
-        if (keys?.HasShamirCopies() == true || shamirConfigurationService.GetAutomatedRecoveryPlayers() == null)
-        {
-            return false;
-        }
+    public async Task<bool> DealNeedsDealingAsync(IOdinContext odinContext) =>
+        await DealNeedsDealingAsync(await zeroKnowledgeKeyService.GetKeysAsync(odinContext), odinContext);
 
+    private async Task<bool> DealNeedsDealingAsync(ZkKeyRecord keys, IOdinContext odinContext)
+    {
         // Best effort: the login's key steps read this status, and must not fail over a deal
         try
         {
-            return (await shamirConfigurationService.GetDealerShardPackage(odinContext))?.UsesAutomatedRecovery == true;
+            var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
+            if (package == null)
+            {
+                return false;
+            }
+
+            if (package.UsesAutomatedRecovery && keys?.HasShamirCopies() != true &&
+                shamirConfigurationService.GetAutomatedRecoveryPlayers() != null)
+            {
+                return true;
+            }
+
+            var email = await passwordKeyRecoveryService.GetRecoveryEmailAsync();
+            return email != null && package.RecoveryEmailHash != PasswordKeyRecoveryService.HashRecoveryEmail(email);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

@@ -430,6 +430,17 @@ public class FriendRecoveryTests : ShamirFixture
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
     }
 
+    [Test]
+    public async Task AnEmailChangeAsksTheLoginToDealToTheFriendsAgain()
+    {
+        var (frodo, _, _) = await ArrangeDelegateShardsAsync();
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.False);
+
+        var changed = await ChangeRecoveryEmailAsync(frodo, "frodo.new@example.com");
+        Assert.That(RedirectOf(changed), Does.StartWith("/owner/login?redeal=1&returnUrl="));
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.True, "every friend hashed the old address");
+    }
+
     /// <summary>
     /// A key that one parser would take and another couldn't read back (a coordinate with a leading
     /// zero byte) is refused at the start, so it can never be recorded and break the status.

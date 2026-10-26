@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core;
 using Odin.Core.Serialization;
@@ -23,6 +24,13 @@ public class DealerShardPackage
     public UnixTimeUtc Updated { get; set; }
     
     public bool UsesAutomatedRecovery { get; set; }
+
+    /// <summary>
+    /// The recovery email's hash the deal was dealt with, as each shard stores it.  Another than today's
+    /// means the email changed since: the browser deals again.  Null for a deal from before deals
+    /// recorded it.
+    /// </summary>
+    public Guid? RecoveryEmailHash { get; init; }
 
     public static string Serialize(DealerShardPackage package)
     {

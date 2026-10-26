@@ -1005,8 +1005,8 @@ Facts checked in the code or by a test are marked **(V)**.
   in the session yet), the next password login does, if there is still no deal by then.
 - A failed automated deal at login stops nothing else: the takeover moves an old deal itself.
 - **The next password login deals a server-made automated deal again**, before the takeover:
-  `ZkStatus.AutomatedDealNeedsDealing`, also set when a reset forgot an automated deal's copies
-  **(V)** (test). First run and the security page deal it in the browser; the server deals only for
+  `ZkStatus.DealNeedsDealing`, also set when a reset forgot an automated deal's copies, and for any
+  deal dealt for another recovery email than today's (below) **(V)** (test). First run and the security page deal it in the browser; the server deals only for
   the takeover's move off the phrase (a fallback: the login deals in the browser first), and for these
   tests, in process (`DealServerMadeAutomatedDealAsync`). `enable-auto-password-recovery` goes.
 - **Rotation is gone** for every deal, and with it `RotationPending` (the risk report's paragraph and
@@ -1014,10 +1014,27 @@ Facts checked in the code or by a test are marked **(V)**.
   (`RemoveDeadFriendDealIfNeeded`) **(V)**; its gate is `ShamirDealGate` now.
 - The status builds the slots only while shards are awaited: the page shows them then **(V)**.
 - New error: `ShardLinkNoLongerValid` (9024), also for a link a mail client cut.
+- **One email (#2016):** every recovery email (start, exit, ready, each holder's link) and the
+  status's masked address use the security page's recovery email, which is the registration address
+  until the owner sets one (`PasswordKeyRecoveryService.GetRecoveryEmailAsync`) **(V)** (test: the
+  test sink records each email's address). The registration address is left only for the
+  provisioning email and the admin listing.
+- **An email change deals again (#2017):** each dealer package records the email hash it was dealt
+  with (`RecoveryEmailHash`); another than today's sets `DealNeedsDealing` **(V)** (tests, friends and
+  automated). The new address's verify link then lands on the login (`/owner/login?redeal=1`), with
+  the form shown even to an owner who is logged in: only a password login has the password the new
+  deal's password copy needs. The login deals again, to the same holders with the same threshold
+  (`dealAgain`: the automated deal, or the friends, each gated friend's key fetched again), then writes
+  the copy. Until then the security page says so and links to that login; every later password
+  login tries again. Not run in a browser.
+  - **The hash ignores case:** of the address trimmed and in lower case, so `Michael@example.com` and
+    `michael@example.com` are one address, and changing only the case deals nothing (test,
+    mutation-checked). A server-made deal hashed the address as stored: the dealer sends that hash for
+    a package without `RecoveryEmailHash`, and a holder takes either hash of the address it is sent;
+    the next password login deals such a deal again anyway.
+  - The login's zero-knowledge steps are capped at 10 seconds; a friend re-deal cut off there posts
+    nothing (the deal is posted whole) and is tried again at the next login.
 - **Known limits:**
-  - Recovery emails go to the registration address (`TenantContext.Email`), while holder links go to
-    the recovery email the holders hashed at the deal; the start email says so. They differ only
-    after the owner changed the recovery email (#2016).
   - A holder on a server without email can't release.
   - The status reads the package and the collected shards, and seals the slot list, on each poll
     while shards are awaited (every five seconds per open page). Bounded to that window.
@@ -1026,13 +1043,11 @@ Facts checked in the code or by a test are marked **(V)**.
   - A first-run deal that failed is retried at the next password login in the same browser only
     (the flag is in its local storage); elsewhere the security page offers it.
   - An automated deal whose copies a reset forgot can't recover until the next password login deals
-    it again, and the security page doesn't flag it meanwhile.
+    it again; the security page says so meanwhile.
   - A holder that is gone for good (its identity deleted or disabled) reads as unreachable at every
     click; the other holders may still be enough.
-- **Found, not fixed (pre-existing):** changing the recovery email leaves every deal's stored email
-  hash stale, so the holders refuse the requests until the owner deals again
-  (`UpdateAccountRecoveryEmail` touches no deal) **(V)**. With this design the holders couldn't email
-  the new address anyway (#2017).
+- A deal stays stale between the email change and the login that deals it again: a recovery started
+  in that window collects nothing (every holder refuses the old hash).
 
 ## Size estimate
 

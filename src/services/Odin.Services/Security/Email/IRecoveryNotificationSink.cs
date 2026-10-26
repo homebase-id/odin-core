@@ -22,14 +22,16 @@ public enum RecoveryNotificationKind
 /// <summary>
 /// A recovery link a <see cref="RecoveryNotifier"/> generated for <paramref name="Tenant"/>'s recovery,
 /// with the secrets it carries.  <paramref name="Holder"/> is set only for
-/// <see cref="RecoveryNotificationKind.ReleaseShard"/>: the holder that sent it.
+/// <see cref="RecoveryNotificationKind.ReleaseShard"/>: the holder that sent it.  <paramref name="To"/>
+/// is the address the email goes to.
 /// </summary>
 public sealed record RecoveryNotification(
     OdinId Tenant,
     RecoveryNotificationKind Kind,
     string Link,
     Guid NonceId,
-    OdinId? Holder = null);
+    OdinId? Holder = null,
+    string To = null);
 
 /// <summary>
 /// Receives every recovery link <see cref="RecoveryNotifier"/> generates, whether or not an email is

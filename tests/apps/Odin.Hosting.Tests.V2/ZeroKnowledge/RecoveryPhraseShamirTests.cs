@@ -74,7 +74,7 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         DriveAsserts.AssertRejected(await SecurityOf(recovered).RequestRecoveryKey(), OdinClientErrorCode.RecoveryPhraseNeedsReentry);
 
         // The deal is still the server's: the next password login deals it again in the browser
-        Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).AutomatedDealNeedsDealing, Is.True);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).DealNeedsDealing, Is.True);
 
         var otherPhrase = BIP39Util.GenerateBIP39(ByteArrayUtil.GetRndByteArray(16));
         var mistyped = await ZkOwnerSteps.Client(recovered).ReenterPhrase(ZkBrowser.MakePhraseCopies(otherPhrase, keys.MasterKey));
