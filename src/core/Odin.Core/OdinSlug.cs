@@ -15,7 +15,7 @@ namespace Odin.Core;
 /// <remarks>
 /// <para>
 /// A slug is a URL path segment <b>and</b> a wire address other identities resolve against
-/// (docs/drive-addressing.md, Slug format).  So the characters are those both of these allow:
+/// (docs/security-model.md, Drive addressing).  So the characters are those both of these allow:
 /// </para>
 /// <list type="bullet">
 /// <item>RFC 3986 §2.3, unreserved characters, which never need percent-encoding anywhere in a URI;</item>

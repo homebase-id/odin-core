@@ -461,7 +461,7 @@ public class DriveManager : IDriveManager
     /// <para>
     /// Never overwrites.  Replacing a live keypair would strand every deposit already sealed to the old
     /// public half, so a drive that has one is skipped and the run stays repeatable.  Key rotation is a
-    /// separate feature with its own grace-window handling (docs/drive-addressing.md).
+    /// separate feature with its own grace-window handling (docs/archive/drive-addressing.md).
     /// </para>
     /// </remarks>
     internal async Task<bool> EnsureWriteOnlyKeyPairAsync(Guid driveId, IOdinContext odinContext)

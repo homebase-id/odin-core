@@ -16,7 +16,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     /// <remarks>
     /// The point of the key is writing to a drive you cannot read: seal to the public half and only a
     /// holder of that drive's storage key can open it, so collecting deposits costs the recipient no new
-    /// grant (docs/drive-addressing.md).
+    /// grant (docs/security-model.md, Drive addressing).
     /// <para>
     /// A read has no use for it, so <b>Write on the target drive is required</b> and a caller without it
     /// is refused rather than told the drive is missing — by the time you ask you have already resolved

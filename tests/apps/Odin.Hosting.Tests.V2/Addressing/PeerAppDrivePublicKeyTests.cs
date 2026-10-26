@@ -24,7 +24,7 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 /// </summary>
 /// <remarks>
 /// The key exists so a caller can write to a drive it cannot read -- seal to the public half and only
-/// a holder of that drive's storage key can open it (docs/drive-addressing.md).  So the gate is Write
+/// a holder of that drive's storage key can open it (docs/security-model.md, Drive addressing).  So the gate is Write
 /// on the drive, and the test that matters is not "a key came back" but that the key which came back
 /// is the one the drive actually holds: sealed to it, the owner can open it.
 /// </remarks>

@@ -553,7 +553,7 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
 - Server features that need plaintext today, still to audit: feed distribution, email, profile
   publishing, guest browsing.
 - How a sender finds the right receiving drive on the peer's side (via
-  [drive-addressing.md](drive-addressing.md)).
+  [archive/drive-addressing.md](archive/drive-addressing.md)).
 
 ## Recovery
 
