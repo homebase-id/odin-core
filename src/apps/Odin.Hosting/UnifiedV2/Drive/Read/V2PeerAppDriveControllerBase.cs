@@ -11,7 +11,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read;
 
 /// <summary>
 /// Shared plumbing for the slug-addressed peer routes,
-/// <c>/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/…</c> (docs/drive-addressing.md).
+/// <c>/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/…</c> (docs/security-model.md, Drive addressing).
 /// </summary>
 /// <remarks>
 /// These routes exist so a caller can address another identity's drive without both hosts sharing

@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 /// <summary>
 /// Writing to another identity's drive by slug:
 /// <c>POST /api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/{send,senddeleterequest}</c>.
-/// This is the case docs/drive-addressing.md leads with -- sending to someone's chat drive without
+/// This is the case docs/archive/drive-addressing.md leads with -- sending to someone's chat drive without
 /// both sides sharing hardcoded guid constants.
 /// </summary>
 /// <remarks>

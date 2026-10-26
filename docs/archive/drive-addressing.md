@@ -1,8 +1,15 @@
 # Drive addressing: DriveId, Type, Slug, AppId (part 1/4)
 
+> **Archived 2026-10-24.** Built (#1787, #1901, #1703, #1939). What is true today, and the reasons
+> for the design, are in [security-model.md, section 3, Drive addressing](../security-model.md#drive-addressing-slugs).
+> This copy keeps the original argument; parts of it were changed or never built (the slug cap is
+> 14, not 12; the columns are `NOT NULL`; the type-pair checks and retiring
+> `metadata/channel-drives` are open issues). It was written in `docs/`, so the files it names
+> "next to this file" are in the folder above.
+
 This is a continuation of the document docs/app-circle-mmembership-plan.md
 
-*Status: proposal, for discussion. Prompted by the app-owned-drives direction.*
+*Status (at the time): proposal, for discussion. Prompted by the app-owned-drives direction.*
 
 Today a drive is addressed by Guids that both ends must hardcode. We want an app to name its own
 drives, and a **remote** caller to address them, with short slugs — `/apps/chat/drives/messages`.

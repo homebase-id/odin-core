@@ -41,7 +41,7 @@ public static class SwaggerInfo
 
     /// <summary>
     /// Temporary bucket for the slug-addressed routes
-    /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>, docs/drive-addressing.md), so they can be reviewed
+    /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>, docs/security-model.md, Drive addressing), so they can be reviewed
     /// as a group.  Fold them into the tags above once the shape is settled.
     /// </summary>
     public const string NewStuff = "New Stuff (slug addressing)";
