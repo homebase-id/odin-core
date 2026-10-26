@@ -71,7 +71,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         List<TestPayloadDefinition> payloads = null,
         AppNotificationOptions notificationOptions = null,
         KeyHeader keyHeader = null,
-        EncryptedKeyHeader sealedKeyHeader = null)
+        EncryptedKeyHeader lockedKeyHeader = null)
     {
         if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
         {
@@ -116,8 +116,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         var descriptor = new UploadFileDescriptor
         {
-            // A deposit sends its key header sealed, as it is stored (sealedKeyHeader)
-            EncryptedKeyHeader = sealedKeyHeader ?? EncryptedKeyHeader.EncryptKeyHeaderAes(
+            // A deposit's key header and a zero-knowledge drive's own go as they are stored (lockedKeyHeader)
+            EncryptedKeyHeader = lockedKeyHeader ?? EncryptedKeyHeader.EncryptKeyHeaderAes(
                 keyHeader,
                 instructionSet.TransferIv,
                 ref sharedSecret),
@@ -270,18 +270,21 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
     }
 
 
+    /// <param name="encryptedKeyHeader">For an encrypted file: its new key header, sent as it is</param>
     public Task<ApiResponse<UpdateFileResult>> UpdateFileByFileId(
         Guid driveId,
         Guid fileId,
         FileUpdateInstructionSetV2 uploadInstructionSet,
         UploadFileMetadata fileMetadata,
-        List<TestPayloadDefinition> payloads)
+        List<TestPayloadDefinition> payloads,
+        EncryptedKeyHeader encryptedKeyHeader = null)
     {
         return UpdateFileInternal(
             (svc, parts) => svc.UpdateFileByFileId(driveId, fileId, parts),
             uploadInstructionSet,
             fileMetadata,
-            payloads);
+            payloads,
+            encryptedKeyHeader);
     }
 
     public Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(
@@ -318,7 +321,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         Func<IDriveWriterHttpClientApiV2, StreamPart[], Task<ApiResponse<UpdateFileResult>>> invoke,
         FileUpdateInstructionSetV2 uploadInstructionSet,
         UploadFileMetadata fileMetadata,
-        List<TestPayloadDefinition> payloads)
+        List<TestPayloadDefinition> payloads,
+        EncryptedKeyHeader encryptedKeyHeader = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
 
@@ -327,7 +331,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         var descriptor = new UpdateFileDescriptor
         {
-            EncryptedKeyHeader = null,
+            EncryptedKeyHeader = encryptedKeyHeader,
             FileMetadata = fileMetadata
         };
 

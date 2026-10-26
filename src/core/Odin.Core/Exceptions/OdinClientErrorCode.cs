@@ -177,4 +177,8 @@ public enum OdinClientErrorCode
     ShardLinkNoLongerValid = 9024,
     ShardHolderUnreachable = 9025,
     RecoveryBusy = 9026,
+
+    // A zero-knowledge drive's own key headers (docs/zero-knowledge-drive-api-plan.md)
+    ZkDriveKeyHeaderNeedsZeroKnowledgeDrive = 9027,
+    ZkDriveFileCannotBeSent = 9028,
 }

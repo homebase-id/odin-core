@@ -77,7 +77,7 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 
 | Shorthand | Name | What it is | Made by | Kept where |
 |---|---|---|---|---|
-| `FileKey` | a file's own key (its key header) | 16 random bytes and a 16-byte IV per file; the content is AES-CBC **(V)** | whoever writes the file; for a deposit, the depositor | locked by `DrvK`; for a deposit, `seal(WO-PK-Pub, IV ‖ FileKey)` in a key header of type `Sealed` (12) **(V)** |
+| `FileKey` | a file's own key (its key header) | 16 random bytes and a 16-byte IV per file; the content is AES-CBC **(V)** | whoever writes the file; for a deposit, the depositor | locked by `DrvK`: by the server on a normal drive (type `Aes`, 11), by an owner device on a zero-knowledge drive (type `ZkDrive`, 13, stored and returned as sent); for a deposit, `seal(WO-PK-Pub, IV ‖ FileKey)` in a key header of type `Sealed` (12) **(V)** |
 
 ## What is stored
 

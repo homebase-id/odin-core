@@ -479,8 +479,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                     // A deposit needs no drive key to return: its key header goes back sealed, as stored
                     var isDeposit = Deposits.IsDeposit(serverFileHeader);
 
+                    // Nor does a zero-knowledge drive's own file, but only a caller that can open it gets one
+                    var isZkDriveFileTheCallerReads = ZkDriveFiles.IsZkDriveFile(serverFileHeader) && ZkDriveFiles.CallerMayRead(odinContext);
+
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
-                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted || isDeposit;
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted || isDeposit || isZkDriveFileTheCallerReads;
                     if (shouldReceiveFile)
                     {
                         visible.Add(serverFileHeader);

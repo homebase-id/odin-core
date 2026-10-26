@@ -47,7 +47,7 @@ public class DepositTests : V2Fixture
         var uniqueId = Guid.NewGuid();
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
         var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(uniqueId),
-            transitOptions: null!, keyHeader: fileKey, sealedKeyHeader: sealedKeyHeader);
+            transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
 
         var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
@@ -72,7 +72,7 @@ public class DepositTests : V2Fixture
 
         // The upload client throws on any 400 rather than returning it.
         var e = Assert.ThrowsAsync<Exception>(() => frodo.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(Guid.NewGuid()),
-            transitOptions: null!, keyHeader: fileKey, sealedKeyHeader: sealedKeyHeader));
+            transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader));
         Assert.That(e!.Message, Does.EndWith(nameof(OdinClientErrorCode.DepositNeedsZeroKnowledgeDrive)));
     }
 
@@ -89,7 +89,7 @@ public class DepositTests : V2Fixture
         var manifest = new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] };
 
         var e = Assert.ThrowsAsync<Exception>(() => frodo.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(Guid.NewGuid()),
-            transitOptions: null!, manifest, [payload], keyHeader: fileKey, sealedKeyHeader: sealedKeyHeader));
+            transitOptions: null!, manifest, [payload], keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader));
         Assert.That(e!.Message, Does.EndWith(nameof(OdinClientErrorCode.InvalidPayload)));
     }
 
@@ -116,7 +116,7 @@ public class DepositTests : V2Fixture
                 IsTransient = true,
                 Recipients = [sam.Identity.DomainName],
                 RemoteTargetDrive = Drive
-            }, keyHeader: fileKey, sealedKeyHeader: sealedKeyHeader);
+            }, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
         await frodo.Sync.DrainOutboxAsync();
 

@@ -98,4 +98,21 @@ namespace Odin.Services.Peer.Encryption
 
         public EncryptedKeyHeader Sealed { get; }
     }
+
+    /// <summary>
+    /// A zero-knowledge drive's own key header (<see cref="EncryptedKeyHeader.IsZkDrive"/>), carried
+    /// through a write unopened: an owner device locked it with the drive's key, which the server
+    /// doesn't hold.  Only a zero-knowledge drive stores <see cref="Locked"/>, as it is.  It has no AES
+    /// key; <see cref="KeyHeader.Iv"/> is the IV it shows.
+    /// </summary>
+    public sealed class ZkDriveKeyHeader : KeyHeader
+    {
+        public ZkDriveKeyHeader(EncryptedKeyHeader locked)
+        {
+            Locked = locked;
+            Iv = locked.Iv;
+        }
+
+        public EncryptedKeyHeader Locked { get; }
+    }
 }

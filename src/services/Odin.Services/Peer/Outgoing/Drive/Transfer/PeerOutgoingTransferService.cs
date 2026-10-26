@@ -660,6 +660,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
 
             var header = await fs.Storage.GetServerFileHeader(internalFile, odinContext);
+            ZkDriveFiles.AssertNotSent(header);
+
             // Sending needs the drive key, except for a deposit: its key header goes on sealed, as it was
             // written, and the recipient's browser opens it
             var keyHeader = Deposits.OpenWithDriveKey(header, odinContext);

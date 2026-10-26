@@ -104,7 +104,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         ExternalFileIdentifier file,
         KeyHeader keyHeader,
         UploadFileMetadata fileMetadata,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard,
+        EncryptedKeyHeader lockedKeyHeader = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
 
@@ -136,7 +137,9 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(redactedKeyHeader, instructionSet.TransferIv, ref sharedSecret),
+                // A zero-knowledge drive's own key header goes as it is stored (lockedKeyHeader)
+                EncryptedKeyHeader = lockedKeyHeader ??
+                                     EncryptedKeyHeader.EncryptKeyHeaderAes(redactedKeyHeader, instructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata
             };
 

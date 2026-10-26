@@ -83,6 +83,12 @@ namespace Odin.Services.DataSubscription
                 return;
             }
 
+            if (drive.IsZeroKnowledge)
+            {
+                // Nothing on it is shared: the server can't open its key headers to re-lock them for anyone
+                return;
+            }
+
             var isCollaborationChannel = drive.IsCollaborationDrive();
             
             if (await ShouldDistribute(notification, isCollaborationChannel))
