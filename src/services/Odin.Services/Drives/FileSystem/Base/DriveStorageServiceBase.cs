@@ -2216,12 +2216,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // A zero-knowledge drive's own file is the owner console's alone, to read or to change, as a query
             // leaves it out for anyone else
-            if (aclDeniedAsMissing && !ZkDriveFiles.VisibleTo(header, odinContext))
+            if (!ZkDriveFiles.VisibleTo(header, odinContext))
             {
-                return null;
+                return aclDeniedAsMissing ? null : throw ZkDriveFiles.NoAccess(file.DriveId);
             }
-
-            ZkDriveFiles.AssertVisibleTo(header, odinContext);
 
             // Like a query, which leaves out what the caller may not see, when the caller asks for that
             if (aclDeniedAsMissing)

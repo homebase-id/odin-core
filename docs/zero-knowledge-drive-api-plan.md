@@ -239,12 +239,10 @@ it as it is (read 2026-10-26) **(V)**.
 
   One predicate would serve all three. A hidden zero-knowledge row would then count as an ACL
   failure in a query. That is a medium refactor, kept out of step 1.
-- **Overwriting needs the storage key, but only implicitly.** On a normal drive an unencrypted
-  overwrite still locks an empty key header, so it needs the storage key. That is what keeps a
-  guest on a public drive from replacing other people's files (pinned by
-  `OverwriteNeedsTheStorageKeyTests`). An explicit storage-key check, with a plain "unencrypted
-  means no key header", would say so directly. A new upload doesn't do this, so the two differ
-  today.
+- **A full overwrite needs the storage key, but only implicitly.** On a normal drive an unencrypted
+  full overwrite still locks an empty key header, so it needs the storage key (pinned by
+  `OverwriteNeedsTheStorageKeyTests`). Which writes should need the storage key at all is a
+  question for an explicit write rule, not a side effect of locking; a new upload doesn't need it.
 
 ## Not in this work
 - **chat-kmp:** comes with consent. Two small bugs found on the way, both harmless today:

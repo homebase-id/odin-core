@@ -220,13 +220,44 @@ public class ZkDriveFileTests : V2Fixture
         var plaintext = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.OwnerOnly);
         plaintext.VersionTag = upload.NewVersionTag;
         var overwrite = await app.V1.Drive.UploadNewMetadata(Drive, plaintext, new TransitOptions(), overwriteFileId: upload.FileId);
-        Assert.That(overwrite.IsSuccessStatusCode, Is.False, $"an overwrite with plaintext: {overwrite.StatusCode}");
+        Assert.That(overwrite.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"an overwrite with plaintext: {overwrite.Error?.Content}");
 
         var delete = await app.Drives.Writer.SoftDeleteFile(Drive.Alias, upload.FileId);
-        Assert.That(delete.IsSuccessStatusCode, Is.False, $"a delete: {delete.StatusCode}");
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"a delete: {delete.Error?.Content}");
 
         var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         AssertOpens(read.Content!, driveKey, locked, Content);
+    }
+
+    [Test]
+    public async Task ADeletedZkDriveFileStaysHiddenFromApps()
+    {
+        // Its tombstone keeps the zkDrive key header but not IsEncrypted; the socket for the delete hides it too
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (_, driveKey) = await ZeroKnowledgeDriveAsync(frodo);
+        var app = await AppSession.SetupAsync(frodo, Drive, DrivePermission.Read);
+        var (upload, _, _) = await UploadAsync(frodo, driveKey, Guid.NewGuid());
+
+        var delete = await frodo.Drives.Writer.SoftDeleteFile(Drive.Alias, upload.FileId);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
+
+        var read = await app.Drives.Reader.GetFileHeaderAsync(Drive.Alias, upload.FileId);
+        Assert.That(read.IsSuccessStatusCode, Is.False, $"the tombstone reached the app: {read.StatusCode}");
+    }
+
+    [Test]
+    public async Task TheCdnNeverServesAZkDriveFile()
+    {
+        // The CDN reads as the system, which reaches a drive's own files for its jobs; a zero-knowledge drive
+        // is never one of the CDN's drives, even when the owner turns CDN on for it
+        var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
+        await frodo.Admin.SetAllowCdn(Drive, true);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var (upload, _, _) = await UploadAsync(frodo, driveKey, Guid.NewGuid(), payload);
+
+        var cdn = CdnSession.Setup(Host, Identities.Frodo);
+        var read = await cdn.Drives.Reader.GetPayloadAsync(Drive.Alias, upload.FileId, payload.Key);
+        Assert.That(read.IsSuccessStatusCode, Is.False, $"the CDN served it: {read.StatusCode}");
     }
 
     [Test]

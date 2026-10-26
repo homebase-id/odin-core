@@ -20,8 +20,8 @@ namespace Odin.Services.Drives;
 /// </summary>
 public static class ZkDriveFiles
 {
-    public static bool IsZkDriveFile(ServerFileHeader? header) =>
-        header?.FileMetadata?.IsEncrypted == true && header.EncryptedKeyHeader?.IsZkDrive() == true;
+    /// <remarks>By its key header alone: a deleted file's tombstone keeps the key header but not IsEncrypted.</remarks>
+    public static bool IsZkDriveFile(ServerFileHeader? header) => header?.EncryptedKeyHeader?.IsZkDrive() == true;
 
     /// <summary>
     /// The key header a client sent to write to <paramref name="drive"/>, decided by its type before
@@ -116,7 +116,10 @@ public static class ZkDriveFiles
         }
     }
 
-    private static void ThrowNoAccess(Guid driveId) => throw new OdinSecurityException($"No access permitted to drive {driveId}");
+    private static void ThrowNoAccess(Guid driveId) => throw NoAccess(driveId);
+
+    /// <summary>The refusal for a file the caller may not see, as for one refused for want of the drive's key.</summary>
+    public static OdinSecurityException NoAccess(Guid driveId) => new($"No access permitted to drive {driveId}");
 
     /// <summary>
     /// An encrypted update of a zero-knowledge drive's file takes its own key header with a new IV, as for

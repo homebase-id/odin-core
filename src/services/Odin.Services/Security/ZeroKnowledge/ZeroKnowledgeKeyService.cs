@@ -343,12 +343,22 @@ public class ZeroKnowledgeKeyService(
 
         // Only once the new keys are committed: a delete takes a file's payloads with it at once, which a
         // conversion that didn't commit couldn't undo.  One left behind is harmless: nothing opens it, and a
-        // dealer's check sees a deposit sealed to an old key as not held.
+        // dealer's check sees a deposit sealed to an old key as not held.  So a failure is logged, not thrown
+        // (the conversion has happened), and a file written again since the snapshot is left alone.
         var ownerContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.ReadWrite, odinContext);
         foreach (var file in dead)
         {
-            await fileSystem.Storage.HardDeleteLongTermFile(file.FileMetadata.File, ownerContext);
+            try
+            {
+                await fileSystem.Storage.HardDeleteLongTermFile(file.FileMetadata.File,
+                    file.FileMetadata.VersionTag.GetValueOrDefault(), ownerContext);
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "Converting the Shard Recovery drive left the dead file {fileId} behind",
+                    file.FileMetadata.File.FileId);
+            }
         }
 
         logger.LogInformation("Shard Recovery drive converted to zero knowledge");

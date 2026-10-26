@@ -11,10 +11,10 @@ using Odin.Services.Peer.Outgoing.Drive;
 namespace Odin.Hosting.Tests.V2.DriveWrite;
 
 /// <summary>
-/// On a normal drive, overwriting a file locks a key header even when the new file is unencrypted, so it needs
-/// the drive's storage key.  That is what keeps a caller who may write but holds no storage key (a guest on a
-/// public drive: its grants carry none) from replacing other people's files, comments included.  Only a
-/// zero-knowledge drive, which has no storage key to ask for, skips it (#2023, review round 2).
+/// On a normal drive, a full overwrite (NewFileOrOverwrite) locks a key header even when the new file is
+/// unencrypted, so it needs the drive's storage key, which a caller may lack while holding Write (a guest on a
+/// public drive: its grants carry none).  #2023 briefly dropped that need; this pins it.  Only a zero-knowledge
+/// drive, which has no storage key to ask for, skips it.
 /// </summary>
 [TestFixture]
 public class OverwriteNeedsTheStorageKeyTests : V2Fixture
