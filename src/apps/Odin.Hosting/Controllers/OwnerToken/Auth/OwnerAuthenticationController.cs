@@ -138,10 +138,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             {
                 await ss.ResetPasswordUsingRecoveryKeyAsync(reply, WebOdinContext);
             }
-            catch (BIP39Exception)
+            catch (BIP39Exception e)
             {
-                // Not the exception: its message can quote a mistyped word of the recovery phrase
-                logger.LogDebug("Password reset refused: the recovery key is not a valid phrase");
+                logger.LogDebug("BIP39 failed: {message}", e.Message);
                 return new UnauthorizedResult();
             }
 

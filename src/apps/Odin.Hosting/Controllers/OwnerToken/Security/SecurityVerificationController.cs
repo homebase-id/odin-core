@@ -42,11 +42,9 @@ public class SecurityVerificationController(
             WebOdinContext.Caller.AssertHasMasterKey();
             await securityHealthService.VerifyRecoveryKeyAsync(reply, WebOdinContext);
         }
-        catch (BIP39Exception)
+        catch (BIP39Exception e)
         {
-            // Without the inner exception: its message can quote a mistyped word of the recovery phrase, and the
-            // exception middleware logs the whole chain
-            throw new OdinSecurityException("BIP39 failed");
+            throw new OdinSecurityException("BIP39 failed", e);
         }
 
         return new OkResult();

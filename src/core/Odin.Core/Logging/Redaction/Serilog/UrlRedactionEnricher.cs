@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Serilog;
 using Serilog.Configuration;
 using Serilog.Core;
@@ -39,7 +38,12 @@ public class UrlRedactionEnricher : ILogEventEnricher
             }
         }
 
-        foreach (var (name, safe) in redacted ?? Enumerable.Empty<(string, string)>())
+        if (redacted is null)
+        {
+            return;
+        }
+
+        foreach (var (name, safe) in redacted)
         {
             logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty(name, safe));
         }

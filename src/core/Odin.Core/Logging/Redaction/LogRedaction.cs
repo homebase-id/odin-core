@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using Odin.Core.Logging.CorrelationId;
 
 namespace Odin.Core.Logging.Redaction;
 
@@ -42,7 +43,7 @@ public static class LogRedaction
     private static readonly HashSet<string> LoggableHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
         "Accept", "Accept-Encoding", "Accept-Language", "Cache-Control", "Connection", "Content-Encoding",
-        "Content-Length", "Content-Type", "Expect", "Host", "If-Modified-Since", "If-None-Match", "Odin-Correlation-Id",
+        "Content-Length", "Content-Type", "Expect", "Host", "If-Modified-Since", "If-None-Match", ICorrelationContext.DefaultHeaderName,
         "Origin", "Range", "Sec-WebSocket-Version", "traceparent", "Transfer-Encoding", "Upgrade", "User-Agent",
         "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-ODIN-FILE-SYSTEM-TYPE", "X-Odin-Version",
         "X-Real-IP",
@@ -53,13 +54,18 @@ public static class LogRedaction
     /// </summary>
     public static string Url(string url)
     {
-        if (!MayCarryACredential(url))
+        // Path and Query hand back their input when nothing in it is a credential, so the usual URL is not rebuilt
+        var q = url.IndexOf('?');
+        if (q < 0)
         {
-            return url;
+            return Path(url);
         }
 
-        var q = url.IndexOf('?');
-        return q < 0 ? Path(url) : Path(url[..q]) + "?" + Query(url[(q + 1)..]);
+        var path = url[..q];
+        var query = url[(q + 1)..];
+        var safePath = Path(path);
+        var safeQuery = Query(query);
+        return ReferenceEquals(safePath, path) && ReferenceEquals(safeQuery, query) ? url : safePath + "?" + safeQuery;
     }
 
     /// <summary>
@@ -82,30 +88,6 @@ public static class LogRedaction
         }
 
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(secret)))[..8];
-    }
-
-    // Cheap test that keeps the common case (a path with no query and no secret segment) allocation-free
-    private static bool MayCarryACredential(string url)
-    {
-        if (string.IsNullOrEmpty(url))
-        {
-            return false;
-        }
-
-        if (url.Contains('?'))
-        {
-            return true;
-        }
-
-        foreach (var segment in SegmentsBeforeASecret)
-        {
-            if (url.Contains(segment, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static string Path(string path)
@@ -137,15 +119,17 @@ public static class LogRedaction
     private static string Query(string query)
     {
         var parameters = query.Split('&');
+        var redacted = false;
         for (var i = 0; i < parameters.Length; i++)
         {
             var eq = parameters[i].IndexOf('=');
             if (eq > 0 && eq < parameters[i].Length - 1 && !LoggableQueryParameters.Contains(WebUtility.UrlDecode(parameters[i][..eq])))
             {
                 parameters[i] = parameters[i][..(eq + 1)] + Redacted;
+                redacted = true;
             }
         }
 
-        return string.Join('&', parameters);
+        return redacted ? string.Join('&', parameters) : query;
     }
 }

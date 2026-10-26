@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Logging.Redaction;
 using Odin.Core.Logging.Redaction.Serilog;
+using Odin.Core.Logging.Statistics.Serilog;
 using Serilog;
-using Serilog.Core;
-using Serilog.Events;
 using Serilog.Extensions.Logging;
 
 namespace Odin.Core.Tests.Logging.Redaction;
@@ -77,8 +77,8 @@ public class LogRedactionTests
     public void EveryUrlOnALogLineIsRedacted()
     {
         // The way ASP.NET Core adds RequestPath: from a logging scope, through Microsoft.Extensions.Logging
-        var sink = new CollectingSink();
-        using var serilog = new LoggerConfiguration().Enrich.WithUrlRedaction().WriteTo.Sink(sink).CreateLogger();
+        var store = new LogEventMemoryStore();
+        using var serilog = new LoggerConfiguration().Enrich.WithUrlRedaction().WriteTo.Sink(new InMemorySink(store)).CreateLogger();
         using var factory = new SerilogLoggerFactory(serilog);
         var logger = factory.CreateLogger("test");
 
@@ -90,19 +90,14 @@ public class LogRedactionTests
                 "/other?token=kept-because-not-a-url-property");
         }
 
-        Assert.That(sink.Events, Has.Count.EqualTo(1));
-        var properties = sink.Events[0].Properties;
+        var events = store.GetLogEvents().Values.SelectMany(e => e).ToList();
+        Assert.That(events, Has.Count.EqualTo(1));
+        var properties = events[0].Properties;
         Assert.That(properties["RequestPath"].ToString(), Is.EqualTo("\"/api/v2/capi/validate/[redacted]\""));
         Assert.That(properties["Path"].ToString(), Is.EqualTo("\"/api/owner/v1/config/can-use-auto-recovery?frt=[redacted]\""));
         Assert.That(properties["Url"].ToString(), Is.EqualTo("\"https://a.com/x?sig=[redacted]\""));
         Assert.That(properties["Other"].ToString(), Is.EqualTo("\"/other?token=kept-because-not-a-url-property\""));
-        Assert.That(sink.Events[0].RenderMessage(), Does.Not.Contain("f00d").And.Not.Contain("s3cret"),
-            $"actual: {sink.Events[0].RenderMessage()}");
-    }
-
-    private class CollectingSink : ILogEventSink
-    {
-        public List<LogEvent> Events { get; } = [];
-        public void Emit(LogEvent logEvent) => Events.Add(logEvent);
+        Assert.That(events[0].RenderMessage(), Does.Not.Contain("f00d").And.Not.Contain("s3cret"),
+            $"actual: {events[0].RenderMessage()}");
     }
 }
