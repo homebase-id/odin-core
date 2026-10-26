@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -9,6 +11,9 @@ public class PushNotificationOutboxRecord
     public OdinId SenderId { get; set; }
     public AppNotificationOptions Options { get; set; }
     public UnixTimeUtc Timestamp { get; set; }
+
+    /// <summary>A sealed <see cref="PushPreview"/> per device (AccessRegistrationId) that registered a preview key.</summary>
+    public Dictionary<Guid, string> EncryptedPreviews { get; set; }
 
     /// <summary>
     /// True when <see cref="AppNotificationOptions.TimeToLiveSeconds"/> is set and that many seconds

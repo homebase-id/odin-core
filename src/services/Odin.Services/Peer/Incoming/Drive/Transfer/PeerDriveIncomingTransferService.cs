@@ -158,6 +158,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     var notificationOptions = _transferState.TransferInstructionSet.AppNotificationOptions;
                     if (null != notificationOptions)
                     {
+                        // The file may sit in the inbox when the push lands, out of the device's reach;
+                        // the transfer's shared secret can open its key header now.
+                        var keyHeader = _transferState.TransferInstructionSet.SharedSecretEncryptedKeyHeader;
+                        PushPreview Preview() => PushPreviewSealer.FromIncomingFile(fileMetadata,
+                            () => DecryptKeyHeaderWithSharedSecret(keyHeader, odinContext));
+
                         if (notificationOptions.Recipients?.Any() ?? false)
                         {
                             var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive.Alias);
@@ -179,14 +185,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             {
                                 var senderId = odinContext.GetCallerOdinIdOrFail();
                                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                                await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext);
+                                await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext, Preview);
                             }
                         }
                         else
                         {
                             var senderId = odinContext.GetCallerOdinIdOrFail();
                             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                            await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext);
+                            await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext, Preview);
                         }
                     }
                 }

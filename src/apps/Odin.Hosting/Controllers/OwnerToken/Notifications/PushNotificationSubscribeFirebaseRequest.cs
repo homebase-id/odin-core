@@ -14,4 +14,10 @@ public class PushNotificationSubscribeFirebaseRequest
     /// Re-register whenever PushKit rotates it.
     /// </summary>
     public string VoipDeviceToken { get; set; } = "";
+
+    /// <summary>
+    /// Optional: base64 of a 16-byte key. When set, a push for an incoming file carries the file's
+    /// header sealed to this key (see PushPreviewSealer), for a handler that cannot fetch it yet.
+    /// </summary>
+    public string PreviewKey { get; set; } = "";
 }

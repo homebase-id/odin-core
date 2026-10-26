@@ -78,6 +78,7 @@ public class SendPushNotificationOutboxWorker(
                 Options = record.Options,
                 SenderId = record.SenderId,
                 Timestamp = record.Timestamp,
+                EncryptedPreviews = record.EncryptedPreviews,
             });
         }
         else

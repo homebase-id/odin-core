@@ -25,6 +25,12 @@ public class PushNotificationSubscription
     /// </summary>
     public string VoipDeviceToken { get; set; }
 
+    /// <summary>
+    /// Base64 of a 16-byte key the device registered to receive <see cref="PushPreview"/>s sealed
+    /// with <see cref="PushPreviewSealer"/>. Null for a device that did not ask for previews.
+    /// </summary>
+    public string PreviewKey { get; set; }
+
     public RedactedPushNotificationSubscription Redacted()
     {
         return new RedactedPushNotificationSubscription()
@@ -35,6 +41,7 @@ public class PushNotificationSubscription
             ExpirationTime = this.ExpirationTime,
             FirebaseDeviceToken = this.FirebaseDeviceToken,
             VoipDeviceToken = this.VoipDeviceToken,
+            HasPreviewKey = !string.IsNullOrEmpty(this.PreviewKey),
         };
     }
 
@@ -53,4 +60,7 @@ public class RedactedPushNotificationSubscription
 
     /// <summary>Echoed so a client can verify its PushKit token is registered.</summary>
     public string VoipDeviceToken { get; set; }
+
+    /// <summary>Whether the device registered a preview key; the key itself is never echoed.</summary>
+    public bool HasPreviewKey { get; set; }
 }

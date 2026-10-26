@@ -61,6 +61,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 FirebaseDeviceToken = request.DeviceToken,
                 FirebaseDevicePlatform = request.DevicePlatform,
                 VoipDeviceToken = string.IsNullOrWhiteSpace(request.VoipDeviceToken) ? null : request.VoipDeviceToken,
+                PreviewKey = string.IsNullOrWhiteSpace(request.PreviewKey) ? null : request.PreviewKey,
             };
 
             _logger.LogDebug("SubscribeDevice: adding {DeviceToken}", subscription.FirebaseDeviceToken);
@@ -73,6 +74,11 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             if (string.IsNullOrWhiteSpace(subscription.FirebaseDevicePlatform))
             {
                 throw new OdinClientException("Invalid Push notification subscription request: missing device platform");
+            }
+
+            if (subscription.PreviewKey != null && !PushPreviewSealer.IsValidKey(subscription.PreviewKey))
+            {
+                throw new OdinClientException("Invalid Push notification subscription request: preview key must be 16 bytes of base64");
             }
 
             

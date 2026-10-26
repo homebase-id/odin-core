@@ -70,11 +70,13 @@ public class PushNotificationService(
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
+    /// <param name="preview">The incoming file's header, built only when a device registered a preview key.</param>
+    public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext,
+        Func<PushPreview> preview = null)
     {
         //validate the calling app on the recipient server have access to send notifications
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        return await EnqueueNotificationInternalAsync(senderId, options, odinContext);
+        return await EnqueueNotificationInternalAsync(senderId, options, odinContext, preview);
     }
 
 
@@ -310,6 +312,25 @@ public class PushNotificationService(
         logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
     }
 
+    /// <summary>
+    /// The data APNs and FCM carry is capped at 4 KB with the alert; past this the preview is left
+    /// out rather than the push refused.
+    /// </summary>
+    public const int MaxDeviceDataBytesWithPreview = 3072;
+
+    public static string SerializeForDevice(PushNotificationPayload payload, Guid accessRegistrationId)
+    {
+        var devicePayload = payload.ForDevice(accessRegistrationId);
+        var data = OdinSystemSerializer.Serialize(devicePayload);
+        if (devicePayload.EncryptedPreview == null || data.Length <= MaxDeviceDataBytesWithPreview)
+        {
+            return data;
+        }
+
+        devicePayload.EncryptedPreview = null;
+        return OdinSystemSerializer.Serialize(devicePayload);
+    }
+
     // RFC 8030: a Topic is at most 32 URL-safe base64 characters.
     private static readonly Regex WebPushTopicPattern = new("^[A-Za-z0-9_-]{1,32}$", RegexOptions.Compiled);
 
@@ -384,7 +405,7 @@ public class PushNotificationService(
             {
                 Body = body,
                 CorrelationId = correlationContext.Id,
-                Data = OdinSystemSerializer.Serialize(payload),
+                Data = SerializeForDevice(payload, subscription.AccessRegistrationId),
                 DevicePlatform = subscription.FirebaseDevicePlatform,
                 DeviceToken = subscription.FirebaseDeviceToken,
                 FromDomain = payload.SenderId.DomainName,
@@ -459,7 +480,36 @@ public class PushNotificationService(
         }
     }
 
-//
+    /// <summary>
+    /// Sealed per device at enqueue, so the outbox never holds the plaintext. A preview that cannot
+    /// be built costs the preview, not the push.
+    /// </summary>
+    private async Task<Dictionary<Guid, string>> SealPreviewForDevicesAsync(Func<PushPreview> preview, IOdinContext odinContext)
+    {
+        if (preview == null)
+        {
+            return null;
+        }
+
+        var devices = (await GetAllSubscriptionsAsync(odinContext))
+            .Where(s => !string.IsNullOrEmpty(s.FirebaseDeviceToken) && PushPreviewSealer.IsValidKey(s.PreviewKey))
+            .ToList();
+        if (devices.Count == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            var content = preview();
+            return devices.ToDictionary(d => d.AccessRegistrationId, d => PushPreviewSealer.Seal(content, d.PreviewKey));
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not build the push preview; the push goes out without one");
+            return null;
+        }
+    }
 
     private Guid GetDeviceKey(IOdinContext odinContext)
     {
@@ -479,7 +529,8 @@ public class PushNotificationService(
         throw new OdinSystemException("The access registration id was not set on the context");
     }
 
-    private async Task<bool> EnqueueNotificationInternalAsync(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
+    private async Task<bool> EnqueueNotificationInternalAsync(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext,
+        Func<PushPreview> preview = null)
     {
         // Every route ends here. The kind's defaults are filled in first so they are stored and
         // travel every hop; then the bounds are what the outbox and the relay accept, so an
@@ -517,7 +568,8 @@ public class PushNotificationService(
                 {
                     SenderId = senderId,
                     Options = options,
-                    Timestamp = timestamp
+                    Timestamp = timestamp,
+                    EncryptedPreviews = await SealPreviewForDevicesAsync(preview, odinContext),
                 }).ToUtf8ByteArray()
             }
         };
