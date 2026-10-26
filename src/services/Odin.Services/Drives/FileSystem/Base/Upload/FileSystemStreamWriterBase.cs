@@ -105,9 +105,18 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
     }
 
-    public virtual async Task AddMetadata(Stream data)
+    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
     {
-        Package.Metadata = await BoundedRead.ReadAllBytesAsync(data);
+        var encrypted = await BoundedRead.ReadAllBytesAsync(data);
+        var decryptedJsonBytes = AesCbc.Decrypt(encrypted, odinContext.PermissionsContext.SharedSecretKey, Package.InstructionSet.TransferIv);
+        Package.Descriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
+
+        // Before any payload is read, so a resent file is refused at once instead of after its whole body.
+        // FinalizeUploadAsync checks again for a file committed while this one's body arrived.
+        if (!Package.IsUpdateOperation)
+        {
+            await AssertUniqueIdNotInUseAsync(Package.Descriptor?.FileMetadata?.AppData?.UniqueId, odinContext);
+        }
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
@@ -272,22 +281,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         }
         else
         {
-            // New file with UniqueId must not exist
-            if (metadata.AppData.UniqueId.HasValue)
-            {
-                var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(Package.InternalFile.DriveId, incomingClientUniqueId,
-                    odinContext);
-
-                if (null != existingFile && existingFile.FileState != FileState.Deleted)
-                {
-                    _logger.LogDebug(
-                        $"File already exists with ClientUniqueId: [{incomingClientUniqueId}] Existing fileId:{existingFile.FileId}");
-
-                    throw new OdinClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
-                        OdinClientErrorCode.ExistingFileWithUniqueId);
-                }
-            }
+            await AssertUniqueIdNotInUseAsync(metadata.AppData.UniqueId, odinContext);
 
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
         }
@@ -363,14 +357,36 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     protected abstract Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor,
         IOdinContext odinContext);
 
+    /// <summary>
+    /// A new file's uniqueId must not belong to a file that isn't deleted. The database's unique index is the final
+    /// guard, for two uploads with the same uniqueId at once.
+    /// </summary>
+    private async Task AssertUniqueIdNotInUseAsync(Guid? uniqueId, IOdinContext odinContext)
+    {
+        // An empty uniqueId is refused as malformed by the upload's validation
+        if (!uniqueId.HasValue || uniqueId == Guid.Empty)
+        {
+            return;
+        }
+
+        var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(Package.InternalFile.DriveId, uniqueId.Value,
+            odinContext);
+
+        if (null != existingFile && existingFile.FileState != FileState.Deleted)
+        {
+            _logger.LogDebug(
+                $"File already exists with ClientUniqueId: [{uniqueId}] Existing fileId:{existingFile.FileId}");
+
+            throw new OdinClientException($"File already exists with ClientUniqueId: [{uniqueId}]",
+                OdinClientErrorCode.ExistingFileWithUniqueId);
+        }
+    }
+
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(
         FileUploadPackage package,
         IOdinContext odinContext)
     {
-        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-
-        var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
-        var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
+        var uploadDescriptor = package.Descriptor;
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {

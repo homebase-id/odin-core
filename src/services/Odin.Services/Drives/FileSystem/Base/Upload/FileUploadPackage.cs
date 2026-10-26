@@ -39,7 +39,10 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         public List<PackageThumbnailDescriptor> Thumbnails { get; }
 
-        public byte[] Metadata { get; set; }
+        /// <summary>
+        /// The metadata part, decrypted as it arrives
+        /// </summary>
+        public UploadFileDescriptor Descriptor { get; set; }
 
         /// <summary>
         /// Merges uploaded payloads and thumbnails
