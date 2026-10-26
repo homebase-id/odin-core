@@ -17,6 +17,7 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication;
 using Odin.Services.Security;
+using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {
@@ -145,6 +146,35 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             }
 
             return new OkResult();
+        }
+
+        /// <summary>
+        /// Recovery with the phrase (docs/zero-knowledge-recovery-plan.md): the zero-knowledge master key
+        /// and the phrase's private key, both locked by the phrase, and the password sealed to the
+        /// phrase's public key.  No login, because all of it is useless without the phrase, a random
+        /// 128-bit key.  404 until the browser took the phrase over; the page then falls back to
+        /// <c>resetpasswdrk</c>.  409 when a reset with today's master key forgot the copies: the
+        /// phrase can't recover until the owner types it in again.
+        /// </summary>
+        [HttpGet("zk-phrase-recovery")]
+        public async Task<ActionResult<ZkPhraseRecoveryResponse>> GetPhraseRecovery(
+            [FromServices] ZeroKnowledgeRecoveryService zeroKnowledgeRecoveryService)
+        {
+            var (recovery, needsReentry) = await zeroKnowledgeRecoveryService.GetPhraseRecoveryAsync();
+            return recovery != null ? recovery : needsReentry ? Conflict() : NotFound();
+        }
+
+        /// <summary>
+        /// Recovery with the phrase or with friends when it gave back no password, or one that doesn't
+        /// log in: the reset key (from the phrase, or from the friends' secret), encrypted to the host,
+        /// sets a new password.  No login; a wrong key is refused (403), a malformed request 400.
+        /// </summary>
+        [HttpPost("zk-reset")]
+        public async Task<IActionResult> ResetPasswordWithResetKey([FromBody] ZkResetRequest request,
+            [FromServices] ZeroKnowledgeRecoveryService zeroKnowledgeRecoveryService)
+        {
+            await zeroKnowledgeRecoveryService.ResetPasswordWithResetKeyAsync(request, WebOdinContext);
+            return Ok();
         }
 
         [HttpPost("ispasswordset")]

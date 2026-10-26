@@ -31,6 +31,12 @@ public class RemotePlayerReadinessResult
 {
     public bool IsValid { get; set; }
     public ShardTrustLevel TrustLevel { get; set; }
+
+    /// <summary>
+    /// Whether the player's Shard Recovery drive is zero knowledge, so it can hold a gated shard: until
+    /// its owner logs in once, their server could open what is sealed to it.
+    /// </summary>
+    public bool IsZeroKnowledge { get; set; }
 }
 
 public enum ShardTrustLevel

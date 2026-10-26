@@ -476,8 +476,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out _);
 
+                    // A deposit needs no drive key to return: its key header goes back sealed, as stored
+                    var isDeposit = Deposits.IsDeposit(serverFileHeader);
+
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
-                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted || isDeposit;
                     if (shouldReceiveFile)
                     {
                         visible.Add(serverFileHeader);

@@ -29,6 +29,7 @@ namespace Odin.Services.Authentication.Owner
         TableKeyValueCached tblKeyValue,
         TableNonce nonceTable,
         ZeroKnowledgeKeyService zeroKnowledgeKeyService,
+        OdinContextCache contextCache,
         IdentityDatabase db)
     {
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
@@ -210,21 +211,50 @@ namespace Odin.Services.Authentication.Owner
         public async Task ResetPasswordUsingRecoveryKeyAsync(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext)
         {
             var decryptedBytes = await publicPrivateKeyService.EccDecryptPayload(request.EncryptedRecoveryKey, odinContext);
-            var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
-            await ResetPasswordUsingRecoveryKeyAsync(recoveryKey, request.PasswordReply, odinContext);
+            using var masterKey = await recoveryService.AssertValidKeyAsync(decryptedBytes.ToStringFromUtf8Bytes());
+            await ResetPasswordUsingMasterKeyAsync(masterKey, request.PasswordReply);
         }
 
-        public async Task ResetPasswordUsingRecoveryKeyAsync(string recoveryKey, PasswordReply reply, IOdinContext odinContext)
+        /// <summary>
+        /// A reset with today's master key: the old recovery phrase before its takeover, server-dealt
+        /// Shamir, or the phrase's reset key.  Only the last brings the zero-knowledge master key back
+        /// (<paramref name="recoveredZkKeys"/>, locked by the new password by the browser that
+        /// recovered it); otherwise the zero-knowledge keys are forgotten.  Every owner session ends:
+        /// whoever made the reset necessary may hold one.
+        /// </summary>
+        public async Task ResetPasswordUsingMasterKeyAsync(SensitiveByteArray masterKey, PasswordReply reply,
+            ZkKeysRequest recoveredZkKeys = null)
         {
-            var masterKey = await recoveryService.AssertValidKeyAsync(recoveryKey);
-
             await using var tx = await db.BeginStackedTransactionAsync();
             await SavePasswordAsync(reply, masterKey);
 
-            // Locked by the forgotten password, so they can never be opened again.  The browser makes
-            // new ones at the next login.
-            await zeroKnowledgeKeyService.DeleteAsync();
+            if (recoveredZkKeys != null)
+            {
+                await zeroKnowledgeKeyService.RelockForPasswordChangeAsync(recoveredZkKeys);
+            }
+            else
+            {
+                // Locked by the forgotten password, so they can never be opened again.  The browser makes
+                // new ones at the next login.
+                await zeroKnowledgeKeyService.DeleteAsync();
+            }
+
+            // In the transaction, so the sessions end with the old password; the cached contexts only
+            // once it's committed, or a request could cache one again in between (#1909).
+            await EndOwnerSessionsAsync();
+            tx.AddPostCommitAction(() => contextCache.ResetAsync());
             tx.Commit();
+        }
+
+        private async Task EndOwnerSessionsAsync()
+        {
+            // Live or expired
+            var sessions = await db.ClientRegistrations.GetByTypeAndCategoryIdAsync(
+                OwnerConsoleClientRegistration.CatType, OwnerConsoleClientRegistration.Category);
+            foreach (var session in sessions)
+            {
+                await db.ClientRegistrations.DeleteAsync(session.catId);
+            }
         }
 
         public async Task ResetPasswordAsync(ResetPasswordRequest request, IOdinContext odinContext)

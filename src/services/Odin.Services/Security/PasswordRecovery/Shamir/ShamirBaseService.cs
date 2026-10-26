@@ -1,4 +1,5 @@
 using System;
+using Odin.Core.Exceptions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
@@ -8,6 +9,8 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LastSeen;
+using Odin.Services.Peer.Encryption;
+using Odin.Services.Security.ZeroKnowledge;
 
 
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
@@ -27,9 +30,12 @@ public abstract class ShamirBaseService<TLogger>(
     /// Gets the shard a player has stored for a dealer.  i.e. this is the info that will be returned
     /// when a dealer requests to reset their password
     /// </summary>
-    public async Task<(PlayerEncryptedShard shard, OdinId? sender)> GetShardStoredForDealer(
-        Guid shardId,
-        IOdinContext odinContext)
+    /// <remarks>
+    /// A gated friend's shard is a deposit (docs/zero-knowledge-recovery-plan.md, "Building the friends
+    /// pair"): this server can't open it, so the shard comes back without its piece, built from the
+    /// file's plain metadata (the shard id, the recovery email hash, when it arrived).
+    /// </remarks>
+    public async Task<StoredShard> GetShardStoredForDealer(Guid shardId, IOdinContext odinContext)
     {
         var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
 
@@ -51,12 +57,56 @@ public abstract class ShamirBaseService<TLogger>(
 
         if (file == null)
         {
-            return (null, null);
+            return new StoredShard(null, null, null);
         }
 
-        var shard = PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content);
         OdinId? sender = string.IsNullOrEmpty(file.FileMetadata.SenderOdinId) ? null : (OdinId)file.FileMetadata.SenderOdinId;
-        return (shard, sender);
+        if (!Deposits.IsDeposit(file.FileMetadata.IsEncrypted, file.SharedSecretEncryptedKeyHeader))
+        {
+            return new StoredShard(PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content), sender, null);
+        }
+
+        var shard = new PlayerEncryptedShard
+        {
+            Id = shardId,
+            RecoveryEmailHash = file.FileMetadata.AppData.GroupId.GetValueOrDefault(),
+            Player = new ShamiraPlayer { OdinId = odinContext.Tenant, Type = PlayerType.Delegate },
+            Created = file.FileMetadata.Created
+        };
+
+        return new StoredShard(shard, sender, file.SharedSecretEncryptedKeyHeader);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="stored"/> can still be opened by this identity's browser: a gated shard is
+    /// sealed to the Shard Recovery drive's write-only key, which a reset with today's master key
+    /// replaces (the drive is converted again).  An unencrypted gated shard is from a deal the server
+    /// made before recovery in the browser, and no longer counts.
+    /// </summary>
+    public async Task AssertCanReleaseAsync(StoredShard stored)
+    {
+        if (!await CanReleaseAsync(stored))
+        {
+            throw new OdinClientException("This shard can no longer be opened; the dealer must deal again",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+    }
+
+    public async Task<bool> CanReleaseAsync(StoredShard stored)
+    {
+        if (stored.Shard.Player.Type == PlayerType.Automatic)
+        {
+            return true;
+        }
+
+        if (stored.DepositKeyHeader == null)
+        {
+            return false;
+        }
+
+        var drive = await driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
+        return drive?.WriteOnlyKeyPair != null &&
+               ZkSeal.IsSealedTo(stored.DepositKeyHeader.EncryptedAesKey, drive.WriteOnlyKeyPair.PublicKeyJwk());
     }
 
     public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)
@@ -121,3 +171,9 @@ public abstract class ShamirBaseService<TLogger>(
         return trustLevel;
     }
 }
+
+/// <summary>
+/// A dealer's shard as its holder stores it, and who dealt it.  <see cref="DepositKeyHeader"/> is set for
+/// a gated friend's shard, a deposit: the key header sealed to the holder's write-only key.
+/// </summary>
+public sealed record StoredShard(PlayerEncryptedShard Shard, OdinId? Sender, EncryptedKeyHeader DepositKeyHeader);

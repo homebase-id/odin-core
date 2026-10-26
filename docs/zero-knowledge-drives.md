@@ -111,8 +111,8 @@ For Private and Selective Share drives:
 Recovery comes before any drive goes zero knowledge, so nobody ever has a zero-knowledge drive
 without a way back.
 
-Plans for steps 1 and 2, in two halves: A, keys and database, is the current plan
-([zero-knowledge-keys-plan.md](zero-knowledge-keys-plan.md)). B, Shamir in the browser, follows
+Plans: A, keys and database, is built ([zero-knowledge-keys-plan.md](zero-knowledge-keys-plan.md)).
+B, recovery in the browser (steps 2 and 3 together), follows
 ([zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md)).
 
 1. **Database and browser keys.**
@@ -124,13 +124,15 @@ Plans for steps 1 and 2, in two halves: A, keys and database, is the current pla
    - The Shard Recovery drive converts to zero knowledge. Its Shamir files aren't encrypted with
      the drive key (the shards inside are locked with the dealer's own keys), so the browser
      simply replaces its drive key and write-only key pair.
-2. **Shamir in the browser** (see [Recovery](#recovery)).
-   - At login the browser also works out the login keys, deals the shards, and locks each to its
-     holder's Shard Recovery drive public key.
+2. **Friend Shamir in the browser** (plan B). Recovery gives back the password, shown only in the
+   owner's browser. The browser deals the shards and seals each to its holder's Shard Recovery
+   drive public key.
    - Holders' keys are reachable today: peers have Write on that drive through a built-in circle
      and an automatic write grant (`BuiltinCircles.cs`, `CircleNetworkService.cs`) **(V)**.
-   - Existing Shamir setups are dealt again by the browser, once.
-3. **Recovery phrase,** the same way. Small once Shamir works.
+   - Existing friend setups are dealt again by the browser at a password login, once.
+3. **The recovery phrase, taken over by the browser** (plan B, with step 2). The owner keeps the
+   phrase they wrote down; from the takeover it opens the ZK master key and so the password, the
+   same way the Shamir secret does, and the server deletes its copies.
 4. **Private drives and conversion,** Vault first (see
    [Private drives and conversion](#private-drives-and-conversion)).
    - Every drive gets a ZK copy of its key, whatever its sharing model, and every new drive
@@ -508,8 +510,19 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
    re-locked header.
 3. **Reads on a zero-knowledge drive return the stored header as is:** file header, query batch,
    websocket notifications (`ClientDriveNotification`) and the payload/thumbnail response header
-   (`DriveStorageControllerBase`) **(V)**. The field keeps its name; its meaning follows
-   `SharingModel`. To decide: keep the name or add a new field.
+   (`DriveStorageControllerBase`) **(V)**. The field keeps its name (decided 2026-10-25).
+   - **The header is tagged** (decided 2026-10-25): a new `EncryptionType` value says it is locked
+     with the drive key, as `Sealed` marks a deposit. A client knows which key opens a header
+     without looking up the drive, and the server can refuse a wrongly locked upload. Drive info
+     still carries `SharingModel`, so an app knows how to lock a new file.
+   - The payload/thumbnail response header can't carry the tag today: it packs only IV (16),
+     AES key (48) and version (4) (`EncryptedKeyHeader.ToBase64`/`FromBase64`) **(V)**, so `Type`
+     is lost. A sealed deposit doesn't fit it either.
+   - **To consider when tagging:**
+     - Replace the packed byte string with JSON (type, version, IV, key), the same shape as
+       everywhere else. That also gives a deposit's sealed header room.
+     - AES-GCM as an option for the key header and the content. CBC stays, because video/HLS
+       needs it.
 4. **Sign-in:** consent accepts the browser's sealed blob, and `YouAuthTokenResponse` gets one new
    field, `ZkDriveKeys` (`YouAuthTokenResponse.cs`) **(V)**. The YouAuth reference client too.
    Trusted apps that skip consent go through the consent page without a screen (see
@@ -557,6 +570,8 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
 
 ## Recovery
 
+Every key named here, and what locks it: [owner-keys.md](owner-keys.md).
+
 - **Today:** recovery (phrase and Shamir) brings back only today's master key.
 
 ### Redesign recovery
@@ -572,42 +587,25 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
 - **The password itself is never on the server.** Login sends only a hash and today's password
   key (`PasswordReply`) **(V)**. So recovery can't just email the old password.
 
-**Direction: recovery gives you your login back, instead of resetting it.**
+**Direction (decided 2026-10-24, details in [plan B](zero-knowledge-recovery-plan.md)):
+recovery gives you back your password,** shown only in your own browser. You log in as usual and
+may then change it.
 
-- The browser stores your login keys locked, once per recovery route. The login keys are the
-  password hash, today's password key (KEK) and the second password key. Not the password
-  itself, which may be used elsewhere.
-- Recovering opens them in the browser and logs in as normal, so both master keys unlock. Then
-  it asks for a new password.
-- Today's server-side reset goes away (`ResetPasswordUsingRecoveryKeyAsync`, the master key copy
-  of the phrase).
-
-**Recovery phrase:**
-- A key worked out from the phrase in the browser locks one copy of the login keys. The server
-  never sees the phrase.
-- To show the phrase again, the browser keeps it locked by the zero-knowledge master key.
-- Existing phrases are replaced once, because the server has already seen them.
-
-**Shamir, dealt in the browser.** Dealing:
-1. The browser makes a random Shamir secret and locks a copy of the login keys with it.
-2. It splits the secret into shards.
-3. It locks each shard to the holder's Shard Recovery drive public key: the same
-   lock-to-public-key primitive. The holder's server stores it as received.
-
-Recovering:
-1. The recovering browser makes a throwaway key pair and starts recovery (email check, as today).
-2. Each holder approves in their own owner console, as today (`ApproveShardRequest` is an owner
-   API) **(V)**. The holder's browser opens the shard and seals it to the recovering browser's
-   public key.
-3. The recovering server only stores the sealed shards. The browser opens them, rebuilds the
-   secret, opens the login keys and logs in.
-
-Why each holder's public key, and not today's way: today the dealer's server keeps a key per shard
-(`DealerShardEnvelope`) and opens the returned shards itself (`ShamirRecoveryService.PrepareFinalKeys`)
-**(V)**. Many identities are on the same hosting, so the hosting could gather enough shards.
-
-**Password change:** the browser locks the new login keys again for both routes. So it keeps the
-phrase key and the Shamir secret, locked by the zero-knowledge master key.
+- The recovery phrase locks the zero-knowledge master key and a key pair the password is sealed
+  to, so only the phrase reads it (the friends pair gives Shamir the same shape). A password
+  change re-seals only the password copy.
+- **Recovery phrase:** the one the owner wrote down is kept. At a password login the browser takes
+  it over and the server deletes its copies; the server having seen it before is an accepted risk,
+  like converting a drive with its existing key. To show it again, the browser keeps it locked by
+  the zero-knowledge master key.
+- **Shamir, dealt in the browser:** each shard is sealed to its holder's Shard Recovery drive
+  public key. On recovery each holder's browser re-seals its shard to the recovering browser's
+  throwaway key, and the recovering browser rebuilds the secret.
+- Why each holder's public key, and not today's way: today the dealer's server keeps a key per
+  shard (`DealerShardEnvelope`) and opens the returned shards itself
+  (`ShamirRecoveryService.PrepareFinalKeys`) **(V)**. Many identities are on the same hosting, so
+  the hosting could gather enough shards.
+- Today's server-side reset stays only for automated recovery and the old phrase.
 
 **Catches:**
 - The recovering browser must keep its throwaway private key from start to finish (in browser
@@ -623,4 +621,4 @@ place before any drive converts (see [Order of work](#order-of-work)).
 
 **Automated holders:** Shamir supports automated holder identities
 (`AccountRecovery.AutomatedIdentityKey`, `ShamirConfigurationService.cs`) **(V)**. Their shard
-opens on a server by design. To decide whether they stay.
+opens on a server by design. They stay as today for now (plan B, decision 6).

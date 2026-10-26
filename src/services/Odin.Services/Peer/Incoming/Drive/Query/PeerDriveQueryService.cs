@@ -224,7 +224,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             return new DrivePublicKeyResponse
             {
                 PublicKeyJwk = drive.WriteOnlyKeyPair.PublicKeyJwk(),
-                PublicKeyCrc32 = drive.WriteOnlyKeyPair.crc32c
+                PublicKeyCrc32 = drive.WriteOnlyKeyPair.crc32c,
+                IsZeroKnowledge = drive.IsZeroKnowledge
             };
         }
 

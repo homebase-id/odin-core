@@ -382,6 +382,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
+        Deposits.AssertNotDeposit(updateDescriptor.FileMetadata.IsEncrypted, updateDescriptor.EncryptedKeyHeader);
+
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
             ? updateDescriptor.EncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();

@@ -81,6 +81,7 @@ namespace Odin.Services.Authentication.Owner
 
             var issuedTo = (OdinId)tenantProvider.GetCurrentTenant()?.Name;
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(issuedTo, noncePackage, reply, keys);
+            serverToken.ZkSessionKey = ByteArrayUtil.GetRndByteArray(16);
             await clientRegistrationStorage.SaveAsync(serverToken);
 
             // TODO: audit login some where, or in helper class below
@@ -215,6 +216,22 @@ namespace Odin.Services.Authentication.Owner
             });
 
             return await cache.GetOrAddContextAsync(token, creator);
+        }
+
+        /// <summary>
+        /// The calling session's half of the browser's stored zero-knowledge master key, made at login.  A
+        /// session from before then has none, and neither has the browser's other half: the next login
+        /// makes both.
+        /// </summary>
+        public async Task<byte[]> GetZkSessionKeyAsync(IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            var tokenId = odinContext.Caller.OdinClientContext?.AccessRegistrationId?.Value
+                          ?? throw new OdinSecurityException("No owner session");
+
+            var registration = await GetValidatedEntryAsync(tokenId);
+            return registration.ZkSessionKey ?? throw new OdinClientException(
+                "This session has no zero-knowledge session key; log in again", OdinClientErrorCode.PasswordLoginRequired);
         }
 
         /// <summary>

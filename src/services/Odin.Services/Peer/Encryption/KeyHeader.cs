@@ -81,4 +81,21 @@ namespace Odin.Services.Peer.Encryption
             return bytes;
         }
     }
+
+    /// <summary>
+    /// A deposit's key header, which nobody on the server can open: the file's writer sealed it to the
+    /// drive's write-only public key.  Writes store <see cref="Sealed"/> as it is, and every re-lock
+    /// passes it on as it is (<see cref="EncryptedKeyHeader.EncryptKeyHeaderAes"/>); only a drive that
+    /// can hold deposits takes one (<c>StorageDrive.CanHoldDeposits</c>).  It has no AES key.
+    /// </summary>
+    public sealed class SealedKeyHeader : KeyHeader
+    {
+        public SealedKeyHeader(EncryptedKeyHeader sealedKeyHeader)
+        {
+            Sealed = sealedKeyHeader;
+            Iv = sealedKeyHeader.Iv;
+        }
+
+        public EncryptedKeyHeader Sealed { get; }
+    }
 }

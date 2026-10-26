@@ -474,7 +474,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
+            ? transferKeyEncryptedKeyHeader.DecryptOrPassSealed(ref clientSharedSecret)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -506,6 +506,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 throw new OdinClientException("Failure to unpack upload metadata, invalid transfer key header",
                     OdinClientErrorCode.InvalidKeyHeader);
             }
+
+            Deposits.AssertNotDeposit(true, transferKeyEncryptedKeyHeader);
 
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             KeyHeader keyHeader = transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret);
@@ -642,7 +644,12 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.MissingPayloadKeys);
             }
             
-            if (metadata.IsEncrypted)
+            if (keyHeader is SealedKeyHeader sealedKeyHeader)
+            {
+                Deposits.AssertValid(metadata, sealedKeyHeader.Sealed);
+                Deposits.AssertCanHold(await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true));
+            }
+            else if (metadata.IsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
                 {

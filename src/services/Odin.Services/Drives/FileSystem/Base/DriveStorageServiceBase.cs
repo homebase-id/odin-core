@@ -684,6 +684,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(driveId, odinContext);
             var drive = await this.DriveManager.GetDriveAsync(driveId);
+            if (keyHeader is SealedKeyHeader sealedKeyHeader)
+            {
+                Deposits.AssertCanHold(drive);
+                return sealedKeyHeader.Sealed;
+            }
+
             if (drive.IsZeroKnowledge)
             {
                 throw new OdinClientException("The server cannot encrypt for a zero-knowledge drive",
@@ -1148,6 +1154,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
             AssertActiveForUpdate(existingServerHeader);
+            Deposits.AssertNotDeposit(existingServerHeader);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
@@ -1576,6 +1583,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //
             // Validations
             //
+            Deposits.AssertNotDeposit(existingHeader);
             if (existingHeader.FileMetadata.IsEncrypted)
             {
                 var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
@@ -2395,6 +2403,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             AssertActiveForUpdate(existingServerHeader);
+            Deposits.AssertNotDeposit(existingServerHeader);
 
             if (existingServerHeader.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
             {

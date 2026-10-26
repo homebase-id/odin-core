@@ -48,5 +48,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
         [Get(RootPath + "/publickey_ecc")]
         Task<ApiResponse<GetEccPublicKeyResponse>> GetPublicKeyEcc(PublicPrivateKeyType keyType);
+
+        /// <summary>Recovery with the phrase, with no login.</summary>
+        [Get(RootPath + "/zk-phrase-recovery")]
+        Task<ApiResponse<Odin.Services.Security.ZeroKnowledge.ZkPhraseRecoveryResponse>> GetPhraseRecovery();
+
+        /// <summary>Recovery with a reset key (the phrase's or the friends'), with no login.</summary>
+        [Post(RootPath + "/zk-reset")]
+        Task<ApiResponse<HttpContent>> ResetPasswordWithResetKey([Body] Odin.Services.Security.ZeroKnowledge.ZkResetRequest request);
     }
 }

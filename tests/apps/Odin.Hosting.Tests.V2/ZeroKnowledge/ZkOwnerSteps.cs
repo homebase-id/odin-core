@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Auth;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Drives;
 using Odin.Services.Security.ZeroKnowledge;
@@ -32,12 +33,73 @@ internal static class ZkOwnerSteps
     public static async Task<OwnerClientDriveData> GetShardRecoveryDriveAsync(OwnerSession owner) =>
         (await owner.Admin.GetDrives()).Single(d => d.TargetDriveInfo == WellKnownAppDrives.ShardRecoveryDrive);
 
-    public static async Task<ZkBrowser.Keys> CreateKeysAsync(OwnerSession owner, string password, byte[] loginKeys)
+    public static async Task<ZkBrowser.Keys> CreateKeysAsync(OwnerSession owner, string password)
     {
-        var keys = ZkBrowser.MakeKeys(password, loginKeys);
+        var keys = ZkBrowser.MakeKeys(password);
         var response = await Client(owner).CreateKeys(keys.Request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return keys;
+    }
+
+    /// <summary>Asks for the phrase with proof of <paramref name="password"/>, as the login does.</summary>
+    public static async Task<ApiResponse<ZkPhraseHandoverResponse>> HandOverPhraseAsync(OwnerSession owner, string password)
+    {
+        return await Client(owner).HandOverPhrase(new ZkPhraseHandoverRequest
+        {
+            CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
+                owner.Host, owner.Identity.DomainName, password)
+        });
+    }
+
+    /// <summary>Writes the password copies given, with proof of <paramref name="password"/>, as the login does.</summary>
+    public static async Task<ApiResponse<HttpContent>> SavePasswordAsync(OwnerSession owner, string password,
+        string? phraseCopy, string? friendsCopy = null)
+    {
+        return await Client(owner).SavePassword(new ZkPasswordRequest
+        {
+            PhrasePublicKeyEncryptedPassword = phraseCopy,
+            ShamirPublicKeyEncryptedPassword = friendsCopy,
+            CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
+                owner.Host, owner.Identity.DomainName, password)
+        });
+    }
+
+    /// <summary>
+    /// The takeover's request, as the login builds it: the copies, <paramref name="password"/> sealed
+    /// to the new public key, and proof of <paramref name="password"/>.
+    /// </summary>
+    public static async Task<ZkPhraseTakeoverRequest> MakeTakeoverAsync(OwnerSession owner, string password,
+        string phrase, byte[] zkMasterKey)
+    {
+        var request = ZkBrowser.MakePhraseCopies<ZkPhraseTakeoverRequest>(phrase, zkMasterKey);
+        request.PhrasePublicKeyEncryptedPassword = ZkBrowser.SealPassword(password, request.PhrasePublicKeyJwk);
+        request.CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
+            owner.Host, owner.Identity.DomainName, password);
+        return request;
+    }
+
+    /// <summary>The login's takeover: the phrase handed over once, the browser's copies back.</summary>
+    public static async Task<string> TakeOverPhraseAsync(OwnerSession owner, string password, byte[] zkMasterKey)
+    {
+        var handover = await HandOverPhraseAsync(owner, password);
+        Assert.That(handover.StatusCode, Is.EqualTo(HttpStatusCode.OK), handover.Error?.Content);
+        var phrase = handover.Content!.Phrase;
+
+        var response = await Client(owner).TakeOverPhrase(await MakeTakeoverAsync(owner, password, phrase, zkMasterKey));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        return phrase;
+    }
+
+    /// <summary>
+    /// What the first login since plan A does: the zero-knowledge keys, and the Shard Recovery drive
+    /// converted.  Returns what the browser then holds.
+    /// </summary>
+    public static async Task<(byte[] ZkMasterKey, byte[] WriteOnlyPrivateKey)> MakeZeroKnowledgeAsync(OwnerSession owner,
+        string password)
+    {
+        var keys = await CreateKeysAsync(owner, password);
+        var driveKeys = await ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
+        return (keys.MasterKey, driveKeys.WriteOnlyPrivateKey);
     }
 
     public static async Task<ZkBrowser.DriveKeys> ConvertShardRecoveryDriveAsync(OwnerSession owner, byte[] zkMasterKey)
@@ -56,6 +118,21 @@ public interface IZeroKnowledgeOwnerClient
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/keys")]
     Task<ApiResponse<HttpContent>> CreateKeys([Body] ZkKeysRequest request);
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/password")]
+    Task<ApiResponse<HttpContent>> SavePassword([Body] ZkPasswordRequest request);
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-handover")]
+    Task<ApiResponse<ZkPhraseHandoverResponse>> HandOverPhrase([Body] ZkPhraseHandoverRequest request);
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-takeover")]
+    Task<ApiResponse<HttpContent>> TakeOverPhrase([Body] ZkPhraseTakeoverRequest request);
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-reentry")]
+    Task<ApiResponse<HttpContent>> ReenterPhrase([Body] ZkPhraseCopiesRequest request);
+
+    [Get(OwnerApiPathConstants.SecurityV1 + "/zk/session-key")]
+    Task<ApiResponse<ZkSessionKeyResponse>> GetSessionKey();
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/convert-shard-recovery-drive")]
     Task<ApiResponse<HttpContent>> ConvertShardRecoveryDrive([Body] ZkConvertDriveRequest request);

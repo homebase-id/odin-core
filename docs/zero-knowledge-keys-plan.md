@@ -5,7 +5,8 @@
 Half A of steps 1 and 2 in the
 [order of work](zero-knowledge-drives.md#order-of-work). Half B, Shamir in the browser, is kept as
 a reference in [zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md). It is there so
-A gets B's foundations right; it is not being built now.
+A gets B's foundations right; it is not being built now. Names and shorthand for every key:
+[owner-keys.md](owner-keys.md).
 
 Markers: **(V)** verified by reading the code (2026-10-22). Line counts and estimates are
 inferred.
@@ -31,6 +32,8 @@ Built on branches `zk-keys-plan-a` (odin-core, odin-js) and `zk-drive-columns`
   one locks nothing, and the server refuses it from then on: the drive id is encrypted with the
   new key. The server never encrypts for a zero-knowledge drive at all: an encrypted upload is
   refused with `DriveIsZeroKnowledge`, and a test proves it.
+- **The login keys copy was replaced by the password copy** in plan B (the password, sealed to the
+  recovery phrase's public key): recovery gives back the password itself.
 - **Shard Recovery is the first Private drive.** It starts Collaborative like every drive, and
   conversion makes it Private. Conversion drops the master-key copy, stores the browser's locked
   keys and the new write-only pair, and resets the whole `OdinContextCache` after commit.

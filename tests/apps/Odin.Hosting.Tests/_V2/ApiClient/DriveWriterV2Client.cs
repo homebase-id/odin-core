@@ -70,7 +70,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         UploadManifest uploadManifest = null,
         List<TestPayloadDefinition> payloads = null,
         AppNotificationOptions notificationOptions = null,
-        KeyHeader keyHeader = null)
+        KeyHeader keyHeader = null,
+        EncryptedKeyHeader sealedKeyHeader = null)
     {
         if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
         {
@@ -115,7 +116,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         var descriptor = new UploadFileDescriptor
         {
-            EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(
+            // A deposit sends its key header sealed, as it is stored (sealedKeyHeader)
+            EncryptedKeyHeader = sealedKeyHeader ?? EncryptedKeyHeader.EncryptKeyHeaderAes(
                 keyHeader,
                 instructionSet.TransferIv,
                 ref sharedSecret),

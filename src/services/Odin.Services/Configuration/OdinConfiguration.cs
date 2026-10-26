@@ -158,6 +158,13 @@ public class OdinConfiguration
         /// </summary>
         public int? RecoveryKeyWaitingPeriodSeconds { get; init; }
 
+        /// <summary>
+        /// Tests only: server-dealt Shamir locks the recovery phrase, as every deal did before recovery
+        /// in the browser, until the phrase is taken over.  Lets a test recover with such a deal and
+        /// take the phrase over from one.
+        /// </summary>
+        public bool DealsLockThePhrase { get; init; }
+
         public DevelopmentSection()
         {
             // Mockable support
@@ -172,6 +179,7 @@ public class OdinConfiguration
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
                 RecoveryKeyWaitingPeriodSeconds = config.GetOrDefault<int?>("Development:RecoveryKeyWaitingPeriodSeconds", null);
+                DealsLockThePhrase = config.GetOrDefault("Development:DealsLockThePhrase", false);
             }
         }
     }

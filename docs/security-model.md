@@ -10,7 +10,8 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 (the slug design's full argument; the facts are in section 3), [drive-deletion-and-app-uninstall.md](drive-deletion-and-app-uninstall.md),
 [connection-defaults.md](connection-defaults.md), [autoconnected-security-level-audit.md](autoconnected-security-level-audit.md),
 [youauth-unified-authorization.md](youauth-unified-authorization.md), [weak-key-retirement.md](weak-key-retirement.md),
-[zero-knowledge-drives.md](zero-knowledge-drives.md) (direction: sharing models, keys only on devices).
+[zero-knowledge-drives.md](zero-knowledge-drives.md) (direction: sharing models, keys only on devices),
+[owner-keys.md](owner-keys.md) (every owner key and what locks it, with the shorthand we write them in).
 
 ## 1. The platform
 
@@ -24,6 +25,18 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - **Zero-knowledge drives** (today only Shard Recovery) have no master-key copy of their key: the only copy is locked
   by the owner's zero-knowledge master key, which only the browser opens (`StorageDrive.IsZeroKnowledge`). The server
   never encrypts for one, and no grant on one carries its key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
+- **Recovery in the browser** ([zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md)): once the browser
+  takes the recovery phrase over, the server holds no copy of it it can open (`RecoveryKeyRecord.TakenOver`). The
+  phrase locks the zero-knowledge master key and the private half of a phrase key pair; the password is sealed to the
+  public half, so a login can write it but only the phrase reads it. The phrase recovery read
+  (`authentication/zk-phrase-recovery`) needs **no login**: it returns only those locked values, useless without the
+  128-bit phrase. The handover, the takeover and the password copy need proof of the password itself, as a password
+  change does (`PasswordReply`, `ZeroKnowledgeRecoveryService`), so a stolen session without the password can do none
+  of them. Someone *with* the password can still seal junk the server can't open or check, so recovery doesn't rely on
+  it alone: the server locks today's master key with the phrase's reset key, hkdf(phrase), itself
+  (`ResetKeyEncryptedMasterKey`), and `authentication/zk-phrase-reset` (no login, the key encrypted to the host)
+  resets the password with it and ends every owner session. Nothing the password opens reads the copy or makes the
+  reset key. Server-dealt Shamir locks the master key, not the phrase. **(V)**
 
 ### Callers
 
@@ -289,7 +302,9 @@ serverMetadata
 
 ## 8. Envelope encryption
 
-Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md).
+Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md). The owner's
+own keys above the storage key (password, master key, zero-knowledge master key, recovery phrase, reset key, Shamir),
+and what each one locks: [owner-keys.md](owner-keys.md).
 
 ```
 master key ──► storage key (one per drive; MasterKeyEncryptedStorageKey)

@@ -250,13 +250,14 @@ public static class TenantServices
 
         cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
-        cb.RegisterType<ShardRotationGate>().SingleInstance();
+        cb.RegisterType<ShamirDealGate>().SingleInstance();
         cb.RegisterType<ShamirReadinessCheckerService>().InstancePerLifetimeScope();
         
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();
         cb.RegisterType<ZeroKnowledgeKeyService>().InstancePerLifetimeScope();
+        cb.RegisterType<ZeroKnowledgeRecoveryService>().InstancePerLifetimeScope();
 
         cb.RegisterType<OwnerAuthenticationService>()
             .AsSelf()

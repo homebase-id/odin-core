@@ -57,9 +57,8 @@ public class ShamirPasswordRecoveryTests : ShamirFixture
         //
         // Setup - enter recovery mode
         //
-        await PrepareConnectionsAsync(frodo, players);
-
-        await DistributeAndVerifyShardsAsync(frodo, players, PlayerType.Automatic, minMatchingShards: 3);
+        // Two automatic and two gated friends: the automatic ones alone can never reach the threshold
+        await ArrangeFriendDealAsync(frodo, MixedPlayers(players), minMatchingShards: 3);
 
         // enter recovery mode
         await EnterRecoveryModeAsync(frodo);

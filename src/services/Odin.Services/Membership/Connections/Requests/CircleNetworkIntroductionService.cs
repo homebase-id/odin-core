@@ -652,13 +652,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         // A recipient that has never completed setup also sets the ICR-issue header on its way to this
         // error (it cannot build a transit context either), so check the error code first: "finish your
         // setup" is the actionable one, and it is a strictly narrower condition.
-        if (response.Error != null && response.Error.TryParseProblemDetails(out var errorCode))
+        if (response.ErrorCode() is OdinClientErrorCode.NotInitialized or OdinClientErrorCode.RecipientIdentityNotConfigured)
         {
-            if (errorCode is OdinClientErrorCode.NotInitialized or OdinClientErrorCode.RecipientIdentityNotConfigured)
-            {
-                return (IntroductionPreflightStatus.RecipientNotConfigured,
-                    "Recipient identity server has not completed initial setup");
-            }
+            return (IntroductionPreflightStatus.RecipientNotConfigured,
+                "Recipient identity server has not completed initial setup");
         }
 
         if (response.Headers.IsTrue(HttpHeaderConstants.RemoteServerIcrIssue))

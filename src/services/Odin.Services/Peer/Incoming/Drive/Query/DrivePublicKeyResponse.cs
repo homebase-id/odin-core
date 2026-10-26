@@ -18,4 +18,10 @@ public class DrivePublicKeyResponse
     /// recipient can tell which key an arriving deposit was sealed to.
     /// </summary>
     public uint PublicKeyCrc32 { get; set; }
+
+    /// <summary>
+    /// Whether the drive is zero knowledge: its owner's browser alone opens the private half.  When it
+    /// isn't, the owner's server can open whatever is sealed to it.
+    /// </summary>
+    public bool IsZeroKnowledge { get; set; }
 }
