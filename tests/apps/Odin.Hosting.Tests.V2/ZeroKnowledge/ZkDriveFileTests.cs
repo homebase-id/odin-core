@@ -234,9 +234,8 @@ public class ZkDriveFileTests : V2Fixture
     {
         // A zero-knowledge drive sends nothing, encrypted or not
         var (frodo, _) = await ZeroKnowledgeDriveAsync();
-        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.OwnerOnly);
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.OwnerOnly, allowDistribution: true);
         metadata.AppData.UniqueId = Guid.NewGuid();
-        metadata.AllowDistribution = true;
 
         var upload = await frodo.V1.Drive.UploadNewMetadata(Drive, metadata, new TransitOptions { Recipients = [Identities.Sam] });
         Assert.That(upload.ErrorCode(), Is.EqualTo(OdinClientErrorCode.ZkDriveFileCannotBeSent), upload.Error?.Content);

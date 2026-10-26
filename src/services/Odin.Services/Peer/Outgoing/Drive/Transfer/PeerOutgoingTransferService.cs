@@ -647,8 +647,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             DataSource overrideDataSource)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
-            TargetDrive targetDrive = options.RemoteTargetDrive ??
-                                      (await driveManager.GetDriveAsync(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
+            var drive = await driveManager.GetDriveAsync(internalFile.DriveId, failIfInvalid: true);
+            ZkDriveFiles.AssertNotSent(drive, options.Recipients);
+            TargetDrive targetDrive = options.RemoteTargetDrive ?? drive.TargetDriveInfo;
 
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();
@@ -660,8 +661,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
 
             var header = await fs.Storage.GetServerFileHeader(internalFile, odinContext);
-            ZkDriveFiles.AssertNotSent(header);
-
             // Sending needs the drive key, except for a deposit: its key header goes on sealed, as it was
             // written, and the recipient's browser opens it
             var keyHeader = Deposits.OpenWithDriveKey(header, odinContext);

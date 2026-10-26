@@ -28,7 +28,7 @@ public static class ZkDriveFiles
     /// anything is opened (<see cref="AssertDriveTakes"/>).  A zero-knowledge drive's own key header comes
     /// only from a caller holding its key.  A deposit passes through as today (<see cref="Deposits"/>).
     /// </summary>
-    public static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, ref SensitiveByteArray sharedSecret,
+    private static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, ref SensitiveByteArray sharedSecret,
         IOdinContext odinContext)
     {
         if (sent == null)
@@ -93,38 +93,43 @@ public static class ZkDriveFiles
     /// <summary>
     /// Whether <paramref name="header"/> may reach the caller: a zero-knowledge drive's own file only
     /// reaches one holding the drive's key, whatever else it holds (a grant from before the drive was
-    /// converted still carries the old key).  Says nothing about any other file.
+    /// converted still carries the old key), and the system's jobs (a file's TTL).  Says nothing about any
+    /// other file.  Every read and write of a stored header asks this, by query, socket or id.
     /// </summary>
     public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
-        !IsZkDriveFile(header) || CallerHoldsDriveKey(odinContext);
+        !IsZkDriveFile(header) || CallerHoldsDriveKey(odinContext) || odinContext.Caller?.IsSystem == true;
 
-    /// <summary>Refuses the caller the way a file is refused to a caller without the drive's key.</summary>
-    public static void AssertCallerHoldsDriveKey(Guid driveId, IOdinContext odinContext)
+    /// <summary>Refuses a file the caller may not see (<see cref="VisibleTo"/>) as one refused for want of the drive's key.</summary>
+    public static void AssertVisibleTo(ServerFileHeader header, IOdinContext odinContext)
+    {
+        if (!VisibleTo(header, odinContext))
+        {
+            ThrowNoAccess(header.FileMetadata.File.DriveId);
+        }
+    }
+
+    private static void AssertCallerHoldsDriveKey(Guid driveId, IOdinContext odinContext)
     {
         if (!CallerHoldsDriveKey(odinContext))
         {
-            throw new OdinSecurityException($"No access permitted to drive {driveId}");
+            ThrowNoAccess(driveId);
         }
     }
+
+    private static void ThrowNoAccess(Guid driveId) => throw new OdinSecurityException($"No access permitted to drive {driveId}");
 
     /// <summary>
     /// An encrypted update of a zero-knowledge drive's file takes its own key header with a new IV, as for
     /// any encrypted file.  The server compares the IVs both key headers show; it can't check that the file
-    /// key stayed the same, which is the writer's to keep, or the payloads no longer open.  An unencrypted
-    /// update is refused as a change of encryption; any other file never gets a <see cref="ZkDriveKeyHeader"/>
+    /// key stayed the same, which is the writer's to keep, or the payloads no longer open.  Callers refuse a
+    /// change of encryption first; any other file never gets a <see cref="ZkDriveKeyHeader"/>
     /// (<see cref="AssertDriveTakes"/>).
     /// </summary>
-    public static void AssertFitsUpdate(ServerFileHeader existing, KeyHeader update, FileMetadata? newMetadata)
+    public static void AssertFitsUpdate(ServerFileHeader existing, KeyHeader update)
     {
         if (!IsZkDriveFile(existing))
         {
             return;
-        }
-
-        if (newMetadata?.IsEncrypted != true)
-        {
-            throw new OdinClientException("A zero-knowledge drive's file can't be updated unencrypted",
-                OdinClientErrorCode.ArgumentError);
         }
 
         if (update is not ZkDriveKeyHeader)
@@ -143,15 +148,6 @@ public static class ZkDriveFiles
     public static void AssertNotSent<T>(StorageDrive drive, IEnumerable<T>? recipients)
     {
         if (drive.IsZeroKnowledge && recipients?.Any() == true)
-        {
-            ThrowCannotBeSent();
-        }
-    }
-
-    /// <summary>The same, for a stored file about to be sent.</summary>
-    public static void AssertNotSent(ServerFileHeader header)
-    {
-        if (IsZkDriveFile(header))
         {
             ThrowCannotBeSent();
         }

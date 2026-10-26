@@ -229,6 +229,23 @@ it as it is (read 2026-10-26) **(V)**.
   route, and the transient drive is staging, not a destination.
 - `DrivePublicKeyResponse.IsZeroKnowledge`: a sender knows whether sealing to a drive is worth it.
 
+## Open from step 1's review (the user's call)
+
+- **One "may the caller see this file" check.** The ACL and the zero-knowledge rule
+  (`ZkDriveFiles.VisibleTo`) are combined separately in three places:
+  - the header load (`GetServerFileHeaderInternal`);
+  - the query filter (`CallerHasPermissionToFile`, then the zero-knowledge rule);
+  - the socket (`DriveEventMessage.VisibleToAsync`).
+
+  One predicate would serve all three. A hidden zero-knowledge row would then count as an ACL
+  failure in a query. That is a medium refactor, kept out of step 1.
+- **Overwriting needs the storage key, but only implicitly.** On a normal drive an unencrypted
+  overwrite still locks an empty key header, so it needs the storage key. That is what keeps a
+  guest on a public drive from replacing other people's files (pinned by
+  `OverwriteNeedsTheStorageKeyTests`). An explicit storage-key check, with a plain "unencrypted
+  means no key header", would say so directly. A new upload doesn't do this, so the two differ
+  today.
+
 ## Not in this work
 - **chat-kmp:** comes with consent. Two small bugs found on the way, both harmless today:
   - `EncryptedKeyHeader.toBase64()` writes the version big-endian, but has no production caller;

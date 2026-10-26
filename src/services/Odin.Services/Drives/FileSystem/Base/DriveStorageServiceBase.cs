@@ -935,7 +935,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     // of it, hence no ServerFileHeader, which is how handlers tell a hard delete from a soft one)
                     PreviousServerFileHeader = fileHeader,
                     ServerFileHeader = null,
-                    SharedSecretEncryptedFileHeader = null,
                     OdinContext = odinContext,
                 });
             }
@@ -1279,10 +1278,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = refreshedHeader,
-                    // None for a writer who may not see it (a zero-knowledge drive's own file, for anyone but the owner)
-                    SharedSecretEncryptedFileHeader = ZkDriveFiles.VisibleTo(refreshedHeader, odinContext)
-                        ? DriveFileUtility.CreateClientFileHeader(refreshedHeader, odinContext)
-                        : null,
                     // The summary of everyone's reactions, not the writer's own change
                     OdinContext = OdinContextUpgrades.ForOthersWrites(odinContext),
                 });
@@ -1599,10 +1594,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Validations
             //
             Deposits.AssertNotDeposit(existingHeader);
+            if (metadata != null)
+            {
+                AssertSameEncryption(existingHeader, metadata);
+            }
+
             if (ZkDriveFiles.IsZkDriveFile(existingHeader))
             {
                 // Can't be opened to check its AES key; checked before any payload is copied
-                ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader, metadata);
+                ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader);
             }
             else if (existingHeader.FileMetadata.IsEncrypted)
             {
@@ -2152,7 +2152,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                         IsHardDelete = false,
                         File = file,
                         ServerFileHeader = deletedServerFileHeader,
-                        SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(deletedServerFileHeader, odinContext),
                         OdinContext = odinContext,
                     });
                 }
@@ -2216,13 +2215,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             // A zero-knowledge drive's own file is the owner console's alone, to read or to change, as a query
-            // leaves it out for anyone else; jobs (the system) still reach it
-            if (!ZkDriveFiles.VisibleTo(header, odinContext) && odinContext.Caller?.IsSystem != true)
+            // leaves it out for anyone else
+            if (aclDeniedAsMissing && !ZkDriveFiles.VisibleTo(header, odinContext))
             {
-                return aclDeniedAsMissing
-                    ? null
-                    : throw new OdinSecurityException($"No access permitted to drive {file.DriveId}");
+                return null;
             }
+
+            ZkDriveFiles.AssertVisibleTo(header, odinContext);
 
             // Like a query, which leaves out what the caller may not see, when the caller asks for that
             if (aclDeniedAsMissing)
@@ -2235,6 +2234,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
 
             return header;
+        }
+
+        /// <summary>An update keeps a file encrypted or unencrypted: its payloads were written that way.</summary>
+        private static void AssertSameEncryption(ServerFileHeader existing, FileMetadata newMetadata)
+        {
+            if (existing.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
+            {
+                throw new OdinClientException("Cannot change encryption when updating a file since your payloads might be invalidated",
+                    OdinClientErrorCode.ArgumentError);
+            }
         }
 
         /// <summary>
@@ -2430,11 +2439,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             AssertActiveForUpdate(existingServerHeader);
             Deposits.AssertNotDeposit(existingServerHeader);
 
-            if (existingServerHeader.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
-            {
-                throw new OdinClientException($"Cannot change encryption when storage intent is {StorageIntent.MetadataOnly} since your " +
-                                              $"payloads might be invalidated", OdinClientErrorCode.ArgumentError);
-            }
+            AssertSameEncryption(existingServerHeader, newMetadata);
 
             var targetFile = existingServerHeader.FileMetadata.File;
             newMetadata.File = targetFile;
@@ -2455,7 +2460,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //only change the IV if the file was encrypted
             if (existingServerHeader.FileMetadata.IsEncrypted)
             {
-                ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader, newMetadata);
+                ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader);
                 if (newKeyHeader is ZkDriveKeyHeader zkDriveKeyHeader)
                 {
                     // Stored as the owner's device sent it.  Critical Note: the server can't check that it keeps

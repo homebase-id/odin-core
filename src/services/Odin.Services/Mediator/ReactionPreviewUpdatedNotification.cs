@@ -17,7 +17,6 @@ public class ReactionPreviewUpdatedNotification : MediatorNotificationBase, IDri
     public InternalDriveFileId File { get; init; }
 
     public ServerFileHeader ServerFileHeader { get; init; }
-    public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 
     public bool IgnoreFeedDistribution { get; set; }
     public bool IgnoreReactionPreviewCalculation { get; set; }

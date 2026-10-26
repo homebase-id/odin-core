@@ -497,13 +497,6 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         if (uploadDescriptor.FileMetadata.IsEncrypted)
         {
             var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
-
-            if (null == transferKeyEncryptedKeyHeader)
-            {
-                throw new OdinClientException("Failure to unpack upload metadata, invalid transfer key header",
-                    OdinClientErrorCode.InvalidKeyHeader);
-            }
-
             Deposits.AssertNotDeposit(true, transferKeyEncryptedKeyHeader);
 
             keyHeader = await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager, odinContext);

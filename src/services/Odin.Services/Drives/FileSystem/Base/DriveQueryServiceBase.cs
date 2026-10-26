@@ -477,7 +477,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     // storage key it holds
                     if (ZkDriveFiles.IsZkDriveFile(serverFileHeader))
                     {
-                        if (ZkDriveFiles.CallerHoldsDriveKey(odinContext))
+                        if (ZkDriveFiles.VisibleTo(serverFileHeader, odinContext))
                         {
                             visible.Add(serverFileHeader);
                         }
