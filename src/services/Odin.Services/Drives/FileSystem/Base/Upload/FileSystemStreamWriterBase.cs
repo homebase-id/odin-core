@@ -466,7 +466,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         }
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? await OpenForWriteAsync(transferKeyEncryptedKeyHeader, package, odinContext)
+            ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager, odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -506,7 +506,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
             Deposits.AssertNotDeposit(true, transferKeyEncryptedKeyHeader);
 
-            keyHeader = await OpenForWriteAsync(transferKeyEncryptedKeyHeader, package, odinContext);
+            keyHeader = await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager, odinContext);
 
             if (!ByteArrayUtil.IsStrongKey(keyHeader.Iv))
             {
@@ -550,22 +550,16 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         return (keyHeader, metadata, serverMetadata);
     }
 
-    /// <summary>The key header the client sent, for the package's drive (<see cref="ZkDriveFiles.OpenForWrite"/>).</summary>
-    private async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader sent, FileUploadPackage package, IOdinContext odinContext)
-    {
-        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true);
-        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-        return ZkDriveFiles.OpenForWrite(sent, drive, ref clientSharedSecret, odinContext);
-    }
-
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
     private async Task ValidateUploadCoreAsync(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata, IOdinContext odinContext)
     {
+        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, true);
+
         // Before anything is stored, whatever the storage intent
-        ZkDriveFiles.AssertNotSent(keyHeader, package.InstructionSet.TransitOptions?.Recipients);
+        ZkDriveFiles.AssertNotSent(drive, package.InstructionSet.TransitOptions?.Recipients);
 
         if (null == serverMetadata.AccessControlList)
         {
@@ -608,7 +602,6 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             }
         }
 
-        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",

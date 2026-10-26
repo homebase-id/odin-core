@@ -2,10 +2,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives;
@@ -26,9 +28,14 @@ public static class ZkDriveFiles
     /// anything is opened (<see cref="AssertDriveTakes"/>).  A zero-knowledge drive's own key header comes
     /// only from a caller holding its key.  A deposit passes through as today (<see cref="Deposits"/>).
     /// </summary>
-    public static KeyHeader OpenForWrite(EncryptedKeyHeader sent, StorageDrive drive, ref SensitiveByteArray sharedSecret,
+    public static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, ref SensitiveByteArray sharedSecret,
         IOdinContext odinContext)
     {
+        if (sent == null)
+        {
+            throw new OdinClientException("An encrypted file needs its key header", OdinClientErrorCode.InvalidKeyHeader);
+        }
+
         AssertDriveTakes(drive, sent.Type);
         if (!sent.IsZkDrive())
         {
@@ -38,6 +45,15 @@ public static class ZkDriveFiles
         AssertCallerHoldsDriveKey(drive.Id, odinContext);
         sent.AssertValidZkDrive();
         return new ZkDriveKeyHeader(sent);
+    }
+
+    /// <summary>The key header a client sent, for the drive it writes to (<see cref="OpenForWrite"/>).</summary>
+    public static async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader? sent, Guid driveId, IDriveManager driveManager,
+        IOdinContext odinContext)
+    {
+        var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
+        var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
+        return OpenForWrite(sent, drive, ref sharedSecret, odinContext);
     }
 
     /// <summary>
@@ -95,14 +111,20 @@ public static class ZkDriveFiles
     /// An encrypted update of a zero-knowledge drive's file takes its own key header with a new IV, as for
     /// any encrypted file.  The server compares the IVs both key headers show; it can't check that the file
     /// key stayed the same, which is the writer's to keep, or the payloads no longer open.  An unencrypted
-    /// update is refused as a change of encryption where it's stored; any other file never gets a
-    /// <see cref="ZkDriveKeyHeader"/> (<see cref="AssertDriveTakes"/>).
+    /// update is refused as a change of encryption; any other file never gets a <see cref="ZkDriveKeyHeader"/>
+    /// (<see cref="AssertDriveTakes"/>).
     /// </summary>
     public static void AssertFitsUpdate(ServerFileHeader existing, KeyHeader update, FileMetadata? newMetadata)
     {
-        if (!IsZkDriveFile(existing) || newMetadata?.IsEncrypted != true)
+        if (!IsZkDriveFile(existing))
         {
             return;
+        }
+
+        if (newMetadata?.IsEncrypted != true)
+        {
+            throw new OdinClientException("A zero-knowledge drive's file can't be updated unencrypted",
+                OdinClientErrorCode.ArgumentError);
         }
 
         if (update is not ZkDriveKeyHeader)
@@ -114,13 +136,13 @@ public static class ZkDriveFiles
     }
 
     /// <summary>
-    /// A zero-knowledge drive's own file isn't sent to anyone: the recipient would need the drive's key.
-    /// Writes refuse recipients before they store anything; Chat will send through deposits
-    /// (docs/zero-knowledge-drive-api-plan.md, step 2).
+    /// A zero-knowledge drive sends nothing: its own files need the drive's key, and the server holds no
+    /// storage key to re-lock anything else for a recipient.  Writes refuse recipients before they store
+    /// anything; Chat will send through deposits (docs/zero-knowledge-drive-api-plan.md, step 2).
     /// </summary>
-    public static void AssertNotSent<T>(KeyHeader keyHeader, IEnumerable<T>? recipients)
+    public static void AssertNotSent<T>(StorageDrive drive, IEnumerable<T>? recipients)
     {
-        if (keyHeader is ZkDriveKeyHeader && recipients?.Any() == true)
+        if (drive.IsZeroKnowledge && recipients?.Any() == true)
         {
             ThrowCannotBeSent();
         }

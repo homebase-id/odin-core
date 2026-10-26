@@ -473,6 +473,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                         // continue;
                     }
 
+                    // A zero-knowledge drive's own file goes only to a caller holding the drive's key, whatever
+                    // storage key it holds
+                    if (ZkDriveFiles.IsZkDriveFile(serverFileHeader))
+                    {
+                        if (ZkDriveFiles.CallerHoldsDriveKey(odinContext))
+                        {
+                            visible.Add(serverFileHeader);
+                        }
+
+                        continue;
+                    }
+
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out _);
 
@@ -480,11 +492,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var isDeposit = Deposits.IsDeposit(serverFileHeader);
 
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
-                    // A zero-knowledge drive's own file goes only to a caller holding the drive's key, whatever
-                    // storage key it holds
-                    var shouldReceiveFile = ZkDriveFiles.IsZkDriveFile(serverFileHeader)
-                        ? ZkDriveFiles.CallerHoldsDriveKey(odinContext)
-                        : (isEncrypted && hasStorageKey) || !isEncrypted || isDeposit;
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted || isDeposit;
                     if (shouldReceiveFile)
                     {
                         visible.Add(serverFileHeader);

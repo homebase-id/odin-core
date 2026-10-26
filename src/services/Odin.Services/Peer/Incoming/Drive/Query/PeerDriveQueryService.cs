@@ -81,7 +81,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 return (null, default, null, null);
             }
 
-            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
+            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload?.ToBase64();
 
             // NOTE: caller takes ownership of ps and is responsible for disposing
             var ps = await fileSystem.Storage.GetPayloadStreamAsync(file, key, chunk, odinContext);
@@ -120,7 +120,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
             var (thumb, _) =
                 await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, width, height, payloadKey, payloadDescriptor.Uid, odinContext);
-            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
+            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload?.ToBase64();
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType,
                 payloadDescriptor.LastModified, thumb);
         }

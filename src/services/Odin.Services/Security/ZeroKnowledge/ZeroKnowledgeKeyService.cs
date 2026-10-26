@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Diagnostics;
 using System.Linq;
@@ -304,43 +305,51 @@ public class ZeroKnowledgeKeyService(
 
         var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias.Value;
 
-        await using var tx = await db.BeginStackedTransactionAsync();
-
-        // Nothing the server locked may use the key being dropped.  Shamir writes only unencrypted files,
-        // deposits and the browser's own files here, so this only fails if something else wrote there.
-        var files = (await driveMainIndex.GetAllByDriveIdAsync(driveId)).Select(ServerFileHeader.FromDriveMainIndexRecord).ToList();
-        var lockedByTheDriveKey = files.Count(h => h.FileMetadata.IsEncrypted && !h.EncryptedKeyHeader.IsLockedByClient());
-        if (lockedByTheDriveKey > 0)
+        List<ServerFileHeader> dead;
+        await using (var tx = await db.BeginStackedTransactionAsync())
         {
-            throw new OdinClientException(
-                $"The Shard Recovery drive holds {lockedByTheDriveKey} encrypted file(s); it cannot be given new keys",
-                OdinClientErrorCode.DriveHasEncryptedFiles);
+            // Nothing the server locked may use the key being dropped.  Shamir writes only unencrypted files,
+            // deposits and the browser's own files here, so this only fails if something else wrote there.
+            var files = (await driveMainIndex.GetAllByDriveIdAsync(driveId)).Select(ServerFileHeader.FromDriveMainIndexRecord).ToList();
+            var lockedByTheDriveKey = files.Count(h => h.FileMetadata.IsEncrypted && !h.EncryptedKeyHeader.IsLockedByClient());
+            if (lockedByTheDriveKey > 0)
+            {
+                throw new OdinClientException(
+                    $"The Shard Recovery drive holds {lockedByTheDriveKey} encrypted file(s); it cannot be given new keys",
+                    OdinClientErrorCode.DriveHasEncryptedFiles);
+            }
+
+            // Deposits are sealed to the write-only key being dropped, so nothing can open them again: a
+            // friend's shard dies with their reset, and the dealer is told to deal again (its check sees
+            // the shard gone).  The requests to release them go too: only gated shards, all deposits, get one.
+            // So do the browser's own files, locked with the drive key being dropped.
+            dead = files.Where(h =>
+                    (h.FileMetadata.IsEncrypted && h.EncryptedKeyHeader.IsLockedByClient()) || ShardRequestApprovalCollector.IsReleaseRequest(h))
+                .ToList();
+
+            await driveManager.ApplyZeroKnowledgeKeysAsync(
+                driveId,
+                request.ZkMasterKeyEncryptedStorageKey,
+                request.EncryptedIdIv64.FromBase64(),
+                request.EncryptedIdValue64.FromBase64(),
+                writeOnlyPublicKey,
+                request.ZkStorageKeyEncryptedWriteOnlyPrivateKey,
+                odinContext);
+
+            // Cached owner contexts carry a grant with the old key; drop them once this is committed.
+            tx.AddPostCommitAction(() => contextCache.ResetAsync());
+            tx.Commit();
         }
 
-        // Deposits are sealed to the write-only key being dropped, so nothing can open them again: a
-        // friend's shard dies with their reset, and the dealer is told to deal again (its check sees
-        // the shard gone).  The requests to release them go too: only gated shards, all deposits, get one.
-        // So do the browser's own files, locked with the drive key being dropped.
+        // Only once the new keys are committed: a delete takes a file's payloads with it at once, which a
+        // conversion that didn't commit couldn't undo.  One left behind is harmless: nothing opens it, and a
+        // dealer's check sees a deposit sealed to an old key as not held.
         var ownerContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.ReadWrite, odinContext);
-        foreach (var dead in files.Where(h =>
-                     (h.FileMetadata.IsEncrypted && h.EncryptedKeyHeader.IsLockedByClient()) || ShardRequestApprovalCollector.IsReleaseRequest(h)))
+        foreach (var file in dead)
         {
-            await fileSystem.Storage.HardDeleteLongTermFile(dead.FileMetadata.File, ownerContext);
+            await fileSystem.Storage.HardDeleteLongTermFile(file.FileMetadata.File, ownerContext);
         }
-
-        await driveManager.ApplyZeroKnowledgeKeysAsync(
-            driveId,
-            request.ZkMasterKeyEncryptedStorageKey,
-            request.EncryptedIdIv64.FromBase64(),
-            request.EncryptedIdValue64.FromBase64(),
-            writeOnlyPublicKey,
-            request.ZkStorageKeyEncryptedWriteOnlyPrivateKey,
-            odinContext);
-
-        // Cached owner contexts carry a grant with the old key; drop them once this is committed.
-        tx.AddPostCommitAction(() => contextCache.ResetAsync());
-        tx.Commit();
 
         logger.LogInformation("Shard Recovery drive converted to zero knowledge");
     }

@@ -1055,8 +1055,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             payloads = newMetadata.Payloads ?? [];
 
-            // Before any payload is copied, so a refusal leaves nothing behind
-            var encryptedKeyHeader = await LockKeyHeaderAsync(originFile.DriveId, keyHeader, newMetadata, odinContext);
+            // Before any payload is copied, so a refusal leaves nothing behind.  On a normal drive even an
+            // unencrypted overwrite locks a key header, so it needs the drive's storage key: that is what keeps
+            // a caller without it (a guest on a public drive) from overwriting other people's files.  A
+            // zero-knowledge drive has no storage key to ask for, so an unencrypted file there gets none.
+            var encryptedKeyHeader = newMetadata.IsEncrypted || !drive.IsZeroKnowledge
+                ? await EncryptKeyHeader(originFile.DriveId, keyHeader, odinContext)
+                : EncryptedKeyHeader.Empty();
 
             // Snapshot what the committed header points at before anything is copied over it. Both the mid-copy
             // rollback and the post-commit-failure rollback below must leave these objects alone.
@@ -1229,7 +1234,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
-            ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader, newMetadata);
 
             await OverwriteMetadataInternal(newKeyHeader, existingServerHeader, newMetadata, newServerMetadata, odinContext);
 
@@ -1275,7 +1279,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = refreshedHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(refreshedHeader, odinContext),
+                    // None for a writer who may not see it (a zero-knowledge drive's own file, for anyone but the owner)
+                    SharedSecretEncryptedFileHeader = ZkDriveFiles.VisibleTo(refreshedHeader, odinContext)
+                        ? DriveFileUtility.CreateClientFileHeader(refreshedHeader, odinContext)
+                        : null,
                     // The summary of everyone's reactions, not the writer's own change
                     OdinContext = OdinContextUpgrades.ForOthersWrites(odinContext),
                 });
@@ -1594,7 +1601,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             Deposits.AssertNotDeposit(existingHeader);
             if (ZkDriveFiles.IsZkDriveFile(existingHeader))
             {
-                // Can't be opened to check its AES key
+                // Can't be opened to check its AES key; checked before any payload is copied
                 ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader, metadata);
             }
             else if (existingHeader.FileMetadata.IsEncrypted)
@@ -2181,16 +2188,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return new ServerFileHeader()
             {
-                EncryptedKeyHeader = await LockKeyHeaderAsync(targetFile.DriveId, keyHeader, metadata, odinContext),
+                EncryptedKeyHeader = metadata.IsEncrypted
+                    ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext)
+                    : EncryptedKeyHeader.Empty(),
                 FileMetadata = metadata,
                 ServerMetadata = serverMetadata
             };
         }
-
-        /// <summary>The key header a file is stored with: locked for the drive, or none for an unencrypted file.</summary>
-        private async Task<EncryptedKeyHeader> LockKeyHeaderAsync(Guid driveId, KeyHeader keyHeader, FileMetadata metadata,
-            IOdinContext odinContext) =>
-            metadata.IsEncrypted ? await EncryptKeyHeader(driveId, keyHeader, odinContext) : EncryptedKeyHeader.Empty();
 
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext,
             bool includeExpired = false, bool aclDeniedAsMissing = false)
@@ -2209,6 +2213,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (!includeExpired && IsExpired(header))
             {
                 return null;
+            }
+
+            // A zero-knowledge drive's own file is the owner console's alone, to read or to change, as a query
+            // leaves it out for anyone else; jobs (the system) still reach it
+            if (!ZkDriveFiles.VisibleTo(header, odinContext) && odinContext.Caller?.IsSystem != true)
+            {
+                return aclDeniedAsMissing
+                    ? null
+                    : throw new OdinSecurityException($"No access permitted to drive {file.DriveId}");
             }
 
             // Like a query, which leaves out what the caller may not see, when the caller asks for that
@@ -2442,11 +2455,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             //only change the IV if the file was encrypted
             if (existingServerHeader.FileMetadata.IsEncrypted)
             {
+                ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader, newMetadata);
                 if (newKeyHeader is ZkDriveKeyHeader zkDriveKeyHeader)
                 {
-                    // Stored as the owner's device sent it (the callers ran ZkDriveFiles.AssertFitsUpdate).
-                    // Critical Note: the server can't check that it keeps the file's AES key; if it doesn't,
-                    // the payloads are lost forever.
+                    // Stored as the owner's device sent it.  Critical Note: the server can't check that it keeps
+                    // the file's AES key; if it doesn't, the payloads are lost forever.
                     existingServerHeader.EncryptedKeyHeader = zkDriveKeyHeader.Locked;
                 }
                 else

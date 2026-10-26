@@ -385,8 +385,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         Deposits.AssertNotDeposit(updateDescriptor.FileMetadata.IsEncrypted, updateDescriptor.EncryptedKeyHeader);
 
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
-            ? ZkDriveFiles.OpenForWrite(updateDescriptor.EncryptedKeyHeader,
-                await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true), ref clientSharedSecret, odinContext)
+            ? await ZkDriveFiles.OpenForWriteAsync(updateDescriptor.EncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
+                odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(updateDescriptor);
@@ -493,7 +493,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
         PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);
 
-        ZkDriveFiles.AssertNotSent(keyHeader, package.InstructionSet.Recipients);
+        ZkDriveFiles.AssertNotSent(drive, package.InstructionSet.Recipients);
 
         if (package.InstructionSet.Locale == UpdateLocale.Local)
         {

@@ -208,6 +208,44 @@ public class ZkDriveFileTests : V2Fixture
     }
 
     [Test]
+    public async Task AnAppCannotOverwriteOrDeleteAZkDriveFile()
+    {
+        // Not only its key header: the file is the owner console's alone, to read or to change
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (_, driveKey) = await ZeroKnowledgeDriveAsync(frodo);
+        var app = await AppSession.SetupAsync(frodo, Drive, DrivePermission.ReadWrite);
+        var uniqueId = Guid.NewGuid();
+        var (upload, _, locked) = await UploadAsync(frodo, driveKey, uniqueId);
+
+        var plaintext = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.OwnerOnly);
+        plaintext.VersionTag = upload.NewVersionTag;
+        var overwrite = await app.V1.Drive.UploadNewMetadata(Drive, plaintext, new TransitOptions(), overwriteFileId: upload.FileId);
+        Assert.That(overwrite.IsSuccessStatusCode, Is.False, $"an overwrite with plaintext: {overwrite.StatusCode}");
+
+        var delete = await app.Drives.Writer.SoftDeleteFile(Drive.Alias, upload.FileId);
+        Assert.That(delete.IsSuccessStatusCode, Is.False, $"a delete: {delete.StatusCode}");
+
+        var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
+        AssertOpens(read.Content!, driveKey, locked, Content);
+    }
+
+    [Test]
+    public async Task AnUnencryptedFileWithRecipientsIsRefusedBeforeItIsStored()
+    {
+        // A zero-knowledge drive sends nothing, encrypted or not
+        var (frodo, _) = await ZeroKnowledgeDriveAsync();
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.OwnerOnly);
+        metadata.AppData.UniqueId = Guid.NewGuid();
+        metadata.AllowDistribution = true;
+
+        var upload = await frodo.V1.Drive.UploadNewMetadata(Drive, metadata, new TransitOptions { Recipients = [Identities.Sam] });
+        Assert.That(upload.ErrorCode(), Is.EqualTo(OdinClientErrorCode.ZkDriveFileCannotBeSent), upload.Error?.Content);
+
+        var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(metadata.AppData.UniqueId.Value, Drive.Alias);
+        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "nothing was stored");
+    }
+
+    [Test]
     public async Task AMetadataOnlyUploadWithRecipientsIsRefusedBeforeAnythingIsStored()
     {
         var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();

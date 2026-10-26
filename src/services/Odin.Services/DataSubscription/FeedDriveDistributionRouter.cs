@@ -83,8 +83,9 @@ namespace Odin.Services.DataSubscription
                 return;
             }
 
-            var deleted = notification as DriveFileDeletedNotification;
-            if (ZkDriveFiles.IsZkDriveFile(notification.ServerFileHeader) || ZkDriveFiles.IsZkDriveFile(deleted?.PreviousServerFileHeader))
+            var deleteNotification = notification as DriveFileDeletedNotification;
+            if (ZkDriveFiles.IsZkDriveFile(notification.ServerFileHeader) ||
+                ZkDriveFiles.IsZkDriveFile(deleteNotification?.PreviousServerFileHeader))
             {
                 // Never distributed: the server can't open its key header to re-lock it for anyone
                 return;
@@ -97,7 +98,6 @@ namespace Odin.Services.DataSubscription
                 _logger.LogDebug("FeedDriveDistributionRouter should distribute is true. IsCollabChannel: {collabDrive} ",
                     isCollaborationChannel);
 
-                var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile = (deleteNotification != null &&
                                        deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
                                       notification.ServerFileHeader.FileMetadata.IsEncrypted;
