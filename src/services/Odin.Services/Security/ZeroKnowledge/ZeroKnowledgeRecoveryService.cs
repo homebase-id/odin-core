@@ -80,14 +80,24 @@ public class ZeroKnowledgeRecoveryService(
                 return false;
             }
 
-            if (package.UsesAutomatedRecovery && keys?.HasShamirCopies() != true &&
-                shamirConfigurationService.GetAutomatedRecoveryPlayers() != null)
+            // Only a deal the browser can deal again: an automated deal needs this host's automated
+            // identities, or the flag would stay up for a login that deals nothing
+            var canDealAgain = !package.UsesAutomatedRecovery || shamirConfigurationService.GetAutomatedRecoveryPlayers() != null;
+            if (!canDealAgain)
+            {
+                return false;
+            }
+
+            if (package.UsesAutomatedRecovery && keys?.HasShamirCopies() != true)
             {
                 return true;
             }
 
+            // A deal from before deals recorded the hash can't tell: a server-made automated one is
+            // caught above, a server-made friend one is removed, and any other recovers as it is
             var email = await passwordKeyRecoveryService.GetRecoveryEmailAsync();
-            return email != null && package.RecoveryEmailHash != PasswordKeyRecoveryService.HashRecoveryEmail(email);
+            return email != null && package.RecoveryEmailHash != null &&
+                   package.RecoveryEmailHash != PasswordKeyRecoveryService.HashRecoveryEmail(email);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

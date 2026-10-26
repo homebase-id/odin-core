@@ -204,6 +204,31 @@ public class AutomatedRecoveryTests : ShamirFixture
         Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password));
     }
 
+    /// <summary>
+    /// A deal from before deals recorded the email hash it was dealt with: nothing can tell whether the
+    /// email changed since, so it isn't flagged, and the dealer sends the hash as such deals took it.
+    /// </summary>
+    [Test]
+    public async Task ADealWithoutARecordedEmailHashIsNotFlaggedAndStillRecovers()
+    {
+        var (frodo, _) = Cast();
+        await ArrangeAutomatedDealAsync(frodo);
+        var (scope, context) = await MigrationContextAsync(frodo);
+        var shamir = scope.Resolve<ShamirConfigurationService>();
+        var dealt = (await shamir.GetDealerShardPackage(context))!;
+        Assert.That(dealt.RecoveryEmailHash, Is.Not.Null, "a deal records it now");
+        await shamir.SaveDealerPackage(new DealerShardPackage
+        {
+            MinMatchingShards = dealt.MinMatchingShards,
+            Envelopes = dealt.Envelopes,
+            UsesAutomatedRecovery = dealt.UsesAutomatedRecovery
+        }, context);
+
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(frodo)).DealNeedsDealing, Is.False);
+        var rebuilt = await RecoverInBrowserAsync(frodo, [], await GetDealerShardConfigAsync(frodo));
+        Assert.That(rebuilt.Password, Is.EqualTo(Password));
+    }
+
     [Test]
     public async Task APasswordChangeSealsTheNewPasswordAndDealsNothingAgain()
     {

@@ -1034,6 +1034,16 @@ Facts checked in the code or by a test are marked **(V)**.
     the next password login deals such a deal again anyway.
   - The login's zero-knowledge steps are capped at 10 seconds; a friend re-deal cut off there posts
     nothing (the deal is posted whole) and is tried again at the next login.
+  - Flagged only when the browser can deal it again: an automated deal needs this host's automated
+    identities. A package without `RecoveryEmailHash` (from before deals recorded it) can't tell and
+    isn't flagged by the hash: a server-made automated one is flagged as such, a server-made friend
+    one is removed, any other recovers as it is (test, mutation-checked). The dealer's fallback to the
+    legacy hash is tested only with a lower-case address; a holder's acceptance of the legacy hash of
+    a mixed-case address is not.
+  - First run's pending automated deal is dealt only while there is no deal: one dealt since stands.
+  - An automatic holder hashes the address it is sent in lower case only from this release on: with
+    a mixed-case address it refuses a new deal until its host is on this release (already a limit
+    below: the automated identities' hosts must be on this release with the dealers).
 - **Known limits:**
   - A holder on a server without email can't release.
   - The status reads the package and the collected shards, and seals the slot list, on each poll
