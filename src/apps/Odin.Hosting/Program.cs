@@ -24,6 +24,7 @@ using Odin.Core.Logging.Exception.Serilog;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
+using Odin.Core.Logging.Redaction.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Util;
 using Odin.Hosting.Cli;
@@ -110,6 +111,7 @@ namespace Odin.Hosting
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                 .Enrich.WithCaller()
                 .Enrich.WithExceptionMessage()
+                .Enrich.WithRequestPathRedaction()
                 .WriteTo.Filter(sink => sink
                     .Async(s => s.Console(
                         outputTemplate: logOutputTemplate,

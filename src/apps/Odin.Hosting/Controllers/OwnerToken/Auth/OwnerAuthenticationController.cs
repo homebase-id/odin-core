@@ -140,7 +140,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             }
             catch (BIP39Exception e)
             {
-                logger.LogDebug("BIP39 failed: {message}", e.Message);
+                // Not e.Message: it can quote a mistyped word of the recovery phrase
+                logger.LogDebug("Password reset refused: the recovery key is not a valid phrase ({type})", e.GetType().Name);
                 return new UnauthorizedResult();
             }
 

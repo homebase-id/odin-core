@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.Redaction;
 using Odin.Core.Serialization;
 using Odin.Hosting.ApiExceptions;
 using Odin.Hosting.ApiExceptions.Client;
@@ -141,31 +142,32 @@ namespace Odin.Hosting.Middleware
                 }
             }
 
+            var path = LogRedaction.Url(context.Request.Path);
             switch (problemDetails.Status)
             {
                 case not null when exception is OdinRetryLaterException:
                     logger.LogDebug(exception, "Refused {method} {path} until later: {message}",
                         context.Request.Method,
-                        context.Request.Path,
+                        path,
                         exception.Message);
                     break;
                 case not null when exception is BadHttpRequestException:
                     logger.LogWarning("Bad request {method} {path}: {message}",
                         context.Request.Method,
-                        context.Request.Path,
+                        path,
                         exception.Message);
                     break;
                 case 499:
                     logger.LogWarning("{WarningText} [origin: {method} {path}]",
                         exception.Message,
                         context.Request.Method,
-                        context.Request.Path);
+                        path);
                     break;
                 case >= 500:
                     logger.LogError(exception, "{ErrorText}\nException origin: {method} {path}",
                         exception.Message,
                         context.Request.Method,
-                        context.Request.Path);
+                        path);
                     break;
             }
 
