@@ -510,8 +510,19 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
    re-locked header.
 3. **Reads on a zero-knowledge drive return the stored header as is:** file header, query batch,
    websocket notifications (`ClientDriveNotification`) and the payload/thumbnail response header
-   (`DriveStorageControllerBase`) **(V)**. The field keeps its name; its meaning follows
-   `SharingModel`. To decide: keep the name or add a new field.
+   (`DriveStorageControllerBase`) **(V)**. The field keeps its name (decided 2026-10-25).
+   - **The header is tagged** (decided 2026-10-25): a new `EncryptionType` value says it is locked
+     with the drive key, as `Sealed` marks a deposit. A client knows which key opens a header
+     without looking up the drive, and the server can refuse a wrongly locked upload. Drive info
+     still carries `SharingModel`, so an app knows how to lock a new file.
+   - The payload/thumbnail response header can't carry the tag today: it packs only IV (16),
+     AES key (48) and version (4) (`EncryptedKeyHeader.ToBase64`/`FromBase64`) **(V)**, so `Type`
+     is lost. A sealed deposit doesn't fit it either.
+   - **To consider when tagging:**
+     - Replace the packed byte string with JSON (type, version, IV, key), the same shape as
+       everywhere else. That also gives a deposit's sealed header room.
+     - AES-GCM as an option for the key header and the content. CBC stays, because video/HLS
+       needs it.
 4. **Sign-in:** consent accepts the browser's sealed blob, and `YouAuthTokenResponse` gets one new
    field, `ZkDriveKeys` (`YouAuthTokenResponse.cs`) **(V)**. The YouAuth reference client too.
    Trusted apps that skip consent go through the consent page without a screen (see
@@ -558,6 +569,8 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
   [drive-addressing.md](drive-addressing.md)).
 
 ## Recovery
+
+Every key named here, and what locks it: [owner-keys.md](owner-keys.md).
 
 - **Today:** recovery (phrase and Shamir) brings back only today's master key.
 

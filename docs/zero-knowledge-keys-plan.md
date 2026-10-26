@@ -5,7 +5,8 @@
 Half A of steps 1 and 2 in the
 [order of work](zero-knowledge-drives.md#order-of-work). Half B, Shamir in the browser, is kept as
 a reference in [zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md). It is there so
-A gets B's foundations right; it is not being built now.
+A gets B's foundations right; it is not being built now. Names and shorthand for every key:
+[owner-keys.md](owner-keys.md).
 
 Markers: **(V)** verified by reading the code (2026-10-22). Line counts and estimates are
 inferred.

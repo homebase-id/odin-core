@@ -10,7 +10,8 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 (slugs, drive public key, app-owned circles), [drive-deletion-and-app-uninstall.md](drive-deletion-and-app-uninstall.md),
 [connection-defaults.md](connection-defaults.md), [autoconnected-security-level-audit.md](autoconnected-security-level-audit.md),
 [youauth-unified-authorization.md](youauth-unified-authorization.md), [weak-key-retirement.md](weak-key-retirement.md),
-[zero-knowledge-drives.md](zero-knowledge-drives.md) (direction: sharing models, keys only on devices).
+[zero-knowledge-drives.md](zero-knowledge-drives.md) (direction: sharing models, keys only on devices),
+[owner-keys.md](owner-keys.md) (every owner key and what locks it, with the shorthand we write them in).
 
 ## 1. The platform
 
@@ -234,7 +235,9 @@ serverMetadata
 
 ## 8. Envelope encryption
 
-Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md).
+Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md). The owner's
+own keys above the storage key (password, master key, zero-knowledge master key, recovery phrase, reset key, Shamir),
+and what each one locks: [owner-keys.md](owner-keys.md).
 
 ```
 master key ──► storage key (one per drive; MasterKeyEncryptedStorageKey)
