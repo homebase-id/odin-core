@@ -77,9 +77,9 @@ public class ZkDriveFileTests : V2Fixture
         Assert.That(batch.StatusCode, Is.EqualTo(HttpStatusCode.OK), batch.Error?.Content);
         Assert.That(batch.Content!.SearchResults, Is.Empty);
 
-        // One read rule: a read by unique id refuses it as a read by file id does
+        // One read rule, each path's own answer: a read by unique id leaves it out as a query does, a read by id refuses
         var byUniqueId = await app.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
-        Assert.That(byUniqueId.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"a read by unique id: {byUniqueId.Error?.Content}");
+        Assert.That(byUniqueId.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"a read by unique id: {byUniqueId.Error?.Content}");
         var byFileId = await app.Drives.Reader.GetFileHeaderAsync(Drive.Alias, upload.FileId);
         Assert.That(byFileId.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"a read by file id: {byFileId.Error?.Content}");
         var payloadRead = await app.Drives.Reader.GetPayloadAsync(Drive.Alias, upload.FileId, payload.Key);
@@ -225,6 +225,12 @@ public class ZkDriveFileTests : V2Fixture
 
         var delete = await app.Drives.Writer.SoftDeleteFile(Drive.Alias, upload.FileId);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"a delete: {delete.Error?.Content}");
+
+        // A batch delete reads the file as missing when the caller may not see it
+        var batch = await app.Drives.Writer.SoftDeleteBatch(Drive.Alias,
+            new SoftDeleteBatchRequestV2 { Files = [new SoftDeleteFileV2 { FileId = upload.FileId, Recipients = [] }] });
+        Assert.That(batch.StatusCode, Is.EqualTo(HttpStatusCode.OK), batch.Error?.Content);
+        Assert.That(batch.Content!.Results.Single().ErrorCode, Is.EqualTo(OdinClientErrorCode.FileNotFound), "a batch delete");
 
         var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         AssertOpens(read.Content!, driveKey, locked, Content);

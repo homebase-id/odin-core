@@ -449,9 +449,15 @@ namespace Odin.Services.Drives.FileSystem.Base
                     continue;
                 }
 
-                // TODD - this function ALSO loads the header from disk. It needs to use 'record' instead.
-                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(serverFileHeader, odinContext);
-                if (!hasPermissionToFile)
+                var mayRead = await _storage.CallerMayReadFile(serverFileHeader, odinContext);
+                if (!mayRead && ZkDriveFiles.IsZkDriveFile(serverFileHeader))
+                {
+                    // Left out as missing, not reported as refused: a read by unique id or global transit id answers
+                    // as for no file, and a write's check for a taken unique id falls through to the index's
+                    continue;
+                }
+
+                if (!mayRead)
                 {
                     aclFailures.Add(serverFileHeader);
                     if (logAclFailuresAsErrors)

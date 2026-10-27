@@ -703,7 +703,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             return encryptedKeyHeader;
         }
 
-        public async Task<bool> CallerHasPermissionToFile(ServerFileHeader header, IOdinContext odinContext)
+        /// <summary>Whether the caller may see <paramref name="header"/> (<see cref="FileReadRule.CallerMayReadAsync"/>)</summary>
+        public async Task<bool> CallerMayReadFile(ServerFileHeader header, IOdinContext odinContext)
         {
             if (null == header)
             {

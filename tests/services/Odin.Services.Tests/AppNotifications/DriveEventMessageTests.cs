@@ -36,12 +36,17 @@ public class DriveEventMessageTests
     }
 
     [Test]
-    public async Task AnOverwriteThatMadeAZkDriveFileDoesNotReachAnApp()
+    public async Task ADeleteIsJudgedByTheFileAsItWas()
     {
-        // The file as it was says who may read it; the file as it is still may not reach a socket without the drive's key
-        var message = new DriveEventMessage(ClientNotificationType.FileModified, null, Header(EncryptionType.ZkDrive),
-            Header(EncryptionType.Aes));
-        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: false), AclAllowing(true)), Is.False);
+        // The tombstone no longer says who could read the file; the ACL it had does
+        var asItWas = Header(EncryptionType.Aes, AccessControlList.OwnerOnly);
+        var tombstone = Header(EncryptionType.Aes, AccessControlList.Anonymous);
+        var aclService = Substitute.For<IDriveAclAuthorizationService>();
+        aclService.CallerHasPermission(tombstone.ServerMetadata.AccessControlList, Arg.Any<IOdinContext>()).Returns(true);
+        aclService.CallerHasPermission(asItWas.ServerMetadata.AccessControlList, Arg.Any<IOdinContext>()).Returns(false);
+
+        var message = new DriveEventMessage(ClientNotificationType.FileDeleted, null, tombstone, asItWas);
+        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: true), aclService), Is.False);
     }
 
     [TestCase(EncryptionType.Aes, TestName = "TheAclStillDecidesForAnyOtherFile")]
@@ -52,7 +57,7 @@ public class DriveEventMessageTests
         Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: true), AclAllowing(false)), Is.False);
     }
 
-    private static ServerFileHeader Header(EncryptionType type) => new()
+    private static ServerFileHeader Header(EncryptionType type, AccessControlList? acl = null) => new()
     {
         EncryptedKeyHeader = new EncryptedKeyHeader
         {
@@ -62,7 +67,7 @@ public class DriveEventMessageTests
             EncryptedAesKey = ByteArrayUtil.GetRndByteArray(48)
         },
         FileMetadata = new FileMetadata { IsEncrypted = true },
-        ServerMetadata = new ServerMetadata { AccessControlList = AccessControlList.OwnerOnly }
+        ServerMetadata = new ServerMetadata { AccessControlList = acl ?? AccessControlList.OwnerOnly }
     };
 
     private static DeviceSocket Socket(bool holdsMasterKey)

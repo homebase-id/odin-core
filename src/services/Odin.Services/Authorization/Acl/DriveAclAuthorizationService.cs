@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
@@ -16,11 +15,6 @@ namespace Odin.Services.Authorization.Acl
         TenantContext tenantContext)
         : IDriveAclAuthorizationService
     {
-        public async Task AssertCallerHasPermission(AccessControlList acl, IOdinContext odinContext)
-        {
-            ThrowWhenFalse(await CallerHasPermission(acl, odinContext));
-        }
-
         /// <summary>
         /// Whether <paramref name="odinId"/> could read a file with this ACL if they called in themselves:
         /// the same decision as <see cref="CallerHasPermission"/>, from their connection record instead of a
@@ -120,14 +114,6 @@ namespace Odin.Services.Authorization.Acl
 
             return requiredCircles.Intersect(circles).Any() ||
                    (reader.HasValue && requiredIdentities.Any(id => OdinId.IsValid(id) && (OdinId)id == reader.Value));
-        }
-
-        private void ThrowWhenFalse(bool eval)
-        {
-            if (eval == false)
-            {
-                throw new OdinSecurityException("I'm throwing because it's false!");
-            }
         }
     }
 }

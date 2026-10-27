@@ -43,7 +43,8 @@ public static class DriveFileUtility
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
         if (ZkDriveFiles.IsZkDriveFile(header))
         {
-            // Returned as stored: only a device holding the drive's key opens it
+            // Returned as stored: only a device holding the drive's key opens it.  A backstop: the read rule
+            // (FileReadRule) has already left out a file this refuses
             ZkDriveFiles.AssertVisibleTo(header, odinContext);
             sharedSecretEncryptedKeyHeader = header.EncryptedKeyHeader;
         }
@@ -117,7 +118,8 @@ public static class DriveFileUtility
 
         if (ZkDriveFiles.IsZkDriveFile(header))
         {
-            // No key header: the client opens a payload with the file's AES key and the payload's IV
+            // No key header: the client opens a payload with the file's AES key and the payload's IV.  A backstop,
+            // as in CreateClientFileHeader
             ZkDriveFiles.AssertVisibleTo(header, odinContext);
             return null;
         }

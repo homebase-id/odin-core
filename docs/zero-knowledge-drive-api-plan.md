@@ -233,9 +233,11 @@ it as it is (read 2026-10-26) **(V)**.
 
 - **One "may the caller see this file" check: done.** The header load, the query filter and the socket
   used to combine the ACL and the zero-knowledge rule on their own. All three now ask
-  `FileReadRule.CallerMayReadAsync`. One visible change: a read by unique id or global transit id now
-  refuses a zero-knowledge drive's own file as a read by id does (a security error), where it used to
-  answer as for a missing file.
+  `FileReadRule.CallerMayReadAsync`; how a refusal answers stays each path's own. A read by file id
+  refuses (403). A query, and so a read by unique id or global transit id, leaves a zero-knowledge
+  drive's own file out as missing, not as refused, so a write's check for a taken unique id still
+  falls through to the index (400). The socket still doesn't leave out an encrypted file it holds no
+  storage key for, as a query does; that predates this.
 - **Which writes need the storage key: waits for [#2026](https://github.com/homebase-id/odin-core/issues/2026).**
   On a normal drive an unencrypted full overwrite still locks an empty key header, so it needs the
   storage key (pinned by `OverwriteNeedsTheStorageKeyTests`). A metadata-only upload and the update
