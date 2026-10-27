@@ -690,10 +690,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return sealedKeyHeader.Sealed;
             }
 
-            if (drive.IsZeroKnowledge)
+            ZkDriveFiles.AssertDriveTakes(drive, keyHeader is ZkDriveKeyHeader ? EncryptionType.ZkDrive : EncryptionType.Aes);
+            if (keyHeader is ZkDriveKeyHeader zkDriveKeyHeader)
             {
-                throw new OdinClientException("The server cannot encrypt for a zero-knowledge drive",
-                    OdinClientErrorCode.DriveIsZeroKnowledge);
+                return zkDriveKeyHeader.Locked;
             }
 
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
@@ -935,7 +935,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     // of it, hence no ServerFileHeader, which is how handlers tell a hard delete from a soft one)
                     PreviousServerFileHeader = fileHeader,
                     ServerFileHeader = null,
-                    SharedSecretEncryptedFileHeader = null,
                     OdinContext = odinContext,
                 });
             }
@@ -1055,6 +1054,14 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             payloads = newMetadata.Payloads ?? [];
 
+            // Before any payload is copied, so a refusal leaves nothing behind.  On a normal drive even an
+            // unencrypted overwrite locks a key header, so it needs the drive's storage key: that is what keeps
+            // a caller without it (a guest on a public drive) from overwriting other people's files.  A
+            // zero-knowledge drive has no storage key to ask for, so an unencrypted file there gets none.
+            var encryptedKeyHeader = newMetadata.IsEncrypted || !drive.IsZeroKnowledge
+                ? await EncryptKeyHeader(originFile.DriveId, keyHeader, odinContext)
+                : EncryptedKeyHeader.Empty();
+
             // Snapshot what the committed header points at before anything is copied over it. Both the mid-copy
             // rollback and the post-commit-failure rollback below must leave these objects alone.
             var committedPayloads = existingServerHeader.FileMetadata.Payloads?.ToList() ?? [];
@@ -1069,7 +1076,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var serverHeader = new ServerFileHeader()
             {
-                EncryptedKeyHeader = await EncryptKeyHeader(originFile.DriveId, keyHeader, odinContext),
+                EncryptedKeyHeader = encryptedKeyHeader,
                 FileMetadata = newMetadata,
                 ServerMetadata = serverMetadata
             };
@@ -1214,7 +1221,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             return existingServerHeader.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        public async Task OverwriteMetadata(byte[] newKeyHeaderIv, InternalDriveFileId targetFile, FileMetadata newMetadata,
+        /// <param name="newKeyHeader">
+        /// The new IV, which the stored file key joins; on a zero-knowledge drive, the new key header itself
+        /// (<see cref="ZkDriveKeyHeader"/>), stored as sent
+        /// </param>
+        public async Task OverwriteMetadata(KeyHeader newKeyHeader, InternalDriveFileId targetFile, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
             IOdinContext odinContext)
         {
@@ -1223,7 +1234,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
-            await OverwriteMetadataInternal(newKeyHeaderIv, existingServerHeader, newMetadata, newServerMetadata, odinContext);
+            await OverwriteMetadataInternal(newKeyHeader, existingServerHeader, newMetadata, newServerMetadata, odinContext);
 
             if (await TryShouldRaiseDriveEventAsync(targetFile))
             {
@@ -1267,7 +1278,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = refreshedHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(refreshedHeader, odinContext),
                     // The summary of everyone's reactions, not the writer's own change
                     OdinContext = OdinContextUpgrades.ForOthersWrites(odinContext),
                 });
@@ -1427,7 +1437,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
-                    await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
+                    await OverwriteMetadataInternal(manifest.KeyHeader, header, manifest.FileMetadata,
                         manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
 
                     _logger.LogDebug("{method} -> markComplete {message}",
@@ -1584,7 +1594,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Validations
             //
             Deposits.AssertNotDeposit(existingHeader);
-            if (existingHeader.FileMetadata.IsEncrypted)
+            if (metadata != null)
+            {
+                AssertSameEncryption(existingHeader, metadata);
+            }
+
+            if (ZkDriveFiles.IsZkDriveFile(existingHeader))
+            {
+                // Can't be opened to check its AES key; checked before any payload is copied
+                ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader);
+            }
+            else if (existingHeader.FileMetadata.IsEncrypted)
             {
                 var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
                 var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
@@ -1597,11 +1617,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         OdinClientErrorCode.InvalidKeyHeader);
                 }
 
-                if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
-                {
-                    throw new OdinClientException("When updating a file, you must change the Iv",
-                        OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
-                }
+                KeyHeader.AssertIvRotated(manifest.KeyHeader.Iv, existingKeyHeader.Iv);
             }
 
             //
@@ -2136,7 +2152,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                         IsHardDelete = false,
                         File = file,
                         ServerFileHeader = deletedServerFileHeader,
-                        SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(deletedServerFileHeader, odinContext),
                         OdinContext = odinContext,
                     });
                 }
@@ -2199,6 +2214,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            // A zero-knowledge drive's own file is the owner console's alone, to read or to change, as a query
+            // leaves it out for anyone else
+            if (!ZkDriveFiles.VisibleTo(header, odinContext))
+            {
+                return aclDeniedAsMissing ? null : throw ZkDriveFiles.NoAccess(file.DriveId);
+            }
+
             // Like a query, which leaves out what the caller may not see, when the caller asks for that
             if (aclDeniedAsMissing)
             {
@@ -2210,6 +2232,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
 
             return header;
+        }
+
+        /// <summary>An update keeps a file encrypted or unencrypted: its payloads were written that way.</summary>
+        private static void AssertSameEncryption(ServerFileHeader existing, FileMetadata newMetadata)
+        {
+            if (existing.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
+            {
+                throw new OdinClientException("Cannot change encryption when updating a file since your payloads might be invalidated",
+                    OdinClientErrorCode.ArgumentError);
+            }
         }
 
         /// <summary>
@@ -2393,11 +2425,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
         }
 
-        private async Task OverwriteMetadataInternal(byte[] keyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
+        private async Task OverwriteMetadataInternal(KeyHeader newKeyHeader, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
             IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
-            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(keyHeaderIv))
+            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeader?.Iv))
             {
                 throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
             }
@@ -2405,11 +2437,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             AssertActiveForUpdate(existingServerHeader);
             Deposits.AssertNotDeposit(existingServerHeader);
 
-            if (existingServerHeader.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
-            {
-                throw new OdinClientException($"Cannot change encryption when storage intent is {StorageIntent.MetadataOnly} since your " +
-                                              $"payloads might be invalidated", OdinClientErrorCode.ArgumentError);
-            }
+            AssertSameEncryption(existingServerHeader, newMetadata);
 
             var targetFile = existingServerHeader.FileMetadata.File;
             newMetadata.File = targetFile;
@@ -2430,17 +2458,27 @@ namespace Odin.Services.Drives.FileSystem.Base
             //only change the IV if the file was encrypted
             if (existingServerHeader.FileMetadata.IsEncrypted)
             {
-                // Critical Note: if this new key header's AES key does not match the
-                // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
-                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
-                var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-                var newKeyHeader = new KeyHeader()
+                ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader);
+                if (newKeyHeader is ZkDriveKeyHeader zkDriveKeyHeader)
                 {
-                    Iv = keyHeaderIv,
-                    AesKey = existingDecryptedKeyHeader.AesKey
-                };
+                    // Stored as the owner's device sent it.  Critical Note: the server can't check that it keeps
+                    // the file's AES key; if it doesn't, the payloads are lost forever.
+                    existingServerHeader.EncryptedKeyHeader = zkDriveKeyHeader.Locked;
+                }
+                else
+                {
+                    // Critical Note: if this new key header's AES key does not match the
+                    // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
+                    var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
+                    var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                    var keyHeader = new KeyHeader()
+                    {
+                        Iv = newKeyHeader.Iv,
+                        AesKey = existingDecryptedKeyHeader.AesKey
+                    };
 
-                existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, newKeyHeader, odinContext);
+                    existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext);
+                }
             }
 
             existingServerHeader.FileMetadata = newMetadata;

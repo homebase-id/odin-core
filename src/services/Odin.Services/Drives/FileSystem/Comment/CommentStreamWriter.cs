@@ -86,7 +86,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
             await FileSystem.Storage.OverwriteMetadata(
-                keyHeader.Iv,
+                keyHeader,
                 targetFile,
                 metadata,
                 serverMetadata,

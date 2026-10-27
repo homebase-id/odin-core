@@ -50,10 +50,12 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         return await this.UploadNewMetadata(targetDrive, fileMetadata, transitOptions, fileSystemType);
     }
 
+    /// <param name="overwriteFileId">The file to overwrite (NewFileOrOverwrite); none for a new file</param>
     public async Task<ApiResponse<UploadResult>> UploadNewMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         TransitOptions transitOptions,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard,
+        Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -64,7 +66,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             StorageOptions = new()
             {
                 Drive = targetDrive,
-                OverwriteFileId = default
+                OverwriteFileId = overwriteFileId ?? default
             },
             TransitOptions = transitOptions
         };
@@ -104,7 +106,9 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         ExternalFileIdentifier file,
         KeyHeader keyHeader,
         UploadFileMetadata fileMetadata,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard,
+        EncryptedKeyHeader lockedKeyHeader = null,
+        TransitOptions transitOptions = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
 
@@ -117,7 +121,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
                 OverwriteFileId = file.FileId,
                 StorageIntent = StorageIntent.MetadataOnly
             },
-            TransitOptions = new TransitOptions() { }
+            TransitOptions = transitOptions ?? new TransitOptions()
         };
 
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
@@ -136,7 +140,9 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(redactedKeyHeader, instructionSet.TransferIv, ref sharedSecret),
+                // A zero-knowledge drive's own key header goes as it is stored (lockedKeyHeader)
+                EncryptedKeyHeader = lockedKeyHeader ??
+                                     EncryptedKeyHeader.EncryptKeyHeaderAes(redactedKeyHeader, instructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata
             };
 

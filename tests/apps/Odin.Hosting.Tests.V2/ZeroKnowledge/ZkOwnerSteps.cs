@@ -94,12 +94,12 @@ internal static class ZkOwnerSteps
     /// What the first login since plan A does: the zero-knowledge keys, and the Shard Recovery drive
     /// converted.  Returns what the browser then holds.
     /// </summary>
-    public static async Task<(byte[] ZkMasterKey, byte[] WriteOnlyPrivateKey)> MakeZeroKnowledgeAsync(OwnerSession owner,
-        string password)
+    public static async Task<(byte[] ZkMasterKey, byte[] WriteOnlyPrivateKey, byte[] DriveKey)> MakeZeroKnowledgeAsync(
+        OwnerSession owner, string password)
     {
         var keys = await CreateKeysAsync(owner, password);
         var driveKeys = await ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
-        return (keys.MasterKey, driveKeys.WriteOnlyPrivateKey);
+        return (keys.MasterKey, driveKeys.WriteOnlyPrivateKey, driveKeys.DriveKey);
     }
 
     public static async Task<ZkBrowser.DriveKeys> ConvertShardRecoveryDriveAsync(OwnerSession owner, byte[] zkMasterKey)

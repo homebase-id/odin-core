@@ -83,6 +83,12 @@ namespace Odin.Services.DataSubscription
                 return;
             }
 
+            if (drive.IsZeroKnowledge)
+            {
+                // A zero-knowledge drive sends nothing (ZkDriveFiles.AssertNotSent)
+                return;
+            }
+
             var isCollaborationChannel = drive.IsCollaborationDrive();
             
             if (await ShouldDistribute(notification, isCollaborationChannel))

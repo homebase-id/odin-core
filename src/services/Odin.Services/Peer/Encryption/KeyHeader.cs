@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 
 namespace Odin.Services.Peer.Encryption
 {
@@ -71,6 +72,16 @@ namespace Odin.Services.Peer.Encryption
             };
         }
 
+        /// <summary>An update of an encrypted file must change its key header's IV.</summary>
+        public static void AssertIvRotated(byte[] newIv, byte[] existingIv)
+        {
+            if (ByteArrayUtil.EquiByteArrayCompare(newIv, existingIv))
+            {
+                throw new OdinClientException("When updating a file, you must change the Iv",
+                    OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
+            }
+        }
+
         public byte[] Decrypt(byte[] encryptedData)
         {
             var aesKey = this.AesKey;
@@ -97,5 +108,22 @@ namespace Odin.Services.Peer.Encryption
         }
 
         public EncryptedKeyHeader Sealed { get; }
+    }
+
+    /// <summary>
+    /// A zero-knowledge drive's own key header (<see cref="EncryptedKeyHeader.IsZkDrive"/>), carried
+    /// through a write unopened: an owner device locked it with the drive's key, which the server
+    /// doesn't hold.  Only a zero-knowledge drive stores <see cref="Locked"/>, as it is.  It has no AES
+    /// key; <see cref="KeyHeader.Iv"/> is the IV it shows.
+    /// </summary>
+    public sealed class ZkDriveKeyHeader : KeyHeader
+    {
+        public ZkDriveKeyHeader(EncryptedKeyHeader locked)
+        {
+            Locked = locked;
+            Iv = locked.Iv;
+        }
+
+        public EncryptedKeyHeader Locked { get; }
     }
 }

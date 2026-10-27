@@ -473,6 +473,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                         // continue;
                     }
 
+                    // A zero-knowledge drive's own file goes only to a caller holding the drive's key, whatever
+                    // storage key it holds
+                    if (ZkDriveFiles.IsZkDriveFile(serverFileHeader))
+                    {
+                        if (ZkDriveFiles.VisibleTo(serverFileHeader, odinContext))
+                        {
+                            visible.Add(serverFileHeader);
+                        }
+
+                        continue;
+                    }
+
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out _);
 

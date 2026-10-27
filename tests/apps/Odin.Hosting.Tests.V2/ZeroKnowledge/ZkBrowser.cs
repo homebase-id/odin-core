@@ -208,4 +208,24 @@ internal static class ZkBrowser
         var fileKey = KeyHeader.FromCombinedBytes(Unseal(header.SharedSecretEncryptedKeyHeader.EncryptedAesKey, writeOnlyPrivateKey));
         return fileKey.Decrypt(header.FileMetadata.AppData.Content.FromBase64());
     }
+
+    /// <summary>
+    /// A zero-knowledge drive's own key header, as an owner device locks it: the file's IV and AES key
+    /// locked with the drive key in the format of an <see cref="EncryptionType.Aes"/> key header, typed
+    /// <see cref="EncryptionType.ZkDrive"/>.
+    /// </summary>
+    public static EncryptedKeyHeader LockFileKey(KeyHeader fileKey, byte[] driveKey)
+    {
+        var key = driveKey.ToSensitiveByteArray();
+        var locked = EncryptedKeyHeader.EncryptKeyHeaderAes(fileKey, fileKey.Iv, ref key);
+        locked.Type = EncryptionType.ZkDrive;
+        return locked;
+    }
+
+    /// <summary>A zero-knowledge drive's own key header, opened as an owner device opens it, with the drive key.</summary>
+    public static KeyHeader OpenFileKey(EncryptedKeyHeader locked, byte[] driveKey)
+    {
+        Assert.That(locked.Type, Is.EqualTo(EncryptionType.ZkDrive), "it comes back as stored");
+        return KeyHeader.FromCombinedBytes(AesCbc.Decrypt(locked.EncryptedAesKey, driveKey.ToSensitiveByteArray(), locked.Iv));
+    }
 }

@@ -302,6 +302,15 @@ serverMetadata
 
 ## 8. Envelope encryption
 
+**The rule.** Every file on a drive has its key header locked with that drive's key (DrvK): by the server
+on a normal drive (`type: aes`), by an owner device on a zero-knowledge drive (`type: zkDrive`). Anyone who
+can't lock with the drive's key writes through the drive's inbox: a peer's key header comes wrapped in the
+connection's shared secret, a deposit's sealed to the drive's write-only public key. Whoever holds the
+drive's key moves it onto the drive, re-locked with DrvK: the server today, an owner device on a
+zero-knowledge drive. Only the key header changes; the payloads stay where they are. One exception, until
+step 2 of [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md): a deposit lands on its
+drive still sealed **(V)**.
+
 Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md). The owner's
 own keys above the storage key (password, master key, zero-knowledge master key, recovery phrase, reset key, Shamir),
 and what each one locks: [owner-keys.md](owner-keys.md).
@@ -320,8 +329,16 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
   and rewraps it with its own storage key **(V)**. Payload bytes are not re-encrypted **(inferred)**.
 - `IsEncrypted = false` files use an empty KeyHeader and are stored in clear **(V)**.
 - `StorageDrive.AssertValidStorageKey` checks a key against the drive's encrypted id before use **(V)**.
-- A zero-knowledge drive refuses any upload the server would have to rewrap (`EncryptKeyHeader` →
-  `DriveIsZeroKnowledge`) **(V)**. Its files must be unencrypted until the browser can write the header itself.
+- A zero-knowledge drive takes only key headers an owner device locked with its key (`zkDrive`), and
+  deposits. It refuses one locked with the shared secret by its type, before opening it
+  (`ZkDriveFiles.OpenForWrite` → `DriveIsZeroKnowledge`) **(V)**. Reads return a `zkDrive` key header as
+  stored, only to the owner console for now, and a payload or thumbnail read sends no
+  `SharedSecretEncryptedHeader64`: the client uses the file key and the payload's IV **(V)**.
+- The key header format (`EncryptKeyHeaderAes`) encrypts `IV ‖ key` with AES-CBC under that same IV, so
+  the IV cancels out of the first block: the 48 bytes depend only on the locking key and the file key,
+  and the IV the reader gets back is the visible `Iv` field **(V, `ZkDriveFileTests`)**. Two key
+  headers for the same file key show it, and whoever stores a key header can change its IV. Key header
+  version 2 fixes it, with per-file integrity ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
 - Ciphers: AES-CBC in `KeyHeader`, AES-GCM preferred for newer paths (CLAUDE.md, `youauth` docs).
 - Write-without-read keys: drive `WriteOnlyKeyPair` (data deposits) and `PeerKeyStore.WriteOnlyKeyPair` (grant deposits)
   **(V)**.

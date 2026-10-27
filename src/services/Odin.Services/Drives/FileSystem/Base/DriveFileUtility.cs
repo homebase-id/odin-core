@@ -41,7 +41,13 @@ public static class DriveFileUtility
         }
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-        if (header.FileMetadata.IsEncrypted)
+        if (ZkDriveFiles.IsZkDriveFile(header))
+        {
+            // Returned as stored: only a device holding the drive's key opens it
+            ZkDriveFiles.AssertVisibleTo(header, odinContext);
+            sharedSecretEncryptedKeyHeader = header.EncryptedKeyHeader;
+        }
+        else if (header.FileMetadata.IsEncrypted)
         {
             // A deposit's comes back sealed, as stored: only the reader's browser opens it, with the
             // drive's write-only private key
@@ -96,7 +102,8 @@ public static class DriveFileUtility
     }
 
     /// <summary>
-    /// Gets the <see cref="EncryptedKeyHeader"/> for the payload key using the payload's IV
+    /// Gets the <see cref="EncryptedKeyHeader"/> for the payload key using the payload's IV; null for a
+    /// zero-knowledge drive's file, whose key header the server can't open
     /// </summary>
     public static EncryptedKeyHeader GetPayloadEncryptedKeyHeader(
         ServerFileHeader header,
@@ -105,6 +112,13 @@ public static class DriveFileUtility
     {
         if (header == null)
         {
+            return null;
+        }
+
+        if (ZkDriveFiles.IsZkDriveFile(header))
+        {
+            // No key header: the client opens a payload with the file's AES key and the payload's IV
+            ZkDriveFiles.AssertVisibleTo(header, odinContext);
             return null;
         }
 

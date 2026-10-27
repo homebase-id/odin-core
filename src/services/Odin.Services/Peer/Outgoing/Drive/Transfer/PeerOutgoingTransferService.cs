@@ -647,8 +647,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             DataSource overrideDataSource)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
-            TargetDrive targetDrive = options.RemoteTargetDrive ??
-                                      (await driveManager.GetDriveAsync(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
+            var drive = await driveManager.GetDriveAsync(internalFile.DriveId, failIfInvalid: true);
+            ZkDriveFiles.AssertNotSent(drive, options.Recipients);
+            TargetDrive targetDrive = options.RemoteTargetDrive ?? drive.TargetDriveInfo;
 
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();

@@ -26,12 +26,15 @@ namespace Odin.Services.Peer.Encryption
         /// <param name="key"></param>
         /// <returns></returns>
         /// <exception cref="OdinSecurityException"></exception>
-        /// <remarks>Refuses a sealed key header (a deposit): nobody here can open it.</remarks>
+        /// <remarks>
+        /// Refuses a sealed key header (a deposit) and a zero-knowledge drive's own: nobody here can open
+        /// either.
+        /// </remarks>
         public KeyHeader DecryptAesToKeyHeader(ref SensitiveByteArray key)
         {
-            if (IsSealed())
+            if (IsLockedByClient())
             {
-                throw new OdinClientException("A sealed key header can't be opened on the server",
+                throw new OdinClientException($"A {Type} key header can't be opened on the server",
                     OdinClientErrorCode.InvalidKeyHeader);
             }
 
@@ -62,6 +65,13 @@ namespace Odin.Services.Peer.Encryption
                 return sealedKeyHeader.Sealed;
             }
 
+            if (keyHeader is ZkDriveKeyHeader)
+            {
+                // It has no AES key here: re-locking it would make a key header that opens to nothing
+                throw new OdinClientException("A zero-knowledge drive's key header can't be re-locked on the server",
+                    OdinClientErrorCode.InvalidKeyHeader);
+            }
+
             var secureKeyHeader = keyHeader.Combine();
             var data = AesCbc.Encrypt(secureKeyHeader.GetKey(), key, iv);
             secureKeyHeader.Wipe();
@@ -89,6 +99,29 @@ namespace Odin.Services.Peer.Encryption
         };
 
         public bool IsSealed() => Type == EncryptionType.Sealed;
+
+        /// <summary>
+        /// A zero-knowledge drive's own key header: the file's key header locked with the drive's key by
+        /// an owner device, as <see cref="EncryptKeyHeaderAes"/> locks one (AES-CBC of IV and AES key,
+        /// the IV kept as is), only with a key the server doesn't hold.
+        /// </summary>
+        public bool IsZkDrive() => Type == EncryptionType.ZkDrive;
+
+        /// <summary>A key header a client locked with a key the server doesn't hold: a deposit, or a zero-knowledge drive's own.</summary>
+        public bool IsLockedByClient() => IsSealed() || IsZkDrive();
+
+        /// <summary>
+        /// Refuses a zero-knowledge drive's key header that isn't one: version 1, a strong IV, and the
+        /// 48 bytes that AES-CBC makes of a 16-byte IV and a 16-byte key.  Nothing more can be checked:
+        /// nobody here can open it.
+        /// </summary>
+        public void AssertValidZkDrive()
+        {
+            if (EncryptionVersion != 1 || !ByteArrayUtil.IsStrongKey(Iv) || EncryptedAesKey?.Length != 48)
+            {
+                throw new OdinClientException("The zero-knowledge drive key header is malformed", OdinClientErrorCode.InvalidKeyHeader);
+            }
+        }
 
         /// <summary>
         /// Refuses a sealed key header that isn't one: the IV must be strong and the key header a

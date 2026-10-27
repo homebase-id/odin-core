@@ -860,7 +860,9 @@ public class DriveManager : IDriveManager
     public async Task<PagedResult<StorageDrive>> GetCdnEnabledDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
     {
         var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
-        var storageDrives = page.Results.Where(drive => drive.IsCdnEnabled()).ToList();
+        // Never a zero-knowledge drive: the CDN reads as the system, which reaches a drive's own files for its
+        // jobs, and a zero-knowledge drive publishes nothing
+        var storageDrives = page.Results.Where(drive => drive.IsCdnEnabled() && !drive.IsZeroKnowledge).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
