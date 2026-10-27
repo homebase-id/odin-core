@@ -233,7 +233,7 @@ it as it is (read 2026-10-26) **(V)**.
 
 - **One "may the caller see this file" check: done.** The header load, the query filter and the socket
   used to combine the ACL and the zero-knowledge rule on their own. All three now ask
-  `FileReadRule.CallerMayReadAsync`; how a refusal answers stays each path's own. A read by file id
+  `IDriveAclAuthorizationService.CallerMayReadAsync`; how a refusal answers stays each path's own. A read by file id
   refuses (403). A query, and so a read by unique id or global transit id, leaves a zero-knowledge
   drive's own file out as missing, not as refused, so a write's check for a taken unique id still
   falls through to the index (400). The socket still doesn't leave out an encrypted file it holds no

@@ -95,17 +95,17 @@ public static class ZkDriveFiles
     /// reaches one holding the drive's key, whatever else it holds (a grant from before the drive was
     /// converted still carries the old key), and the system's jobs (a file's TTL).  Says nothing about any
     /// other file.  Every read and write of a stored header asks this, by query, socket or id, as part of
-    /// <see cref="FileReadRule.CallerMayReadAsync"/>.
+    /// <see cref="Authorization.Acl.IDriveAclAuthorizationService.CallerMayReadAsync"/>.
     /// </summary>
     public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
         !IsZkDriveFile(header) || CallerHoldsDriveKey(odinContext) || odinContext.Caller?.IsSystem == true;
 
-    /// <summary>Refuses a file the caller may not see (<see cref="VisibleTo"/>) as one refused for want of the drive's key.</summary>
+    /// <summary>Refuses a file the caller may not see (<see cref="VisibleTo"/>), as a read by id does</summary>
     public static void AssertVisibleTo(ServerFileHeader header, IOdinContext odinContext)
     {
         if (!VisibleTo(header, odinContext))
         {
-            ThrowNoAccess(header.FileMetadata.File.DriveId);
+            throw new OdinSecurityException("No access permitted to the file");
         }
     }
 

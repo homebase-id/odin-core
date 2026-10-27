@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 
@@ -17,7 +19,7 @@ namespace Odin.Services.Authorization.Acl
     {
         /// <summary>
         /// Whether <paramref name="odinId"/> could read a file with this ACL if they called in themselves:
-        /// the same decision as <see cref="CallerHasPermission"/>, from their connection record instead of a
+        /// the same ACL decision as <see cref="CallerMayReadAsync"/>, from their connection record instead of a
         /// caller context.  Used where we send to someone rather than answer them (feed distribution).
         /// </summary>
         public async Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext)
@@ -58,26 +60,30 @@ namespace Odin.Services.Authorization.Acl
             return Allows(acl, ReviewedSecurityTier.For(tenantContext.DataVersionNumber, icr), circles, odinId);
         }
 
-        public Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)
+        public Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext) =>
+            Task.FromResult(ZkDriveFiles.VisibleTo(header, odinContext) &&
+                            CallerPassesAcl(header?.ServerMetadata?.AccessControlList, odinContext));
+
+        private bool CallerPassesAcl(AccessControlList acl, IOdinContext odinContext)
         {
             var caller = odinContext.Caller;
             if (caller?.IsOwner ?? false)
             {
-                return Task.FromResult(true);
+                return true;
             }
 
             if (caller?.SecurityLevel == SecurityGroupType.System)
             {
-                return Task.FromResult(true);
+                return true;
             }
 
             if (acl == null || caller == null)
             {
-                return Task.FromResult(false);
+                return false;
             }
 
             var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, caller);
-            return Task.FromResult(Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId));
+            return Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId);
         }
 
         /// <summary>

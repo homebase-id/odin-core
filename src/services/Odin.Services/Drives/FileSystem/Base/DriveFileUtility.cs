@@ -44,7 +44,7 @@ public static class DriveFileUtility
         if (ZkDriveFiles.IsZkDriveFile(header))
         {
             // Returned as stored: only a device holding the drive's key opens it.  A backstop: the read rule
-            // (FileReadRule) has already left out a file this refuses
+            // (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a file this refuses
             ZkDriveFiles.AssertVisibleTo(header, odinContext);
             sharedSecretEncryptedKeyHeader = header.EncryptedKeyHeader;
         }

@@ -98,7 +98,7 @@ public sealed class DriveEventMessage(
 
     /// <summary>
     /// Whether <paramref name="socket"/> may read the file, by the read rule a query applies
-    /// (<see cref="FileReadRule.CallerMayReadAsync"/>), whatever the result shape. Drive read, checked at the
+    /// (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>), whatever the result shape. Drive read, checked at the
     /// handshake, is not enough: a file's ACL can exclude a reader of its drive. A delete is checked against the
     /// file as it was, since the deleted header no longer says who could read it (it keeps the key header).
     /// Unlike a query, this doesn't leave out an encrypted file the socket holds no storage key for.

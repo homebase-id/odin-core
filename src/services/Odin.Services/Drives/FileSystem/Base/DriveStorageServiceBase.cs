@@ -703,15 +703,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             return encryptedKeyHeader;
         }
 
-        /// <summary>Whether the caller may see <paramref name="header"/> (<see cref="FileReadRule.CallerMayReadAsync"/>)</summary>
-        public async Task<bool> CallerMayReadFile(ServerFileHeader header, IOdinContext odinContext)
+        /// <summary>
+        /// Whether the caller may see <paramref name="header"/> (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>),
+        /// on a drive that isn't archived
+        /// </summary>
+        public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext)
         {
-            if (null == header)
-            {
-                _logger.LogDebug($"Permission check called on null header");
-                return false;
-            }
-
             await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
             return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext);
         }
@@ -2215,13 +2212,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            // Like a query, which leaves out what the caller may not see, when the caller asks for that
-            if (aclDeniedAsMissing)
+            // Left out like a query does, when the caller asks for that
+            if (!await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext))
             {
-                return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext) ? header : null;
+                return aclDeniedAsMissing ? null : throw new OdinSecurityException("No access permitted to the file");
             }
 
-            await driveAclAuthorizationService.AssertCallerMayReadAsync(header, odinContext);
             return header;
         }
 

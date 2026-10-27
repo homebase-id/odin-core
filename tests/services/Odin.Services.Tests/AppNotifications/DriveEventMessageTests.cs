@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using NSubstitute;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -19,6 +18,9 @@ namespace Odin.Services.Tests.AppNotifications;
 /// </summary>
 public class DriveEventMessageTests
 {
+    // The real read rule: the owner and the zero-knowledge checks it makes need none of the service's dependencies
+    private static readonly IDriveAclAuthorizationService ReadRule = new DriveAclAuthorizationService(null!, null!, null!);
+
     [TestCase(EncryptionType.ZkDrive, true, true, TestName = "AZkDriveFileReachesTheOwnerConsole")]
     [TestCase(EncryptionType.ZkDrive, false, false, TestName = "AZkDriveFileDoesNotReachAnApp")]
     [TestCase(EncryptionType.Aes, false, true, TestName = "AnyOtherFileStillReachesAnApp")]
@@ -26,13 +28,19 @@ public class DriveEventMessageTests
     {
         var header = Header(type);
         var socket = Socket(holdsMasterKey);
-        var aclService = AclAllowing(true);
 
         foreach (var (current, previous) in new (ServerFileHeader? Current, ServerFileHeader? Previous)[] { (header, null), (null, header) })
         {
             var message = new DriveEventMessage(ClientNotificationType.FileAdded, null, current, previous);
-            Assert.That(await message.VisibleToAsync(socket, aclService), Is.EqualTo(expected));
+            Assert.That(await message.VisibleToAsync(socket, ReadRule), Is.EqualTo(expected));
         }
+    }
+
+    [Test]
+    public async Task TheAclStillDecides()
+    {
+        var message = new DriveEventMessage(ClientNotificationType.FileAdded, null, Header(EncryptionType.Aes), null);
+        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: false, SecurityGroupType.Authenticated), ReadRule), Is.False);
     }
 
     [Test]
@@ -41,20 +49,9 @@ public class DriveEventMessageTests
         // The tombstone no longer says who could read the file; the ACL it had does
         var asItWas = Header(EncryptionType.Aes, AccessControlList.OwnerOnly);
         var tombstone = Header(EncryptionType.Aes, AccessControlList.Anonymous);
-        var aclService = Substitute.For<IDriveAclAuthorizationService>();
-        aclService.CallerHasPermission(tombstone.ServerMetadata.AccessControlList, Arg.Any<IOdinContext>()).Returns(true);
-        aclService.CallerHasPermission(asItWas.ServerMetadata.AccessControlList, Arg.Any<IOdinContext>()).Returns(false);
 
         var message = new DriveEventMessage(ClientNotificationType.FileDeleted, null, tombstone, asItWas);
-        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: true), aclService), Is.False);
-    }
-
-    [TestCase(EncryptionType.Aes, TestName = "TheAclStillDecidesForAnyOtherFile")]
-    [TestCase(EncryptionType.ZkDrive, TestName = "TheAclStillDecidesForAZkDriveFile")]
-    public async Task TheAclStillDecides(EncryptionType type)
-    {
-        var message = new DriveEventMessage(ClientNotificationType.FileAdded, null, Header(type), null);
-        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: true), AclAllowing(false)), Is.False);
+        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: false, SecurityGroupType.Authenticated), ReadRule), Is.False);
     }
 
     private static ServerFileHeader Header(EncryptionType type, AccessControlList? acl = null) => new()
@@ -70,22 +67,15 @@ public class DriveEventMessageTests
         ServerMetadata = new ServerMetadata { AccessControlList = acl ?? AccessControlList.OwnerOnly }
     };
 
-    private static DeviceSocket Socket(bool holdsMasterKey)
+    private static DeviceSocket Socket(bool holdsMasterKey, SecurityGroupType level = SecurityGroupType.Owner)
     {
         var masterKey = holdsMasterKey ? ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray() : null;
         return new DeviceSocket
         {
             DeviceOdinContext = new OdinContext
             {
-                Caller = new CallerContext(new OdinId("frodo.dotyou.cloud"), masterKey, SecurityGroupType.Owner)
+                Caller = new CallerContext(new OdinId("frodo.dotyou.cloud"), masterKey, level)
             }
         };
-    }
-
-    private static IDriveAclAuthorizationService AclAllowing(bool allows)
-    {
-        var aclService = Substitute.For<IDriveAclAuthorizationService>();
-        aclService.CallerHasPermission(Arg.Any<AccessControlList>(), Arg.Any<IOdinContext>()).Returns(allows);
-        return aclService;
     }
 }
