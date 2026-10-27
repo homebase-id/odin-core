@@ -58,6 +58,17 @@ namespace Odin.Hosting.Authentication.Owner
         {
             if (ShouldRedirect(Request.Path))
             {
+                // The owner cookie is SameSite=Strict, so a browser arriving from another site (a
+                // relying party sending its user to authorize, a link in an email) leaves it behind
+                // even when the owner is signed in. Rather than load the owner app's login page only
+                // for it to find them signed in and send them back, reload the same URL from this
+                // site, which carries the cookie. The reload is same-origin, so if they really are
+                // signed out it comes back here and goes on to the login page: it cannot loop.
+                if (ArrivedFromAnotherSite(Request) && !Request.Cookies.ContainsKey(OwnerAuthConstants.CookieName))
+                {
+                    return ReloadFromThisSiteAsync();
+                }
+
                 var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
                 var loginUrl =
                     $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Login}?returnUrl={returnUrl}";
@@ -73,6 +84,28 @@ namespace Odin.Hosting.Authentication.Owner
             return Task.CompletedTask;
         }
         
+        // Browsers that do not send Sec-Fetch-Site go straight to the login page, as before
+        private static bool ArrivedFromAnotherSite(HttpRequest request) =>
+            string.Equals(request.Headers["Sec-Fetch-Site"], "cross-site", StringComparison.OrdinalIgnoreCase);
+
+        // A page with nothing on it but a meta refresh to the request's own URL: no script, so it
+        // works under any content security policy. The link is for a browser that ignores the refresh.
+        private Task ReloadFromThisSiteAsync()
+        {
+            var url = HtmlEncoder.Default.Encode(Request.GetDisplayUrl());
+
+            Response.StatusCode = StatusCodes.Status200OK;
+            Response.ContentType = "text/html; charset=utf-8";
+            Response.Headers.CacheControl = "no-store";
+            Response.Headers["Referrer-Policy"] = "no-referrer";
+            Response.Headers.ContentSecurityPolicy = "default-src 'none'";
+
+            return Response.WriteAsync(
+                "<!DOCTYPE html><html><head><meta charset=\"utf-8\">" +
+                $"<meta http-equiv=\"refresh\" content=\"0;url={url}\"><title>Signing in</title></head>" +
+                $"<body><a href=\"{url}\">Continue</a></body></html>");
+        }
+
         private static bool ShouldRedirect(PathString path)
         {
             foreach (var allowed in RedirectPaths)

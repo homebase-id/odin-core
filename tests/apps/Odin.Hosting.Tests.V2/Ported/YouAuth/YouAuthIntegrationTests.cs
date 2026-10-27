@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -176,6 +177,59 @@ public class YouAuthIntegrationTests : V2Fixture
             Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
             Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
             Assert.That(returnUrlComponents.PublicKey, Is.EqualTo(payload.PublicKey));
+        }
+    }
+
+    [Test]
+    public async Task a2_AuthorizeEndpointArrivedAtFromAnotherSiteReloadsItselfBeforeTheLogin()
+    {
+        // The owner cookie is SameSite=Strict: a browser coming from the relying party leaves it
+        // behind, so the endpoint first reloads itself from its own site, which would carry it
+        const string hobbit = "sam.dotyou.cloud";
+        var apiClient = Host.CreateClient();
+
+        var keyPair = new EccFullKeyData(new SensitiveByteArray(Guid.NewGuid().ToByteArray()), EccKeySize.P384, 1);
+        var payload = new YouAuthAuthorizeRequest
+        {
+            ClientId = Guid.NewGuid().ToString(),
+            ClientType = ClientType.app,
+            ClientInfo = "My Awesome App",
+            PermissionRequest = "identity:read identity:write",
+            PublicKey = keyPair.PublicKeyJwkBase64Url(),
+            State = "somestate",
+            RedirectUri = $"https://frodo.dotyou.cloud:{HttpsPort}/authorization/code/callback"
+        };
+        var uri = new UriBuilder($"https://{hobbit}:{HttpsPort}{OwnerApiPathConstants.YouAuthV1Authorize}")
+        {
+            Query = payload.ToQueryString()
+        }.Uri;
+
+        // From another site, with no owner cookie: a page that reloads the same URL
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            request.Headers.Add("Sec-Fetch-Site", "cross-site");
+
+            var response = await apiClient.SendAsync(request);
+            var html = await response.Content.ReadAsStringAsync();
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), html);
+            Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
+            Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
+            var refresh = Regex.Match(html, "<meta http-equiv=\"refresh\" content=\"0;url=(?<url>[^\"]+)\">");
+            Assert.That(refresh.Success, Is.True, html);
+            Assert.That(WebUtility.HtmlDecode(refresh.Groups["url"].Value), Is.EqualTo(uri.ToString()));
+        }
+
+        // The reload comes from the identity's own page: still signed out, it goes on to the login
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            request.Headers.Add("Sec-Fetch-Site", "same-origin");
+
+            var response = await apiClient.SendAsync(request);
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+            var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
+            Assert.That(new Uri(location).AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.Login));
         }
     }
 
