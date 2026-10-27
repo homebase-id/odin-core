@@ -106,25 +106,7 @@ public class CircleMembershipService(
             }
         }
 
-        foreach (var member in await db.CircleMemberCached.GetAllCirclesAsync())
-        {
-            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(member.data.ToStringFromUtf8Bytes());
-            if (storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0)
-            {
-                member.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
-                await db.CircleMemberCached.UpsertAsync(member);
-            }
-        }
-
-        foreach (var appGrant in await db.AppGrantsCached.GetAllAsync())
-        {
-            var grant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
-            if (grant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0)
-            {
-                appGrant.data = OdinSystemSerializer.Serialize(grant).ToUtf8ByteArray();
-                await db.AppGrantsCached.UpsertAsync(appGrant);
-            }
-        }
+        await UpdateMemberAndAppDriveGrantsAsync(grants => grants?.RemoveAll(g => g.DriveId == driveId) > 0);
 
         tx.Commit();
     }
@@ -139,11 +121,20 @@ public class CircleMembershipService(
         odinContext.Caller.AssertHasMasterKey();
 
         await using var tx = await db.BeginStackedTransactionAsync();
+        await UpdateMemberAndAppDriveGrantsAsync(grants => DriveGrant.RemoveStorageKey(grants, driveId));
+        tx.Commit();
+    }
 
+    /// <summary>
+    /// Applies <paramref name="update"/> to the drive grants of every circle-member grant (identity or YouAuth domain)
+    /// and app grant, saving each row it changed.  The caller holds the transaction.
+    /// </summary>
+    private async Task UpdateMemberAndAppDriveGrantsAsync(Func<List<DriveGrant>, bool> update)
+    {
         foreach (var member in await db.CircleMemberCached.GetAllCirclesAsync())
         {
             var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(member.data.ToStringFromUtf8Bytes());
-            if (DriveGrant.RemoveStorageKey(storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants, driveId))
+            if (update(storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants))
             {
                 member.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
                 await db.CircleMemberCached.UpsertAsync(member);
@@ -153,14 +144,12 @@ public class CircleMembershipService(
         foreach (var appGrant in await db.AppGrantsCached.GetAllAsync())
         {
             var grant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
-            if (DriveGrant.RemoveStorageKey(grant.KeyStoreKeyEncryptedDriveGrants, driveId))
+            if (update(grant.KeyStoreKeyEncryptedDriveGrants))
             {
                 appGrant.data = OdinSystemSerializer.Serialize(grant).ToUtf8ByteArray();
                 await db.AppGrantsCached.UpsertAsync(appGrant);
             }
         }
-
-        tx.Commit();
     }
 
     public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)

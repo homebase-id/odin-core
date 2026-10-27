@@ -11,6 +11,7 @@ using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
+using Odin.Hosting.Tests.V2.YouAuth;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -124,17 +125,6 @@ public sealed partial class OwnerAdmin
                 $"{nameof(RegisterAppClient)}.ExchangeDigestForToken returned 2xx but empty content");
         }
 
-        var token = tokenResp.Content;
-        var sharedSecret = AesCbc.Decrypt(
-            Convert.FromBase64String(token.Base64SharedSecretCipher!),
-            exchangeSecret,
-            Convert.FromBase64String(token.Base64SharedSecretIv!));
-        var authBytes = AesCbc.Decrypt(
-            Convert.FromBase64String(token.Base64ClientAuthTokenCipher!),
-            exchangeSecret,
-            Convert.FromBase64String(token.Base64ClientAuthTokenIv!));
-
-        var authToken = ClientAuthenticationToken.FromPortableBytes(authBytes);
-        return (authToken, sharedSecret);
+        return YouAuthFlow.OpenAppToken(tokenResp.Content, exchangeSecret);
     }
 }

@@ -55,10 +55,6 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         Task<bool> ApplyTreeSlugAsync(Guid appId, OdinSlug appSlug, IOdinContext odinContext);
 
-        Task<(bool isValid, ServerHalfOfClientKey? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
-            ClientAuthenticationToken authToken,
-            IOdinContext odinContext);
-
         /// <summary>
         /// Gets all registered apps
         /// </summary>
@@ -109,11 +105,11 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>Saves what the browser locked for an app: its zero-knowledge key if it had none, and drive keys.</summary>
         Task SaveZkAppKeysAsync(ZkAppKeysRequest request, IOdinContext odinContext);
 
-        /// <summary>Converting a drive: every app granted it gets its locked copy of the drive's key.</summary>
+        /// <summary>
+        /// Converting a drive that keeps its key: every app reading it gets its locked copy of the drive's key, and every
+        /// app's grant on it loses the copy the server could open.
+        /// </summary>
         Task SetZkAppKeysForConversionAsync(Guid driveId, IReadOnlyCollection<ZkAppKeysRequest> requests, IOdinContext odinContext);
-
-        /// <summary>Converting a drive that keeps its key: every app's grant on it loses its copy of the key.</summary>
-        Task RemoveStorageKeyFromAllAppsAsync(Guid driveId, IOdinContext odinContext);
 
         /// <summary>A zero-knowledge drive's key changed: every app's copy of the old one goes.</summary>
         Task RemoveZkDriveCopiesAsync(Guid driveId, IOdinContext odinContext);

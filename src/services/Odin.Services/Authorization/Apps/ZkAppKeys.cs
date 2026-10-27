@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core.Exceptions;
-using Odin.Services.Drives;
 using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Services.Authorization.Apps;
@@ -25,7 +24,6 @@ public sealed class ZkAppKeysResponse
 public sealed class ZkAppDrive
 {
     public Guid DriveId { get; init; }
-    public TargetDrive TargetDrive { get; init; } = null!;
     public bool IsZeroKnowledge { get; init; }
 
     /// <summary>On a zero-knowledge drive, its key locked with the zero-knowledge master key; null otherwise.</summary>

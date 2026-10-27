@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
@@ -18,6 +19,7 @@ using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.YouAuthApi;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
 namespace Odin.Hosting.Tests.V2.YouAuth;
@@ -122,6 +124,15 @@ internal static class YouAuthFlow
         var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
         Assert.That(token, Is.Not.Null, $"token response: {content}");
         return (token!, exchangeSecret);
+    }
+
+    /// <summary>Opens an app's token response as the app does: its client auth token and shared secret (AES-CBC).</summary>
+    public static (ClientAuthenticationToken AuthToken, byte[] SharedSecret) OpenAppToken(YouAuthTokenResponse token,
+        SensitiveByteArray exchangeSecret)
+    {
+        var sharedSecret = AesCbc.Decrypt(token.Base64SharedSecretCipher!.FromBase64(), exchangeSecret, token.Base64SharedSecretIv!.FromBase64());
+        var authBytes = AesCbc.Decrypt(token.Base64ClientAuthTokenCipher!.FromBase64(), exchangeSecret, token.Base64ClientAuthTokenIv!.FromBase64());
+        return (ClientAuthenticationToken.FromPortableBytes(authBytes), sharedSecret);
     }
 
     /// <summary>

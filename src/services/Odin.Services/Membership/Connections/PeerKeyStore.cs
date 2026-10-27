@@ -98,41 +98,28 @@ public class PeerKeyStore
     /// circle and app grants live in their own tables and are stripped there; this is for a store that keeps its
     /// own copy, as a sent connection request does until it is accepted.
     /// </summary>
-    public bool RemoveDrive(Guid driveId)
-    {
-        var removed = RemoveDriveFromDeposits(driveId);
-        foreach (var circleGrant in CircleGrants.Values)
-        {
-            removed |= circleGrant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
-        }
-
-        foreach (var appCircleGrant in AppGrants.Values.SelectMany(g => g.Values))
-        {
-            removed |= appCircleGrant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
-        }
-
-        return removed;
-    }
+    public bool RemoveDrive(Guid driveId) =>
+        RemoveDriveFromDeposits(driveId) | UpdateOwnDriveGrants(grants => grants?.RemoveAll(g => g.DriveId == driveId) > 0);
 
     /// <summary>
     /// Takes a drive's storage key off every grant this store carries, keeping the permission: the drive went zero
     /// knowledge and kept its key (docs/zero-knowledge-drive-api-plan.md, 3.3).  As <see cref="RemoveDrive"/>, this is
     /// for a store that keeps its own copy of its circle and app grants.
     /// </summary>
-    public bool RemoveStorageKey(Guid driveId)
+    public bool RemoveStorageKey(Guid driveId) =>
+        RemoveStorageKeyFromDeposits(driveId) | UpdateOwnDriveGrants(grants => DriveGrant.RemoveStorageKey(grants, driveId));
+
+    /// <summary>Applies <paramref name="update"/> to the drive grants of each circle and app grant this store carries.</summary>
+    private bool UpdateOwnDriveGrants(Func<List<DriveGrant>, bool> update)
     {
-        var removed = RemoveStorageKeyFromDeposits(driveId);
-        foreach (var circleGrant in CircleGrants.Values)
+        var changed = false;
+        foreach (var grants in CircleGrants.Values.Select(g => g.KeyStoreKeyEncryptedDriveGrants)
+                     .Concat(AppGrants.Values.SelectMany(g => g.Values).Select(g => g.KeyStoreKeyEncryptedDriveGrants)))
         {
-            removed |= DriveGrant.RemoveStorageKey(circleGrant.KeyStoreKeyEncryptedDriveGrants, driveId);
+            changed |= update(grants);
         }
 
-        foreach (var appCircleGrant in AppGrants.Values.SelectMany(g => g.Values))
-        {
-            removed |= DriveGrant.RemoveStorageKey(appCircleGrant.KeyStoreKeyEncryptedDriveGrants, driveId);
-        }
-
-        return removed;
+        return changed;
     }
 
     /// <summary>Takes a drive's sealed storage key off this store's deposits, keeping the permission.</summary>

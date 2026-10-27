@@ -187,9 +187,8 @@ internal static class ZkAppSteps
         var (token, exchangeSecret) = await YouAuthFlow.ExchangeTokenAsync(owner.Host, owner.Identity.DomainName, keyPair,
             response.GetHeaderValue("Location")!);
 
-        var sharedSecret = AesCbc.Decrypt(token.Base64SharedSecretCipher!.FromBase64(), exchangeSecret, token.Base64SharedSecretIv!.FromBase64());
-        var authBytes = AesCbc.Decrypt(token.Base64ClientAuthTokenCipher!.FromBase64(), exchangeSecret, token.Base64ClientAuthTokenIv!.FromBase64());
-        return (AppSession.FromToken(owner, appId, ClientAuthenticationToken.FromPortableBytes(authBytes), sharedSecret), token);
+        var (authToken, sharedSecret) = YouAuthFlow.OpenAppToken(token, exchangeSecret);
+        return (AppSession.FromToken(owner, appId, authToken, sharedSecret), token);
     }
 
     /// <summary>The sign-in's private key as PKCS8, which the browser-side helpers open a sealed value with.</summary>

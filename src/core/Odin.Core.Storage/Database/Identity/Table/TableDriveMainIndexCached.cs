@@ -267,23 +267,23 @@ public class TableDriveMainIndexCached : AbstractTableCaching
         return result;
     }
 
-    // RawUpdateAsync for many records of one drive, invalidating it once: relabelling key headers when a drive
-    // goes zero knowledge (ZkDriveConversionService)
-    public async Task<int> RawUpdateAllAsync(Guid driveId, IReadOnlyCollection<DriveMainIndexRecord> items)
+    // For relabelling key headers when a drive goes zero knowledge (ZkDriveConversionService): sets only the key
+    // header, of each file still at the version tag it was read at, leaving version tag and modified as they are;
+    // returns the files that had moved on.  Invalidates the drive once.
+    public async Task<List<Guid>> UpdateEncryptedKeyHeadersAsync(Guid driveId,
+        IReadOnlyCollection<(Guid FileId, Guid VersionTag, string EncryptedKeyHeader)> headers)
     {
-        var result = 0;
-        foreach (var item in items)
+        var moved = new List<Guid>();
+        foreach (var (fileId, versionTag, encryptedKeyHeader) in headers)
         {
-            if (item.driveId != driveId)
+            if (await _table.UpdateEncryptedKeyHeaderAsync(driveId, fileId, versionTag, encryptedKeyHeader) == 0)
             {
-                throw new ArgumentException($"Record {item.fileId} is on drive {item.driveId}, not {driveId}");
+                moved.Add(fileId);
             }
-
-            result += await _table.RawUpdateAsync(item);
         }
 
         await InvalidateDriveAsync(driveId);
-        return result;
+        return moved;
     }
 
     //

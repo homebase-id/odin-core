@@ -6,23 +6,20 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.YouAuth;
-using Odin.Services.Authorization.Acl;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkAppSteps;
+using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -254,21 +251,20 @@ public class VaultConversionTests : V2Fixture
         var app = await AppSession.SetupAsync(frodo, WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read);
         var before = (await GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId);
         Assert.That(before.ZkMasterKeyEncryptedAppKey, Is.Null);
-        Assert.That(before.Drives.Single(d => d.TargetDrive == WellKnownAppDrives.ShardRecoveryDrive).HasAppCopy, Is.False);
+        Assert.That(before.Drives.Single(d => d.DriveId == WellKnownAppDrives.ShardRecoveryDrive.Alias.Value).HasAppCopy, Is.False);
 
         var (device, appKey) = await SignInAsync(frodo, app.AppId, zkMasterKey);
 
         var grant = await GrantOnAsync(device, WellKnownAppDrives.ShardRecoveryDrive);
         Assert.That(ZkBrowser.Open(grant.ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(shardDriveKey));
         var after = (await GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId);
-        Assert.That(after.Drives.Single(d => d.TargetDrive == WellKnownAppDrives.ShardRecoveryDrive).HasAppCopy, Is.True);
+        Assert.That(after.Drives.Single(d => d.DriveId == WellKnownAppDrives.ShardRecoveryDrive.Alias.Value).HasAppCopy, Is.True);
     }
 
     [Test]
     public async Task AnAppsKeyIsSetOnceAndLocksOnlyTheZeroKnowledgeDrivesItIsGranted()
     {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
         var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Read);
         var (appKey, _) = await BackfillAsync(frodo, app.AppId, zkMasterKey);
         var client = ZkOwnerSteps.Client(frodo);
@@ -397,15 +393,6 @@ public class VaultConversionTests : V2Fixture
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
         return (frodo, zkMasterKey);
     }
-
-    private static UploadFileMetadata Metadata(Guid uniqueId, string content)
-    {
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, AccessControlList.OwnerOnly);
-        metadata.AppData.UniqueId = uniqueId;
-        return metadata;
-    }
-
-    private static QueryBatchRequest QueryFor(Guid uniqueId) => ZkTestFiles.QueryFor(uniqueId);
 
     private static async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader> HeaderAsync(OwnerSession owner, Guid fileId)
     {

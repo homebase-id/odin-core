@@ -492,6 +492,29 @@ public class TableDriveMainIndex(
 
 
     /// <summary>
+    /// Sets only the key header of a file still at <paramref name="versionTag"/>: version tag and modified stay as they
+    /// are.  For relabelling key headers when a drive goes zero knowledge.  0 when the file moved on (or is gone).
+    /// </summary>
+    internal async Task<int> UpdateEncryptedKeyHeaderAsync(Guid driveId, Guid fileId, Guid versionTag, string hdrEncryptedKeyHeader)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText =
+            "UPDATE drivemainindex SET hdrEncryptedKeyHeader=@hdrEncryptedKeyHeader " +
+            "WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileId AND hdrVersionTag = @hdrVersionTag;";
+
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+        cmd.AddParameter("@hdrVersionTag", DbType.Binary, versionTag);
+        cmd.AddParameter("@hdrEncryptedKeyHeader", DbType.String, hdrEncryptedKeyHeader);
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+
+    /// <summary>
     /// For testing only. Updates the updatedTimestamp for the supplied item.
     /// </summary>
     /// <param name="fileId">Item to touch</param>

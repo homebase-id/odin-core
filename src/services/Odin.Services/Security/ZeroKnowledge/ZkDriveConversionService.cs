@@ -72,8 +72,6 @@ public class ZkDriveConversionService(
                 writeOnlyPublicKey, request.ZkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
 
             await appRegistrationService.SetZkAppKeysForConversionAsync(drive.Id, request.Apps, odinContext);
-
-            await appRegistrationService.RemoveStorageKeyFromAllAppsAsync(drive.Id, odinContext);
             await circleNetworkService.RemoveStorageKeyFromAllGrantsAsync(drive.Id, odinContext);
             await circleNetworkRequestService.RemoveStorageKeyFromSentRequestsAsync(drive.Id, odinContext);
 
@@ -91,35 +89,40 @@ public class ZkDriveConversionService(
     /// <summary>
     /// Every file whose key header the server locked with this drive's key becomes <c>zkDrive</c>: version 1 of
     /// <c>zkDrive</c> is the same 48 bytes as <c>aes</c> under the drive key (EncryptedKeyHeader), so only the type changes
-    /// and nothing is opened.  The version tag and <c>modified</c> don't move (<c>RawUpdateAsync</c> writes the record's
-    /// own), so no client resyncs.  An unencrypted file's empty key header (a zero IV) stays <c>aes</c>; a deleted file's
-    /// tombstone keeps its real key header, and is relabelled with the rest.
+    /// and nothing is opened.  The version tag and <c>modified</c> don't move, so no client resyncs.  A header is
+    /// relabelled when it has the shape every <c>zkDrive</c> header must (<see cref="EncryptedKeyHeader.HasZkDriveShape"/>):
+    /// an unencrypted file's empty key header (a zero IV) stays <c>aes</c>; a deleted file's tombstone keeps its real key
+    /// header, and is relabelled with the rest.  A file written meanwhile fails the conversion, which the owner retries.
     /// </summary>
     private async Task<int> RelabelKeyHeadersAsync(Guid driveId)
     {
-        var relabelled = new List<DriveMainIndexRecord>();
+        var relabelled = new List<(Guid, Guid, string)>();
         foreach (var record in await driveMainIndex.GetAllByDriveIdAsync(driveId))
         {
             var keyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(record.hdrEncryptedKeyHeader);
-            if (keyHeader is not { Type: EncryptionType.Aes } || keyHeader.Iv?.Any(b => b != 0) != true)
+            if (keyHeader is not { Type: EncryptionType.Aes } || !keyHeader.HasZkDriveShape())
             {
                 continue;
             }
 
             keyHeader.Type = EncryptionType.ZkDrive;
-            record.hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(keyHeader);
-            relabelled.Add(record);
+            relabelled.Add((record.fileId, record.hdrVersionTag, OdinSystemSerializer.Serialize(keyHeader)));
         }
 
-        await driveMainIndex.RawUpdateAllAsync(driveId, relabelled);
+        var moved = await driveMainIndex.UpdateEncryptedKeyHeadersAsync(driveId, relabelled);
+        if (moved.Count > 0)
+        {
+            throw new OdinClientException($"{moved.Count} file(s) on drive {driveId} changed during the conversion; try again",
+                OdinClientErrorCode.VersionTagMismatch);
+        }
+
         return relabelled.Count;
     }
 
     /// <summary>Vault, not yet zero knowledge: the one drive converted this way for now (plan 3.7).</summary>
     private async Task<StorageDrive> GetConvertibleDriveAsync(Guid driveId)
     {
-        var drive = await driveManager.GetDriveAsync(driveId)
-                    ?? throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        var drive = (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!; // never null: it throws instead
 
         if (drive.IsZeroKnowledge)
         {

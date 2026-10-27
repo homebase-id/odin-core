@@ -286,7 +286,7 @@ public class AutomatedRecoveryTests : ShamirFixture
 
         var forgotten = (await ZkAppSteps.GetAppKeysAsync(recovered)).Single(a => a.AppId == app.AppId);
         Assert.That(forgotten.ZkMasterKeyEncryptedAppKey, Is.Null);
-        Assert.That(forgotten.Drives.Single(d => d.TargetDrive == shardDrive).HasAppCopy, Is.False);
+        Assert.That(forgotten.Drives.Single(d => d.DriveId == shardDrive.Alias.Value).HasAppCopy, Is.False);
 
         // The next login makes new keys; a new sign-in gives the app a new key and a new copy
         await MakeZeroKnowledgeAsync(recovered);
