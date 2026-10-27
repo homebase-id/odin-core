@@ -94,36 +94,27 @@ namespace Odin.Services.Peer.Encryption
     }
 
     /// <summary>
-    /// A deposit's key header, which nobody on the server can open: the file's writer sealed it to the
-    /// drive's write-only public key.  Writes store <see cref="Sealed"/> as it is, and every re-lock
-    /// passes it on as it is (<see cref="EncryptedKeyHeader.EncryptKeyHeaderAes"/>); only a drive that
-    /// can hold deposits takes one (<c>StorageDrive.CanHoldDeposits</c>).  It has no AES key.
+    /// A key header a client locked with a key the server doesn't hold (<see cref="EncryptedKeyHeader.IsLockedByClient"/>),
+    /// carried through a write unopened: a deposit's, sealed to the drive's write-only public key
+    /// (<see cref="EncryptionType.Sealed"/>), or a zero-knowledge drive's own, locked with the drive's key by
+    /// an owner device (<see cref="EncryptionType.ZkDrive"/>).  Writes store <see cref="Locked"/> as it is.  It
+    /// has no AES key; <see cref="KeyHeader.Iv"/> is the IV it shows.
     /// </summary>
-    public sealed class SealedKeyHeader : KeyHeader
+    public sealed class ClientLockedKeyHeader : KeyHeader
     {
-        public SealedKeyHeader(EncryptedKeyHeader sealedKeyHeader)
+        public ClientLockedKeyHeader(EncryptedKeyHeader locked)
         {
-            Sealed = sealedKeyHeader;
-            Iv = sealedKeyHeader.Iv;
-        }
+            if (!locked.IsLockedByClient())
+            {
+                throw new OdinClientException($"A {locked.Type} key header isn't one a client locked", OdinClientErrorCode.InvalidKeyHeader);
+            }
 
-        public EncryptedKeyHeader Sealed { get; }
-    }
-
-    /// <summary>
-    /// A zero-knowledge drive's own key header (<see cref="EncryptedKeyHeader.IsZkDrive"/>), carried
-    /// through a write unopened: an owner device locked it with the drive's key, which the server
-    /// doesn't hold.  Only a zero-knowledge drive stores <see cref="Locked"/>, as it is.  It has no AES
-    /// key; <see cref="KeyHeader.Iv"/> is the IV it shows.
-    /// </summary>
-    public sealed class ZkDriveKeyHeader : KeyHeader
-    {
-        public ZkDriveKeyHeader(EncryptedKeyHeader locked)
-        {
             Locked = locked;
             Iv = locked.Iv;
         }
 
         public EncryptedKeyHeader Locked { get; }
+
+        public EncryptionType Type => Locked.Type;
     }
 }

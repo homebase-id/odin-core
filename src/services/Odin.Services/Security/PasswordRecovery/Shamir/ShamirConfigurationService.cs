@@ -198,7 +198,7 @@ public class ShamirConfigurationService(
             foreach (var shard in request.Shards)
             {
                 var file = shard.IsGated
-                    ? await WriteShardToTempDriveAsync(shard.ShardId, shard.DepositContent, new SealedKeyHeader(shard.DepositKeyHeader),
+                    ? await WriteShardToTempDriveAsync(shard.ShardId, shard.DepositContent, new ClientLockedKeyHeader(shard.DepositKeyHeader),
                         odinContext, hashedRecoveryEmail)
                     : await WritePlayerEncryptedShardToTempDrive(AsSent(shard), odinContext);
 
@@ -819,7 +819,7 @@ public class ShamirConfigurationService(
                 GroupId = recoveryEmailHash
             },
 
-            IsEncrypted = keyHeader is SealedKeyHeader,
+            IsEncrypted = keyHeader is ClientLockedKeyHeader,
             SenderOdinId = odinContext.Tenant,
             VersionTag = SequentialGuid.CreateGuid(),
             Payloads = []

@@ -1,6 +1,6 @@
 # Zero-knowledge drive API: plan
 
-Status: plan, agreed point by point on 2026-10-26. Not built. It details items 1-3 and 6 of
+Status: step 1 built and merged (#2023, follow-up #2027). Step 2 built on branch `zk-drive-step-2` (2026-10-27). It details items 1-3 and 6 of
 "odin-core API changes" in [zero-knowledge-drives.md](zero-knowledge-drives.md). Key names follow
 [owner-keys.md](owner-keys.md).
 
@@ -8,41 +8,34 @@ Status: plan, agreed point by point on 2026-10-26. Not built. It details items 1
 
 ## The model
 
-- **Every file on a drive has its key header locked with that drive's DrvK.**
-  - On a normal drive the server locked it, and its `type` is `aes`.
-  - On a zero-knowledge drive an owner device locked it, and its `type` is `zkDrive`.
-- **Someone who doesn't hold DrvK writes through the drive's inbox.**
-  - They seal the key header to the drive's `WO-PK-Pub` (`type: sealed`), and the file waits in
-    that drive's inbox.
-  - When an owner device holding DrvK comes online, it opens the header with `WO-PK-Priv`, re-locks
-    it as `zkDrive`, and the server moves it onto the drive. Only the header changes; the payloads
-    stay where they are, because FileKey doesn't change.
-- **Normal drives already work this way.**
-  - The inbox is per drive (`TransitInboxBoxStorage`, `boxId = driveId`) **(V)**.
-  - `PeerInboxProcessor` opens the sender's header and re-locks it with DrvK **(V)**.
-  - The only difference on a zero-knowledge drive is that a device does the re-lock, not the
-    server.
-- **What differs today:** deposits (Shamir friend shards) land on the drive still `sealed`
-  (`PeerInboxProcessor` → `DecryptOrPassSealed`) **(V)**. That is why a zero-knowledge drive holds
-  two kinds of header today, with special cases for visibility, updates and payloads. Step 2
-  removes it.
+- **Every encrypted file on a drive has its key header locked for that drive.**
+  - On a normal drive the server locked it with DrvK, and its `type` is `aes`.
+  - On a zero-knowledge drive a client locked it (step 2): an owner device with DrvK (`zkDrive`), or
+    a sender sealing it to the drive's `WO-PK-Pub` (`sealed`).
+- **Someone who doesn't hold DrvK either goes through the drive's inbox or seals.**
+  - **Normal drive, server inbox** (`TransitInboxBoxStorage`, `boxId = driveId`) **(V)**: the sender
+    locked the key header with the connection's shared secret. The item waits until the owner or an app
+    is signed in; the server then turns the key header into `aes` with the keys that caller lends it
+    (`PeerInboxProcessor`), and moves the file onto the drive **(V)**.
+  - **Zero-knowledge drive, sealed** (step 2): the sender seals the key header to the drive's
+    `WO-PK-Pub` (`type: sealed`), and the file is stored on the drive as it is. A device holding DrvK
+    reads it with `WO-PK-Priv`, and may turn it into `zkDrive`. Only the key header changes; the
+    payloads stay where they are, because FileKey doesn't change.
+- **What differs today:** deposits (Shamir friend shards) land on the drive `sealed`
+  (`PeerInboxProcessor` → `DecryptOrPassSealed`) **(V)**, handled by special cases for visibility,
+  updates and payloads spread over nine places. Step 2 keeps `sealed` on the drive and folds those
+  cases into one read rule and one write rule for client-locked files.
 
 ## Order
 
 1. **The `zkDrive` type, owner only** (this plan, below). Server only, and it doesn't touch
    deposits.
-2. **Deposits wait in the inbox.** A device-side inbox step: list the sealed items waiting for a
-   drive, then accept each one re-locked as `zkDrive`.
-   - The holder's console runs it at login, and Shamir approval opens the shard with DrvK.
-   - The deposit exceptions on drive files go.
-   - It is planned after checking how automated holders' shards are stored and whether shard
-     verification reads the sealed files.
+2. **Client-locked files** ([Step 2](#step-2-client-locked-files)): `sealed` and `zkDrive` side by side on a
+   zero-knowledge drive, one read rule and one write rule for both. The optional transform of `sealed`
+   into `zkDrive` is designed and [deferred to Chat](#deferred-to-chat-the-transform).
+   - Shamir leaves its shards `sealed`; approval unseals the one it needs.
+   - The deposit exceptions on drive files fold into the two rules (2.8).
    - Chat reuses this step.
-   - What it undoes is listed under [Step 2's inventory](#step-2s-inventory-deposits-on-the-drive).
-3. **The rest, for Vault:**
-   - odin-js uploads, updates and reads with DrvK;
-   - payload and thumbnail reads from FileKey plus the payload IV;
-   - making any empty drive Private from the console.
 
 Each step is its own PR (pair), and each targets main.
 
@@ -182,14 +175,295 @@ The test client locks headers with a DrvK it made itself, as a device would.
 - `docs/zero-knowledge-drives.md` and `owner-keys.md` (FileKey row) mention `zkDrive`.
 - `/simplify` and code review run before the PR opens. Release only when asked.
 
-## Step 2's inventory: deposits on the drive
+## Step 2: client-locked files
+
+Status: agreed and built 2026-10-27, on branch `zk-drive-step-2`. **(V)** = read in code on 2026-10-27;
+**(I)** = inferred, to check while building.
+
+### 2.1 The rule
+On a zero-knowledge drive every encrypted file is **locked by a client**, in one of two ways. The
+server opens neither.
+
+| Key header `type` | Locked by | Opened with |
+|---|---|---|
+| `sealed` | anyone with Write: the sender seals `IV ‖ FileKey` to the drive's `WO-PK-Pub` | `WO-PK-Priv` |
+| `zkDrive` | a device holding DrvK (the owner console, for now) | DrvK |
+
+Only the one key header is locked either way: `appData.content`, `localAppData.content` (its own IV),
+every payload and every thumbnail (the payload's IV) are encrypted with FileKey **(V)**. So a reader
+that has opened the key header reads everything else the same way, whichever type it was.
+
+**Transform on sight (optional; designed in [Deferred to Chat](#deferred-to-chat-the-transform), built with
+Chat):** a device holding DrvK may turn a `sealed` key header into a
+`zkDrive` one: open it with `WO-PK-Priv`, lock the same IV and FileKey with DrvK, and send it back.
+Only the key header changes; content, payloads and IVs stay as stored. Nothing depends on it
+happening: a `sealed` file is readable by every key holder, and a sender's later update may make it
+`sealed` again. Transforming saves later reads the unseal (see [Measured](#measured-unseal-cost)) and leaves the drive
+mostly `zkDrive`. Step 2 leaves every `sealed` file as it is: Shamir doesn't transform.
+
+`EncryptedKeyHeader.IsLockedByClient()` already means "sealed or zkDrive" **(V)**; step 2 makes it the
+one test the rules use.
+
+### 2.2 Why this and not an inbox (decided 2026-10-27)
+Considered and dropped:
+- **A client inbox** (`clientInbox` table; list, then answer a batch; the server moves accepted items
+  onto the drive). It mirrors the server inbox, which waits for the owner's keys and turns headers with
+  them (`InboxDrainOnQuery`, `PeerInboxDriveQueue.IsAuthorizedToDrain`) **(V)**. But to open a chat
+  without an extra round trip, a client would render from the inbox item and the query would carry the
+  waiting items, so the client inbox became the drive query in a second place: the same queue,
+  two routes. It also needed a new table, its delete, purge, move and export plumbing, and Shamir looking
+  in two places.
+- **A "waiting" file on the drive** under a reserved file type, hidden until accepted. A sender's update
+  to an accepted file would hide it again until the next accept, so sync clients would see files vanish
+  and return on every update (each Chat edit, each re-deal); the server would also keep the app's file
+  type aside meanwhile.
+
+What client-locked files cost, accepted:
+- Two key header types on a zero-knowledge drive. On the server, they meet one read rule and one write
+  rule; on a client, one `openClientLockedKeyHeader` branch.
+- Every reader of such a drive needs `WO-PK-Priv` as well as DrvK (for Chat, true either way: the chat
+  app processes what arrives).
+- An unseal (ECDH P-384) per `sealed` file read until it is transformed ([Measured](#measured-unseal-cost)).
+
+### 2.3 Server: arrival (unchanged)
+A sealed item lands on the drive as today, by direct write (S1200) or through the server inbox
+(`DecryptOrPassSealed`) **(V)**. `Deposits.AssertValid` (no payloads) stays until Chat needs payloads.
+
+### 2.4 Server: one read rule, one write rule
+- **Read:** `CallerMayReadAsync` (step 1's follow-up, #2027) hides a client-locked file from a caller
+  that can't open it: owner console (`CallerHoldsDriveKey`) or the system only. A deposit staged on the
+  transient drive reaches any caller there: its writer reads it back to send it. Today an app with Read on
+  the drive sees deposits (`DriveQueryServiceBase`, `isDeposit`) **(V)**; that goes.
+- **Read results:** a client-locked key header is returned as stored (`DriveFileUtility.CreateClientFileHeader`);
+  payload and thumbnail responses carry no packed header for either type (step 1 decision 4).
+- **Writes, in one place** (the `ZkDriveFiles` checks, extended to `sealed`):
+  - the owner may write `zkDrive` (step 1), and may update a client-locked file of either type with a
+    `zkDrive` key header (`AssertFitsUpdate`); `Deposits.AssertNotDeposit` goes **(V, built)**;
+  - **a sealed key header replaces only a sealed one** (the user's rule, 2026-10-27;
+    `ZkDriveFiles.AssertMayReplace`): never a `zkDrive` key header, so a file a key holder took over doesn't
+    go back to sealed, and never an `aes` one, whose file key only the server could open. Asked inside the
+    update, metadata-only and full-overwrite paths, which keep their version-tag and IV checks
+    (`DepositCannotBeUpdated`); a sealed replacement and a payload upload onto a stored deposit carry no
+    payloads (`Deposits.AssertTakesNoPayloads`) **(V, built)**;
+  - a caller holding the drive's key can't upload a `sealed` file to that zero-knowledge drive
+    (`DriveIsZeroKnowledge`): it writes `zkDrive`. An app with Write may still deposit there (and then
+    can't read it back), and the transient drive takes one to send (`ZkDriveFiles.OpenForWrite`)
+    **(V, built)**;
+  - a sender's `sealed` new file is stored as sent; a peer's key header is checked against the drive when
+    the transfer or update arrives (`ZkDriveFiles.AssertPeerMayWrite`: never `zkDrive`, and only what the
+    drive takes). A sender can't yet reach its own deposit to update it: the read rule hides it from the
+    sender's lookup by global transit id or unique id (see "Open from step 2's review"). Shamir isn't
+    affected: every deal uses new shard ids (`Guid.NewGuid()`, odin-js `getNewId()`) and never deletes a
+    friend's shard **(V)**. A sender's edit is Chat's ("Deferred to Chat: a sender's edit");
+  - the transform, once Chat builds it (2.5);
+  - nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (step 1).
+- **One type for an unopened key header:** `SealedKeyHeader` and `ZkDriveKeyHeader` merge into one
+  `ClientLockedKeyHeader` whose `Type` says which (found in step 1's /simplify). `EncryptKeyHeader`'s two
+  pass-through branches and the writers' per-type "no AES key" exemptions become one.
+
+### 2.5 Server: the transform (deferred to Chat)
+Shamir leaves its shards `sealed`, so nothing in step 2 transforms. The transform is designed, with its
+API, version-tag guard and races, under [Deferred to Chat](#deferred-to-chat-the-transform), and is built
+with Chat.
+
+### 2.6 Server: Shamir
+- **Lookup** (`ShamirBaseService.GetShardStoredForDealer`, by unique id): moved to the metadata-only
+  `GetServerFileHeaderByClientUniqueIdSkippingFileAcl`, still behind the drive Read the ACL-bypass context
+  grants. The query it used applies the read rule, which hides a sealed shard from that context (Owner
+  level, no master key): with the old lookup all 17 `FriendRecoveryTests` fail **(V, measured)**. A
+  System-level context isn't the way round it: a System caller's queries match no rows
+  (`requiredSecurityGroup BETWEEN 0 AND 1`, `ProfilePublishService.cs:190`) **(V)**.
+- **Releasable** (`CanReleaseAsync`): unchanged, a shard sealed to the drive's key; it needs the
+  holder's approval. Automated holders' shards are unencrypted and untouched **(V)**. A `zkDrive` shard
+  only exists once Chat's transform does; `CanReleaseAsync` takes it then.
+- **Approval:** the console opens the shard with `openClientLockedKeyHeader` (a `sealed` one, with
+  `WO-PK-Priv`), then re-seals it for the dealer as today.
+- **Converting the drive** is built already (#2013) and not touched here:
+  `ZeroKnowledgeKeyService.ConvertShardRecoveryDriveAsync` gives the Shard Recovery drive the keys the
+  browser made, and when it runs again (after a reset with the recovery key, say) deletes what the old
+  keys locked, both types (`IsLockedByClient`) **(V)**.
+
+### 2.7 odin-js (pair PR)
+- **Shared helpers** (`libs/js-lib/src/core/DriveData/SecurityHelpers.ts`, for every odin-js reader of
+  a zero-knowledge drive, not only Shamir) **(V, built)**:
+  - `isZkDriveKeyHeader`, `isClientLockedKeyHeader` and `isClientLocked(file)`, beside `isSealedKeyHeader`
+    and `isDeposit`;
+  - `openClientLockedKeyHeader(header, { writeOnlyPrivateKey, driveKey })`: `sealed` with `WO-PK-Priv`,
+    `zkDrive` with DrvK. Everything after it (content, payloads, thumbnails) is as for any file.
+    `decryptKeyHeader` (the shared secret) refuses both. It replaces `openSealedKeyHeader`.
+- **No transform at sign-in:** the Shard Recovery drive's shards stay `sealed`; approval
+  (`ShamirProvider.ts`) unseals the one it needs, through `releaseGatedShard` and
+  `openClientLockedKeyHeader`.
+- **The guards** in `FileCard`, `useFiles` and `getContentFromHeaderOrPayload` ask `isClientLocked`, so a
+  `zkDrive` file is left unopened like a deposit.
+- **Test vectors** (`SecurityHelpers.test.ts`, and odin-core's `ClientLockedKeyHeaderVectorTests`): a fixed
+  DrvK, FileKey and IV with the expected `zkDrive` key header, and a sealed key header made once by
+  odin-core with its `WO-PK-Priv` and public key. Plain base64 and JWK, so chat-kmp can check the same
+  values later.
+- **Cost of an unseal:** see the measurement under [Measured](#measured-unseal-cost).
+
+### 2.8 The inventory, under this rule
+| # | Where | Step 2 |
+|---|---|---|
+| 1 | `PeerDriveIncomingTransferService` direct write | stays |
+| 2 | `PeerInboxProcessor` (`DecryptOrPassSealed`) | stays |
+| 3 | `EncryptKeyHeader`, `CanHoldDeposits` | stays, through the merged `ClientLockedKeyHeader` |
+| 4 | the owner uploads a `sealed` file to their own drive | refused for a caller holding DrvK, which writes `zkDrive`; an app with Write may still deposit, and the transient drive takes one to send |
+| 5 | `Deposits.AssertValid` (no payloads) | stays until Chat, and `Deposits.AssertTakesNoPayloads` refuses a payload upload onto a stored deposit; payload responses already carry no header for client-locked files |
+| 6 | `Deposits.AssertNotDeposit` (no updates) | replaced by the write rule (2.4): a sealed key header replaces only a sealed one (`ZkDriveFiles.AssertMayReplace`, `DepositCannotBeUpdated`), and the owner updates a client-locked file with a `zkDrive` one; Chat adds the transform (2.5) |
+| 7 | `DriveQueryServiceBase` `isDeposit` (any reader sees deposits) | replaced by the read rule (2.4), which still shows a deposit staged on the transient drive, so an app can send its own |
+| 8 | `CreateClientFileHeader` → `Deposits.OpenWithDriveKey` | merged with the `zkDrive` branch: client-locked, returned as stored; `OpenWithDriveKey` stays for sending from the transient drive |
+| 9 | `PeerDriveQueryService` `IsSealed()` pass-through | widened to any client-locked key header, passed on as stored rather than failing the whole remote read; a peer's read rule normally hides one **(I)** |
+
+### 2.9 Tests
+- **V2 (`DepositTests`):** a deposit lands `sealed` and the owner reads it by unique id and by query, as
+  stored; an app with Read on the drive doesn't see it (query, unique id 404, file id 403); an app sends a
+  deposit through the transient drive; an app with Write deposits on a zero-knowledge drive and can't read
+  it back; the owner can't upload a `sealed` file to their own zero-knowledge drive; the owner updates a
+  deposit with a `zkDrive` key header, and can't with a sealed one; on the transient drive a deposit
+  replaces a deposit and can't replace an `aes` file; a payload can't be added to a deposit; a deposit
+  with payloads is refused on the transient drive. Each fix was checked by undoing it: its test fails.
+- **Services:** a socket event for a deposit reaches the owner console, not an app; `ZkDriveFilesReplaceTests`
+  (a sealed key header replaces only a sealed one; no payloads with it).
+- **Shamir (Ported):** the dealer's verify sees a sealed shard through the system lookup; approval
+  releases it; automated holders unchanged.
+- **odin-js:** `openClientLockedKeyHeader` against the test vectors (both repos check the same values).
+
+### 2.10 Done when
+Server and odin-js PRs green; on bleeding edge: a gated friend deal → the dealer's readiness shows the
+shard held → an app with Read on the friend's Shard Recovery drive doesn't see it → recovery with the
+friend's approval works.
+
+### Decided
+- Client-locked files: `sealed` and `zkDrive` side by side, transform optional (2.2 for why).
+- Shamir leaves its shards `sealed`; the transform is designed and deferred to Chat (2.5).
+- The transform keeps the version tag and `updated`: a new version tag would break collaboration.
+- One server PR, plus the odin-js pair; the odin-js helpers are shared by odin-js readers.
+- No data upgrade: there are no users of gated friends yet; the user removes stray files by hand.
+
+### Measured: unseal cost
+Node 22.22 WebCrypto (OpenSSL), Intel i7-8700K, 2026-10-27, 1000 operations each, after a warm-up. The
+script mirrors odin-js `zkUnseal` (P-384 ECDH, HKDF-SHA256, AES-GCM) and a `zkDrive` open (AES-CBC, 48
+bytes) **(V, measured)**:
+
+| Operation | Wall per item | CPU per 1000 |
+|---|---|---|
+| open a `zkDrive` key header (DrvK) | 56 µs | 75 ms |
+| unseal, as `zkUnseal` today (re-imports the PKCS8 private key each call) | 1.57 ms | 1.55 s |
+| unseal, private key imported once | 1.17 ms | 1.16 s |
+| transform (unseal + lock as `zkDrive`) | 1.11 ms | 1.12 s |
+| unseal, key imported once, 1000 at once | 0.35 ms | 1.06 s (spread over threads) |
+
+- An unseal costs about 1.1 ms of CPU, about 20 times a `zkDrive` open; the ECDH is nearly all of it.
+  A batch of 100 is about 110 ms of CPU, about 35 ms of wall time when run in parallel.
+- Importing the private key once per batch, rather than per item as `zkUnseal` does, saves about a
+  quarter.
+- Not measured: browsers (Chrome and Firefox WebCrypto run off the main thread), phones (likely several
+  times slower) and chat-kmp's Kotlin crypto **(I)**. Shamir's few shards cost nothing noticeable; for
+  Chat it argues for transforming once rather than unsealing on every read.
+
+## Deferred to Chat: the transform
+
+Designed and reviewed with step 2 (2026-10-27), built with Chat, which reads every incoming message and
+gains most from transforming once. Kept as reviewed.
+
+### The transform (server)
+**Request:** `POST /api/v2/drives/{driveId}/files/transform-key-headers`, owner console only
+(`ZkDriveFiles.CallerHoldsDriveKey`), up to 100 items:
+
+```json
+{ "files": [ { "fileId": "…", "versionTag": "…", "keyHeader": { "type": "zkDrive", "encryptionVersion": 1, "iv": "…", "encryptedAesKey": "…" } } ] }
+```
+
+`versionTag` is the one the client read alongside the `sealed` key header it opened.
+
+**Per item, the server checks:**
+- the file exists, isn't deleted, and its stored key header is `sealed` (otherwise `notSealed`);
+- the new key header passes `AssertValidZkDrive`, and its IV equals the stored one: `appData.content`
+  was encrypted under it, and payloads keep their own IVs;
+- then it replaces **only the key header**, in one statement guarded by the version tag:
+  `UPDATE driveMainIndex SET hdrEncryptedKeyHeader = @new WHERE identityId = … AND driveId = … AND
+  fileId = … AND hdrVersionTag = @expected`. A write that lands between the client's read and the
+  transform has given the file a new version tag (every header write does, `TableDriveMainIndex.cs:119`
+  **(V)**), so the item fails with `versionTagMismatch` rather than overwrite it.
+- **Nothing else changes:** not the version tag, not `modified` (the change feed's `updated`), and no
+  file-changed event. Content, metadata, payloads and the ACL are as stored, and the `sealed` key header
+  still opens to the same FileKey, so no reader or cache needs to re-fetch, and every other writer's
+  cached version tag stays valid: a new one would fail a collaborator's or another device's next update,
+  guarded by the version tag it read, for a write that changed nothing it cares about (the user's call,
+  2026-10-27). The header upsert can't be
+  used: it always sets a new version tag and bumps `modified`.
+- Any cache in front of the main index must not return the old `sealed` key header afterwards **(I:
+  which cache, to check)**.
+
+**Response**, one result per item, in request order; one bad item never fails the batch:
+
+```json
+{ "results": [ { "fileId": "…", "errorCode": null, "keyHeader": { "type": "zkDrive", … } } ] }
+```
+
+On success the client gets the stored key header (its version tag is unchanged) and swaps it into its
+cache. Error codes: `versionTagMismatch`, `notSealed`, `fileNotFound`, `invalidKeyHeader`.
+
+**Races:**
+- **A sender's update lands before the transform** (a re-deal, a Chat edit): its version tag changed,
+  so the transform answers `versionTagMismatch` and the sender's update stands. The client reads the
+  new `sealed` key header next time and transforms that.
+- **A sender's update lands after the transform:** it replaces the `zkDrive` key header with its own
+  `sealed` one and the file is `sealed` again. Nothing is lost; the client transforms it again.
+- **Two devices transform the same file:** both succeed with the same bytes. A `zkDrive` key header
+  depends only on DrvK, FileKey and the IV (the IV cancels out, decision 3) **(V, `ZkDriveFileTests`)**,
+  so the second write changes nothing. A device that read the file again first gets `notSealed`.
+- **The owner edits the file meanwhile:** the same version-tag rule as any update.
+
+**What the server can't check:** that the `zkDrive` key header locks the same FileKey. A client that
+locked the wrong key would make the file unreadable, so `transformKeyHeaders` opens the key header it
+made and compares FileKeys before sending ([odin-js](#the-transform-odin-js)).
+
+### The transform (odin-js)
+- Shared helpers, beside `openClientLockedKeyHeader` (`libs/js-lib/src/core/DriveData/SecurityHelpers.ts`):
+  - `lockFileKey(drvK, fileKey, iv)`: the `zkDrive` key header, in the format of `EncryptKeyHeaderAes`.
+  - `transformKeyHeaders(driveId, files)`: unseal, lock, check the lock opens to the same FileKey,
+    send one batch of up to 100 with each file's version tag; returns the stored key headers. A
+    `versionTagMismatch` item is left for the next read.
+- **Where it runs:** Chat transforms what arrives as it reads it. Optional throughout: a failure
+  leaves the file `sealed` and readable.
+
+### The transform (tests)
+- **V2:** the owner transforms a sealed file; the batch returns the stored key header, and the file's
+  version tag and `updated` are unchanged (a query with `modifiedAfter` doesn't return it); a transform
+  with another IV, an `aes` key header, a stale version tag or a non-sealed file is refused per item
+  while the rest go through; a sender's update between the read and the transform survives it
+  (`versionTagMismatch`), and one after it makes the file `sealed` again; an app or guest can't
+  transform.
+
+## Deferred to Chat: a sender's edit
+
+Read 2026-10-27 **(V)**: a chat edit (chat-kmp `ChatMessageSenderService.updateMessage`) is an update by
+unique id sent to the recipients, with a new IV and the **same AES key**
+(`KeyHeader(iv = random, aesKey = msg.keyHeader.aesKey)`) and new content encrypted under them. The server
+already insists on that: `UpdateBatchCopyFilesAsync` refuses an update whose AES key differs, and
+`KeyHeader.AssertIvRotated` wants a new IV. So in an edit only the IV changes, never the file key.
+
+The rule for Chat (the user's, 2026-10-27): **a peer's update may change the content and the IVs, never the
+key header a key holder locked with DrvK.**
+- With key header version 1 the server can apply that today: the IV cancels out of the format (decision 3),
+  so it keeps the DrvK-locked bytes and takes the sender's new visible IV, and the key header opens to the
+  new IV and the same FileKey.
+- That relies on the weakness #2024 removes. Version 2 should give `appData.content` its own IV, as
+  payloads (`PayloadDescriptor.Iv`) and local app data (`LocalAppMetadata.Iv`) already have; then a key
+  header only holds FileKey, and an edit never touches it.
+- The server still can't check that the sender kept the file key; a sender that didn't makes only its own
+  edit unreadable.
+
+## Step 2's inventory: deposits on the drive (as found in step 1)
 
 What #2013 (`1a5684df2`) added so that a deposit lands on its drive still sealed. Step 1 leaves all of
 it as it is (read 2026-10-26) **(V)**.
 
 **Drive side: all go or change**
 
-| # | Where | Today | Step 2 |
+| # | Where | Today | Step 2, as first planned (superseded: see 2.8) |
 |---|---|---|---|
 | 1 | `PeerDriveIncomingTransferService` (S1200 direct write) | a deposit is written straight to the drive with no drive key | it stays in the drive's inbox |
 | 2 | `PeerInboxProcessor.DecryptedKeyHeaderAsync` (`DecryptOrPassSealed`) | inbox processing moves a deposit onto the drive still sealed | the server skips deposits; a device accepts them re-locked as `zkDrive` |
@@ -248,7 +522,35 @@ it as it is (read 2026-10-26) **(V)**.
   with `AllowCdn` on. We may want a zero-knowledge drive's files on the CDN later, still encrypted, when
   the owner ticks CDN for the drive.
 
+## Open from step 2's review
+
+- **The read rule gates the server's own lookups too** (review round 2). `ZkDriveFiles.VisibleTo` decides
+  who may be handed a key header it can't open, but it also runs for lookups the server makes in a
+  caller's context: an inbox drained by an app (`PeerInboxProcessor` under `ForOthersWrites`) misses a
+  client-locked file, so a peer's delete of a deposit applied there is lost, and a sender's own server
+  can't find its deposit to update it. Step 2 works round two such flows (the transient drive's staged
+  deposits, the Shamir lookup), and its replace rule (2.4) holds whoever drains. The general
+  fix: hide client-locked files where responses are built (`CreateClientFileHeader`, client queries,
+  socket events) and let internal flows look rows up in an explicit system context. Needed before Chat,
+  whose peers edit and delete what they sent.
+- **Who reads the transient drive.** Its staged deposits reach any caller with Read there, so one app
+  with transit sees another's staged deposit (the sealed key header and plain metadata, such as a gated
+  shard's hashed recovery email). As before step 2; narrowing it needs knowing which app wrote a file.
+
+- **odin-js layering.** `core/DriveData/SecurityHelpers` imports `zkUnseal` from `auth/providers/ZeroKnowledgeKeys`
+  (no import cycle). Moving the seal helpers to `helpers/` would take `EccKeyProvider` and the lock helpers
+  with them; left for when another core module needs them.
+- **System APIs and the read rule (from step 2's /simplify).** The Shamir lookup skips the query and its
+  read rule (`GetServerFileHeaderByClientUniqueIdSkippingFileAcl`), then re-applies what the query filtered
+  (expiry, the file type) by hand. The deeper fix is a read rule that knows "a system API acting for the
+  owner" (the context `UpgradeToByPassAclCheck` builds), so the other bypass readers of this drive
+  (`PlayerShardCollector`, `ShamirRecoveryService`) can't hit the same wall if their files become
+  client-locked. Wider than step 2; touches security-model.md section 9.
+
 ## Not in this work
+- **Vault** (chat-kmp, and consent giving apps DrvK): a separate discussion, including how to
+  change an existing drive such as Vault's. This plan covers the `zkDrive` type (step 1) and
+  client-locked files for Shamir (step 2).
 - **chat-kmp:** comes with consent. Two small bugs found on the way, both harmless today:
   - `EncryptedKeyHeader.toBase64()` writes the version big-endian, but has no production caller;
   - the `MissingEncryptedHeader` check compares by reference, so it never fires.

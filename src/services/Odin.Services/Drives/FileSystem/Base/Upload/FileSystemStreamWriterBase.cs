@@ -466,7 +466,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         }
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager, odinContext)
+            ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
+                odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -486,7 +487,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
     /// <returns>
     /// The new IV with an all-zero AES key, which the stored file key joins; or, on a zero-knowledge
-    /// drive, the new key header itself (<see cref="ZkDriveKeyHeader"/>), stored as sent
+    /// drive, the new key header itself (<see cref="ClientLockedKeyHeader"/>), stored as sent
     /// </returns>
     /// <remarks>For an unencrypted file the key header is empty, and never read.</remarks>
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(
@@ -497,9 +498,9 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         if (uploadDescriptor.FileMetadata.IsEncrypted)
         {
             var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
-            Deposits.AssertNotDeposit(true, transferKeyEncryptedKeyHeader);
 
-            keyHeader = await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager, odinContext);
+            keyHeader = await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId,
+                _driveManager, odinContext);
 
             if (!ByteArrayUtil.IsStrongKey(keyHeader.Iv))
             {
@@ -508,7 +509,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             }
 
             // A zero-knowledge drive's key header is stored as sent; any other carries only the new IV
-            if (keyHeader is not ZkDriveKeyHeader &&
+            if (keyHeader is not ClientLockedKeyHeader &&
                 !ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), Guid.Empty.ToByteArray()))
             {
                 throw new OdinClientException(
@@ -637,12 +638,12 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.MissingPayloadKeys);
             }
             
-            if (keyHeader is SealedKeyHeader sealedKeyHeader)
+            if (keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed } sealedKeyHeader)
             {
-                Deposits.AssertValid(metadata, sealedKeyHeader.Sealed);
-                Deposits.AssertCanHold(await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true));
+                // Where it may go was checked as it was opened (ZkDriveFiles.OpenForWrite)
+                Deposits.AssertValid(metadata, sealedKeyHeader.Locked);
             }
-            else if (metadata.IsEncrypted && keyHeader is not ZkDriveKeyHeader) // checked unopened (AssertValidZkDrive)
+            else if (metadata.IsEncrypted && keyHeader is not ClientLockedKeyHeader) // checked unopened (AssertValidZkDrive)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
                 {

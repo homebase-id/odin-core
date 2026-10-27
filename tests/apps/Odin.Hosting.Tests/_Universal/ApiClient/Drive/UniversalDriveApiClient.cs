@@ -221,7 +221,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         StorageOptions storageOptions,
         TransitOptions transitOptions,
         KeyHeader keyHeader = null,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard,
+        EncryptedKeyHeader lockedKeyHeader = null)
     {
         bool wipeKeyHeader = false;
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -248,7 +249,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
+                // A key header a client locked (sealed, zkDrive) goes as it is; otherwise locked with the shared secret
+                EncryptedKeyHeader = lockedKeyHeader ?? EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata
             };
 

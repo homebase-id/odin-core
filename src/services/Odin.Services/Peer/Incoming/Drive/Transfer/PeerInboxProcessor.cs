@@ -410,6 +410,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(
                 inboxItem.Data.ToStringFromUtf8Bytes());
 
+            // What a sealed key header may replace is checked where the existing file is known (ZkDriveFiles.AssertMayReplace)
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
                 inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
 

@@ -6,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LastSeen;
@@ -39,29 +40,26 @@ public abstract class ShamirBaseService<TLogger>(
     {
         var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
 
-        var options = new ResultOptions
-        {
-            MaxRecords = 1,
-            IncludeHeaderContent = true,
-            ExcludePreviewThumbnail = true,
-            ExcludeServerMetaData = false,
-            IncludeTransferHistory = false
-        };
-
         var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
             WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.Read,
             odinContext);
 
-        var file = await FileSystem.Query.GetFileByClientUniqueId(driveId, shardId, options, byPassAclCheckContext);
+        // The stored header itself, past the file read rule: a gated shard is client-locked (sealed), which
+        // the read rule shows only to a caller holding the drive's key, and the dealer asking through its
+        // peer call doesn't (docs/security-model.md, 9: system APIs bypass the regular checks)
+        var file = await FileSystem.Query.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(driveId, shardId, byPassAclCheckContext);
 
-        if (file == null)
+        // An expired file is gone, as a query treats it.  An encrypted shard that isn't a deposit (a zkDrive one,
+        // once Chat's transform exists) isn't one this server reads or releases yet
+        var isDeposit = file != null && Deposits.IsDeposit(file);
+        if (file == null || DriveStorageServiceBase.IsExpired(file) || (file.FileMetadata.IsEncrypted && !isDeposit))
         {
             return new StoredShard(null, null, null);
         }
 
         OdinId? sender = string.IsNullOrEmpty(file.FileMetadata.SenderOdinId) ? null : (OdinId)file.FileMetadata.SenderOdinId;
-        if (!Deposits.IsDeposit(file.FileMetadata.IsEncrypted, file.SharedSecretEncryptedKeyHeader))
+        if (!isDeposit)
         {
             return new StoredShard(PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content), sender, null);
         }
@@ -74,7 +72,7 @@ public abstract class ShamirBaseService<TLogger>(
             Created = file.FileMetadata.Created
         };
 
-        return new StoredShard(shard, sender, file.SharedSecretEncryptedKeyHeader);
+        return new StoredShard(shard, sender, file.EncryptedKeyHeader);
     }
 
     /// <summary>

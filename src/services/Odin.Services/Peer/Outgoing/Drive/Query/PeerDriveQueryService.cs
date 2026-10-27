@@ -879,9 +879,11 @@ public class PeerDriveQueryService(
 
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
-        if (encryptedKeyHeader.IsSealed())
+        if (encryptedKeyHeader.IsLockedByClient())
         {
-            // A deposit's key header comes from the peer sealed, as stored: only the reader's browser opens it
+            // A client-locked key header comes from the peer as stored: only a device holding that drive's keys
+            // opens it.  A peer shows one only to a caller its read rule admits; passed on rather than failing
+            // the whole read
             return encryptedKeyHeader;
         }
 

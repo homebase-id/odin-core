@@ -2,6 +2,7 @@ using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives;
@@ -11,11 +12,15 @@ namespace Odin.Services.Drives;
 /// of their own and seal that key header to the drive's write-only public key
 /// (<see cref="EncryptedKeyHeader.Sealed"/>).  The server stores the sealed key header as received,
 /// passes it on as is and returns it as stored; it never opens or re-locks it
-/// (docs/zero-knowledge-recovery-plan.md, "Deposits").
+/// (docs/zero-knowledge-recovery-plan.md, "Deposits").  On the drive, a deposit is one of the two kinds
+/// of client-locked file, and who may see or change it is <see cref="ZkDriveFiles"/>'s
+/// (docs/zero-knowledge-drive-api-plan.md, step 2).
 /// </summary>
 /// <remarks>
-/// For now a deposit is a header only: a payload's key header leaves through a fixed-size response
-/// header (<c>SharedSecretEncryptedHeader64</c>: IV, AES key, version) that a sealed one doesn't fit.
+/// For now a deposit is a header only.  It was first because a payload's key header left through a
+/// fixed-size response header (<c>SharedSecretEncryptedHeader64</c>) a sealed one doesn't fit; step 1
+/// dropped that header for every client-locked file, so what stops a deposit with payloads now is only
+/// that nothing needs one yet.  Chat lifts it, here (docs/zero-knowledge-drive-api-plan.md, step 2).
 /// </remarks>
 public static class Deposits
 {
@@ -33,15 +38,17 @@ public static class Deposits
     {
         if (IsDeposit(header))
         {
-            return new SealedKeyHeader(header.EncryptedKeyHeader);
+            return new ClientLockedKeyHeader(header.EncryptedKeyHeader);
         }
 
-        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-        var keyHeader = header.FileMetadata.IsEncrypted
-            ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey)
-            : KeyHeader.Empty();
-        storageKey.Wipe();
-        return keyHeader;
+        if (!header.FileMetadata.IsEncrypted)
+        {
+            // Sending a file has always needed the drive key, even an unencrypted one
+            odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId).Wipe();
+            return KeyHeader.Empty();
+        }
+
+        return DriveFileUtility.OpenWithStorageKey(header, odinContext);
     }
 
     /// <summary>Refuses a malformed deposit, and one that carries payloads.</summary>
@@ -50,32 +57,41 @@ public static class Deposits
         sealedKeyHeader.AssertValidSealed();
         if (metadata.Payloads?.Any() == true)
         {
-            throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
+            ThrowCarriesNoPayloads();
         }
     }
 
-    /// <summary>Refuses a deposit for a drive that can't hold one (<see cref="StorageDrive.CanHoldDeposits"/>).</summary>
-    public static void AssertCanHold(StorageDrive drive)
+    /// <summary>Refuses payloads added with a sealed key header, as <see cref="AssertValid"/> does for a new deposit.</summary>
+    public static void AssertTakesNoPayloads(KeyHeader keyHeader, bool addsPayloads)
+    {
+        if (addsPayloads && keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed })
+        {
+            ThrowCarriesNoPayloads();
+        }
+    }
+
+    /// <summary>Refuses payloads for a stored deposit, as <see cref="AssertValid"/> does for a new one.</summary>
+    public static void AssertTakesNoPayloads(ServerFileHeader existingHeader)
+    {
+        if (IsDeposit(existingHeader))
+        {
+            ThrowCarriesNoPayloads();
+        }
+    }
+
+    private static void ThrowCarriesNoPayloads() =>
+        throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
+
+    /// <summary>
+    /// Refuses a deposit for a drive that can't hold one (<see cref="StorageDrive.CanHoldDeposits"/>); asked
+    /// through <see cref="ZkDriveFiles.AssertDriveTakes"/>, which decides which drive takes which key header.
+    /// </summary>
+    internal static void AssertCanHold(StorageDrive drive)
     {
         if (!drive.CanHoldDeposits)
         {
             throw new OdinClientException("Only a zero-knowledge drive takes a deposit (a sealed key header)",
                 OdinClientErrorCode.DepositNeedsZeroKnowledgeDrive);
-        }
-    }
-
-    /// <summary>
-    /// A deposit is changed only by writing it again: nobody here can open its key to check an update
-    /// against it or re-lock it.
-    /// </summary>
-    public static void AssertNotDeposit(ServerFileHeader existingHeader) =>
-        AssertNotDeposit(existingHeader.FileMetadata.IsEncrypted, existingHeader.EncryptedKeyHeader);
-
-    public static void AssertNotDeposit(bool isEncrypted, EncryptedKeyHeader keyHeader)
-    {
-        if (IsDeposit(isEncrypted, keyHeader))
-        {
-            throw new OdinClientException("A deposit can't be updated; write it again", OdinClientErrorCode.DepositCannotBeUpdated);
         }
     }
 }

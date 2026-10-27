@@ -68,12 +68,12 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 
     /// <summary>
     /// Whether this drive takes a deposit: a file whose key header its writer sealed to the drive's
-    /// write-only public key (<c>SealedKeyHeader</c>).  A zero-knowledge drive does, as its owner's
+    /// write-only public key (<c>EncryptionType.Sealed</c>).  A zero-knowledge drive does, as its owner's
     /// browser opens it; so does the transient drive, which only passes a deposit on to its recipients.
     /// Any other drive refuses one: the server could open everything else on it, so a deposit there
     /// would only hide from the owner what the server can't read.
     /// </summary>
-    public bool CanHoldDeposits => IsZeroKnowledge || Id == SystemDriveConstants.TransientTempDrive.Alias;
+    public bool CanHoldDeposits => IsZeroKnowledge || SystemDriveConstants.IsTransientTempDrive(Id);
 
     /// <summary>
     /// Whether a grant with <paramref name="permission"/> carries the drive's storage key: reading
