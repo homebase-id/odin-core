@@ -28,16 +28,16 @@ built; the reasons, alternatives and work are in
   client-locked file only for a caller that can open it (owner console, or the system's own jobs).
   Reads, queries and sockets all ask it. A client-locked key header is returned as stored, and payload
   and thumbnail responses carry no packed key header: the client uses FileKey and the payload's IV.
-- **One write rule:** the owner writes `zkDrive`, and updates a client-locked file only with a `zkDrive`
-  key header; a sender's `sealed` new file is stored as sent. Once a file exists, a sender can't change
-  it: a new sealed version of it (update or overwrite) is refused, so a sender never swaps its file key
-  (a sender editing what it sent comes with Chat). The owner can't upload a `sealed` file to their own
-  drive.
-- **Known limit:** the read rule also gates the server's own lookups made in a caller's context. An inbox
-  drained by an app misses a client-locked file, so a peer's delete of a deposit is applied only when the
-  owner console drains it. Deposits are never deleted by peers today (Shamir); the deeper fix is in the
-  plan's open items. A zero-knowledge drive sends nothing (no
-  recipients, feeds or CDN).
+- **One write rule:** the owner writes `zkDrive`, and can't upload a `sealed` file to their own drive; a
+  sender's `sealed` new file is stored as sent. **A `sealed` key header replaces only a `sealed` one**: a
+  file a key holder took over (`zkDrive`) never goes back to sealed, and an `aes` file never loses the key
+  only the server could open. Updates and overwrites go through their usual version-tag and IV checks.
+  Nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (no recipients,
+  feeds or CDN).
+- **Known limit:** the read rule also gates the server's own lookups made in a caller's context, so a
+  sender's own server can't find a client-locked file to update or delete it, and an inbox drained by an
+  app misses one: a peer's delete of a deposit applied that way is lost. Deposits are never edited or
+  deleted by peers today (Shamir); a sender's edit (Chat) needs the deeper fix in the plan's open items.
 - **Transforming `sealed` into `zkDrive` is optional**, and designed for Chat (deferred): a key holder
   re-locks the same IV and FileKey with DrvK. It keeps the file's version tag and `updated`, because
   nothing a reader or writer depends on changed, and a new version tag would break collaborators'

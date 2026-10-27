@@ -203,9 +203,9 @@ public class DepositTests : V2Fixture
     }
 
     [Test]
-    public async Task ASealedKeyHeaderCannotUpdateAFile()
+    public async Task TheOwnerCannotUpdateADepositWithASealedKeyHeader()
     {
-        // A deposit is written whole: neither an update nor a metadata-only upload takes a sealed key header
+        // A caller holding the drive's key writes zkDrive, in an update or a metadata-only upload too
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId);
@@ -213,13 +213,13 @@ public class DepositTests : V2Fixture
 
         var (newKey, sealedAgain) = ZkBrowser.SealNewFileKey(samsKeys.PublicKeyJwk);
         var update = await UpdateAsync(sam, received.FileId, uniqueId, newKey, sealedAgain, received.FileMetadata.VersionTag);
-        Assert.That(update.ErrorCode(), Is.EqualTo(OdinClientErrorCode.DepositCannotBeUpdated), update.Error?.Content);
+        Assert.That(update.ErrorCode(), Is.EqualTo(OdinClientErrorCode.DriveIsZeroKnowledge), update.Error?.Content);
 
         var metadata = Metadata(uniqueId);
         metadata.VersionTag = received.FileMetadata.VersionTag;
         var (metadataOnly, _) = await sam.V1.Drive.UpdateExistingEncryptedMetadata(
             new ExternalFileIdentifier { FileId = received.FileId, TargetDrive = Drive }, newKey, metadata, lockedKeyHeader: sealedAgain);
-        Assert.That(metadataOnly.ErrorCode(), Is.EqualTo(OdinClientErrorCode.DepositCannotBeUpdated), metadataOnly.Error?.Content);
+        Assert.That(metadataOnly.ErrorCode(), Is.EqualTo(OdinClientErrorCode.DriveIsZeroKnowledge), metadataOnly.Error?.Content);
     }
 
     [Test]
@@ -237,16 +237,18 @@ public class DepositTests : V2Fixture
         Assert.That(upload.ErrorCode(), Is.EqualTo(OdinClientErrorCode.InvalidPayload), upload.Error?.Content);
     }
 
-    [Test]
-    public async Task ADepositCannotReplaceAClientLockedFile()
+    [TestCase(true, TestName = "ADepositReplacesADepositOnTheTransientDrive")]
+    [TestCase(false, TestName = "ADepositCannotReplaceAnAesFileOnTheTransientDrive")]
+    public async Task WhatADepositMayReplace(bool existingIsADeposit)
     {
-        // A sender can't replace a client-locked file in this step, by a full overwrite either; on the transient
-        // drive, where the caller sees the staged deposit, the overwrite is refused rather than missed
+        // A sealed key header replaces only a sealed one: over an aes one, the file key only the server could
+        // open would be lost.  A full overwrite, through its usual version-tag check
         var frodo = await LoginAsOwner(Identities.Frodo);
         var publicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk;
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
         var (staged, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias,
-            Metadata(Guid.NewGuid()), transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
+            Metadata(Guid.NewGuid()), transitOptions: null!, keyHeader: fileKey,
+            lockedKeyHeader: existingIsADeposit ? sealedKeyHeader : null);
         Assert.That(staged.StatusCode, Is.EqualTo(HttpStatusCode.OK), staged.Error?.Content);
 
         var (otherKey, otherSealed) = ZkBrowser.SealNewFileKey(publicKeyJwk);
@@ -254,6 +256,13 @@ public class DepositTests : V2Fixture
         replacement.VersionTag = staged.Content!.NewVersionTag;
         var overwrite = await frodo.V1.Drive.OverwriteWithLockedKeyHeader(SystemDriveConstants.TransientTempDrive, replacement,
             staged.Content.FileId, otherKey, otherSealed);
+
+        if (existingIsADeposit)
+        {
+            Assert.That(overwrite.StatusCode, Is.EqualTo(HttpStatusCode.OK), overwrite.Error?.Content);
+            return;
+        }
+
         Assert.That(overwrite.ErrorCode(), Is.EqualTo(OdinClientErrorCode.DepositCannotBeUpdated), overwrite.Error?.Content);
     }
 

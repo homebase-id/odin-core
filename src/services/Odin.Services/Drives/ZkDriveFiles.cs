@@ -28,12 +28,12 @@ public static class ZkDriveFiles
     /// <summary>
     /// The key header a local caller (the owner, an app) sent to write to <paramref name="drive"/>, decided
     /// by its type before anything is opened (<see cref="AssertDriveTakes"/>).  A zero-knowledge drive's own
-    /// key header comes only from a caller holding its key.  A sealed one is a deposit, written whole: never
-    /// in an update (<paramref name="isUpdate"/>), and not by a caller holding the drive's key, which writes
-    /// <see cref="EncryptionType.ZkDrive"/> instead; anyone else with Write may deposit, on a zero-knowledge
-    /// drive or on the transient drive to send it.
+    /// key header comes only from a caller holding its key.  A sealed one is a deposit: not from a caller
+    /// holding the drive's key, which writes <see cref="EncryptionType.ZkDrive"/> instead; anyone else with Write
+    /// may deposit, on a zero-knowledge drive or on the transient drive to send it.  What it may replace in an
+    /// update or an overwrite is <see cref="AssertMayReplace"/>'s.
     /// </summary>
-    private static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, bool isUpdate, ref SensitiveByteArray sharedSecret,
+    private static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, ref SensitiveByteArray sharedSecret,
         IOdinContext odinContext)
     {
         if (sent == null)
@@ -44,12 +44,6 @@ public static class ZkDriveFiles
         AssertDriveTakes(drive, sent.Type);
         if (sent.IsSealed())
         {
-            if (isUpdate)
-            {
-                throw new OdinClientException("A deposit is written whole; a sealed key header can't update a file",
-                    OdinClientErrorCode.DepositCannotBeUpdated);
-            }
-
             if (drive.IsZeroKnowledge && CallerHoldsDriveKey(odinContext))
             {
                 ThrowNotItsOwnKeyHeader();
@@ -69,13 +63,61 @@ public static class ZkDriveFiles
     }
 
     /// <summary>The key header a client sent, for the drive it writes to (<see cref="OpenForWrite"/>).</summary>
-    /// <param name="isUpdate">An update of an existing file (an update, a metadata-only upload), not a new file or a full overwrite</param>
-    public static async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader? sent, Guid driveId, bool isUpdate,
-        IDriveManager driveManager, IOdinContext odinContext)
+    public static async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader? sent, Guid driveId, IDriveManager driveManager,
+        IOdinContext odinContext)
     {
         var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
         var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-        return OpenForWrite(sent, drive, isUpdate, ref sharedSecret, odinContext);
+        return OpenForWrite(sent, drive, ref sharedSecret, odinContext);
+    }
+
+    /// <summary>
+    /// Which key header a peer may send to <paramref name="drive"/>, refused when the transfer arrives, before
+    /// anything is staged or the sender is told it was accepted: never one locked with this identity's drive
+    /// key (zkDrive), which a peer doesn't hold, and only what the drive takes (<see cref="AssertDriveTakes"/>).
+    /// An unencrypted file carries none.  The local rule is <see cref="OpenForWrite"/>; what an update or an
+    /// overwrite may replace is <see cref="AssertMayReplace"/>'s, where the existing file is known.
+    /// </summary>
+    public static void AssertPeerMayWrite(StorageDrive drive, bool isEncrypted, EncryptedKeyHeader? keyHeader)
+    {
+        if (!isEncrypted)
+        {
+            return;
+        }
+
+        if (keyHeader?.IsZkDrive() == true)
+        {
+            throw new OdinClientException("A peer can't lock a key header with this drive's key", OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        AssertDriveTakes(drive, keyHeader?.Type ?? EncryptionType.Aes);
+    }
+
+    /// <summary>
+    /// What a sealed key header may replace, in an update or an overwrite of <paramref name="existing"/>: only
+    /// another sealed one (a deposit's sender updating it).  Never a key header locked with the drive's key
+    /// (zkDrive): a file a key holder has taken over doesn't go back to sealed.  Never an aes one either: the
+    /// file key only the server could open would be lost.  A sealed one carries no payloads
+    /// (<see cref="Deposits"/>).  Asked inside the update and overwrite paths, which keep their version-tag and IV
+    /// checks (docs/zero-knowledge-drive-api-plan.md, 2.4).
+    /// </summary>
+    public static void AssertMayReplace(ServerFileHeader existing, KeyHeader? replacement, bool addsPayloads = false)
+    {
+        if (replacement is not ClientLockedKeyHeader { Type: EncryptionType.Sealed })
+        {
+            return;
+        }
+
+        if (existing.FileMetadata.IsEncrypted && existing.EncryptedKeyHeader?.IsSealed() != true)
+        {
+            throw new OdinClientException("A sealed key header replaces only a sealed one: never one locked with the drive's key, " +
+                                          "or by the server", OdinClientErrorCode.DepositCannotBeUpdated);
+        }
+
+        if (addsPayloads)
+        {
+            Deposits.ThrowCarriesNoPayloads();
+        }
     }
 
     /// <summary>
@@ -152,9 +194,9 @@ public static class ZkDriveFiles
     private static void ThrowNoAccess(Guid driveId) => throw new OdinSecurityException($"No access permitted to drive {driveId}");
 
     /// <summary>
-    /// An encrypted update of a client-locked file (sealed or zkDrive) takes a zero-knowledge drive's own
-    /// key header with a new IV, as for any encrypted file: only the owner's devices update one, and they
-    /// lock with the drive's key.  The server compares the IVs both key headers show; it can't check that
+    /// An encrypted update of a client-locked file (sealed or zkDrive) takes a client-locked key header with a
+    /// new IV, as for any encrypted file: a zkDrive one from a device holding the drive's key, or a sealed one
+    /// over a sealed file (<see cref="AssertMayReplace"/>, asked first).  The server compares the IVs both key headers show; it can't check that
     /// the file key stayed the same, which is the writer's to keep, or the payloads no longer open.  Callers
     /// refuse a change of encryption first; any other file never gets a client-locked key header
     /// (<see cref="AssertDriveTakes"/>).
@@ -166,7 +208,7 @@ public static class ZkDriveFiles
             return;
         }
 
-        if (update is not ClientLockedKeyHeader { Type: EncryptionType.ZkDrive })
+        if (update is not ClientLockedKeyHeader)
         {
             ThrowNotItsOwnKeyHeader();
         }

@@ -239,20 +239,22 @@ A sealed item lands on the drive as today, by direct write (S1200) or through th
 - **Writes, in one place** (the `ZkDriveFiles` checks, extended to `sealed`):
   - the owner may write `zkDrive` (step 1), and may update a client-locked file of either type with a
     `zkDrive` key header (`AssertFitsUpdate`); `Deposits.AssertNotDeposit` goes **(V, built)**;
-  - a sealed key header comes only with a new file: an update or a metadata-only upload with one is
-    refused (`DepositCannotBeUpdated`), and so is a payload upload onto a stored deposit
-    (`Deposits.AssertTakesNoPayloads`) **(V, built)**;
+  - **a sealed key header replaces only a sealed one** (the user's rule, 2026-10-27;
+    `ZkDriveFiles.AssertMayReplace`): never a `zkDrive` key header, so a file a key holder took over doesn't
+    go back to sealed, and never an `aes` one, whose file key only the server could open. Asked inside the
+    update, metadata-only and full-overwrite paths, which keep their version-tag and IV checks
+    (`DepositCannotBeUpdated`); a sealed replacement and a payload upload onto a stored deposit carry no
+    payloads (`Deposits.AssertTakesNoPayloads`) **(V, built)**;
   - a caller holding the drive's key can't upload a `sealed` file to that zero-knowledge drive
     (`DriveIsZeroKnowledge`): it writes `zkDrive`. An app with Write may still deposit there (and then
     can't read it back), and the transient drive takes one to send (`ZkDriveFiles.OpenForWrite`)
     **(V, built)**;
-  - a sender's `sealed` new file is stored as sent. Once a file exists, a sender can't change it: a new
-    sealed version of it (an update, or an overwrite matched by global transit id or unique id) is refused
-    (`DepositCannotBeUpdated`), whoever applies it: a direct peer write can't see the file, and an inbox
-    drained by the owner console refuses it in `OverwriteFile` **(V, built)**. Shamir isn't affected: every
-    deal uses new shard ids (`Guid.NewGuid()`, odin-js `getNewId()`) and never deletes a friend's shard
-    **(V)**. A sender editing what it sent (a Chat edit) needs a write rule saying who may find and replace
-    what, and comes with Chat;
+  - a sender's `sealed` new file is stored as sent; a peer's key header is checked against the drive when
+    the transfer or update arrives (`ZkDriveFiles.AssertPeerMayWrite`: never `zkDrive`, and only what the
+    drive takes). A sender can't yet reach its own deposit to update it: the read rule hides it from the
+    sender's lookup by global transit id or unique id (see "Open from step 2's review"). Shamir isn't
+    affected: every deal uses new shard ids (`Guid.NewGuid()`, odin-js `getNewId()`) and never deletes a
+    friend's shard **(V)**. A sender's edit is Chat's ("Deferred to Chat: a sender's edit");
   - the transform, once Chat builds it (2.5);
   - nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (step 1).
 - **One type for an unopened key header:** `SealedKeyHeader` and `ZkDriveKeyHeader` merge into one
@@ -308,7 +310,7 @@ with Chat.
 | 3 | `EncryptKeyHeader`, `CanHoldDeposits` | stays, through the merged `ClientLockedKeyHeader` |
 | 4 | the owner uploads a `sealed` file to their own drive | refused for a caller holding DrvK, which writes `zkDrive`; an app with Write may still deposit, and the transient drive takes one to send |
 | 5 | `Deposits.AssertValid` (no payloads) | stays until Chat, and `Deposits.AssertTakesNoPayloads` refuses a payload upload onto a stored deposit; payload responses already carry no header for client-locked files |
-| 6 | `Deposits.AssertNotDeposit` (no updates) | replaced by the write rule (2.4): a sealed key header only comes with a new file (`DepositCannotBeUpdated`), and a client-locked file is updated only with a `zkDrive` one; Chat adds the transform (2.5) |
+| 6 | `Deposits.AssertNotDeposit` (no updates) | replaced by the write rule (2.4): a sealed key header replaces only a sealed one (`ZkDriveFiles.AssertMayReplace`, `DepositCannotBeUpdated`), and the owner updates a client-locked file with a `zkDrive` one; Chat adds the transform (2.5) |
 | 7 | `DriveQueryServiceBase` `isDeposit` (any reader sees deposits) | replaced by the read rule (2.4), which still shows a deposit staged on the transient drive, so an app can send its own |
 | 8 | `CreateClientFileHeader` → `Deposits.OpenWithDriveKey` | merged with the `zkDrive` branch: client-locked, returned as stored; `OpenWithDriveKey` stays for sending from the transient drive |
 | 9 | `PeerDriveQueryService` `IsSealed()` pass-through | widened to any client-locked key header, passed on as stored rather than failing the whole remote read; a peer's read rule normally hides one **(I)** |
@@ -318,10 +320,11 @@ with Chat.
   stored; an app with Read on the drive doesn't see it (query, unique id 404, file id 403); an app sends a
   deposit through the transient drive; an app with Write deposits on a zero-knowledge drive and can't read
   it back; the owner can't upload a `sealed` file to their own zero-knowledge drive; the owner updates a
-  deposit with a `zkDrive` key header; a sealed key header can't update a file (update, metadata-only);
-  a payload can't be added to a deposit; a deposit with payloads is refused on the transient drive. Each
-  of the four round-1 fixes was checked by undoing it: its test fails.
-- **Services:** a socket event for a deposit reaches the owner console, not an app.
+  deposit with a `zkDrive` key header, and can't with a sealed one; on the transient drive a deposit
+  replaces a deposit and can't replace an `aes` file; a payload can't be added to a deposit; a deposit
+  with payloads is refused on the transient drive. Each fix was checked by undoing it: its test fails.
+- **Services:** a socket event for a deposit reaches the owner console, not an app; `ZkDriveFilesReplaceTests`
+  (a sealed key header replaces only a sealed one; no payloads with it).
 - **Shamir (Ported):** the dealer's verify sees a sealed shard through the system lookup; approval
   releases it; automated holders unchanged.
 - **odin-js:** `openClientLockedKeyHeader` against the test vectors (both repos check the same values).
@@ -524,9 +527,9 @@ it as it is (read 2026-10-26) **(V)**.
 - **The read rule gates the server's own lookups too** (review round 2). `ZkDriveFiles.VisibleTo` decides
   who may be handed a key header it can't open, but it also runs for lookups the server makes in a
   caller's context: an inbox drained by an app (`PeerInboxProcessor` under `ForOthersWrites`) misses a
-  client-locked file, so a peer's delete of a deposit is dropped there and applied when the owner
-  console drains. Step 2 works round two such flows (the transient drive's staged deposits, the Shamir
-  lookup) and makes a `sealed` key header never replace a client-locked file whoever drains. The general
+  client-locked file, so a peer's delete of a deposit applied there is lost, and a sender's own server
+  can't find its deposit to update it. Step 2 works round two such flows (the transient drive's staged
+  deposits, the Shamir lookup), and its replace rule (2.4) holds whoever drains. The general
   fix: hide client-locked files where responses are built (`CreateClientFileHeader`, client queries,
   socket events) and let internal flows look rows up in an explicit system context. Needed before Chat,
   whose peers edit and delete what they sent.

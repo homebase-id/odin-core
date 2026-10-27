@@ -723,7 +723,7 @@ P-384 public key (97 bytes) ‖ 12-byte IV ‖ AES-GCM`. The phrase pair's seal 
 - A deposit is a client-locked file (zero-knowledge-drive-api-plan.md, step 2): it reaches only a caller
   holding the drive's key (the owner console) or the system, without a storage key; an app with Read on
   the drive doesn't see it. On the transient drive, where it waits to be sent, it reaches any caller.
-- A deposit is written whole: a sealed key header in an update is refused (`DepositCannotBeUpdated`,
+- A sealed key header replaces only a sealed one: never a zkDrive or an aes key header (`DepositCannotBeUpdated`,
   9019). The owner may update a deposit with a zkDrive key header; nothing adds payloads to one.
 - Converting the Shard Recovery drive deletes the deposits sealed to the old write-only key. It
   still refuses files locked with the drive key.

@@ -70,7 +70,7 @@ public static class Deposits
         }
     }
 
-    private static void ThrowCarriesNoPayloads() =>
+    internal static void ThrowCarriesNoPayloads() =>
         throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
 
     /// <summary>
