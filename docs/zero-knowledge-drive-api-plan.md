@@ -246,12 +246,13 @@ A sealed item lands on the drive as today, by direct write (S1200) or through th
     (`DriveIsZeroKnowledge`): it writes `zkDrive`. An app with Write may still deposit there (and then
     can't read it back), and the transient drive takes one to send (`ZkDriveFiles.OpenForWrite`)
     **(V, built)**;
-  - a sender's `sealed` new file is stored as sent. A sender can't replace a client-locked file in this
-    step: the read rule hides it from the sender's lookup by global transit id or unique id, so a second
-    `sealed` file with a taken unique id is refused as a duplicate. Shamir isn't affected: every deal uses
-    new shard ids (`Guid.NewGuid()`, odin-js `getNewId()`) and never deletes a friend's shard **(V)**.
-    Replacing one (a Chat edit) needs a write rule saying who may find what they may replace, and comes
-    with Chat;
+  - a sender's `sealed` new file is stored as sent. Once a file exists, a sender can't change it: a new
+    sealed version of it (an update, or an overwrite matched by global transit id or unique id) is refused
+    (`DepositCannotBeUpdated`), whoever applies it: a direct peer write can't see the file, and an inbox
+    drained by the owner console refuses it in `OverwriteFile` **(V, built)**. Shamir isn't affected: every
+    deal uses new shard ids (`Guid.NewGuid()`, odin-js `getNewId()`) and never deletes a friend's shard
+    **(V)**. A sender editing what it sent (a Chat edit) needs a write rule saying who may find and replace
+    what, and comes with Chat;
   - the transform, once Chat builds it (2.5);
   - nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (step 1).
 - **One type for an unopened key header:** `SealedKeyHeader` and `ZkDriveKeyHeader` merge into one

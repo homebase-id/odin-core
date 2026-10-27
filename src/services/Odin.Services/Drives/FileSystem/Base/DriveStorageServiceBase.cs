@@ -1026,11 +1026,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
             AssertActiveForUpdate(existingServerHeader);
 
-            // A sender can't replace a client-locked file in step 2, whoever applies its write (a direct peer
-            // write can't see one; an inbox drained by the owner console can): replacing comes with Chat
+            // Once a file exists on a zero-knowledge drive, a sender can't change it: a new sealed version (a new key
+            // header, new content) of an existing sealed or zkDrive file is refused, whoever applies the write (a
+            // direct peer write can't see the file; an inbox drained by the owner console can).  Only a device holding
+            // the drive's key changes it, with a zkDrive key header.  A sender editing what it sent comes with Chat
             if (ZkDriveFiles.IsClientLocked(existingServerHeader) && keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed })
             {
-                throw new OdinClientException("A deposit can't replace a client-locked file", OdinClientErrorCode.DepositCannotBeUpdated);
+                throw new OdinClientException("A sender can't change a file on a zero-knowledge drive once it exists",
+                    OdinClientErrorCode.DepositCannotBeUpdated);
             }
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
