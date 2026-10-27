@@ -129,6 +129,40 @@ public class CircleMembershipService(
         tx.Commit();
     }
 
+    /// <summary>
+    /// Takes a drive's storage key off every circle-member grant (identity or YouAuth domain) and app grant, keeping the
+    /// permission: the drive went zero knowledge and kept its key (docs/zero-knowledge-drive-api-plan.md, 3.3).  Circle
+    /// definitions hold requests, not keys.
+    /// </summary>
+    public async Task RemoveStorageKeyFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+
+        foreach (var member in await db.CircleMemberCached.GetAllCirclesAsync())
+        {
+            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(member.data.ToStringFromUtf8Bytes());
+            if (DriveGrant.RemoveStorageKey(storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants, driveId))
+            {
+                member.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
+                await db.CircleMemberCached.UpsertAsync(member);
+            }
+        }
+
+        foreach (var appGrant in await db.AppGrantsCached.GetAllAsync())
+        {
+            var grant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
+            if (DriveGrant.RemoveStorageKey(grant.KeyStoreKeyEncryptedDriveGrants, driveId))
+            {
+                appGrant.data = OdinSystemSerializer.Serialize(grant).ToUtf8ByteArray();
+                await db.AppGrantsCached.UpsertAsync(appGrant);
+            }
+        }
+
+        tx.Commit();
+    }
+
     public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-

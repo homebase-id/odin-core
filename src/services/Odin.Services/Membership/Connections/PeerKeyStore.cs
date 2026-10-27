@@ -114,6 +114,41 @@ public class PeerKeyStore
         return removed;
     }
 
+    /// <summary>
+    /// Takes a drive's storage key off every grant this store carries, keeping the permission: the drive went zero
+    /// knowledge and kept its key (docs/zero-knowledge-drive-api-plan.md, 3.3).  As <see cref="RemoveDrive"/>, this is
+    /// for a store that keeps its own copy of its circle and app grants.
+    /// </summary>
+    public bool RemoveStorageKey(Guid driveId)
+    {
+        var removed = RemoveStorageKeyFromDeposits(driveId);
+        foreach (var circleGrant in CircleGrants.Values)
+        {
+            removed |= DriveGrant.RemoveStorageKey(circleGrant.KeyStoreKeyEncryptedDriveGrants, driveId);
+        }
+
+        foreach (var appCircleGrant in AppGrants.Values.SelectMany(g => g.Values))
+        {
+            removed |= DriveGrant.RemoveStorageKey(appCircleGrant.KeyStoreKeyEncryptedDriveGrants, driveId);
+        }
+
+        return removed;
+    }
+
+    /// <summary>Takes a drive's sealed storage key off this store's deposits, keeping the permission.</summary>
+    public bool RemoveStorageKeyFromDeposits(Guid driveId)
+    {
+        var removed = false;
+        foreach (var grant in DepositedGrants?.SelectMany(d => d.DriveGrants)
+                                 .Where(g => g.DriveId == driveId && g.SealedStorageKey != null) ?? [])
+        {
+            grant.SealedStorageKey = null;
+            removed = true;
+        }
+
+        return removed;
+    }
+
     public void AddUpdateAppCircleGrant(AppCircleGrant appCircleGrant)
     {
         var appKey = appCircleGrant.AppId;

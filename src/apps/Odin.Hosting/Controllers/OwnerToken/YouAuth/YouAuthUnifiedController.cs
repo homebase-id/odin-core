@@ -174,7 +174,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     authorize.ClientId,
                     authorize.PermissionRequest,
                     authorize.RedirectUri,
-                    WebOdinContext);
+                    WebOdinContext,
+                    authorize.WantsZkAppKey ? authorize.PublicKey : null);
 
                 if (needConsent)
                 {
@@ -205,7 +206,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     authorize.PermissionRequest,
                     authorize.PublicKey,
                     cipher,
-                    WebOdinContext);
+                    WebOdinContext,
+                    authorize.WantsZkAppKey);
 
                 //
                 // YouAuth [080] Return identity, public key, salt and state to the relying party
@@ -281,7 +283,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             [FromForm(Name = YouAuthAuthorizeConsentGiven.ReturnUrlName)]
             string returnUrl,
             [FromForm(Name = YouAuthAuthorizeConsentGiven.ConsentRequirementName)]
-            string consentRequirementJson)
+            string consentRequirementJson,
+            [FromForm(Name = YouAuthAuthorizeConsentGiven.SealedZkAppKeyName)]
+            string? sealedZkAppKey = null)
         {
             //
             // YouAuth [055] Give consent and redirect back
@@ -328,7 +332,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 }
             }
 
-            
+            if (authorize.WantsZkAppKey)
+            {
+                if (string.IsNullOrEmpty(sealedZkAppKey))
+                {
+                    throw new BadRequestException($"Missing {YouAuthAuthorizeConsentGiven.SealedZkAppKeyName}: the app asked for its zero-knowledge key");
+                }
+
+                await _youAuthService.StoreSealedZkAppKeyAsync(authorize.ClientId, authorize.PublicKey, sealedZkAppKey, WebOdinContext);
+            }
+
             await _youAuthService.StoreConsentAsync(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext);
 
             // Redirect back to authorize

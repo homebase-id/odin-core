@@ -38,6 +38,37 @@ public class DriveEventMessageTests
         }
     }
 
+    [TestCase(true, true, true, TestName = "AZkDriveFileReachesAnAppDeviceHoldingTheAppKey")]
+    [TestCase(false, true, false, TestName = "AZkDriveFileDoesNotReachADeviceOfTheAppWithoutTheAppKey")]
+    [TestCase(true, false, false, TestName = "AZkDriveFileDoesNotReachADeviceWhoseAppHasNoCopyForThatDrive")]
+    public async Task AZkDriveFileReachesAnAppDeviceOnlyWithTheAppKeyAndACopyForItsDrive(bool deviceHoldsAppKey,
+        bool appHasCopyForTheDrive, bool expected)
+    {
+        // docs/zero-knowledge-drive-api-plan.md, step 3: an older build of the app has no mark, and must get no event
+        var driveId = System.Guid.NewGuid();
+        var header = Header(EncryptionType.ZkDrive);
+        header.FileMetadata.File = new Odin.Services.Drives.InternalDriveFileId(driveId, System.Guid.NewGuid());
+        var copyFor = appHasCopyForTheDrive ? driveId : System.Guid.NewGuid();
+        var socket = new DeviceSocket
+        {
+            DeviceOdinContext = new OdinContext
+            {
+                Caller = new CallerContext(new OdinId("frodo.dotyou.cloud"), null, SecurityGroupType.Owner,
+                    odinClientContext: new OdinClientContext
+                    {
+                        HoldsZkAppKey = deviceHoldsAppKey,
+                        ZkDriveKeys = new System.Collections.Generic.Dictionary<System.Guid, ZkAppDriveKey>
+                        {
+                            [copyFor] = new("locked drive key", "locked write-only key")
+                        }
+                    })
+            }
+        };
+
+        var message = new DriveEventMessage(ClientNotificationType.FileAdded, null, header, null);
+        Assert.That(await message.VisibleToAsync(socket, ReadRule), Is.EqualTo(expected));
+    }
+
     [Test]
     public async Task TheAclStillDecides()
     {

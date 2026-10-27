@@ -503,6 +503,26 @@ public class DriveManager : IDriveManager
         byte[] encryptedIdIv, byte[] encryptedIdValue, EccFullKeyData writeOnlyPublicKey,
         string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext)
     {
+        await ApplyZeroKnowledgeKeysAsync(driveId, zkMasterKeyEncryptedStorageKey, (encryptedIdIv, encryptedIdValue),
+            writeOnlyPublicKey, zkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
+    }
+
+    /// <summary>
+    /// Makes a drive zero knowledge while it keeps its key: the browser re-locked the key with the zero-knowledge
+    /// master key, and the master-key copy goes (docs/zero-knowledge-drive-api-plan.md, 3.3).  The encrypted drive id
+    /// stays, made with the same key: on a drive older than the alias migration it encrypts the old id
+    /// (<see cref="StorageDriveData.TempOriginalDriveId"/>), not <see cref="StorageDrive.Id"/>.  The write-only key pair
+    /// is the browser's new one: the server made the old one, so it has seen its private half.
+    /// </summary>
+    internal Task ApplyZeroKnowledgeKeysKeepingKeyAsync(Guid driveId, string zkMasterKeyEncryptedStorageKey,
+        EccFullKeyData writeOnlyPublicKey, string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext) =>
+        ApplyZeroKnowledgeKeysAsync(driveId, zkMasterKeyEncryptedStorageKey, newEncryptedId: null, writeOnlyPublicKey,
+            zkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
+
+    private async Task ApplyZeroKnowledgeKeysAsync(Guid driveId, string zkMasterKeyEncryptedStorageKey,
+        (byte[] iv, byte[] value)? newEncryptedId, EccFullKeyData writeOnlyPublicKey,
+        string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext)
+    {
         odinContext.Caller.AssertHasMasterKey();
 
         var storageDrive = await GetDriveInternal(driveId);
@@ -514,9 +534,13 @@ public class DriveManager : IDriveManager
         storageDrive.MasterKeyEncryptedStorageKey = null;
         storageDrive.SharingModel = DriveSharingModel.Private; // the only way a drive becomes Private
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
-        storageDrive.EncryptedIdIv = encryptedIdIv;
-        storageDrive.EncryptedIdValue = encryptedIdValue;
-        storageDrive.TempOriginalDriveId = storageDrive.Id; // what the browser encrypted
+        if (newEncryptedId is var (iv, value))
+        {
+            storageDrive.EncryptedIdIv = iv;
+            storageDrive.EncryptedIdValue = value;
+            storageDrive.TempOriginalDriveId = storageDrive.Id; // what the browser encrypted
+        }
+
         storageDrive.WriteOnlyKeyPair = writeOnlyPublicKey;
         storageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey = zkStorageKeyEncryptedWriteOnlyPrivateKey;
 

@@ -92,8 +92,25 @@ namespace Odin.Services.Authorization.Apps
         /// <param name="appId"></param>
         /// <param name="friendlyName"></param>
         /// <param name="odinContext"></param>
+        /// <param name="holdsZkAppKey">The device is being handed the app's zero-knowledge key with this token</param>
         /// <returns></returns>
-        Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName, IOdinContext odinContext);
+        Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName, IOdinContext odinContext,
+            bool holdsZkAppKey = false);
+
+        /// <summary>
+        /// Every app's zero-knowledge keys, for the owner console to hand an app's key to a device and to backfill what
+        /// is missing (docs/zero-knowledge-drive-api-plan.md, step 3).
+        /// </summary>
+        Task<List<ZkAppKeysResponse>> GetZkAppKeysAsync(IOdinContext odinContext);
+
+        /// <summary>Saves what the browser locked for an app: its zero-knowledge key if it had none, and drive keys.</summary>
+        Task SaveZkAppKeysAsync(ZkAppKeysRequest request, IOdinContext odinContext);
+
+        /// <summary>Converting a drive: every app granted it gets its locked copy of the drive's key.</summary>
+        Task SetZkAppKeysForConversionAsync(Guid driveId, IReadOnlyCollection<ZkAppKeysRequest> requests, IOdinContext odinContext);
+
+        /// <summary>Converting a drive that keeps its key: every app's grant on it loses its copy of the key.</summary>
+        Task RemoveStorageKeyFromAllAppsAsync(Guid driveId, IOdinContext odinContext);
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext);
 

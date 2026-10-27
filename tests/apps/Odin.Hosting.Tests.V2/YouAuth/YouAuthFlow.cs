@@ -125,9 +125,11 @@ internal static class YouAuthFlow
     }
 
     /// <summary>
-    /// The consent POST the consent page makes when the owner clicks OK, auto-approving for a month.
+    /// The consent POST the consent page makes when the owner clicks OK, auto-approving for a month; with the app's
+    /// zero-knowledge key sealed to the sign-in's public key when the app asked for it.
     /// </summary>
-    public static async Task GiveConsentAsync(OdinHost host, OwnerSession owner, YouAuthAuthorizeRequest returnUrl)
+    public static async Task GiveConsentAsync(OdinHost host, OwnerSession owner, YouAuthAuthorizeRequest returnUrl,
+        string? sealedZkAppKey = null, HttpStatusCode expected = HttpStatusCode.Redirect)
     {
         var authorizeUrl = $"https://{owner.Identity.DomainName}{OwnerApiPathConstants.YouAuthV1Authorize}";
         var returnUri = new UriBuilder(authorizeUrl) { Query = returnUrl.ToQueryString() }.ToString();
@@ -138,19 +140,26 @@ internal static class YouAuthFlow
             Expiration = UnixTimeUtc.Now().AddDays(30)
         });
 
+        var form = new Dictionary<string, string>
+        {
+            { YouAuthAuthorizeConsentGiven.ReturnUrlName, returnUri },
+            { YouAuthAuthorizeConsentGiven.ConsentRequirementName, consentRequirements },
+        };
+        if (sealedZkAppKey != null)
+        {
+            form[YouAuthAuthorizeConsentGiven.SealedZkAppKeyName] = sealedZkAppKey;
+        }
+
         var request = new HttpRequestMessage(HttpMethod.Post, authorizeUrl)
         {
             Headers = { { "Cookie", OwnerCookie(owner) } },
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                { YouAuthAuthorizeConsentGiven.ReturnUrlName, returnUri },
-                { YouAuthAuthorizeConsentGiven.ConsentRequirementName, consentRequirements },
-            })
+            Content = new FormUrlEncodedContent(form)
         };
 
         using var client = host.CreateClient();
         var response = await client.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), "consent given redirects back to authorize");
+        Assert.That(response.StatusCode, Is.EqualTo(expected),
+            $"consent: {response.GetHeaderValue("Location")} {await response.Content.ReadAsStringAsync()}");
     }
 
     /// <summary>

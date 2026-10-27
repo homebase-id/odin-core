@@ -50,6 +50,20 @@ namespace Odin.Services.Authorization.Apps
         [JsonIgnore]
         public string CorsHostName { get; set; }
 
+        /// <summary>
+        /// The app's zero-knowledge key (AppZkK), locked by the browser with the zero-knowledge master key:
+        /// only the owner console opens it.  Null until the browser first makes one
+        /// (docs/zero-knowledge-drive-api-plan.md, step 3).
+        /// </summary>
+        public string ZkMasterKeyEncryptedAppKey { get; set; }
+
+        /// <summary>
+        /// The key of each zero-knowledge drive the app is granted, by drive id, locked by the browser with
+        /// AppZkK: what the app's devices open.  Kept here rather than on the grant, which the server re-mints
+        /// without the browser (<see cref="AppRegistrationService.UpdateAppPermissionsAsync"/>).
+        /// </summary>
+        public Dictionary<Guid, string> ZkAppKeyEncryptedStorageKeys { get; set; }
+
         public RedactedAppRegistration Redacted()
         {
             //NOTE: we're not sharing the encrypted app dek, this is crucial

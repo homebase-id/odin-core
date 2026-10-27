@@ -44,7 +44,7 @@ public static class ZkDriveFiles
         AssertDriveTakes(drive, sent.Type);
         if (sent.IsSealed())
         {
-            if (drive.IsZeroKnowledge && CallerHoldsDriveKey(odinContext))
+            if (drive.IsZeroKnowledge && CallerHoldsDriveKey(drive.Id, odinContext))
             {
                 ThrowNotItsOwnKeyHeader();
             }
@@ -133,13 +133,19 @@ public static class ZkDriveFiles
     }
 
     /// <summary>
-    /// Whether the caller holds a zero-knowledge drive's key, so may read and write its own files.  Only
-    /// the owner console, for now: it opens the drive's key with the zero-knowledge master key.  An app
-    /// learns the drive's key only at consent (docs/zero-knowledge-drives.md, item 4); an app that can't
-    /// open a key header must not be handed one (chat-kmp stalls its whole sync on it), and one that
-    /// can't lock a key header can only write junk over the owner's.
+    /// Whether the caller holds zero-knowledge drive <paramref name="driveId"/>'s key, so may read and write its
+    /// own files: the owner console, which opens the drive's key with the zero-knowledge master key, or a device
+    /// that was handed its app's zero-knowledge key at sign-in, of an app holding a locked copy of this drive's key
+    /// (docs/zero-knowledge-drive-api-plan.md, step 3).  Any other device of an app, an older build among them,
+    /// is not: an app that can't open a key header must not be handed one (chat-kmp stalls its whole sync on it),
+    /// and one that can't lock a key header can only write junk over the owner's.
     /// </summary>
-    public static bool CallerHoldsDriveKey(IOdinContext odinContext) => odinContext.Caller?.HasMasterKey == true;
+    public static bool CallerHoldsDriveKey(Guid driveId, IOdinContext odinContext)
+    {
+        var caller = odinContext.Caller;
+        return caller?.HasMasterKey == true ||
+               caller?.OdinClientContext is { HoldsZkAppKey: true, ZkDriveKeys: { } keys } && keys.ContainsKey(driveId);
+    }
 
     /// <summary>
     /// Whether <paramref name="header"/> may reach the caller: a client-locked file only reaches one
@@ -158,7 +164,7 @@ public static class ZkDriveFiles
     /// </remarks>
     public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
         !IsClientLocked(header) || SystemDriveConstants.IsTransientTempDrive(header!.FileMetadata.File.DriveId) ||
-        CallerHoldsDriveKey(odinContext) || odinContext.Caller?.IsSystem == true;
+        CallerHoldsDriveKey(header.FileMetadata.File.DriveId, odinContext) || odinContext.Caller?.IsSystem == true;
 
     /// <summary>Refuses a file the caller may not see (<see cref="VisibleTo"/>), as a read by id does</summary>
     public static void AssertVisibleTo(ServerFileHeader header, IOdinContext odinContext)
@@ -171,7 +177,7 @@ public static class ZkDriveFiles
 
     private static void AssertCallerHoldsDriveKey(Guid driveId, IOdinContext odinContext)
     {
-        if (!CallerHoldsDriveKey(odinContext))
+        if (!CallerHoldsDriveKey(driveId, odinContext))
         {
             ThrowNoAccess(driveId);
         }

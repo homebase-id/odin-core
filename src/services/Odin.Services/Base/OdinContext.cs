@@ -128,7 +128,7 @@ namespace Odin.Services.Base
             return new RedactedOdinContext
             {
                 Caller = Caller.Redacted(),
-                PermissionContext = PermissionsContext.Redacted()
+                PermissionContext = PermissionsContext.Redacted(Caller.OdinClientContext?.ZkDriveKeys)
             };
         }
 

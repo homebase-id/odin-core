@@ -439,7 +439,7 @@ complete, whatever was defined before step 3:
 - Whether any app holds a grant on the Shard Recovery drive today is unchecked (I); the backfill covers
   it either way.
 
-**Backfill at the console's password login (proposed):** the same check for every app, so an app whose
+**Backfill at the console's password login (decided 2026-10-27, built with step 3):** the same check for every app, so an app whose
 devices don't sign in again still gets the locked copy of a drive granted to it. The console already runs a
 login check of this kind: `ensureZeroKnowledgeKeys` converts the Shard Recovery drive when its zero-knowledge
 copy doesn't open **(V)**.
@@ -534,7 +534,10 @@ Names are proposals until the server PR; the shapes are what the clients build a
    - `zkStorageKeyEncryptedWriteOnlyPrivateKey`: the drive's `EncWO-PK-Priv_zk`, which `DrvK` opens (the
      same name as on the drive, `StorageDrive` **(V)**). Chat needs it for deposits; Vault doesn't.
 
-   Any token of the app gets them: they are useless without `AppZkK`. A conversion reaches a device at its
+   Any token of the app gets them: they are useless without `AppZkK`, and chat-kmp reads a set
+   `zkAppKeyEncryptedStorageKey` as "this drive is zero knowledge" to show its banner on a device that has no
+   `AppZkK` yet. Conversion refuses unless every app granted the drive gets a copy, so the field is set on every
+   converted drive an app is granted. Only a marked device counts as a key holder (3.4). A conversion reaches a device at its
    next connect. Attaching the app registration's locked copies to the redacted grant is server plumbing (I).
 4. **Files:** unchanged from steps 1 and 2. A file on a zero-knowledge drive comes back with its key header
    as stored (`zkDrive`, or `sealed`), and payload responses carry no packed key header: the client opens
@@ -569,8 +572,11 @@ Names are proposals until the server PR; the shapes are what the clients build a
     the payload decrypt with FileKey and the payload's IV instead of `sharedsecretencryptedheader64`,
     `UploadDescriptorBuilder`, the update descriptor), and the outbox stops re-keying to a header the
     server returns (`DriveOutboxUploader.rekeyedUpdateForExistingServerFile`) **(V)**;
-  - device storage: web keeps secrets in plain `localStorage` and desktop in a keystore with a hardcoded
-    password **(V)**. To decide: accept, harden, or no zero-knowledge Vault on web and desktop.
+  - device storage (decided 2026-10-27): `AppZkK` and the drive keys go in `SecureStorage` on every
+    platform, next to the token and shared secret. Two follow-ups after step 3: WASM, whose `SecureStorage`
+    is plain `localStorage` and persists (`SecureStorage.web.kt`) **(V)**, moves to memory-only keys (a
+    reload then signs in again); desktop explores securing tokens and keys properly instead of the PKCS12
+    file with a hardcoded password (an OS keychain, I).
 
 ### 3.7 Scope
 - **Vault only.** Vault gets its drive through the chat app's registration (a permission extension,
@@ -591,7 +597,7 @@ the opt-in is the only way in, because converting a drive cuts off every app tha
 ### 3.9 Open
 - ~~A grant on a zero-knowledge drive made without the browser can't lock the key for the app.~~ Resolved:
   the backfill at consent and at login (3.2).
-- Web and desktop storage (3.6).
+- After step 3: WASM memory-only keys; securing desktop tokens and keys (3.6).
 
 ## Deferred to Chat: the transform
 
