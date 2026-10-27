@@ -51,8 +51,7 @@ public static class DriveFileUtility
         }
         else if (header.FileMetadata.IsEncrypted)
         {
-            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-            var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var keyHeader = Deposits.OpenWithDriveKey(header, odinContext);
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             sharedSecretEncryptedKeyHeader =
                 EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
@@ -126,8 +125,7 @@ public static class DriveFileUtility
 
         if (header.FileMetadata.IsEncrypted)
         {
-            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-            var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var keyHeader = Deposits.OpenWithDriveKey(header, odinContext);
             // The design is such that the client uses a different iv for each payload but the same aesKey;
 
             if (payloadDescriptor.Iv == null)

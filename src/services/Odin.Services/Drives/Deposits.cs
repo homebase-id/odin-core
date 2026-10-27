@@ -16,8 +16,10 @@ namespace Odin.Services.Drives;
 /// (docs/zero-knowledge-drive-api-plan.md, step 2).
 /// </summary>
 /// <remarks>
-/// For now a deposit is a header only: a payload's key header leaves through a fixed-size response
-/// header (<c>SharedSecretEncryptedHeader64</c>: IV, AES key, version) that a sealed one doesn't fit.
+/// For now a deposit is a header only.  It was first because a payload's key header left through a
+/// fixed-size response header (<c>SharedSecretEncryptedHeader64</c>) a sealed one doesn't fit; step 1
+/// dropped that header for every client-locked file, so what stops a deposit with payloads now is only
+/// that nothing needs one yet.  Chat lifts it, here (docs/zero-knowledge-drive-api-plan.md, step 2).
 /// </remarks>
 public static class Deposits
 {
@@ -52,7 +54,7 @@ public static class Deposits
         sealedKeyHeader.AssertValidSealed();
         if (metadata.Payloads?.Any() == true)
         {
-            throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
+            ThrowCarriesNoPayloads();
         }
     }
 
@@ -61,12 +63,18 @@ public static class Deposits
     {
         if (IsDeposit(existingHeader))
         {
-            throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
+            ThrowCarriesNoPayloads();
         }
     }
 
-    /// <summary>Refuses a deposit for a drive that can't hold one (<see cref="StorageDrive.CanHoldDeposits"/>).</summary>
-    public static void AssertCanHold(StorageDrive drive)
+    private static void ThrowCarriesNoPayloads() =>
+        throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
+
+    /// <summary>
+    /// Refuses a deposit for a drive that can't hold one (<see cref="StorageDrive.CanHoldDeposits"/>); asked
+    /// through <see cref="ZkDriveFiles.AssertDriveTakes"/>, which decides which drive takes which key header.
+    /// </summary>
+    internal static void AssertCanHold(StorageDrive drive)
     {
         if (!drive.CanHoldDeposits)
         {

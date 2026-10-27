@@ -2042,7 +2042,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private Task<bool> ShouldRaiseDriveEventAsync(InternalDriveFileId file)
         {
-            return Task.FromResult(file.DriveId != SystemDriveConstants.TransientTempDrive.Alias);
+            return Task.FromResult(!SystemDriveConstants.IsTransientTempDrive(file.DriveId));
         }
 
         private async Task<bool> TryShouldRaiseDriveEventAsync(InternalDriveFileId file)

@@ -123,11 +123,8 @@ public static class ZkDriveFiles
     /// <see cref="Authorization.Acl.IDriveAclAuthorizationService.CallerMayReadAsync"/>.
     /// </summary>
     public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
-        !IsClientLocked(header) || IsStagedToSend(header!) || CallerHoldsDriveKey(odinContext) ||
-        odinContext.Caller?.IsSystem == true;
-
-    private static bool IsStagedToSend(ServerFileHeader header) =>
-        header.FileMetadata?.File.DriveId == SystemDriveConstants.TransientTempDrive.Alias.Value;
+        !IsClientLocked(header) || SystemDriveConstants.IsTransientTempDrive(header!.FileMetadata.File.DriveId) ||
+        CallerHoldsDriveKey(odinContext) || odinContext.Caller?.IsSystem == true;
 
     /// <summary>Refuses a file the caller may not see (<see cref="VisibleTo"/>), as a read by id does</summary>
     public static void AssertVisibleTo(ServerFileHeader header, IOdinContext odinContext)

@@ -73,7 +73,7 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     /// Any other drive refuses one: the server could open everything else on it, so a deposit there
     /// would only hide from the owner what the server can't read.
     /// </summary>
-    public bool CanHoldDeposits => IsZeroKnowledge || Id == SystemDriveConstants.TransientTempDrive.Alias;
+    public bool CanHoldDeposits => IsZeroKnowledge || SystemDriveConstants.IsTransientTempDrive(Id);
 
     /// <summary>
     /// Whether a grant with <paramref name="permission"/> carries the drive's storage key: reading

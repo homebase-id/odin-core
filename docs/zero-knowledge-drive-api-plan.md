@@ -499,6 +499,13 @@ it as it is (read 2026-10-26) **(V)**.
   with `AllowCdn` on. We may want a zero-knowledge drive's files on the CDN later, still encrypted, when
   the owner ticks CDN for the drive.
 
+- **System APIs and the read rule (from step 2's /simplify).** The Shamir lookup skips the query and its
+  read rule (`GetServerFileHeaderByClientUniqueIdSkippingFileAcl`), then re-applies what the query filtered
+  (expiry, the file type) by hand. The deeper fix is a read rule that knows "a system API acting for the
+  owner" (the context `UpgradeToByPassAclCheck` builds), so the other bypass readers of this drive
+  (`PlayerShardCollector`, `ShamirRecoveryService`) can't hit the same wall if their files become
+  client-locked. Wider than step 2; touches security-model.md section 9.
+
 ## Not in this work
 - **Vault** (chat-kmp, and consent giving apps DrvK): a separate discussion, including how to
   change an existing drive such as Vault's. This plan covers the `zkDrive` type (step 1) and

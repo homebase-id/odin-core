@@ -52,13 +52,14 @@ public abstract class ShamirBaseService<TLogger>(
 
         // An expired file is gone, as a query treats it.  An encrypted shard that isn't a deposit (a zkDrive one,
         // once Chat's transform exists) isn't one this server reads or releases yet
-        if (file == null || DriveStorageServiceBase.IsExpired(file) || (file.FileMetadata.IsEncrypted && !Deposits.IsDeposit(file)))
+        var isDeposit = file != null && Deposits.IsDeposit(file);
+        if (file == null || DriveStorageServiceBase.IsExpired(file) || (file.FileMetadata.IsEncrypted && !isDeposit))
         {
             return new StoredShard(null, null, null);
         }
 
         OdinId? sender = string.IsNullOrEmpty(file.FileMetadata.SenderOdinId) ? null : (OdinId)file.FileMetadata.SenderOdinId;
-        if (!Deposits.IsDeposit(file))
+        if (!isDeposit)
         {
             return new StoredShard(PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content), sender, null);
         }

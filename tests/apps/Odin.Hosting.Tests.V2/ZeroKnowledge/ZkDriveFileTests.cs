@@ -25,6 +25,8 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 
+using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
+
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
 /// <summary>
@@ -38,7 +40,7 @@ public class ZkDriveFileTests : V2Fixture
 {
     private const string Content = "only the owner's devices read this";
 
-    private static readonly TargetDrive Drive = WellKnownAppDrives.ShardRecoveryDrive;
+    private static readonly TargetDrive Drive = ZkTestFiles.Drive;
 
     [Test]
     public async Task AZkDriveFileIsStoredAndReturnedAsSentAndTheDriveKeyOpensIt()
@@ -420,8 +422,6 @@ public class ZkDriveFileTests : V2Fixture
     }
 
     /// <summary>The same file key with a new IV, as a device updates a file.</summary>
-    private static KeyHeader WithNewIv(KeyHeader fileKey) => new() { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };
-
     private static async Task<(CreateFileResult File, KeyHeader FileKey, EncryptedKeyHeader Locked)> UploadAsync(OwnerSession owner,
         byte[] driveKey, Guid uniqueId, TestPayloadDefinition? payload = null)
     {
@@ -441,36 +441,8 @@ public class ZkDriveFileTests : V2Fixture
         return (upload.Content!, fileKey, locked);
     }
 
-    /// <summary>An update with its content encrypted under <paramref name="keyHeader"/> and <paramref name="locked"/> as its key header.</summary>
-    private static Task<Refit.ApiResponse<UpdateFileResult>> UpdateAsync(OwnerSession owner, Guid fileId, Guid uniqueId,
-        KeyHeader keyHeader, EncryptedKeyHeader locked, Guid versionTag, List<OdinId>? recipients = null)
-    {
-        var metadata = Metadata(uniqueId, "updated", versionTag);
-        metadata.AppData.Content = keyHeader.EncryptDataAes(metadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
-        metadata.IsEncrypted = true;
-
-        return owner.Drives.Writer.UpdateFileByFileId(Drive.Alias, fileId, new FileUpdateInstructionSetV2
-        {
-            Locale = UpdateLocale.Local,
-            TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            Manifest = new UploadManifest { PayloadDescriptors = [] },
-            Recipients = recipients
-        }, metadata, [], locked);
-    }
-
-    private static UploadFileMetadata Metadata(Guid uniqueId, string content = Content, Guid? versionTag = null)
-    {
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, AccessControlList.OwnerOnly);
-        metadata.AppData.UniqueId = uniqueId;
-        metadata.VersionTag = versionTag;
-        return metadata;
-    }
-
-    private static QueryBatchRequest QueryFor(Guid uniqueId) => new()
-    {
-        QueryParams = new FileQueryParamsV1 { ClientUniqueIdAtLeastOne = [uniqueId] },
-        ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 10, IncludeMetadataHeader = true }
-    };
+    private static UploadFileMetadata Metadata(Guid uniqueId, string content = Content, Guid? versionTag = null) =>
+        ZkTestFiles.Metadata(uniqueId, content, versionTag);
 
     /// <summary>The key header came back as it was sent, and the drive key opens the content.</summary>
     private static void AssertOpens(SharedSecretEncryptedFileHeader header, byte[] driveKey, EncryptedKeyHeader sent, string content)
