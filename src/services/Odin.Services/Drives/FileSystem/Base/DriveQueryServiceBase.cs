@@ -449,10 +449,17 @@ namespace Odin.Services.Drives.FileSystem.Base
                     continue;
                 }
 
-                // TODD - this function ALSO loads the header from disk. It needs to use 'record' instead.
-                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(serverFileHeader, odinContext);
-                if (!hasPermissionToFile)
+                var isZkDriveFile = ZkDriveFiles.IsZkDriveFile(serverFileHeader);
+                if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext))
                 {
+                    // A zero-knowledge drive's own file is left out as missing, not reported as refused: a read by
+                    // unique id or global transit id answers as for no file, and a write's check for a taken unique
+                    // id falls through to the index's
+                    if (isZkDriveFile)
+                    {
+                        continue;
+                    }
+
                     aclFailures.Add(serverFileHeader);
                     if (logAclFailuresAsErrors)
                     {
@@ -473,26 +480,15 @@ namespace Odin.Services.Drives.FileSystem.Base
                         // continue;
                     }
 
-                    // A zero-knowledge drive's own file goes only to a caller holding the drive's key, whatever
-                    // storage key it holds
-                    if (ZkDriveFiles.IsZkDriveFile(serverFileHeader))
-                    {
-                        if (ZkDriveFiles.VisibleTo(serverFileHeader, odinContext))
-                        {
-                            visible.Add(serverFileHeader);
-                        }
-
-                        continue;
-                    }
-
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out _);
 
-                    // A deposit needs no drive key to return: its key header goes back sealed, as stored
+                    // A deposit or a zero-knowledge drive's own file needs no storage key to return: its key header
+                    // goes back as stored
                     var isDeposit = Deposits.IsDeposit(serverFileHeader);
 
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
-                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted || isDeposit;
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted || isDeposit || isZkDriveFile;
                     if (shouldReceiveFile)
                     {
                         visible.Add(serverFileHeader);

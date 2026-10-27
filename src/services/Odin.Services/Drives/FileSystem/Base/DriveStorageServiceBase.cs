@@ -703,16 +703,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             return encryptedKeyHeader;
         }
 
-        public async Task<bool> CallerHasPermissionToFile(ServerFileHeader header, IOdinContext odinContext)
+        /// <summary>
+        /// Whether the caller may see <paramref name="header"/> (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>),
+        /// on a drive that isn't archived
+        /// </summary>
+        public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext)
         {
-            if (null == header)
-            {
-                _logger.LogDebug($"Permission check called on null header");
-                return false;
-            }
-
             await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
-            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
+            return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)
@@ -2214,22 +2212,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            // A zero-knowledge drive's own file is the owner console's alone, to read or to change, as a query
-            // leaves it out for anyone else
-            if (!ZkDriveFiles.VisibleTo(header, odinContext))
+            // Left out like a query does, when the caller asks for that
+            if (!await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext))
             {
-                return aclDeniedAsMissing ? null : throw ZkDriveFiles.NoAccess(file.DriveId);
+                return aclDeniedAsMissing ? null : throw new OdinSecurityException("No access permitted to the file");
             }
-
-            // Like a query, which leaves out what the caller may not see, when the caller asks for that
-            if (aclDeniedAsMissing)
-            {
-                return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext)
-                    ? header
-                    : null;
-            }
-
-            await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
 
             return header;
         }

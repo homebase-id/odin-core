@@ -114,6 +114,14 @@ clean tree (`git stash`): it passed on the same tree, so a clean run would show 
 (fixture setup), across unrelated fixtures (YouAuth, plans and quota, zero knowledge); 99 of the 128
 instances were held by the desktop after the run. The 84 passed when re-run on their own (84/84).
 
+**Seen again 2026-10-26/27** on `zk-drive-api` and `zk-drive-follow-ups`: 637, then 191 of 1828, then about
+30 of 1828, each failing in 1-40 ms across unrelated fixtures (peer transfers, reactions, profile, Shamir,
+slugs). The error text was not captured, so inotify is likely but not confirmed. Twice another test run
+overlapped: a code-review agent's, and a second V2 run of mine. Each overlapping run adds its own test
+hosts' watchers. Sampled failures passed on their own (35/35), and the next full run on the same build,
+alone, passed 1767/1767. The desktop held 90 of 128 instances during a run on 2026-10-27. Run one full V2
+suite at a time.
+
 ---
 
 ## `Odin.Hosting.Tests.V2.Ported.Peer.TemporalReadTests`

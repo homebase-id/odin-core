@@ -237,8 +237,10 @@ Details in [connection-defaults.md](connection-defaults.md).
   sent to a peer, so a recipient never learns who else was named **(V)**. `System` (1) is a caller level, never a file
   ACL **(V)**.
 - Owner and `System` callers skip the ACL **(V)**.
-- Reading a file needs **both** drive Read and the ACL. Queries also drop encrypted files the caller has no storage key for
-  (`DriveQueryServiceBase` filter) **(V)**.
+- Reading a file needs **both** drive Read and the ACL. Past drive Read, one rule decides whether the caller may see a stored
+  file (`IDriveAclAuthorizationService.CallerMayReadAsync`): the ACL, and a zero-knowledge drive's own file only for a caller holding the
+  drive's key (`ZkDriveFiles.VisibleTo`). A read by id, a query and a socket event all ask it **(V)**. Queries also drop
+  encrypted files the caller has no storage key for (`DriveQueryServiceBase` filter) **(V)**.
 - `LocalAppMetadata` never leaves the identity.
 
 ## 6. Comments, reactions and other special file kinds

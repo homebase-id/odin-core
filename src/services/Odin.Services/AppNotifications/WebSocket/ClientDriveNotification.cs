@@ -79,7 +79,7 @@ public class ClientDriveNotification
 /// One drive event, as the message each socket gets in the shape it asked for. A minimal socket's message does not
 /// depend on the socket (no key header in it), so it is built once per event; full and noContent carry a key header
 /// encrypted for each socket. <paramref name="previousHeader"/> is set only for a delete (the publisher sees to that).
-/// A socket gets the event only if the file's ACL lets it read the file (<see cref="VisibleToAsync"/>).
+/// A socket gets the event only if it may read the file (<see cref="VisibleToAsync"/>).
 /// </summary>
 public sealed class DriveEventMessage(
     ClientNotificationType notificationType,
@@ -97,24 +97,16 @@ public sealed class DriveEventMessage(
     private string? _minimalJson;
 
     /// <summary>
-    /// Whether <paramref name="socket"/> may read the file, by the same checks a query applies: the ACL
-    /// (<see cref="IDriveAclAuthorizationService.CallerHasPermission"/>), and a zero-knowledge drive's own file
-    /// only for a socket holding the drive's key (<see cref="ZkDriveFiles.VisibleTo"/>), whatever the result
-    /// shape. Drive read, checked at the handshake, is not enough: a file's ACL can exclude a reader of its
-    /// drive. A delete is checked against the file as it was, since the deleted header no longer says who
-    /// could read it.
+    /// Whether <paramref name="socket"/> may read the file, by the read rule a query applies
+    /// (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>), whatever the result shape. Drive read, checked at the
+    /// handshake, is not enough: a file's ACL can exclude a reader of its drive. A delete is checked against the
+    /// file as it was, since the deleted header no longer says who could read it (it keeps the key header).
+    /// Unlike a query, this doesn't leave out an encrypted file the socket holds no storage key for.
     /// </summary>
-    public Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
+    public async Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
     {
         var deviceOdinContext = socket.DeviceOdinContext;
-        if (deviceOdinContext == null ||
-            !ZkDriveFiles.VisibleTo(header, deviceOdinContext) || !ZkDriveFiles.VisibleTo(previousHeader, deviceOdinContext))
-        {
-            return Task.FromResult(false);
-        }
-
-        var acl = (previousHeader ?? header)?.ServerMetadata?.AccessControlList;
-        return aclService.CallerHasPermission(acl!, deviceOdinContext);
+        return deviceOdinContext != null && await aclService.CallerMayReadAsync(previousHeader ?? header, deviceOdinContext);
     }
 
     public string JsonFor(DeviceSocket socket)
