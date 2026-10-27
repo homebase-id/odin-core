@@ -220,7 +220,7 @@ Considered and dropped:
 
 What client-locked files cost, accepted:
 - Two key header types on a zero-knowledge drive. On the server, they meet one read rule and one write
-  rule; on a client, one `openKeyHeader` branch.
+  rule; on a client, one `openClientLockedKeyHeader` branch.
 - Every reader of such a drive needs `WO-PK-Priv` as well as DrvK (for Chat, true either way: the chat
   app processes what arrives).
 - An unseal (ECDH P-384) per `sealed` file read until it is transformed ([Measured](#measured-unseal-cost)).
@@ -267,8 +267,8 @@ with Chat.
 - **Releasable** (`CanReleaseAsync`): unchanged, a shard sealed to the drive's key; it needs the
   holder's approval. Automated holders' shards are unencrypted and untouched **(V)**. A `zkDrive` shard
   only exists once Chat's transform does; `CanReleaseAsync` takes it then.
-- **Approval:** the console opens the shard with `openKeyHeader` (a `sealed` one, with `WO-PK-Priv`), then
-  re-seals it for the dealer as today.
+- **Approval:** the console opens the shard with `openClientLockedKeyHeader` (a `sealed` one, with
+  `WO-PK-Priv`), then re-seals it for the dealer as today.
 - **Converting the drive** is built already (#2013) and not touched here:
   `ZeroKnowledgeKeyService.ConvertShardRecoveryDriveAsync` gives the Shard Recovery drive the keys the
   browser made, and when it runs again (after a reset with the recovery key, say) deletes what the old
@@ -276,16 +276,21 @@ with Chat.
 
 ### 2.7 odin-js (pair PR)
 - **Shared helpers** (`libs/js-lib/src/core/DriveData/SecurityHelpers.ts`, for every odin-js reader of
-  a zero-knowledge drive, not only Shamir):
-  - `openKeyHeader(header, keys)`: `sealed` with `WO-PK-Priv`, `zkDrive` with DrvK, anything else as
-    today. Everything after it (content, payloads, thumbnails) is shared.
-- **No transform at sign-in:** the Shard Recovery drive's shards stay `sealed`; approval unseals the
-  one it needs.
-- **Approval** (`ShamirProvider.ts:183-211`): `openKeyHeader` instead of the deposit-only path.
-- The deposit guards (`FileCard`, `useFiles`, `getContentFromHeaderOrPayload`) and `isDeposit` fold into
-  `openKeyHeader`.
-- **Test vectors:** a fixed sealed key header with its `WO-PK-Priv` and FileKey, and a fixed DrvK,
-  FileKey and IV with the expected `zkDrive` key header (for `openKeyHeader`'s two branches), checked by odin-core and odin-js, and later by any other client.
+  a zero-knowledge drive, not only Shamir) **(V, built)**:
+  - `isZkDriveKeyHeader`, `isClientLockedKeyHeader` and `isClientLocked(file)`, beside `isSealedKeyHeader`
+    and `isDeposit`;
+  - `openClientLockedKeyHeader(header, { writeOnlyPrivateKey, driveKey })`: `sealed` with `WO-PK-Priv`,
+    `zkDrive` with DrvK. Everything after it (content, payloads, thumbnails) is as for any file.
+    `decryptKeyHeader` (the shared secret) refuses both. It replaces `openSealedKeyHeader`.
+- **No transform at sign-in:** the Shard Recovery drive's shards stay `sealed`; approval
+  (`ShamirProvider.ts`) unseals the one it needs, through `releaseGatedShard` and
+  `openClientLockedKeyHeader`.
+- **The guards** in `FileCard`, `useFiles` and `getContentFromHeaderOrPayload` ask `isClientLocked`, so a
+  `zkDrive` file is left unopened like a deposit.
+- **Test vectors** (`SecurityHelpers.test.ts`, and odin-core's `ClientLockedKeyHeaderVectorTests`): a fixed
+  DrvK, FileKey and IV with the expected `zkDrive` key header, and a sealed key header made once by
+  odin-core with its `WO-PK-Priv` and public key. Plain base64 and JWK, so chat-kmp can check the same
+  values later.
 - **Cost of an unseal:** see the measurement under [Measured](#measured-unseal-cost).
 
 ### 2.8 The inventory, under this rule
@@ -309,7 +314,7 @@ with Chat.
 - **Services:** a socket event for a deposit reaches the owner console, not an app.
 - **Shamir (Ported):** the dealer's verify sees a sealed shard through the system lookup; approval
   releases it; automated holders unchanged.
-- **odin-js:** `openKeyHeader` against the test vectors.
+- **odin-js:** `openClientLockedKeyHeader` against the test vectors (both repos check the same values).
 
 ### 2.10 Done when
 Server and odin-js PRs green; on bleeding edge: a gated friend deal → the dealer's readiness shows the
@@ -403,7 +408,7 @@ locked the wrong key would make the file unreadable, so `transformKeyHeaders` op
 made and compares FileKeys before sending ([odin-js](#the-transform-odin-js)).
 
 ### The transform (odin-js)
-- Shared helpers, beside `openKeyHeader` (`libs/js-lib/src/core/DriveData/SecurityHelpers.ts`):
+- Shared helpers, beside `openClientLockedKeyHeader` (`libs/js-lib/src/core/DriveData/SecurityHelpers.ts`):
   - `lockFileKey(drvK, fileKey, iv)`: the `zkDrive` key header, in the format of `EncryptKeyHeaderAes`.
   - `transformKeyHeaders(driveId, files)`: unseal, lock, check the lock opens to the same FileKey,
     send one batch of up to 100 with each file's version tag; returns the stored key headers. A
