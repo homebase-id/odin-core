@@ -71,6 +71,7 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 | `DrvK` | drive storage key | 16 random bytes per drive | the server (today) or the browser (zero knowledge) | locked, see below |
 | `WO-PK` (`WO-PK-Pub` / `WO-PK-Priv`) | a drive's write-only key pair | P-384; lets others deposit to a drive they can't read | the server (today) or the browser (zero knowledge) | `WO-PK-Pub` as is; `WO-PK-Priv` locked, next lines |
 | `EncWO-PK-Priv` | the stored write-only private key, normal drive | `aes(DrvK, WO-PK-Priv)`: the private half as PKCS8 DER, locked by `DrvK` with AES-CBC, a 16-byte IV and a key check (`keyHash`, a reduced SHA-256 of `DrvK`) (`EccFullKeyData.storedKey`) **(V)** | the server, when it creates the drive | the server (`Drives.WriteOnlyKeyPair`, with the public half) **(V)**; it opens it whenever it holds `DrvK` |
+| `AppZkK` | zero-knowledge app key (**proposed**, zero-knowledge-drive-api-plan.md step 3) | 16 random bytes per app; opens the zero-knowledge drive keys the app is granted. The zero-knowledge twin of the app's key store key. Not derived from `ZKMK`, so one app's key can be replaced alone | the browser, the first time the app needs it | `aes(ZKMK, AppZkK)` on the app registration, for the browser; sealed to a device's YouAuth public key once, then in the device's secure storage |
 | `EncWO-PK-Priv_zk` | the stored write-only private key, zero-knowledge drive | `aes(DrvK, WO-PK-Priv)`: the private half as PKCS8, locked by `DrvK` with AES-GCM: base64 of a 12-byte IV, the ciphertext and its 16-byte tag (`zkLock`) **(V)** | the browser, when it converts the drive | the server (`StorageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey`) **(V)**, which can't open it; `Drives.WriteOnlyKeyPair` then holds only the public half **(V)** |
 
 ### File keys
@@ -90,6 +91,8 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 | `EncZKMK` | `aes(ZKMK-KEK, ZKMK)` | `ZkKeyRecord.ZkKekEncryptedZkMasterKey` **(V)** | no | first login; re-locked at password change |
 | `ZKMK` in the browser | `aes(SessK, ZKMK)` | localStorage `ZKMK` **(V)** | no (no localStorage); the browser alone has no `SessK` | every password login |
 | `EncDrvK_zk` | `aes(ZKMK, DrvK)` | `StorageDrive.ZkMasterKeyEncryptedStorageKey` **(V)** | no | drive converted (Shard Recovery today) |
+| `EncAppZkK` (proposed) | `aes(ZKMK, AppZkK)` | the app registration | no | first sign-in or conversion that needs it; re-locked when `ZKMK` changes |
+| `EncDrvK_app` (proposed) | `aes(AppZkK, DrvK)`, one per zero-knowledge drive the app is granted | the app registration | no | drive converted, or granted to the app, in the browser |
 | `EncWO-PK-Priv` | `aes(DrvK, WO-PK-Priv)`, AES-CBC | `StorageDrive.WriteOnlyKeyPair` (`EccFullKeyData.storedKey`) **(V)** | yes, with `DrvK` | drive created (non-zero-knowledge drives) |
 | `EncWO-PK-Priv_zk` | `aes(DrvK, WO-PK-Priv)`, AES-GCM | `StorageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey` **(V)** | no | drive converted |
 | `EncZKMK_bip` | `aes(BipK, ZKMK)` | `ZkKeyRecord.PhraseKeyEncryptedZkMasterKey` **(V)** | no | takeover; re-entry |
@@ -123,6 +126,14 @@ ciphertext and tag`. The AES key is `hkdf-sha256(ECDH(throwaway, recipient), no 
 - It is not `PublicKeyCrc32`: that hashes BouncyCastle's DER, and the same key has a different DER
   depending on where it came from (441, 464 or 120 bytes), so a browser can't reproduce it.
 - C# and the browser share vectors both ways.
+- **A sealed value names no sender.** The throwaway key pair is made for one seal and its private
+  half is never kept (`ZkSeal.Seal`) **(V)**, so anyone holding the recipient's public key could have
+  made the value, and the GCM tag proves only that it wasn't changed after sealing. Who sent a
+  deposit comes from the transport: the receiving server records the authenticated peer caller as
+  the file's `SenderOdinId` (`PeerDriveIncomingTransferService`, `PeerFileWriter`) **(V)**, so the
+  reader trusts its server for that. A deposit that must prove its sender to the reader
+  would need the sender to sign it with a key of their own; nothing does that today, and Shamir
+  doesn't need it.
 - Sealed with it: `EncPw_bip`, `EncPw_smr`, a deposit's `FileKey`, every holder's piece on its way
   back, the recovery bundle, and the status's slot list.
 
