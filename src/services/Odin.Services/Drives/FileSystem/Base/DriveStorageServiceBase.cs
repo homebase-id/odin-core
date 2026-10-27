@@ -712,7 +712,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
-            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
+            return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)
@@ -2214,23 +2214,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            // A zero-knowledge drive's own file is the owner console's alone, to read or to change, as a query
-            // leaves it out for anyone else
-            if (!ZkDriveFiles.VisibleTo(header, odinContext))
-            {
-                return aclDeniedAsMissing ? null : throw ZkDriveFiles.NoAccess(file.DriveId);
-            }
-
             // Like a query, which leaves out what the caller may not see, when the caller asks for that
             if (aclDeniedAsMissing)
             {
-                return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext)
-                    ? header
-                    : null;
+                return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext) ? header : null;
             }
 
-            await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
-
+            await driveAclAuthorizationService.AssertCallerMayReadAsync(header, odinContext);
             return header;
         }
 

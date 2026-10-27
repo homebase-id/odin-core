@@ -231,18 +231,20 @@ it as it is (read 2026-10-26) **(V)**.
 
 ## Open from step 1's review (the user's call)
 
-- **One "may the caller see this file" check.** The ACL and the zero-knowledge rule
-  (`ZkDriveFiles.VisibleTo`) are combined separately in three places:
-  - the header load (`GetServerFileHeaderInternal`);
-  - the query filter (`CallerHasPermissionToFile`, then the zero-knowledge rule);
-  - the socket (`DriveEventMessage.VisibleToAsync`).
-
-  One predicate would serve all three. A hidden zero-knowledge row would then count as an ACL
-  failure in a query. That is a medium refactor, kept out of step 1.
-- **A full overwrite needs the storage key, but only implicitly.** On a normal drive an unencrypted
-  full overwrite still locks an empty key header, so it needs the storage key (pinned by
-  `OverwriteNeedsTheStorageKeyTests`). Which writes should need the storage key at all is a
-  question for an explicit write rule, not a side effect of locking; a new upload doesn't need it.
+- **One "may the caller see this file" check: done.** The header load, the query filter and the socket
+  used to combine the ACL and the zero-knowledge rule on their own. All three now ask
+  `FileReadRule.CallerMayReadAsync`. One visible change: a read by unique id or global transit id now
+  refuses a zero-knowledge drive's own file as a read by id does (a security error), where it used to
+  answer as for a missing file.
+- **Which writes need the storage key: waits for [#2026](https://github.com/homebase-id/odin-core/issues/2026).**
+  On a normal drive an unencrypted full overwrite still locks an empty key header, so it needs the
+  storage key (pinned by `OverwriteNeedsTheStorageKeyTests`). A metadata-only upload and the update
+  endpoint don't, so a guest with Write on a public drive can replace an unencrypted file. Whether Write
+  is meant to allow that is #2026's question. The explicit write rule follows from the answer; a new
+  upload doesn't need the storage key either way.
+- **The CDN for a zero-knowledge drive: later.** Step 1 keeps zero-knowledge drives off the CDN, even
+  with `AllowCdn` on. We may want a zero-knowledge drive's files on the CDN later, still encrypted, when
+  the owner ticks CDN for the drive.
 
 ## Not in this work
 - **chat-kmp:** comes with consent. Two small bugs found on the way, both harmless today:

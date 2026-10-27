@@ -473,15 +473,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                         // continue;
                     }
 
-                    // A zero-knowledge drive's own file goes only to a caller holding the drive's key, whatever
-                    // storage key it holds
+                    // A zero-knowledge drive's own file needs no storage key to return: its key header goes back as stored
                     if (ZkDriveFiles.IsZkDriveFile(serverFileHeader))
                     {
-                        if (ZkDriveFiles.VisibleTo(serverFileHeader, odinContext))
-                        {
-                            visible.Add(serverFileHeader);
-                        }
-
+                        visible.Add(serverFileHeader);
                         continue;
                     }
 

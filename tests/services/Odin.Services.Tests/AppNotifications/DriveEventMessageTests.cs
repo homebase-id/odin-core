@@ -24,35 +24,63 @@ public class DriveEventMessageTests
     [TestCase(EncryptionType.Aes, false, true, TestName = "AnyOtherFileStillReachesAnApp")]
     public async Task AZkDriveFileReachesOnlyASocketHoldingTheDriveKey(EncryptionType type, bool holdsMasterKey, bool expected)
     {
-        var header = new ServerFileHeader
-        {
-            EncryptedKeyHeader = new EncryptedKeyHeader
-            {
-                EncryptionVersion = 1,
-                Type = type,
-                Iv = ByteArrayUtil.GetRndByteArray(16),
-                EncryptedAesKey = ByteArrayUtil.GetRndByteArray(48)
-            },
-            FileMetadata = new FileMetadata { IsEncrypted = true },
-            ServerMetadata = new ServerMetadata { AccessControlList = AccessControlList.OwnerOnly }
-        };
-
-        var aclService = Substitute.For<IDriveAclAuthorizationService>();
-        aclService.CallerHasPermission(Arg.Any<AccessControlList>(), Arg.Any<IOdinContext>()).Returns(true);
-
-        var masterKey = holdsMasterKey ? ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray() : null;
-        var socket = new DeviceSocket
-        {
-            DeviceOdinContext = new OdinContext
-            {
-                Caller = new CallerContext(new OdinId("frodo.dotyou.cloud"), masterKey, SecurityGroupType.Owner)
-            }
-        };
+        var header = Header(type);
+        var socket = Socket(holdsMasterKey);
+        var aclService = AclAllowing(true);
 
         foreach (var (current, previous) in new (ServerFileHeader? Current, ServerFileHeader? Previous)[] { (header, null), (null, header) })
         {
             var message = new DriveEventMessage(ClientNotificationType.FileAdded, null, current, previous);
             Assert.That(await message.VisibleToAsync(socket, aclService), Is.EqualTo(expected));
         }
+    }
+
+    [Test]
+    public async Task AnOverwriteThatMadeAZkDriveFileDoesNotReachAnApp()
+    {
+        // The file as it was says who may read it; the file as it is still may not reach a socket without the drive's key
+        var message = new DriveEventMessage(ClientNotificationType.FileModified, null, Header(EncryptionType.ZkDrive),
+            Header(EncryptionType.Aes));
+        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: false), AclAllowing(true)), Is.False);
+    }
+
+    [TestCase(EncryptionType.Aes, TestName = "TheAclStillDecidesForAnyOtherFile")]
+    [TestCase(EncryptionType.ZkDrive, TestName = "TheAclStillDecidesForAZkDriveFile")]
+    public async Task TheAclStillDecides(EncryptionType type)
+    {
+        var message = new DriveEventMessage(ClientNotificationType.FileAdded, null, Header(type), null);
+        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: true), AclAllowing(false)), Is.False);
+    }
+
+    private static ServerFileHeader Header(EncryptionType type) => new()
+    {
+        EncryptedKeyHeader = new EncryptedKeyHeader
+        {
+            EncryptionVersion = 1,
+            Type = type,
+            Iv = ByteArrayUtil.GetRndByteArray(16),
+            EncryptedAesKey = ByteArrayUtil.GetRndByteArray(48)
+        },
+        FileMetadata = new FileMetadata { IsEncrypted = true },
+        ServerMetadata = new ServerMetadata { AccessControlList = AccessControlList.OwnerOnly }
+    };
+
+    private static DeviceSocket Socket(bool holdsMasterKey)
+    {
+        var masterKey = holdsMasterKey ? ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray() : null;
+        return new DeviceSocket
+        {
+            DeviceOdinContext = new OdinContext
+            {
+                Caller = new CallerContext(new OdinId("frodo.dotyou.cloud"), masterKey, SecurityGroupType.Owner)
+            }
+        };
+    }
+
+    private static IDriveAclAuthorizationService AclAllowing(bool allows)
+    {
+        var aclService = Substitute.For<IDriveAclAuthorizationService>();
+        aclService.CallerHasPermission(Arg.Any<AccessControlList>(), Arg.Any<IOdinContext>()).Returns(allows);
+        return aclService;
     }
 }

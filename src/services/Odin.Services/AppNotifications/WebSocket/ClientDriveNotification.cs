@@ -97,24 +97,18 @@ public sealed class DriveEventMessage(
     private string? _minimalJson;
 
     /// <summary>
-    /// Whether <paramref name="socket"/> may read the file, by the same checks a query applies: the ACL
-    /// (<see cref="IDriveAclAuthorizationService.CallerHasPermission"/>), and a zero-knowledge drive's own file
-    /// only for a socket holding the drive's key (<see cref="ZkDriveFiles.VisibleTo"/>), whatever the result
-    /// shape. Drive read, checked at the handshake, is not enough: a file's ACL can exclude a reader of its
-    /// drive. A delete is checked against the file as it was, since the deleted header no longer says who
-    /// could read it.
+    /// Whether <paramref name="socket"/> may read the file, by the rule a query applies
+    /// (<see cref="FileReadRule.CallerMayReadAsync"/>), whatever the result shape. Drive read, checked at the
+    /// handshake, is not enough: a file's ACL can exclude a reader of its drive. The file is checked as it was,
+    /// since a deleted header no longer says who could read it, and as it is, in case an overwrite made it a
+    /// zero-knowledge drive's own file.
     /// </summary>
-    public Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
+    public async Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
     {
         var deviceOdinContext = socket.DeviceOdinContext;
-        if (deviceOdinContext == null ||
-            !ZkDriveFiles.VisibleTo(header, deviceOdinContext) || !ZkDriveFiles.VisibleTo(previousHeader, deviceOdinContext))
-        {
-            return Task.FromResult(false);
-        }
-
-        var acl = (previousHeader ?? header)?.ServerMetadata?.AccessControlList;
-        return aclService.CallerHasPermission(acl!, deviceOdinContext);
+        return deviceOdinContext != null &&
+               ZkDriveFiles.VisibleTo(header, deviceOdinContext) &&
+               await aclService.CallerMayReadAsync(previousHeader ?? header, deviceOdinContext);
     }
 
     public string JsonFor(DeviceSocket socket)

@@ -77,10 +77,11 @@ public class ZkDriveFileTests : V2Fixture
         Assert.That(batch.StatusCode, Is.EqualTo(HttpStatusCode.OK), batch.Error?.Content);
         Assert.That(batch.Content!.SearchResults, Is.Empty);
 
+        // One read rule: a read by unique id refuses it as a read by file id does
         var byUniqueId = await app.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
-        Assert.That(byUniqueId.IsSuccessStatusCode, Is.False, "a read by unique id leaves it out too");
+        Assert.That(byUniqueId.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"a read by unique id: {byUniqueId.Error?.Content}");
         var byFileId = await app.Drives.Reader.GetFileHeaderAsync(Drive.Alias, upload.FileId);
-        Assert.That(byFileId.IsSuccessStatusCode, Is.False, "so does a read by file id");
+        Assert.That(byFileId.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"a read by file id: {byFileId.Error?.Content}");
         var payloadRead = await app.Drives.Reader.GetPayloadAsync(Drive.Alias, upload.FileId, payload.Key);
         Assert.That(payloadRead.IsSuccessStatusCode, Is.False, "and a payload read");
     }
