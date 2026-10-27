@@ -1,10 +1,46 @@
 # Zero-knowledge drives
 
-**Status:** direction only, nothing built. This is the starting point. Details get settled as each
-piece is designed.
+**Status:** direction, partly built. Built: the `zkDrive` key header type (#2023, #2027); being built:
+client-locked files for Shamir (step 2 of [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md)).
+[How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files) has the model and the
+decisions in short. Everything else is the starting point; details get settled as each piece is designed.
 
 Markers follow [security-model.md](security-model.md): **(V)** verified in the code (file named).
 Anything without a marker is the proposed design.
+
+## How a zero-knowledge drive holds files
+
+The model in short: the `zkDrive` type is built (step 1); `sealed` under the same rules is step 2, being
+built; the reasons, alternatives and work are in
+[zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
+
+- **One key header per file, the rest under FileKey.** A file's key header holds FileKey (its AES key)
+  and an IV. `appData.content`, `localAppData.content` (its own IV), payloads and thumbnails (the
+  payload's IV) are all encrypted with FileKey **(V)**. Only the key header is ever locked or re-locked;
+  content and payloads never are.
+- **On a zero-knowledge drive every encrypted file is client-locked,** in one of two ways, and the server
+  opens neither:
+  - `zkDrive`: locked with the drive key (DrvK) by a device holding it, the owner console for now;
+  - `sealed`: sealed to the drive's write-only public key (`WO-PK-Pub`) by anyone with Write, so a
+    friend or a sender can write without DrvK; opened with `WO-PK-Priv` (P-384 ECDH, HKDF, AES-GCM).
+  - A key header locked with the shared secret (`aes`) is refused by its type, before it is opened.
+- **One read rule** (`IDriveAclAuthorizationService.CallerMayReadAsync`): the file's ACL, and a
+  client-locked file only for a caller that can open it (owner console, or the system's own jobs).
+  Reads, queries and sockets all ask it. A client-locked key header is returned as stored, and payload
+  and thumbnail responses carry no packed key header: the client uses FileKey and the payload's IV.
+- **One write rule:** the owner writes `zkDrive`; a sender's `sealed` new file or replacement is stored
+  as sent; nothing else changes a client-locked key header. A zero-knowledge drive sends nothing (no
+  recipients, feeds or CDN).
+- **Transforming `sealed` into `zkDrive` is optional**, and designed for Chat (deferred): a key holder
+  re-locks the same IV and FileKey with DrvK. It keeps the file's version tag and `updated`, because
+  nothing a reader or writer depends on changed, and a new version tag would break collaborators'
+  updates. Shamir leaves its shards `sealed`.
+- **Decided against** (2026-10-27): a separate client inbox (it became the drive query in a second
+  place), and a hidden "waiting" file on the drive (updates would hide files that were already
+  readable).
+- **Known weakness of key header version 1:** the CBC format lets the IV cancel out, so the server sees
+  which key headers share a FileKey and could flip bits in the first block of `appData.content`. Version
+  2 fixes it with per-file integrity ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
 
 ## Goal
 
@@ -516,9 +552,9 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
      - A zero-knowledge drive refuses `aes` by its type, before opening it. Released apps always
        send `aes`.
      - Readers choose the key from the drive.
-     - Every file on a drive is locked with its DrvK. A `sealed` header from someone without
-       DrvK waits in the drive's inbox until an owner device re-locks it as `zkDrive` (decided
-       2026-10-26; today deposits still land on the drive sealed).
+     - A `sealed` header from someone without DrvK is stored on the drive as it is; a key holder
+       may transform it into `zkDrive` later (decided 2026-10-27, replacing the 2026-10-26 idea of
+       a drive inbox; see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)).
    - **No packed response header for `zkDrive` or `sealed` files.** The client uses FileKey and
      the payload's IV from the file metadata. The packed format stays for `aes`, and isn't
      replaced with JSON. GCM isn't used.
@@ -541,6 +577,10 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
      deposits.
 
 ## Decisions so far
+
+- **Client-locked files** (2026-10-27): `sealed` and `zkDrive` side by side on a zero-knowledge drive,
+  one read rule and one write rule; the transform is optional, keeps the version tag, and is built
+  with Chat. See [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files).
 
 - **V1: no key rotation when a member is removed.** Removing someone deletes their row, and the
   server stops serving them. Accepted risk: the removed person would also have to break into the

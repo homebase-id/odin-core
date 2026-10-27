@@ -304,14 +304,18 @@ serverMetadata
 
 ## 8. Envelope encryption
 
-**The rule.** Every file on a drive has its key header locked with that drive's key (DrvK): by the server
-on a normal drive (`type: aes`), by an owner device on a zero-knowledge drive (`type: zkDrive`). Anyone who
-can't lock with the drive's key writes through the drive's inbox: a peer's key header comes wrapped in the
-connection's shared secret, a deposit's sealed to the drive's write-only public key. Whoever holds the
-drive's key moves it onto the drive, re-locked with DrvK: the server today, an owner device on a
-zero-knowledge drive. Only the key header changes; the payloads stay where they are. One exception, until
-step 2 of [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md): a deposit lands on its
-drive still sealed **(V)**.
+**The rule.** A file has one key header (FileKey and an IV); content, local app data, payloads and
+thumbnails are all encrypted with FileKey, each with its own IV **(V)**. Only the key header is locked:
+- **Normal drive:** by the server with the drive's key (DrvK, `type: aes`). A peer's key header arrives
+  wrapped in the connection's shared secret and waits in the drive's inbox until the owner or an app is
+  signed in; the server then re-locks it with the keys that caller lends it (`PeerInboxProcessor`) **(V)**.
+- **Zero-knowledge drive:** by a client, and the server opens neither kind: by a device holding DrvK
+  (`type: zkDrive`), or sealed to the drive's write-only public key by anyone with Write (`type: sealed`,
+  a deposit) **(V)**. A key holder may later transform `sealed` into `zkDrive` (designed, built with
+  Chat). One read rule (`IDriveAclAuthorizationService.CallerMayReadAsync`) shows a client-locked file
+  only to a caller that can open it; the model and decisions are in
+  [zero-knowledge-drives.md](zero-knowledge-drives.md#how-a-zero-knowledge-drive-holds-files), the work in
+  [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
 
 Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md). The owner's
 own keys above the storage key (password, master key, zero-knowledge master key, recovery phrase, reset key, Shamir),
