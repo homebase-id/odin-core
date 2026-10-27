@@ -6,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LastSeen;
@@ -49,7 +50,9 @@ public abstract class ShamirBaseService<TLogger>(
         // peer call doesn't (docs/security-model.md, 9: system APIs bypass the regular checks)
         var file = await FileSystem.Query.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(driveId, shardId, byPassAclCheckContext);
 
-        if (file == null)
+        // An expired file is gone, as a query treats it.  An encrypted shard that isn't a deposit (a zkDrive one,
+        // once Chat's transform exists) isn't one this server reads or releases yet
+        if (file == null || DriveStorageServiceBase.IsExpired(file) || (file.FileMetadata.IsEncrypted && !Deposits.IsDeposit(file)))
         {
             return new StoredShard(null, null, null);
         }

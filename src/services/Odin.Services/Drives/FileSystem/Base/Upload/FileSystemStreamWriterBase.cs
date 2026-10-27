@@ -466,7 +466,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         }
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager, odinContext)
+            ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, isUpdate: false, _driveManager,
+                odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -498,7 +499,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         {
             var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
-            keyHeader = await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager, odinContext);
+            keyHeader = await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, isUpdate: true,
+                _driveManager, odinContext);
 
             if (!ByteArrayUtil.IsStrongKey(keyHeader.Iv))
             {

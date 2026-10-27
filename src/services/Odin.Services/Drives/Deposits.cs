@@ -56,6 +56,15 @@ public static class Deposits
         }
     }
 
+    /// <summary>Refuses payloads for a stored deposit, as <see cref="AssertValid"/> does for a new one.</summary>
+    public static void AssertTakesNoPayloads(ServerFileHeader existingHeader)
+    {
+        if (IsDeposit(existingHeader))
+        {
+            throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
+        }
+    }
+
     /// <summary>Refuses a deposit for a drive that can't hold one (<see cref="StorageDrive.CanHoldDeposits"/>).</summary>
     public static void AssertCanHold(StorageDrive drive)
     {

@@ -687,15 +687,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (keyHeader is ClientLockedKeyHeader locked)
             {
                 // Stored as the client locked it
-                if (locked.Type == EncryptionType.Sealed)
-                {
-                    Deposits.AssertCanHold(drive);
-                }
-                else
-                {
-                    ZkDriveFiles.AssertDriveTakes(drive, locked.Type);
-                }
-
+                ZkDriveFiles.AssertDriveTakes(drive, locked.Type);
                 return locked.Locked;
             }
 
@@ -1164,6 +1156,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
             AssertActiveForUpdate(existingServerHeader);
+            Deposits.AssertTakesNoPayloads(existingServerHeader);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.

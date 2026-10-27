@@ -1,6 +1,6 @@
 # Zero-knowledge drive API: plan
 
-Status: step 1 built and merged (#2023, follow-up #2027). Step 2 below is a plan for review (2026-10-27). It details items 1-3 and 6 of
+Status: step 1 built and merged (#2023, follow-up #2027). Step 2 built on branch `zk-drive-step-2` (2026-10-27). It details items 1-3 and 6 of
 "odin-core API changes" in [zero-knowledge-drives.md](zero-knowledge-drives.md). Key names follow
 [owner-keys.md](owner-keys.md).
 
@@ -177,7 +177,7 @@ The test client locks headers with a DrvK it made itself, as a device would.
 
 ## Step 2: client-locked files
 
-Status: agreed 2026-10-27, being built on branch `zk-drive-step-2`. **(V)** = read in code on 2026-10-27;
+Status: agreed and built 2026-10-27, on branch `zk-drive-step-2`. **(V)** = read in code on 2026-10-27;
 **(I)** = inferred, to check while building.
 
 ### 2.1 The rule
@@ -231,15 +231,21 @@ A sealed item lands on the drive as today, by direct write (S1200) or through th
 
 ### 2.4 Server: one read rule, one write rule
 - **Read:** `CallerMayReadAsync` (step 1's follow-up, #2027) hides a client-locked file from a caller
-  that can't open it: owner console (`CallerHoldsDriveKey`) or the system only. Today an app with Read on
+  that can't open it: owner console (`CallerHoldsDriveKey`) or the system only. A deposit staged on the
+  transient drive reaches any caller there: its writer reads it back to send it. Today an app with Read on
   the drive sees deposits (`DriveQueryServiceBase`, `isDeposit`) **(V)**; that goes.
 - **Read results:** a client-locked key header is returned as stored (`DriveFileUtility.CreateClientFileHeader`);
   payload and thumbnail responses carry no packed header for either type (step 1 decision 4).
 - **Writes, in one place** (the `ZkDriveFiles` checks, extended to `sealed`):
   - the owner may write `zkDrive` (step 1), and may update a client-locked file of either type with a
     `zkDrive` key header (`AssertFitsUpdate`); `Deposits.AssertNotDeposit` goes **(V, built)**;
-  - the owner can't upload a `sealed` file to their own zero-knowledge drive (`DriveIsZeroKnowledge`);
-    the transient drive still takes one, to send it (`ZkDriveFiles.OpenForWrite`) **(V, built)**;
+  - a sealed key header comes only with a new file: an update or a metadata-only upload with one is
+    refused (`DepositCannotBeUpdated`), and so is a payload upload onto a stored deposit
+    (`Deposits.AssertTakesNoPayloads`) **(V, built)**;
+  - a caller holding the drive's key can't upload a `sealed` file to that zero-knowledge drive
+    (`DriveIsZeroKnowledge`): it writes `zkDrive`. An app with Write may still deposit there (and then
+    can't read it back), and the transient drive takes one to send (`ZkDriveFiles.OpenForWrite`)
+    **(V, built)**;
   - a sender's `sealed` new file is stored as sent. A sender can't replace a client-locked file in this
     step: the read rule hides it from the sender's lookup by global transit id or unique id, so a second
     `sealed` file with a taken unique id is refused as a duplicate. Shamir isn't affected: every deal uses
@@ -299,18 +305,21 @@ with Chat.
 | 1 | `PeerDriveIncomingTransferService` direct write | stays |
 | 2 | `PeerInboxProcessor` (`DecryptOrPassSealed`) | stays |
 | 3 | `EncryptKeyHeader`, `CanHoldDeposits` | stays, through the merged `ClientLockedKeyHeader` |
-| 4 | the owner uploads a `sealed` file to their own drive | refused: the owner's devices hold DrvK and write `zkDrive` |
-| 5 | `Deposits.AssertValid` (no payloads) | stays until Chat; payload responses already carry no header for client-locked files |
-| 6 | `Deposits.AssertNotDeposit` (no updates) | replaced by the write rule (2.4); Chat adds the transform (2.5) |
-| 7 | `DriveQueryServiceBase` `isDeposit` (any reader sees deposits) | replaced by the read rule (2.4) |
-| 8 | `CreateClientFileHeader` → `Deposits.OpenWithDriveKey` | merged with the `zkDrive` branch: client-locked, returned as stored |
-| 9 | `PeerDriveQueryService` `IsSealed()` pass-through | goes: a peer can't open a client-locked file, so the read rule hides it **(I)** |
+| 4 | the owner uploads a `sealed` file to their own drive | refused for a caller holding DrvK, which writes `zkDrive`; an app with Write may still deposit, and the transient drive takes one to send |
+| 5 | `Deposits.AssertValid` (no payloads) | stays until Chat, and `Deposits.AssertTakesNoPayloads` refuses a payload upload onto a stored deposit; payload responses already carry no header for client-locked files |
+| 6 | `Deposits.AssertNotDeposit` (no updates) | replaced by the write rule (2.4): a sealed key header only comes with a new file (`DepositCannotBeUpdated`), and a client-locked file is updated only with a `zkDrive` one; Chat adds the transform (2.5) |
+| 7 | `DriveQueryServiceBase` `isDeposit` (any reader sees deposits) | replaced by the read rule (2.4), which still shows a deposit staged on the transient drive, so an app can send its own |
+| 8 | `CreateClientFileHeader` → `Deposits.OpenWithDriveKey` | merged with the `zkDrive` branch: client-locked, returned as stored; `OpenWithDriveKey` stays for sending from the transient drive |
+| 9 | `PeerDriveQueryService` `IsSealed()` pass-through | widened to any client-locked key header, passed on as stored rather than failing the whole remote read; a peer's read rule normally hides one **(I)** |
 
 ### 2.9 Tests
-- **V2:** a deposit lands `sealed` and the owner reads it by unique id and by query, as stored; an app
-  with Read on the drive doesn't see it (query, unique id 404, file id 403); the owner can't upload a
-  `sealed` file to their own zero-knowledge drive; a deposit with payloads is refused on the transient
-  drive; an `aes` key header on a zero-knowledge drive is still refused.
+- **V2 (`DepositTests`):** a deposit lands `sealed` and the owner reads it by unique id and by query, as
+  stored; an app with Read on the drive doesn't see it (query, unique id 404, file id 403); an app sends a
+  deposit through the transient drive; an app with Write deposits on a zero-knowledge drive and can't read
+  it back; the owner can't upload a `sealed` file to their own zero-knowledge drive; the owner updates a
+  deposit with a `zkDrive` key header; a sealed key header can't update a file (update, metadata-only);
+  a payload can't be added to a deposit; a deposit with payloads is refused on the transient drive. Each
+  of the four round-1 fixes was checked by undoing it: its test fails.
 - **Services:** a socket event for a deposit reaches the owner console, not an app.
 - **Shamir (Ported):** the dealer's verify sees a sealed shard through the system lookup; approval
   releases it; automated holders unchanged.
@@ -431,7 +440,7 @@ it as it is (read 2026-10-26) **(V)**.
 
 **Drive side: all go or change**
 
-| # | Where | Today | Step 2 |
+| # | Where | Today | Step 2, as first planned (superseded: see 2.8) |
 |---|---|---|---|
 | 1 | `PeerDriveIncomingTransferService` (S1200 direct write) | a deposit is written straight to the drive with no drive key | it stays in the drive's inbox |
 | 2 | `PeerInboxProcessor.DecryptedKeyHeaderAsync` (`DecryptOrPassSealed`) | inbox processing moves a deposit onto the drive still sealed | the server skips deposits; a device accepts them re-locked as `zkDrive` |

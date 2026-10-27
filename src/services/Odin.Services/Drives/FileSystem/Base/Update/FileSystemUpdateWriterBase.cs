@@ -383,7 +383,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
-            ? await ZkDriveFiles.OpenForWriteAsync(updateDescriptor.EncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
+            ? await ZkDriveFiles.OpenForWriteAsync(updateDescriptor.EncryptedKeyHeader, package.InternalFile.DriveId, isUpdate: true, _driveManager,
                 odinContext)
             : KeyHeader.Empty();
 

@@ -51,7 +51,8 @@ public static class DriveFileUtility
         }
         else if (header.FileMetadata.IsEncrypted)
         {
-            var keyHeader = Deposits.OpenWithDriveKey(header, odinContext);
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+            var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             sharedSecretEncryptedKeyHeader =
                 EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);

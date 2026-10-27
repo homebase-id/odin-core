@@ -713,14 +713,18 @@ P-384 public key (97 bytes) ‖ 12-byte IV ‖ AES-GCM`. The phrase pair's seal 
 
 **Deposits on zero-knowledge drives.** All seven places, with one limit:
 - The key header is an `EncryptedKeyHeader` of a new type, `Sealed` (12): `Iv` as is, `EncryptedAesKey`
-  = seal(write-only key, IV ‖ AES key). Decrypting one gives a `SealedKeyHeader`, and re-locking that
-  gives the sealed header back. So upload, peer receive, inbox, outbox and reads pass it through
+  = seal(write-only key, IV ‖ AES key). Decrypting one gives a `ClientLockedKeyHeader` (it was
+  `SealedKeyHeader` until step 2 of zero-knowledge-drive-api-plan.md), and re-locking that gives the
+  sealed header back. So upload, peer receive, inbox, outbox and reads pass it through
   unchanged without new parameters.
 - `Deposits` holds the rules. `StorageDrive.CanHoldDeposits` allows a zero-knowledge drive, or the
   transient drive, which only sends a deposit on. Any other drive refuses one
   (`DepositNeedsZeroKnowledgeDrive`, 9018), on upload, on receive, and at storage.
-- A query returns a deposit without the drive key; the drive permission and the ACL decide.
-- A deposit is written once (`DepositCannotBeUpdated`, 9019); it can be overwritten whole.
+- A deposit is a client-locked file (zero-knowledge-drive-api-plan.md, step 2): it reaches only a caller
+  holding the drive's key (the owner console) or the system, without a storage key; an app with Read on
+  the drive doesn't see it. On the transient drive, where it waits to be sent, it reaches any caller.
+- A deposit is written whole: a sealed key header in an update is refused (`DepositCannotBeUpdated`,
+  9019). The owner may update a deposit with a zkDrive key header; nothing adds payloads to one.
 - Converting the Shard Recovery drive deletes the deposits sealed to the old write-only key. It
   still refuses files locked with the drive key.
 - **Limit: a deposit has no payloads.** A payload's key header leaves in a fixed-size response

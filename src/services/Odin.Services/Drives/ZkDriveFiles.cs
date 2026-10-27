@@ -28,11 +28,12 @@ public static class ZkDriveFiles
     /// <summary>
     /// The key header a local caller (the owner, an app) sent to write to <paramref name="drive"/>, decided
     /// by its type before anything is opened (<see cref="AssertDriveTakes"/>).  A zero-knowledge drive's own
-    /// key header comes only from a caller holding its key.  A sealed one is a deposit on its way: the
-    /// transient drive passes it to its recipients, and the owner's own zero-knowledge drive refuses it,
-    /// since the owner's devices hold the drive's key and write <see cref="EncryptionType.ZkDrive"/>.
+    /// key header comes only from a caller holding its key.  A sealed one is a deposit, written whole: never
+    /// in an update (<paramref name="isUpdate"/>), and not by a caller holding the drive's key, which writes
+    /// <see cref="EncryptionType.ZkDrive"/> instead; anyone else with Write may deposit, on a zero-knowledge
+    /// drive or on the transient drive to send it.
     /// </summary>
-    private static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, ref SensitiveByteArray sharedSecret,
+    private static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, bool isUpdate, ref SensitiveByteArray sharedSecret,
         IOdinContext odinContext)
     {
         if (sent == null)
@@ -43,12 +44,17 @@ public static class ZkDriveFiles
         AssertDriveTakes(drive, sent.Type);
         if (sent.IsSealed())
         {
-            if (drive.IsZeroKnowledge)
+            if (isUpdate)
+            {
+                throw new OdinClientException("A deposit is written whole; a sealed key header can't update a file",
+                    OdinClientErrorCode.DepositCannotBeUpdated);
+            }
+
+            if (drive.IsZeroKnowledge && CallerHoldsDriveKey(odinContext))
             {
                 ThrowNotItsOwnKeyHeader();
             }
 
-            Deposits.AssertCanHold(drive);
             return new ClientLockedKeyHeader(sent);
         }
 
@@ -63,24 +69,26 @@ public static class ZkDriveFiles
     }
 
     /// <summary>The key header a client sent, for the drive it writes to (<see cref="OpenForWrite"/>).</summary>
-    public static async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader? sent, Guid driveId, IDriveManager driveManager,
-        IOdinContext odinContext)
+    /// <param name="isUpdate">An update of an existing file (an update, a metadata-only upload), not a new file or a full overwrite</param>
+    public static async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader? sent, Guid driveId, bool isUpdate,
+        IDriveManager driveManager, IOdinContext odinContext)
     {
         var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
         var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-        return OpenForWrite(sent, drive, ref sharedSecret, odinContext);
+        return OpenForWrite(sent, drive, isUpdate, ref sharedSecret, odinContext);
     }
 
     /// <summary>
     /// Which drive takes which key header: a zero-knowledge drive refuses one locked with the shared secret
     /// (the server would see the file key, and store a key header nobody could open), and any other drive
-    /// refuses a zero-knowledge drive's own.  Where a deposit (<see cref="EncryptionType.Sealed"/>) may go is
-    /// <see cref="Deposits.AssertCanHold"/>'s.
+    /// refuses a zero-knowledge drive's own.  A deposit (<see cref="EncryptionType.Sealed"/>) goes where
+    /// <see cref="Deposits.AssertCanHold"/> says.
     /// </summary>
     public static void AssertDriveTakes(StorageDrive drive, EncryptionType type)
     {
         if (type == EncryptionType.Sealed)
         {
+            Deposits.AssertCanHold(drive);
             return;
         }
 
@@ -109,11 +117,17 @@ public static class ZkDriveFiles
     /// Whether <paramref name="header"/> may reach the caller: a client-locked file only reaches one
     /// holding the drive's key, whatever else it holds (a grant from before the drive was converted still
     /// carries the old key; an app that can't open a sealed or zkDrive key header stalls on it), and the
-    /// system's jobs (a file's TTL, the outbox).  Says nothing about any other file.  Every read and write of a stored header asks this, by query, socket or id, as part of
+    /// system's jobs (a file's TTL, the outbox).  On the transient drive a deposit is only staged to be
+    /// sent, by whoever wrote it, and reaches any caller there (an app sends its own).  Says nothing about
+    /// any other file.  Every read and write of a stored header asks this, by query, socket or id, as part of
     /// <see cref="Authorization.Acl.IDriveAclAuthorizationService.CallerMayReadAsync"/>.
     /// </summary>
     public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
-        !IsClientLocked(header) || CallerHoldsDriveKey(odinContext) || odinContext.Caller?.IsSystem == true;
+        !IsClientLocked(header) || IsStagedToSend(header!) || CallerHoldsDriveKey(odinContext) ||
+        odinContext.Caller?.IsSystem == true;
+
+    private static bool IsStagedToSend(ServerFileHeader header) =>
+        header.FileMetadata?.File.DriveId == SystemDriveConstants.TransientTempDrive.Alias.Value;
 
     /// <summary>Refuses a file the caller may not see (<see cref="VisibleTo"/>), as a read by id does</summary>
     public static void AssertVisibleTo(ServerFileHeader header, IOdinContext odinContext)

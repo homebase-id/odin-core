@@ -879,6 +879,14 @@ public class PeerDriveQueryService(
 
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
+        if (encryptedKeyHeader.IsLockedByClient())
+        {
+            // A client-locked key header comes from the peer as stored: only a device holding that drive's keys
+            // opens it.  A peer shows one only to a caller its read rule admits; passed on rather than failing
+            // the whole read
+            return encryptedKeyHeader;
+        }
+
         var newKey = odinContext.PermissionsContext.SharedSecretKey;
         var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
 
