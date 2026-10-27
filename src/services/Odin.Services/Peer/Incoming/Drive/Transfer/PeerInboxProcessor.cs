@@ -410,8 +410,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(
                 inboxItem.Data.ToStringFromUtf8Bytes());
 
+            // A deposit is written whole (ZkDriveFiles.OpenForWrite): a sealed key header in an update is refused
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
-                inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
+                inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext, passSealed: false);
 
             logger.LogDebug("PeerFileUpdateWriter called. Sender: {sender} FileId: {file}", inboxItem.Sender, inboxItem.FileId);
             return await writer.UpsertFileAsync(file, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext,
@@ -510,8 +511,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         private async Task<KeyHeader> DecryptedKeyHeaderAsync(OdinId sender, EncryptedKeyHeader encryptedKeyHeader,
-            IOdinContext odinContext)
+            IOdinContext odinContext, bool passSealed = true)
         {
+            if (!passSealed && encryptedKeyHeader?.IsSealed() == true)
+            {
+                throw new OdinClientException("A deposit is written whole; a sealed key header can't update a file",
+                    OdinClientErrorCode.DepositCannotBeUpdated);
+            }
+
             var icr = await circleNetworkService.GetIcrAsync(sender, odinContext, overrideHack: true, tryUpgradeEncryption: true);
             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             var decryptedKeyHeader = encryptedKeyHeader.DecryptOrPassSealed(ref sharedSecret);

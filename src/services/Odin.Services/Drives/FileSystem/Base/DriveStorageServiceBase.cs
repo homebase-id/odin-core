@@ -1026,6 +1026,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
             AssertActiveForUpdate(existingServerHeader);
 
+            // A sender can't replace a client-locked file in step 2, whoever applies its write (a direct peer
+            // write can't see one; an inbox drained by the owner console can): replacing comes with Chat
+            if (ZkDriveFiles.IsClientLocked(existingServerHeader) && keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed })
+            {
+                throw new OdinClientException("A deposit can't replace a client-locked file", OdinClientErrorCode.DepositCannotBeUpdated);
+            }
+
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
@@ -1600,8 +1607,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             else if (existingHeader.FileMetadata.IsEncrypted)
             {
-                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
-                var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                var existingKeyHeader = DriveFileUtility.OpenWithStorageKey(existingHeader, odinContext);
 
                 if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
                 {
@@ -2451,8 +2457,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     // Critical Note: if this new key header's AES key does not match the
                     // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
-                    var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
-                    var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                    var existingDecryptedKeyHeader = DriveFileUtility.OpenWithStorageKey(existingServerHeader, odinContext);
                     var keyHeader = new KeyHeader()
                     {
                         Iv = newKeyHeader.Iv,

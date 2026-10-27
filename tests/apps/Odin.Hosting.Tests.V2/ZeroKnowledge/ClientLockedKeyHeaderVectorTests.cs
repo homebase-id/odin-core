@@ -44,7 +44,7 @@ public class ClientLockedKeyHeaderVectorTests
     [Test]
     public void ASealedKeyHeaderOpensWithTheDrivesWriteOnlyPrivateKey()
     {
-        Assert.That(ZkSeal.IsSealedTo(SealedEncryptedAesKey.FromBase64(), WriteOnlyPublicKeyJwk), Is.True, "sealed to that key");
+        Assert.That(ZkSeal.ReadKeyId(SealedEncryptedAesKey.FromBase64()), Is.EqualTo(ZkSeal.KeyId(WriteOnlyPublicKeyJwk)), "sealed to that key");
 
         var opened = KeyHeader.FromCombinedBytes(ZkBrowser.Unseal(SealedEncryptedAesKey, WriteOnlyPrivateKeyPkcs8.FromBase64()));
         Assert.That((opened.Iv.ToBase64(), opened.AesKey.GetKey().ToBase64()), Is.EqualTo((Iv, AesKey)));

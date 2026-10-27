@@ -44,8 +44,6 @@ public class DepositTests : V2Fixture
 
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    private static readonly TargetDrive Drive = ZkTestFiles.Drive;
-
     [Test]
     public async Task TheOwnerCannotUploadADepositToTheirOwnZeroKnowledgeDrive()
     {
@@ -167,7 +165,7 @@ public class DepositTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var (_, samsKey, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
         var publicKeyJwk = (await ZkOwnerSteps.GetShardRecoveryDriveAsync(sam)).WriteOnlyPublicKeyJwk;
-        var app = await AppSession.SetupAsync(sam, Drive, DrivePermission.Write);
+        var app = await AppSession.SetupAsync(sam, Drive, DrivePermission.ReadWrite);
 
         var uniqueId = Guid.NewGuid();
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
@@ -176,7 +174,7 @@ public class DepositTests : V2Fixture
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
 
         var appsRead = await app.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
-        Assert.That(appsRead.IsSuccessStatusCode, Is.False, $"the app read it back: {appsRead.StatusCode}");
+        Assert.That(appsRead.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"the app read it back: {appsRead.Error?.Content}");
 
         var ownersRead = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         Assert.That(ownersRead.StatusCode, Is.EqualTo(HttpStatusCode.OK), ownersRead.Error?.Content);
@@ -237,6 +235,26 @@ public class DepositTests : V2Fixture
         var upload = await sam.V1.Drive.UploadPayloads(new ExternalFileIdentifier { FileId = received.FileId, TargetDrive = Drive },
             received.FileMetadata.VersionTag, new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload]);
         Assert.That(upload.ErrorCode(), Is.EqualTo(OdinClientErrorCode.InvalidPayload), upload.Error?.Content);
+    }
+
+    [Test]
+    public async Task ADepositCannotReplaceAClientLockedFile()
+    {
+        // A sender can't replace a client-locked file in this step, by a full overwrite either; on the transient
+        // drive, where the caller sees the staged deposit, the overwrite is refused rather than missed
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var publicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk;
+        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
+        var (staged, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias,
+            Metadata(Guid.NewGuid()), transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
+        Assert.That(staged.StatusCode, Is.EqualTo(HttpStatusCode.OK), staged.Error?.Content);
+
+        var (otherKey, otherSealed) = ZkBrowser.SealNewFileKey(publicKeyJwk);
+        var replacement = Metadata(Guid.NewGuid());
+        replacement.VersionTag = staged.Content!.NewVersionTag;
+        var overwrite = await frodo.V1.Drive.OverwriteWithLockedKeyHeader(SystemDriveConstants.TransientTempDrive, replacement,
+            staged.Content.FileId, otherKey, otherSealed);
+        Assert.That(overwrite.ErrorCode(), Is.EqualTo(OdinClientErrorCode.DepositCannotBeUpdated), overwrite.Error?.Content);
     }
 
     private sealed record SamsKeys(byte[] WriteOnlyPrivateKey, byte[] DriveKey, string PublicKeyJwk);

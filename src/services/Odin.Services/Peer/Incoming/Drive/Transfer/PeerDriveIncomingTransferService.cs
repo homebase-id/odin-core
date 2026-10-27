@@ -63,11 +63,25 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 await quotaGuard.AssertCanAddPayloadBytesAsync();
             }
 
+            // Which drive takes which key header, before anything is staged: an aes key header for a zero-knowledge
+            // drive would be accepted here and dropped by the inbox, where no storage key can lock it.  A peer never
+            // holds this identity's drive key, so it never sends a zkDrive one
             var driveId = transferInstructionSet.TargetDrive.Alias;
-            if (IsDeposit(metadata, transferInstructionSet))
+            if (metadata.IsEncrypted)
             {
-                Deposits.AssertValid(metadata, transferInstructionSet.SharedSecretEncryptedKeyHeader);
-                ZkDriveFiles.AssertDriveTakes(await driveManager.GetDriveAsync(driveId, failIfInvalid: true), EncryptionType.Sealed);
+                var keyHeader = transferInstructionSet.SharedSecretEncryptedKeyHeader;
+                if (keyHeader?.IsZkDrive() == true)
+                {
+                    throw new OdinClientException("A peer can't lock a key header with this drive's key", OdinClientErrorCode.InvalidKeyHeader);
+                }
+
+                if (IsDeposit(metadata, transferInstructionSet))
+                {
+                    Deposits.AssertValid(metadata, keyHeader);
+                }
+
+                ZkDriveFiles.AssertDriveTakes(await driveManager.GetDriveAsync(driveId, failIfInvalid: true),
+                    keyHeader?.Type ?? EncryptionType.Aes);
             }
 
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);

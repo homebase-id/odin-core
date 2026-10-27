@@ -40,7 +40,6 @@ public class ZkDriveFileTests : V2Fixture
 {
     private const string Content = "only the owner's devices read this";
 
-    private static readonly TargetDrive Drive = ZkTestFiles.Drive;
 
     [Test]
     public async Task AZkDriveFileIsStoredAndReturnedAsSentAndTheDriveKeyOpensIt()

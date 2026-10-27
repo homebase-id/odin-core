@@ -2,6 +2,7 @@ using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives;
@@ -40,12 +41,14 @@ public static class Deposits
             return new ClientLockedKeyHeader(header.EncryptedKeyHeader);
         }
 
-        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-        var keyHeader = header.FileMetadata.IsEncrypted
-            ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey)
-            : KeyHeader.Empty();
-        storageKey.Wipe();
-        return keyHeader;
+        if (!header.FileMetadata.IsEncrypted)
+        {
+            // Sending a file has always needed the drive key, even an unencrypted one
+            odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId).Wipe();
+            return KeyHeader.Empty();
+        }
+
+        return DriveFileUtility.OpenWithStorageKey(header, odinContext);
     }
 
     /// <summary>Refuses a malformed deposit, and one that carries payloads.</summary>

@@ -29,8 +29,13 @@ built; the reasons, alternatives and work are in
   Reads, queries and sockets all ask it. A client-locked key header is returned as stored, and payload
   and thumbnail responses carry no packed key header: the client uses FileKey and the payload's IV.
 - **One write rule:** the owner writes `zkDrive`, and updates a client-locked file only with a `zkDrive`
-  key header; a sender's `sealed` new file is stored as sent (replacing one comes with Chat); the owner
-  can't upload a `sealed` file to their own drive; nothing else changes a client-locked key header. A zero-knowledge drive sends nothing (no
+  key header; a sender's `sealed` new file is stored as sent; a `sealed` key header never updates or
+  replaces a file (replacing one comes with Chat); the owner can't upload a `sealed` file to their own
+  drive.
+- **Known limit:** the read rule also gates the server's own lookups made in a caller's context. An inbox
+  drained by an app misses a client-locked file, so a peer's delete of a deposit is applied only when the
+  owner console drains it. Deposits are never deleted by peers today (Shamir); the deeper fix is in the
+  plan's open items. A zero-knowledge drive sends nothing (no
   recipients, feeds or CDN).
 - **Transforming `sealed` into `zkDrive` is optional**, and designed for Chat (deferred): a key holder
   re-locks the same IV and FileKey with DrvK. It keeps the file's version tag and `updated`, because

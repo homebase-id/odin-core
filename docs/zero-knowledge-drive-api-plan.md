@@ -499,6 +499,24 @@ it as it is (read 2026-10-26) **(V)**.
   with `AllowCdn` on. We may want a zero-knowledge drive's files on the CDN later, still encrypted, when
   the owner ticks CDN for the drive.
 
+## Open from step 2's review
+
+- **The read rule gates the server's own lookups too** (review round 2). `ZkDriveFiles.VisibleTo` decides
+  who may be handed a key header it can't open, but it also runs for lookups the server makes in a
+  caller's context: an inbox drained by an app (`PeerInboxProcessor` under `ForOthersWrites`) misses a
+  client-locked file, so a peer's delete of a deposit is dropped there and applied when the owner
+  console drains. Step 2 works round two such flows (the transient drive's staged deposits, the Shamir
+  lookup) and makes a `sealed` key header never replace a client-locked file whoever drains. The general
+  fix: hide client-locked files where responses are built (`CreateClientFileHeader`, client queries,
+  socket events) and let internal flows look rows up in an explicit system context. Needed before Chat,
+  whose peers edit and delete what they sent.
+- **Who reads the transient drive.** Its staged deposits reach any caller with Read there, so one app
+  with transit sees another's staged deposit (the sealed key header and plain metadata, such as a gated
+  shard's hashed recovery email). As before step 2; narrowing it needs knowing which app wrote a file.
+
+- **odin-js layering.** `core/DriveData/SecurityHelpers` imports `zkUnseal` from `auth/providers/ZeroKnowledgeKeys`
+  (no import cycle). Moving the seal helpers to `helpers/` would take `EccKeyProvider` and the lock helpers
+  with them; left for when another core module needs them.
 - **System APIs and the read rule (from step 2's /simplify).** The Shamir lookup skips the query and its
   read rule (`GetServerFileHeaderByClientUniqueIdSkippingFileAcl`), then re-applies what the query filtered
   (expiry, the file type) by hand. The deeper fix is a read rule that knows "a system API acting for the

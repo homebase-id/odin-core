@@ -30,6 +30,23 @@ public static class DriveFileUtility
 
 
     /// <summary>
+    /// A stored aes key header, opened with the drive's storage key the caller holds; the copy of the storage
+    /// key is wiped.  Not for a client-locked one, which the server can't open (<see cref="ZkDriveFiles.IsClientLocked"/>).
+    /// </summary>
+    public static KeyHeader OpenWithStorageKey(ServerFileHeader header, IOdinContext odinContext)
+    {
+        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+        try
+        {
+            return header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        }
+        finally
+        {
+            storageKey.Wipe();
+        }
+    }
+
+    /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
     public static SharedSecretEncryptedFileHeader CreateClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
@@ -51,7 +68,7 @@ public static class DriveFileUtility
         }
         else if (header.FileMetadata.IsEncrypted)
         {
-            var keyHeader = Deposits.OpenWithDriveKey(header, odinContext);
+            var keyHeader = OpenWithStorageKey(header, odinContext);
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             sharedSecretEncryptedKeyHeader =
                 EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
@@ -125,7 +142,7 @@ public static class DriveFileUtility
 
         if (header.FileMetadata.IsEncrypted)
         {
-            var keyHeader = Deposits.OpenWithDriveKey(header, odinContext);
+            var keyHeader = OpenWithStorageKey(header, odinContext);
             // The design is such that the client uses a different iv for each payload but the same aesKey;
 
             if (payloadDescriptor.Iv == null)

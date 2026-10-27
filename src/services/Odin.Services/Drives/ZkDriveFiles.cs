@@ -118,10 +118,16 @@ public static class ZkDriveFiles
     /// holding the drive's key, whatever else it holds (a grant from before the drive was converted still
     /// carries the old key; an app that can't open a sealed or zkDrive key header stalls on it), and the
     /// system's jobs (a file's TTL, the outbox).  On the transient drive a deposit is only staged to be
-    /// sent, by whoever wrote it, and reaches any caller there (an app sends its own).  Says nothing about
-    /// any other file.  Every read and write of a stored header asks this, by query, socket or id, as part of
-    /// <see cref="Authorization.Acl.IDriveAclAuthorizationService.CallerMayReadAsync"/>.
+    /// sent, and reaches any caller with Read there, not only its writer (an app sends its own; another app
+    /// with transit sees the sealed header and plain metadata, as every reader of a deposit did before step
+    /// 2).  Says nothing about any other file.  Every read and write of a stored header asks this, by query,
+    /// socket or id, as part of <see cref="Authorization.Acl.IDriveAclAuthorizationService.CallerMayReadAsync"/>.
     /// </summary>
+    /// <remarks>
+    /// It also gates the server's own lookups made in a caller's context, such as an inbox drained by an app:
+    /// those miss a client-locked file.  Hiding it where responses are built instead is the deeper fix
+    /// (docs/zero-knowledge-drive-api-plan.md, "Open from step 2's review").
+    /// </remarks>
     public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
         !IsClientLocked(header) || SystemDriveConstants.IsTransientTempDrive(header!.FileMetadata.File.DriveId) ||
         CallerHoldsDriveKey(odinContext) || odinContext.Caller?.IsSystem == true;
