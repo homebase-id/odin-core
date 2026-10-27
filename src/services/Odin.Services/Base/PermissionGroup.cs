@@ -156,7 +156,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         return _encryptedIcrKey?.DecryptKeyClone(key);
     }
 
-    public RedactedPermissionGroup Redacted(IReadOnlyDictionary<Guid, ZkAppDriveKey> zkDriveKeys = null)
+    public RedactedPermissionGroup Redacted(IReadOnlyDictionary<Guid, ZkAppDriveKey>? zkDriveKeys = null)
     {
         if (null == _permissionSet)
         {

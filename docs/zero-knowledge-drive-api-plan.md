@@ -1,6 +1,6 @@
 # Zero-knowledge drive API: plan
 
-Status: step 1 built and merged (#2023, follow-up #2027). Step 2 merged (#2029, odin-js #1006, 2026-10-27). Step 3 (Vault) agreed 2026-10-27, building on branch `zk-drive-step-3`. It details items 1-3 and 6 of
+Status: step 1 built and merged (#2023, follow-up #2027). Step 2 merged (#2029, odin-js #1006, 2026-10-27). Step 3 (Vault) built 2026-10-27 on branch `zk-drive-step-3` (odin-core and odin-js), not yet pushed. It details items 1-3 and 6 of
 "odin-core API changes" in [zero-knowledge-drives.md](zero-knowledge-drives.md). Key names follow
 [owner-keys.md](owner-keys.md).
 
@@ -368,7 +368,7 @@ bytes) **(V, measured)**:
 
 ## Step 3: Vault goes private
 
-Status: agreed 2026-10-27, building on branch `zk-drive-step-3`. **(V)** = read in code on 2026-10-27; **(I)** = inferred, to
+Status: built 2026-10-27 on branch `zk-drive-step-3` (odin-core and odin-js); chat-kmp built in parallel on its branch `vault-zero-knowledge`. **(V)** = read in code on 2026-10-27; **(I)** = inferred, to
 check while building. Decided with the user:
 - keep the drive key, re-locked from the master key to the zero-knowledge master key (no new key, no
   re-encryption); anything else is too complex for now;
@@ -543,7 +543,13 @@ Names are proposals until the server PR; the shapes are what the clients build a
    as stored (`zkDrive`, or `sealed`), and payload responses carry no packed key header: the client opens
    payloads with FileKey and the payload's IV (`payloads[].iv`).
 
-**Server, besides the contract:**
+**Server, besides the contract** (as built: owner endpoints under `security/zk`):
+- `GET app-keys`: every app with its `EncAppZkK` and every drive it is granted (`isZeroKnowledge`, the drive's
+  `aes(ZKMK, DrvK)` on a zero-knowledge one, `hasAppCopy`), so the browser knows which apps need a copy before it
+  converts a drive; `POST app-keys`: the backfill (refuses replacing an app's key, a drive not granted, a drive
+  not zero knowledge);
+- `GET drives/{driveId}/key-for-conversion` and `POST convert-drive` (3.3).
+
 - consent takes the sealed `AppZkK` from the browser, with any backfilled `EncAppZkK` and locked drive keys
   (3.2), and the token exchange carries it and marks the device;
 - the consent page's read: the app's `EncAppZkK`, and its granted zero-knowledge drives with their
