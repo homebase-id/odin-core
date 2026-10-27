@@ -3,8 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
@@ -70,6 +72,7 @@ public class ZkDriveConversionService(
         {
             // In the transaction, which reads past the drive cache: a second conversion at once finds it converted
             drive = await GetConvertibleDriveAsync(request.DriveId);
+            AssertLockedWithTheDriveKey(request, odinContext.PermissionsContext.GetDriveStorageKey(drive.Id));
 
             await driveManager.ApplyZeroKnowledgeKeysKeepingKeyAsync(drive.Id, request.ZkMasterKeyEncryptedStorageKey,
                 writeOnlyPublicKey, request.ZkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
@@ -120,6 +123,34 @@ public class ZkDriveConversionService(
         }
 
         return relabelled.Count;
+    }
+
+    /// <summary>
+    /// The server's last check before a conversion with no way back: the browser locked the new write-only private key
+    /// with the drive key it was handed, which the server still holds, and it is the private half of the new public
+    /// key.  A browser that locked another key would leave the drive unreadable.  The copies locked with the
+    /// zero-knowledge master key and the apps' keys can't be checked: the server opens neither.
+    /// </summary>
+    private static void AssertLockedWithTheDriveKey(ZkConvertDriveKeepingKeyRequest request, SensitiveByteArray driveKey)
+    {
+        try
+        {
+            var locked = request.ZkStorageKeyEncryptedWriteOnlyPrivateKey.FromBase64();
+            var privateKeyPkcs8 = Odin.Core.Cryptography.Crypto.AesGcm.Decrypt(locked[12..], driveKey, locked[..12]);
+            using var ecdh = ECDiffieHellman.Create();
+            ecdh.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
+            var point = ecdh.ExportParameters(false).Q;
+            if (ByteArrayUtil.Combine([0x04], point.X!, point.Y!).SequenceEqual(ZkSeal.RawPublicKey(request.WriteOnlyPublicKeyJwk)))
+            {
+                return;
+            }
+        }
+        catch (CryptographicException)
+        {
+            // falls through to the refusal
+        }
+
+        throw new OdinClientException("The new write-only key isn't locked with the drive's key", OdinClientErrorCode.ArgumentError);
     }
 
     /// <summary>Vault, not yet zero knowledge: the one drive converted this way for now (plan 3.7).</summary>

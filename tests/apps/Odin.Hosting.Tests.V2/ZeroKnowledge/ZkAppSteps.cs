@@ -108,9 +108,11 @@ internal static class ZkAppSteps
         return (appKey, ZkBrowser.Lock(appKey, zkMasterKey));
     }
 
-    public static YouAuthAuthorizeRequest SignInRequest(Guid appId, YouAuthFlow.KeyPair keyPair, bool wantsZkAppKey = true) => new()
+    /// <param name="clientId">The app's id (the default) or its slug, as chat-kmp names it</param>
+    public static YouAuthAuthorizeRequest SignInRequest(Guid appId, YouAuthFlow.KeyPair keyPair, bool wantsZkAppKey = true,
+        string? clientId = null) => new()
     {
-        ClientId = appId.ToString(),
+        ClientId = clientId ?? appId.ToString(),
         ClientType = ClientType.app,
         PermissionRequest = OdinSystemSerializer.Serialize(new YouAuthAppParameters
         {
@@ -132,10 +134,11 @@ internal static class ZkAppSteps
     /// opens (or makes) the app's key, backfills the copy of each zero-knowledge drive the app is granted that has none,
     /// and seals the key to the sign-in's public key.  Returns the new device's session and the key it opened.
     /// </summary>
-    public static async Task<(AppSession Device, byte[] AppKey)> SignInAsync(OwnerSession owner, Guid appId, byte[] zkMasterKey)
+    public static async Task<(AppSession Device, byte[] AppKey)> SignInAsync(OwnerSession owner, Guid appId, byte[] zkMasterKey,
+        string? clientId = null)
     {
         var keyPair = YouAuthFlow.NewKeyPair();
-        var request = SignInRequest(appId, keyPair);
+        var request = SignInRequest(appId, keyPair, clientId: clientId);
 
         var returnUrl = YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(owner.Host, owner, request));
         Assert.That(returnUrl.WantsZkAppKey, Is.True, "the consent page sees what the app asked for");

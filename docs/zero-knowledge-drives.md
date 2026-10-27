@@ -374,8 +374,10 @@ drive key with MK, the browser locks it with ZK, and the MK copy is deleted (see
   authorize request itself and redirects straight back to the app (`YouAuthUnifiedService.NeedConsent`,
   `YouAuthUnifiedController`) **(V)**. They are short-circuited on purpose: they are apps we
   trust, and it keeps sign-in smooth.
-- New: the server sends them to the consent page anyway. The page shows nothing and needs no
-  click: it runs steps 1–4 and continues on its own. The user sees one extra redirect.
+- New: an app that asks for its zero-knowledge key (`zk_app_key=1`) goes to the consent page anyway
+  (`NeedConsent`) **(V)**. As built, the page shows the usual consent form and needs a click; it seals
+  the key meanwhile, and the Login button waits for it **(V)**. A page that continues on its own is
+  possible later.
 - It has to pass through the page because only the browser holds the ZK master key. A redirect
   from the server alone has no keys to hand over.
 

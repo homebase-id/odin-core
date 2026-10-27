@@ -290,7 +290,7 @@ public class VaultConversionTests : V2Fixture
             AppId = app.AppId,
             ZkAppKeyEncryptedStorageKeys = { [VaultId] = locked }
         });
-        Assert.That(notZk.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), notZk.Error?.Content);
+        Assert.That(notZk.Error?.Content, Does.Contain(nameof(OdinClientErrorCode.ZkDriveNotGrantedToApp)).IgnoreCase);
     }
 
     [Test]
@@ -337,17 +337,49 @@ public class VaultConversionTests : V2Fixture
         var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Read);
         var client = ZkOwnerSteps.Client(frodo);
 
+        // Refused before the request is read (the response comes back encrypted, so only its status is checked here)
         var noCopies = await client.SaveAppKeys(new ZkAppKeysRequest { AppId = app.AppId, ZkAppKeyEncryptedStorageKeys = null! });
         Assert.That(noCopies.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), noCopies.Error?.Content);
 
         var (request, _) = await MakeConversionAsync(frodo, zkMasterKey);
         request.Apps.Add(request.Apps.Single(a => a.AppId == app.AppId));
-        var twice = await client.ConvertDrive(request);
-        Assert.That(twice.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), twice.Error?.Content);
+        AssertArgumentError(await client.ConvertDrive(request));
 
         request.Apps = null!;
         var noApps = await client.ConvertDrive(request);
         Assert.That(noApps.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), noApps.Error?.Content);
+    }
+
+    [Test]
+    public async Task AConversionWhoseWriteOnlyKeyIsntLockedWithTheDriveKeyIsRefused()
+    {
+        // The server still holds the drive key: the one thing it can check before there is no way back
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (request, converted) = await MakeConversionAsync(frodo, zkMasterKey);
+        request.ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(converted.WriteOnlyPrivateKey, ByteArrayUtil.GetRndByteArray(16));
+        AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
+
+        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == Vault);
+        Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Collaborative), "nothing happened");
+
+        // Nor a write-only key whose public half isn't the one sent
+        (request, converted) = await MakeConversionAsync(frodo, zkMasterKey);
+        request.WriteOnlyPublicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk;
+        AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
+    }
+
+    [Test]
+    public async Task ADeviceSignsInByTheAppsSlugAsChatKmpDoes()
+    {
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Read);
+        var converted = await ConvertVaultAsync(frodo, zkMasterKey);
+        var slug = (await GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId).AppSlug;
+
+        var (device, appKey) = await SignInAsync(frodo, app.AppId, zkMasterKey, clientId: slug);
+
+        Assert.That(appKey, Is.EqualTo(converted.AppKeys[app.AppId]));
+        Assert.That(ZkBrowser.Open((await GrantOnAsync(device, Vault)).ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(converted.DriveKey));
     }
 
     [Test]
@@ -368,11 +400,16 @@ public class VaultConversionTests : V2Fixture
         var (request, converted) = await MakeConversionAsync(frodo, zkMasterKey);
         request.Apps.Single(a => a.AppId == app.AppId).ZkAppKeyEncryptedStorageKeys[WellKnownAppDrives.ShardRecoveryDrive.Alias.Value] =
             ZkBrowser.Lock(ByteArrayUtil.GetRndByteArray(16), converted.AppKeys[app.AppId]);
-        var response = await ZkOwnerSteps.Client(frodo).ConvertDrive(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
+        AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
     }
 
     //
+
+    private static void AssertArgumentError(Refit.IApiResponse response)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
+        Assert.That(response.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.ArgumentError)).IgnoreCase);
+    }
 
     private static async Task UpdateVaultPermissionAsync(OwnerSession owner, Guid appId, DrivePermission? permission)
     {
