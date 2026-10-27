@@ -31,7 +31,7 @@ public class VaultConversionConnectionTests : V2Fixture
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
 
         var send = await frodo.Connections.SendConnectionRequest(sam.Identity, [BuiltinCircles.VaultCircle.Id]);
-        Assert.That(send.IsSuccessStatusCode, Is.True, "arrange: sending the request");
+        Assert.That(send.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"arrange: sending the request: {send.Error?.Content}");
 
         if (convertWhileTheRequestIsPending)
         {
@@ -39,7 +39,7 @@ public class VaultConversionConnectionTests : V2Fixture
         }
 
         var accept = await sam.Connections.AcceptConnectionRequest(frodo.Identity);
-        Assert.That(accept.IsSuccessStatusCode, Is.True, "arrange: accepting the request");
+        Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"arrange: accepting the request: {accept.Error?.Content}");
 
         if (!convertWhileTheRequestIsPending)
         {

@@ -492,6 +492,31 @@ public class TableDriveMainIndex(
 
 
     /// <summary>
+    /// Each file's id, version tag and key header on a drive, deleted files included; for relabelling key headers
+    /// when a drive goes zero knowledge, without reading every row whole.
+    /// </summary>
+    internal async Task<List<(Guid FileId, Guid VersionTag, string EncryptedKeyHeader)>> GetKeyHeadersByDriveIdAsync(Guid driveId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText =
+            "SELECT fileId, hdrVersionTag, hdrEncryptedKeyHeader FROM drivemainindex WHERE identityId = @identityId AND driveId = @driveId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+
+        var result = new List<(Guid, Guid, string)>();
+        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
+        while (await rdr.ReadAsync())
+        {
+            result.Add((new Guid((byte[])rdr[0]), new Guid((byte[])rdr[1]), (string)rdr[2]));
+        }
+
+        return result;
+    }
+
+
+    /// <summary>
     /// Sets only the key header of a file still at <paramref name="versionTag"/>: version tag and modified stay as they
     /// are.  For relabelling key headers when a drive goes zero knowledge.  0 when the file moved on (or is gone).
     /// </summary>

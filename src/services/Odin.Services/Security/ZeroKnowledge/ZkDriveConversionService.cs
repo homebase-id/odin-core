@@ -62,12 +62,15 @@ public class ZkDriveConversionService(
         odinContext.Caller.AssertHasMasterKey();
         request.Validate();
 
-        var drive = await GetConvertibleDriveAsync(request.DriveId);
         var writeOnlyPublicKey = DriveWriteOnlyKey.FromPublicKeyJwk(request.WriteOnlyPublicKeyJwk);
 
         int relabelled;
+        StorageDrive drive;
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
+            // In the transaction, which reads past the drive cache: a second conversion at once finds it converted
+            drive = await GetConvertibleDriveAsync(request.DriveId);
+
             await driveManager.ApplyZeroKnowledgeKeysKeepingKeyAsync(drive.Id, request.ZkMasterKeyEncryptedStorageKey,
                 writeOnlyPublicKey, request.ZkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
 
@@ -97,16 +100,16 @@ public class ZkDriveConversionService(
     private async Task<int> RelabelKeyHeadersAsync(Guid driveId)
     {
         var relabelled = new List<(Guid, Guid, string)>();
-        foreach (var record in await driveMainIndex.GetAllByDriveIdAsync(driveId))
+        foreach (var (fileId, versionTag, encryptedKeyHeader) in await driveMainIndex.GetKeyHeadersByDriveIdAsync(driveId))
         {
-            var keyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(record.hdrEncryptedKeyHeader);
+            var keyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(encryptedKeyHeader);
             if (keyHeader is not { Type: EncryptionType.Aes } || !keyHeader.HasZkDriveShape())
             {
                 continue;
             }
 
             keyHeader.Type = EncryptionType.ZkDrive;
-            relabelled.Add((record.fileId, record.hdrVersionTag, OdinSystemSerializer.Serialize(keyHeader)));
+            relabelled.Add((fileId, versionTag, OdinSystemSerializer.Serialize(keyHeader)));
         }
 
         var moved = await driveMainIndex.UpdateEncryptedKeyHeadersAsync(driveId, relabelled);
@@ -174,6 +177,11 @@ public sealed class ZkConvertDriveKeepingKeyRequest
 
         foreach (var app in Apps)
         {
+            if (app == null)
+            {
+                throw new OdinClientException($"{nameof(Apps)} holds an empty entry", OdinClientErrorCode.ArgumentError);
+            }
+
             app.Validate();
         }
 

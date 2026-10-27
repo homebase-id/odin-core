@@ -267,6 +267,10 @@ public class TableDriveMainIndexCached : AbstractTableCaching
         return result;
     }
 
+    // For relabelling key headers when a drive goes zero knowledge (ZkDriveConversionService); not cached
+    public Task<List<(Guid FileId, Guid VersionTag, string EncryptedKeyHeader)>> GetKeyHeadersByDriveIdAsync(Guid driveId) =>
+        _table.GetKeyHeadersByDriveIdAsync(driveId);
+
     // For relabelling key headers when a drive goes zero knowledge (ZkDriveConversionService): sets only the key
     // header, of each file still at the version tag it was read at, leaving version tag and modified as they are;
     // returns the files that had moved on.  Invalidates the drive once.

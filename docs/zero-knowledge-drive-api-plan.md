@@ -478,12 +478,17 @@ granted the drive. In one transaction:
 - **Every encrypted file's key header becomes `zkDrive`.** A stored `aes` header is `aes(DrvK, IV ‖ FileKey)`,
   locked with this drive's key (`EncryptKeyHeader`) **(V)**, and version 1 of `zkDrive` is the same 48 bytes
   (decision 3) **(V)**. So conversion only changes the type, and nothing is opened.
-  - Per row through `DriveMainIndexCached.RawUpdateAsync`, which writes the record's own version tag and
-    leaves `modified` alone, so no version tag moves and no client resyncs, as for the transform (2.5)
-    **(V)**. The defragmenter uses it the same way **(V)**.
-  - Decided by the IV, not by `IsEncrypted`: an unencrypted file stores `EncryptedKeyHeader.Empty()`,
-    type `aes` with a zero IV, which stays as is; a deleted file's tombstone keeps its real key header but
-    not `IsEncrypted`, and is relabelled **(V)**.
+  - As built: per file, only the key header column (`TableDriveMainIndex.UpdateEncryptedKeyHeaderAsync`),
+    guarded by the version tag the conversion read; the version tag and `modified` stay, so no client
+    resyncs, as for the transform (2.5). A file updated in between fails the conversion
+    (`VersionTagMismatch`), and the owner retries.
+  - Decided by the header's shape (`EncryptedKeyHeader.HasZkDriveShape`, the check every `zkDrive` write
+    passes), not by `IsEncrypted`: an unencrypted file stores `EncryptedKeyHeader.Empty()`, type `aes` with
+    a zero IV, which stays as is; a deleted file's tombstone keeps its real key header but not
+    `IsEncrypted`, and is relabelled **(V)**.
+  - Accepted, narrow: a file *added* while the conversion commits (an upload that read the drive key just
+    before, or a queued transfer) can still land as `aes`, which nobody then opens (I). Vault takes no
+    transfers today; the owner converts from the console, with the apps otherwise idle.
   - An unencrypted file on the drive stays readable by the server. Vault encrypts its uploads (I: check
     chat-kmp).
 - **Refused** if the drive is already zero knowledge, or isn't Vault (3.7).
