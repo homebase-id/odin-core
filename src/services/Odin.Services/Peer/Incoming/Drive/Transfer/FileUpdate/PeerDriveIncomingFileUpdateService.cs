@@ -57,8 +57,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var driveId = transferInstructionSet.Request.File.TargetDrive.Alias;
 
             // Before anything is staged or the sender is told it was accepted into the inbox
-            ZkDriveFiles.AssertPeerMayWrite(await driveManager.GetDriveAsync(driveId, failIfInvalid: true), fileMetadata.IsEncrypted,
-                transferInstructionSet.EncryptedKeyHeader);
+            if (fileMetadata.IsEncrypted)
+            {
+                var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
+                ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.EncryptedKeyHeader);
+            }
 
             _isDirectWrite = await CanDirectWriteFile(driveId, fileMetadata, transferInstructionSet.FileSystemType, odinContext);
 

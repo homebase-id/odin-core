@@ -61,6 +61,15 @@ public static class Deposits
         }
     }
 
+    /// <summary>Refuses payloads added with a sealed key header, as <see cref="AssertValid"/> does for a new deposit.</summary>
+    public static void AssertTakesNoPayloads(KeyHeader keyHeader, bool addsPayloads)
+    {
+        if (addsPayloads && keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed })
+        {
+            ThrowCarriesNoPayloads();
+        }
+    }
+
     /// <summary>Refuses payloads for a stored deposit, as <see cref="AssertValid"/> does for a new one.</summary>
     public static void AssertTakesNoPayloads(ServerFileHeader existingHeader)
     {
@@ -70,7 +79,7 @@ public static class Deposits
         }
     }
 
-    internal static void ThrowCarriesNoPayloads() =>
+    private static void ThrowCarriesNoPayloads() =>
         throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
 
     /// <summary>

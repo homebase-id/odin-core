@@ -71,8 +71,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 Deposits.AssertValid(metadata, transferInstructionSet.SharedSecretEncryptedKeyHeader);
             }
 
-            ZkDriveFiles.AssertPeerMayWrite(await driveManager.GetDriveAsync(driveId, failIfInvalid: true), metadata.IsEncrypted,
-                transferInstructionSet.SharedSecretEncryptedKeyHeader);
+            if (metadata.IsEncrypted)
+            {
+                var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
+                ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.SharedSecretEncryptedKeyHeader);
+            }
 
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
 

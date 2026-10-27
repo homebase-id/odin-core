@@ -167,6 +167,7 @@ public enum OdinClientErrorCode
 
     // Deposits on zero-knowledge drives, and recovery with friends (docs/zero-knowledge-recovery-plan.md)
     DepositNeedsZeroKnowledgeDrive = 9018,
+    /// <summary>A sealed key header replaces only a sealed one (ZkDriveFiles.AssertMayReplace); the name predates that rule.</summary>
     DepositCannotBeUpdated = 9019,
     ShardHolderNotZeroKnowledge = 9020,
     AutomaticShardsReachThreshold = 9021,

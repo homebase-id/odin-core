@@ -254,8 +254,9 @@ public class DepositTests : V2Fixture
         var (otherKey, otherSealed) = ZkBrowser.SealNewFileKey(publicKeyJwk);
         var replacement = Metadata(Guid.NewGuid());
         replacement.VersionTag = staged.Content!.NewVersionTag;
-        var overwrite = await frodo.V1.Drive.OverwriteWithLockedKeyHeader(SystemDriveConstants.TransientTempDrive, replacement,
-            staged.Content.FileId, otherKey, otherSealed);
+        var (overwrite, _) = await frodo.V1.Drive.UploadNewEncryptedMetadata(replacement,
+            new StorageOptions { Drive = SystemDriveConstants.TransientTempDrive, OverwriteFileId = staged.Content.FileId },
+            new TransitOptions(), otherKey, lockedKeyHeader: otherSealed);
 
         if (existingIsADeposit)
         {

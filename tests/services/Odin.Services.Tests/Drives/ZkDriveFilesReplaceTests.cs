@@ -41,9 +41,9 @@ public class ZkDriveFilesReplaceTests
     [Test]
     public void ASealedReplacementCarriesNoPayloads()
     {
-        var e = Assert.Throws<OdinClientException>(() =>
-            ZkDriveFiles.AssertMayReplace(Encrypted(EncryptionType.Sealed), Sealed(), addsPayloads: true));
+        var e = Assert.Throws<OdinClientException>(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: true));
         Assert.That(e!.ErrorCode, Is.EqualTo(OdinClientErrorCode.InvalidPayload));
+        Assert.DoesNotThrow(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: false));
     }
 
     [TestCase(EncryptionType.Sealed, TestName = "AZkDriveKeyHeaderMayReplaceASealedOne")]

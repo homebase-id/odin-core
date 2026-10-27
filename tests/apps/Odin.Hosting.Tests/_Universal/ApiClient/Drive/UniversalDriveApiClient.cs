@@ -50,37 +50,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         return await this.UploadNewMetadata(targetDrive, fileMetadata, transitOptions, fileSystemType);
     }
 
-    /// <summary>
-    /// A full overwrite (NewFileOrOverwrite) of <paramref name="overwriteFileId"/> with an encrypted file whose key header
-    /// a client locked (<paramref name="lockedKeyHeader"/>: sealed or zkDrive), sent as it is; the content is encrypted
-    /// under <paramref name="fileKey"/>.
-    /// </summary>
-    public async Task<ApiResponse<UploadResult>> OverwriteWithLockedKeyHeader(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
-        Guid overwriteFileId, KeyHeader fileKey, EncryptedKeyHeader lockedKeyHeader)
-    {
-        var instructionSet = new UploadInstructionSet
-        {
-            TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            StorageOptions = new() { Drive = targetDrive, OverwriteFileId = overwriteFileId },
-            TransitOptions = new TransitOptions()
-        };
-
-        var client = factory.CreateHttpClient(identity, out var sharedSecret);
-        fileMetadata.IsEncrypted = true;
-        fileMetadata.AppData.Content = fileKey.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
-        var descriptor = new UploadFileDescriptor { EncryptedKeyHeader = lockedKeyHeader, FileMetadata = fileMetadata };
-
-        List<StreamPart> parts =
-        [
-            new(new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray()), "instructionSet.encrypted",
-                "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-            new(TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret), "fileDescriptor.encrypted",
-                "application/json", Enum.GetName(MultipartUploadParts.Metadata))
-        ];
-
-        return await RestService.For<IUniversalDriveHttpClientApi>(client).UploadStream(parts.ToArray());
-    }
-
     /// <param name="overwriteFileId">The file to overwrite (NewFileOrOverwrite); none for a new file</param>
     public async Task<ApiResponse<UploadResult>> UploadNewMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
@@ -252,7 +221,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         StorageOptions storageOptions,
         TransitOptions transitOptions,
         KeyHeader keyHeader = null,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard,
+        EncryptedKeyHeader lockedKeyHeader = null)
     {
         bool wipeKeyHeader = false;
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -279,7 +249,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
+                // A key header a client locked (sealed, zkDrive) goes as it is; otherwise locked with the shared secret
+                EncryptedKeyHeader = lockedKeyHeader ?? EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata
             };
 
