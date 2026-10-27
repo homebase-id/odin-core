@@ -206,4 +206,10 @@ public class YouAuthAuthorizeConsentGiven
 
     /// <summary>The app's zero-knowledge key, sealed by the browser to the sign-in's public key, when the app asked for it.</summary>
     public const string SealedZkAppKeyName = "zk_app_key_sealed";
+
+    /// <summary>
+    /// The app's key locked with the zero-knowledge master key, as the browser opened (or made) it to seal: the server
+    /// checks it is still the app's key, so the device isn't handed one a concurrent sign-in replaced.
+    /// </summary>
+    public const string LockedZkAppKeyName = "zk_app_key_locked";
 }

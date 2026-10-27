@@ -285,7 +285,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             [FromForm(Name = YouAuthAuthorizeConsentGiven.ConsentRequirementName)]
             string consentRequirementJson,
             [FromForm(Name = YouAuthAuthorizeConsentGiven.SealedZkAppKeyName)]
-            string? sealedZkAppKey = null)
+            string? sealedZkAppKey = null,
+            [FromForm(Name = YouAuthAuthorizeConsentGiven.LockedZkAppKeyName)]
+            string? lockedZkAppKey = null)
         {
             //
             // YouAuth [055] Give consent and redirect back
@@ -334,12 +336,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
             if (authorize.WantsZkAppKey)
             {
-                if (string.IsNullOrEmpty(sealedZkAppKey))
+                if (string.IsNullOrEmpty(sealedZkAppKey) || string.IsNullOrEmpty(lockedZkAppKey))
                 {
-                    throw new BadRequestException($"Missing {YouAuthAuthorizeConsentGiven.SealedZkAppKeyName}: the app asked for its zero-knowledge key");
+                    throw new BadRequestException($"Missing {YouAuthAuthorizeConsentGiven.SealedZkAppKeyName} or " +
+                                                  $"{YouAuthAuthorizeConsentGiven.LockedZkAppKeyName}: the app asked for its zero-knowledge key");
                 }
 
-                await _youAuthService.StoreSealedZkAppKeyAsync(authorize.ClientId, authorize.PublicKey, sealedZkAppKey, WebOdinContext);
+                await _youAuthService.StoreSealedZkAppKeyAsync(authorize.ClientId, authorize.PublicKey, sealedZkAppKey, lockedZkAppKey,
+                    WebOdinContext);
             }
 
             await _youAuthService.StoreConsentAsync(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext);

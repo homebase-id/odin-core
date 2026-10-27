@@ -60,7 +60,13 @@ public sealed class ZkAppKeysRequest
             ZkBlob.AssertLocked(ZkMasterKeyEncryptedAppKey, nameof(ZkMasterKeyEncryptedAppKey), maxLength: 1024);
         }
 
-        foreach (var (driveId, locked) in ZkAppKeyEncryptedStorageKeys ?? [])
+        if (ZkAppKeyEncryptedStorageKeys == null)
+        {
+            throw new OdinClientException($"{nameof(ZkAppKeyEncryptedStorageKeys)} is required (empty for none)",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        foreach (var (driveId, locked) in ZkAppKeyEncryptedStorageKeys)
         {
             ZkBlob.AssertLocked(locked, $"{nameof(ZkAppKeyEncryptedStorageKeys)}[{driveId}]", maxLength: 1024);
         }

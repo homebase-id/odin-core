@@ -97,7 +97,7 @@ public class ZkDriveConversionService(
     /// </summary>
     private async Task<int> RelabelKeyHeadersAsync(Guid driveId)
     {
-        var count = 0;
+        var relabelled = new List<DriveMainIndexRecord>();
         foreach (var record in await driveMainIndex.GetAllByDriveIdAsync(driveId))
         {
             var keyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(record.hdrEncryptedKeyHeader);
@@ -108,11 +108,11 @@ public class ZkDriveConversionService(
 
             keyHeader.Type = EncryptionType.ZkDrive;
             record.hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(keyHeader);
-            await driveMainIndex.RawUpdateAsync(record);
-            count++;
+            relabelled.Add(record);
         }
 
-        return count;
+        await driveMainIndex.RawUpdateAllAsync(driveId, relabelled);
+        return relabelled.Count;
     }
 
     /// <summary>Vault, not yet zero knowledge: the one drive converted this way for now (plan 3.7).</summary>
@@ -164,9 +164,19 @@ public sealed class ZkConvertDriveKeepingKeyRequest
         ZkBlob.AssertLocked(ZkMasterKeyEncryptedStorageKey, nameof(ZkMasterKeyEncryptedStorageKey), maxLength: 1024);
         ZkBlob.AssertLocked(ZkStorageKeyEncryptedWriteOnlyPrivateKey, nameof(ZkStorageKeyEncryptedWriteOnlyPrivateKey), maxLength: 4096);
         ZkBlob.AssertPublicKey(WriteOnlyPublicKeyJwk, nameof(WriteOnlyPublicKeyJwk));
-        foreach (var app in Apps ?? [])
+        if (Apps == null)
+        {
+            throw new OdinClientException($"{nameof(Apps)} is required (empty for none)", OdinClientErrorCode.ArgumentError);
+        }
+
+        foreach (var app in Apps)
         {
             app.Validate();
+        }
+
+        if (Apps.Select(a => a.AppId).Distinct().Count() != Apps.Count)
+        {
+            throw new OdinClientException("Each app appears once", OdinClientErrorCode.ArgumentError);
         }
     }
 }

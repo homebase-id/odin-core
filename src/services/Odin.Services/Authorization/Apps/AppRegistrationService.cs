@@ -209,7 +209,7 @@ namespace Odin.Services.Authorization.Apps
         }
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName,
-            IOdinContext odinContext, bool holdsZkAppKey = false)
+            IOdinContext odinContext, string? zkAppKeyId = null)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -225,7 +225,7 @@ namespace Odin.Services.Authorization.Apps
 
             var appClient = new AppClientRegistration(odinContext.Tenant, appId, friendlyName, accessRegistration)
             {
-                HoldsZkAppKey = holdsZkAppKey
+                ZkAppKeyId = zkAppKeyId
             };
             await SaveClientAsync(appClient);
             return (cat, appReg.CorsHostName);
@@ -315,7 +315,8 @@ namespace Odin.Services.Authorization.Apps
                             AppId = appReg.AppId,
                             DevicePushNotificationKey = null,
                             ZkDriveKeys = await GetZkDriveKeysAsync(appReg),
-                            HoldsZkAppKey = appClient.HoldsZkAppKey
+                            HoldsZkAppKey = appClient.ZkAppKeyId != null &&
+                                            appClient.ZkAppKeyId == AppRegistration.ZkAppKeyId(appReg.ZkMasterKeyEncryptedAppKey)
                         })
                 };
 
@@ -375,7 +376,7 @@ namespace Odin.Services.Authorization.Apps
             }
 
             var keys = new Dictionary<Guid, ZkAppDriveKey>();
-            foreach (var driveId in GrantedDriveIds(appReg))
+            foreach (var driveId in KeyedDriveIds(appReg))
             {
                 if (copies.TryGetValue(driveId, out var locked) &&
                     await driveManager.GetDriveAsync(driveId) is { IsZeroKnowledge: true } drive)
@@ -387,8 +388,23 @@ namespace Odin.Services.Authorization.Apps
             return keys.Count > 0 ? keys : null;
         }
 
-        private static IEnumerable<Guid> GrantedDriveIds(AppRegistration appReg) =>
-            appReg.AppKeyStore?.DriveGrants?.Select(g => g.DriveId).Distinct() ?? [];
+        /// <summary>
+        /// The drives whose key the app holds a copy of once they are zero knowledge: those it is granted reading, as
+        /// <see cref="StorageDrive.PermissionNeedsKey"/> says.  Only writing deposits (sealed to the drive's public key).
+        /// </summary>
+        private static IEnumerable<Guid> KeyedDriveIds(AppRegistration appReg) =>
+            appReg.AppKeyStore?.DriveGrants?
+                .Where(g => StorageDrive.PermissionNeedsKey(g.PermissionedDrive.Permission))
+                .Select(g => g.DriveId).Distinct() ?? [];
+
+        /// <summary>The id of the app's zero-knowledge key, which the consent page checks the key it sealed against.</summary>
+        public async Task<string?> GetZkAppKeyIdAsync(GuidId appId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            var appReg = await GetAppRegistrationInternalAsync(appId)
+                         ?? throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
+            return AppRegistration.ZkAppKeyId(appReg.ZkMasterKeyEncryptedAppKey);
+        }
 
         //
 
@@ -400,7 +416,7 @@ namespace Odin.Services.Authorization.Apps
             foreach (var appReg in await GetAllAppRegistrationsInternalAsync())
             {
                 var drives = new List<ZkAppDrive>();
-                foreach (var driveId in GrantedDriveIds(appReg))
+                foreach (var driveId in KeyedDriveIds(appReg))
                 {
                     if (await driveManager.GetDriveAsync(driveId) is { } drive)
                     {
@@ -460,7 +476,7 @@ namespace Odin.Services.Authorization.Apps
             var byApp = requests.ToDictionary(r => r.AppId);
             foreach (var appReg in await GetAllAppRegistrationsInternalAsync())
             {
-                if (!GrantedDriveIds(appReg).Contains(driveId))
+                if (!KeyedDriveIds(appReg).Contains(driveId))
                 {
                     continue;
                 }
@@ -471,7 +487,13 @@ namespace Odin.Services.Authorization.Apps
                         OdinClientErrorCode.ZkAppKeyMissing);
                 }
 
-                request.Validate();
+                // Only the drive being converted: any other drive's copy goes through SaveZkAppKeysAsync, which checks
+                // the drive is zero knowledge
+                if (request.ZkAppKeyEncryptedStorageKeys.Count != 1)
+                {
+                    throw new OdinClientException($"A conversion carries only the copy of drive {driveId}", OdinClientErrorCode.ArgumentError);
+                }
+
                 ApplyZkAppKeys(appReg, request);
                 await SaveAsync(appReg);
             }
@@ -512,7 +534,7 @@ namespace Odin.Services.Authorization.Apps
                     OdinClientErrorCode.ZkAppKeyMissing);
             }
 
-            var granted = GrantedDriveIds(appReg).ToHashSet();
+            var granted = KeyedDriveIds(appReg).ToHashSet();
             appReg.ZkAppKeyEncryptedStorageKeys ??= new Dictionary<Guid, string>();
             foreach (var (driveId, locked) in request.ZkAppKeyEncryptedStorageKeys)
             {
@@ -531,6 +553,30 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         public Task RemoveStorageKeyFromAllAppsAsync(Guid driveId, IOdinContext odinContext) =>
             UpdateAllAppsAsync(appReg => DriveGrant.RemoveStorageKey(appReg.AppKeyStore?.DriveGrants, driveId), odinContext);
+
+        /// <summary>A drive's key changed: every app's copy locks the old one, and the backfill makes new ones.</summary>
+        public Task RemoveZkDriveCopiesAsync(Guid driveId, IOdinContext odinContext) =>
+            UpdateAllAppsAsync(appReg => appReg.ZkAppKeyEncryptedStorageKeys?.Remove(driveId) == true, odinContext);
+
+        /// <summary>
+        /// A reset with today's master key forgot the zero-knowledge master key, and with it every app's key, which
+        /// only it opened, and so every copy locked with one.  The browser makes new ones at the next sign-in or
+        /// login; devices holding an old key stop counting as key holders (<see cref="AppClientRegistration.ZkAppKeyId"/>).
+        /// </summary>
+        public async Task ForgetZkAppKeysAsync()
+        {
+            foreach (var appReg in await GetAllAppRegistrationsInternalAsync())
+            {
+                if (appReg.ZkMasterKeyEncryptedAppKey != null || appReg.ZkAppKeyEncryptedStorageKeys is { Count: > 0 })
+                {
+                    appReg.ZkMasterKeyEncryptedAppKey = null;
+                    appReg.ZkAppKeyEncryptedStorageKeys = null;
+                    await SaveAsync(appReg);
+                }
+            }
+
+            await ResetAppPermissionContextCacheAsync();
+        }
 
         public async Task<List<RedactedAppRegistration>> GetAppsGrantingCircleAsync(Guid circleId, IOdinContext odinContext)
         {
@@ -895,6 +941,17 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task SaveAsync(AppRegistration appReg)
         {
+            // A drive-key copy lives as long as the grant that reads with it: a grant removed or narrowed to writing,
+            // or a drive deleted, takes it, so a grant given again gets a fresh one from the backfill
+            if (appReg.ZkAppKeyEncryptedStorageKeys is { Count: > 0 } copies)
+            {
+                var keyed = KeyedDriveIds(appReg).ToHashSet();
+                foreach (var driveId in copies.Keys.Where(d => !keyed.Contains(d)).ToList())
+                {
+                    copies.Remove(driveId);
+                }
+            }
+
             await db.AppRegistrations.UpsertAsync(ToRecord(appReg));
         }
 

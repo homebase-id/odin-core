@@ -92,10 +92,13 @@ namespace Odin.Services.Authorization.Apps
         /// <param name="appId"></param>
         /// <param name="friendlyName"></param>
         /// <param name="odinContext"></param>
-        /// <param name="holdsZkAppKey">The device is being handed the app's zero-knowledge key with this token</param>
+        /// <param name="zkAppKeyId">The id of the app's zero-knowledge key the device is being handed with this token</param>
         /// <returns></returns>
         Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName, IOdinContext odinContext,
-            bool holdsZkAppKey = false);
+            string? zkAppKeyId = null);
+
+        /// <summary>The id of the app's zero-knowledge key (<see cref="AppRegistration.ZkAppKeyId"/>); null when it has none.</summary>
+        Task<string?> GetZkAppKeyIdAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
         /// Every app's zero-knowledge keys, for the owner console to hand an app's key to a device and to backfill what
@@ -111,6 +114,12 @@ namespace Odin.Services.Authorization.Apps
 
         /// <summary>Converting a drive that keeps its key: every app's grant on it loses its copy of the key.</summary>
         Task RemoveStorageKeyFromAllAppsAsync(Guid driveId, IOdinContext odinContext);
+
+        /// <summary>A zero-knowledge drive's key changed: every app's copy of the old one goes.</summary>
+        Task RemoveZkDriveCopiesAsync(Guid driveId, IOdinContext odinContext);
+
+        /// <summary>The zero-knowledge master key was forgotten: so is every app's key, and every copy locked with one.</summary>
+        Task ForgetZkAppKeysAsync();
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext);
 

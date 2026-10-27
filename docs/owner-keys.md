@@ -91,8 +91,8 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 | `EncZKMK` | `aes(ZKMK-KEK, ZKMK)` | `ZkKeyRecord.ZkKekEncryptedZkMasterKey` **(V)** | no | first login; re-locked at password change |
 | `ZKMK` in the browser | `aes(SessK, ZKMK)` | localStorage `ZKMK` **(V)** | no (no localStorage); the browser alone has no `SessK` | every password login |
 | `EncDrvK_zk` | `aes(ZKMK, DrvK)` | `StorageDrive.ZkMasterKeyEncryptedStorageKey` **(V)** | no | drive converted (Shard Recovery today) |
-| `EncAppZkK` (proposed) | `aes(ZKMK, AppZkK)` | the app registration | no | first sign-in or conversion that needs it; re-locked when `ZKMK` changes |
-| `EncDrvK_app` (proposed) | `aes(AppZkK, DrvK)`, one per zero-knowledge drive the app is granted | the app registration | no | drive converted, or granted to the app, in the browser |
+| `EncAppZkK` (proposed) | `aes(ZKMK, AppZkK)` | the app registration | no | first sign-in or conversion that needs it; forgotten with `ZKMK` at a reset with today's master key |
+| `EncDrvK_app` (proposed) | `aes(AppZkK, DrvK)`, one per zero-knowledge drive the app is granted reading | the app registration | no | drive converted, or granted to the app, in the browser |
 | `EncWO-PK-Priv` | `aes(DrvK, WO-PK-Priv)`, AES-CBC | `StorageDrive.WriteOnlyKeyPair` (`EccFullKeyData.storedKey`) **(V)** | yes, with `DrvK` | drive created (non-zero-knowledge drives) |
 | `EncWO-PK-Priv_zk` | `aes(DrvK, WO-PK-Priv)`, AES-GCM | `StorageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey` **(V)** | no | drive converted |
 | `EncZKMK_bip` | `aes(BipK, ZKMK)` | `ZkKeyRecord.PhraseKeyEncryptedZkMasterKey` **(V)** | no | takeover; re-entry |

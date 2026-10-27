@@ -140,9 +140,8 @@ internal static class ZkAppSteps
         var returnUrl = YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(owner.Host, owner, request));
         Assert.That(returnUrl.WantsZkAppKey, Is.True, "the consent page sees what the app asked for");
 
-        var appKey = await BackfillAsync(owner, appId, zkMasterKey);
-        var sealedAppKey = ZkBrowser.Seal(appKey, Base64UrlEncoder.DecodeString(keyPair.PublicKeyJwk));
-        await YouAuthFlow.GiveConsentAsync(owner.Host, owner, returnUrl, sealedAppKey);
+        var (appKey, locked) = await BackfillAsync(owner, appId, zkMasterKey);
+        await YouAuthFlow.GiveConsentAsync(owner.Host, owner, returnUrl, SealToSignIn(appKey, keyPair), locked);
 
         var (device, token) = await CompleteSignInAsync(owner, appId, keyPair, request);
         Assert.That(token.ZkAppKey, Is.Not.Null.And.Not.Empty, "the token response carries the app's key");
@@ -151,8 +150,14 @@ internal static class ZkAppSteps
         return (device, opened);
     }
 
-    /// <summary>The consent page's backfill: the app's key, made if missing, and a copy of each granted drive's key it lacks.</summary>
-    public static async Task<byte[]> BackfillAsync(OwnerSession owner, Guid appId, byte[] zkMasterKey)
+    public static string SealToSignIn(byte[] appKey, YouAuthFlow.KeyPair keyPair) =>
+        ZkBrowser.Seal(appKey, Base64UrlEncoder.DecodeString(keyPair.PublicKeyJwk));
+
+    /// <summary>
+    /// The consent page's backfill: the app's key, made if missing, and a copy of each granted drive's key it lacks.
+    /// Returns the key and the locked copy of it the app now holds, which consent names.
+    /// </summary>
+    public static async Task<(byte[] AppKey, string Locked)> BackfillAsync(OwnerSession owner, Guid appId, byte[] zkMasterKey)
     {
         var app = (await GetAppKeysAsync(owner)).Single(a => a.AppId == appId);
         var (appKey, newLocked) = OpenOrMakeAppKey(app, zkMasterKey);
@@ -170,7 +175,7 @@ internal static class ZkAppSteps
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         }
 
-        return appKey;
+        return (appKey, newLocked ?? app.ZkMasterKeyEncryptedAppKey!);
     }
 
     /// <summary>Authorize again once consent is given, and exchange the code for the token, as the app does.</summary>

@@ -126,10 +126,10 @@ internal static class YouAuthFlow
 
     /// <summary>
     /// The consent POST the consent page makes when the owner clicks OK, auto-approving for a month; with the app's
-    /// zero-knowledge key sealed to the sign-in's public key when the app asked for it.
+    /// zero-knowledge key sealed to the sign-in's public key when the app asked for it, and the locked copy it opened.
     /// </summary>
     public static async Task GiveConsentAsync(OdinHost host, OwnerSession owner, YouAuthAuthorizeRequest returnUrl,
-        string? sealedZkAppKey = null, HttpStatusCode expected = HttpStatusCode.Redirect)
+        string? sealedZkAppKey = null, string? lockedZkAppKey = null, HttpStatusCode expected = HttpStatusCode.Redirect)
     {
         var authorizeUrl = $"https://{owner.Identity.DomainName}{OwnerApiPathConstants.YouAuthV1Authorize}";
         var returnUri = new UriBuilder(authorizeUrl) { Query = returnUrl.ToQueryString() }.ToString();
@@ -148,6 +148,11 @@ internal static class YouAuthFlow
         if (sealedZkAppKey != null)
         {
             form[YouAuthAuthorizeConsentGiven.SealedZkAppKeyName] = sealedZkAppKey;
+        }
+
+        if (lockedZkAppKey != null)
+        {
+            form[YouAuthAuthorizeConsentGiven.LockedZkAppKeyName] = lockedZkAppKey;
         }
 
         var request = new HttpRequestMessage(HttpMethod.Post, authorizeUrl)

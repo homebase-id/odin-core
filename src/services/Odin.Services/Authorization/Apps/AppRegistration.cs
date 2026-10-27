@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -63,6 +64,14 @@ namespace Odin.Services.Authorization.Apps
         /// without the browser (<see cref="AppRegistrationService.UpdateAppPermissionsAsync"/>).
         /// </summary>
         public Dictionary<Guid, string> ZkAppKeyEncryptedStorageKeys { get; set; }
+
+        /// <summary>
+        /// Names one app key without opening it: a device records the id of the key it was given
+        /// (<see cref="AppClientRegistration.ZkAppKeyId"/>), and holds the app's key only while that is still the
+        /// app's key.  Null for none.
+        /// </summary>
+        public static string ZkAppKeyId(string zkMasterKeyEncryptedAppKey) =>
+            zkMasterKeyEncryptedAppKey == null ? null : SHA256.HashData(zkMasterKeyEncryptedAppKey.ToUtf8ByteArray()).ToBase64();
 
         public RedactedAppRegistration Redacted()
         {

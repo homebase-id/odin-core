@@ -498,11 +498,14 @@ key and sends it locked to the owner's shared secret. That is the server's last 
 Today `ZkDriveFiles.CallerHoldsDriveKey` is the owner console only (`HasMasterKey`) **(V)**, which keeps
 every app away from client-locked files: an app that can't open them stalls its sync.
 
-- **The device record marks that it received `AppZkK`,** at the token exchange that carried it (3.2,
+- **The device record marks which `AppZkK` it received,** at the token exchange that carried it (3.2,
   step 2), and only when the app asked for it: an older build never asks, so it never gets a mark. The old
-  token, still valid, has no mark. The mark lives on the app's device
-  record (`AppClientRegistration`, in `ClientRegistrations`) and travels with the caller's context
-  (`OdinClientContext`) **(V for the record; the plumbing is (I))**.
+  token, still valid, has no mark. The mark is the id of the key, a hash of `EncAppZkK`
+  (`AppClientRegistration.ZkAppKeyId`, `AppRegistration.ZkAppKeyId`), and the device counts only while it
+  is still the app's key: a reset that forgets the app's key, or a concurrent first sign-in whose key won,
+  leaves the device with none (as built). The consent page sends the `EncAppZkK` it opened next to the
+  sealed key, and the server refuses it unless it is still the app's (`ZkAppKeyAlreadySet`). The mark
+  travels with the caller's context (`OdinClientContext.HoldsZkAppKey`).
 - **`CallerHoldsDriveKey(driveId)`** becomes: the owner console, or a marked device of an app whose
   registration holds a locked copy of this drive's key. The read and write rules (2.4) don't change, only
   who counts as a key holder. A device on an older build sees the drive as empty, and its `aes` writes are
@@ -536,8 +539,9 @@ Names are proposals until the server PR; the shapes are what the clients build a
 
    Any token of the app gets them: they are useless without `AppZkK`, and chat-kmp reads a set
    `zkAppKeyEncryptedStorageKey` as "this drive is zero knowledge" to show its banner on a device that has no
-   `AppZkK` yet. Conversion refuses unless every app granted the drive gets a copy, so the field is set on every
-   converted drive an app is granted. Only a marked device counts as a key holder (3.4). A conversion reaches a device at its
+   `AppZkK` yet. Conversion refuses unless every app granted reading the drive gets a copy, so the field is set
+   on every converted drive an app reads. A write-only grant gets no copy: it deposits, sealed to the drive's
+   public key (`StorageDrive.PermissionNeedsKey`, as built). Only a marked device counts as a key holder (3.4). A conversion reaches a device at its
    next connect. Attaching the app registration's locked copies to the redacted grant is server plumbing (I).
 4. **Files:** unchanged from steps 1 and 2. A file on a zero-knowledge drive comes back with its key header
    as stored (`zkDrive`, or `sealed`), and payload responses carry no packed key header: the client opens
@@ -550,11 +554,14 @@ Names are proposals until the server PR; the shapes are what the clients build a
   not zero knowledge);
 - `GET drives/{driveId}/key-for-conversion` and `POST convert-drive` (3.3).
 
-- consent takes the sealed `AppZkK` from the browser, with any backfilled `EncAppZkK` and locked drive keys
-  (3.2), and the token exchange carries it and marks the device;
+- consent takes the sealed `AppZkK` from the browser and the `EncAppZkK` it came from (3.4), after any
+  backfill (3.2), and the token exchange carries it and marks the device;
 - the consent page's read: the app's `EncAppZkK`, and its granted zero-knowledge drives with their
   `aes(ZKMK, DrvK)` and whether a locked copy exists;
-- app registration: `EncAppZkK` and the locked drive keys; removing a grant or the app removes its copy;
+- app registration: `EncAppZkK` and the locked drive keys. A copy lives as long as a grant that reads the drive:
+  every save drops the others (a grant removed or narrowed to writing, a drive deleted); a drive given a new key
+  (Shard Recovery after a reset) drops every app's copy; a reset with today's master key forgets every
+  `EncAppZkK` and copy (as built);
 - owner: get a drive's key to convert it; convert (3.3); read and write `EncAppZkK` for the console;
 - `ZkDriveFiles.CallerHoldsDriveKey` takes the drive (3.4).
 
@@ -566,7 +573,8 @@ Names are proposals until the server PR; the shapes are what the clients build a
   - the same backfill for every app at a password login;
   - `makeZkDriveKeys` takes an existing drive key (today it always makes a new one,
     `ZeroKnowledgeKeys.ts` **(V)**);
-  - after a reset gives a new ZKMK, re-lock every `EncAppZkK` with it, as the drive copies are (I).
+  - after a reset with today's master key the server has forgotten every `EncAppZkK` (the old ZKMK is gone,
+    and with it everything it locked); the next consent or login backfill makes new ones.
 - **chat-kmp:**
   - `zk_app_key=1` in its authorize request, `zkAppKey` in the token response, the two new grant fields
     (3.5); optionally the banner that signs in again without clearing data;

@@ -259,12 +259,30 @@ public class TableDriveMainIndexCached : AbstractTableCaching
         return result;
     }
 
-    // For the defragmenter, and for relabelling key headers when a drive goes zero knowledge
-    // (ZkDriveConversionService): writes the record as it is, version tag and all
+    // For defragmenter only
     public async Task<int> RawUpdateAsync(DriveMainIndexRecord item)
     {
         var result = await _table.RawUpdateAsync(item);
         await InvalidateDriveAsync(item.driveId);
+        return result;
+    }
+
+    // RawUpdateAsync for many records of one drive, invalidating it once: relabelling key headers when a drive
+    // goes zero knowledge (ZkDriveConversionService)
+    public async Task<int> RawUpdateAllAsync(Guid driveId, IReadOnlyCollection<DriveMainIndexRecord> items)
+    {
+        var result = 0;
+        foreach (var item in items)
+        {
+            if (item.driveId != driveId)
+            {
+                throw new ArgumentException($"Record {item.fileId} is on drive {item.driveId}, not {driveId}");
+            }
+
+            result += await _table.RawUpdateAsync(item);
+        }
+
+        await InvalidateDriveAsync(driveId);
         return result;
     }
 

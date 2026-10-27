@@ -14,6 +14,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -223,9 +224,14 @@ public class VaultConversionTests : V2Fixture
 
         // Consent without the key, or with it sealed to another key than the sign-in's, is refused
         await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, returnUrl, expected: HttpStatusCode.BadRequest);
-        var appKey = await BackfillAsync(frodo, app.AppId, zkMasterKey);
+        var (appKey, locked) = await BackfillAsync(frodo, app.AppId, zkMasterKey);
         var otherKey = ZkBrowser.MakeKeyPair().PublicKeyJwk;
-        await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, returnUrl, ZkBrowser.Seal(appKey, otherKey), HttpStatusCode.BadRequest);
+        await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, returnUrl, ZkBrowser.Seal(appKey, otherKey), locked, HttpStatusCode.BadRequest);
+
+        // So is consent naming a locked key that isn't the app's: a concurrent sign-in saved another first (here the
+        // same key locked again, under another IV, which the server can't tell from a different key)
+        await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, returnUrl, SealToSignIn(appKey, keyPair), ZkBrowser.Lock(appKey, zkMasterKey),
+            HttpStatusCode.BadRequest);
 
         // Still at the consent page: nothing lets a sign-in that asked for the key skip it
         YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, request));
@@ -264,7 +270,7 @@ public class VaultConversionTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
         var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Read);
-        var appKey = await BackfillAsync(frodo, app.AppId, zkMasterKey);
+        var (appKey, _) = await BackfillAsync(frodo, app.AppId, zkMasterKey);
         var client = ZkOwnerSteps.Client(frodo);
 
         // Replacing the key would strand every copy locked with it
@@ -291,7 +297,99 @@ public class VaultConversionTests : V2Fixture
         Assert.That(notZk.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), notZk.Error?.Content);
     }
 
+    [Test]
+    public async Task AWriteOnlyGrantGetsNoCopyOfTheKeyAndConversionNeedsNone()
+    {
+        // Writing alone deposits, sealed to the drive's public key: it never needed the key, before or after
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var writer = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Write);
+        Assert.That((await GetAppKeysAsync(frodo)).Single(a => a.AppId == writer.AppId).Drives, Is.Empty);
+
+        await ConvertVaultAsync(frodo, zkMasterKey);
+
+        var grant = await GrantOnAsync(writer, Vault);
+        Assert.That(grant.PermissionedDrive.Permission, Is.EqualTo(DrivePermission.Write));
+        Assert.That(grant.ZkAppKeyEncryptedStorageKey, Is.Null);
+        var save = await ZkOwnerSteps.Client(frodo).SaveAppKeys(new ZkAppKeysRequest
+        {
+            AppId = writer.AppId,
+            ZkMasterKeyEncryptedAppKey = ZkBrowser.Lock(ByteArrayUtil.GetRndByteArray(16), zkMasterKey),
+            ZkAppKeyEncryptedStorageKeys = { [VaultId] = ZkBrowser.Lock(ByteArrayUtil.GetRndByteArray(16), zkMasterKey) }
+        });
+        Assert.That(save.Error?.Content, Does.Contain(nameof(OdinClientErrorCode.ZkDriveNotGrantedToApp)).IgnoreCase);
+    }
+
+    [Test]
+    public async Task AnAppsCopyGoesWithItsGrantAndAGrantGivenAgainNeedsANewOne()
+    {
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Read);
+        await ConvertVaultAsync(frodo, zkMasterKey);
+
+        await UpdateVaultPermissionAsync(frodo, app.AppId, null);
+        await UpdateVaultPermissionAsync(frodo, app.AppId, DrivePermission.Read);
+
+        var vault = (await GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId).Drives.Single(d => d.DriveId == VaultId);
+        Assert.That(vault.HasAppCopy, Is.False, "the backfill makes a fresh copy");
+        Assert.That((await GrantOnAsync(app, Vault)).ZkAppKeyEncryptedStorageKey, Is.Null);
+    }
+
+    [Test]
+    public async Task MalformedKeyRequestsAreClientErrors()
+    {
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Read);
+        var client = ZkOwnerSteps.Client(frodo);
+
+        var noCopies = await client.SaveAppKeys(new ZkAppKeysRequest { AppId = app.AppId, ZkAppKeyEncryptedStorageKeys = null! });
+        Assert.That(noCopies.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), noCopies.Error?.Content);
+
+        var (request, _) = await MakeConversionAsync(frodo, zkMasterKey);
+        request.Apps.Add(request.Apps.Single(a => a.AppId == app.AppId));
+        var twice = await client.ConvertDrive(request);
+        Assert.That(twice.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), twice.Error?.Content);
+
+        request.Apps = null!;
+        var noApps = await client.ConvertDrive(request);
+        Assert.That(noApps.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), noApps.Error?.Content);
+    }
+
+    [Test]
+    public async Task AConversionCarriesOnlyTheConvertedDrivesCopies()
+    {
+        // Another drive's copy goes through the backfill, which checks it is zero knowledge
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var app = await AppSession.SetupAsync(frodo, new PermissionSetGrantRequest
+        {
+            Drives =
+            [
+                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = Vault, Permission = DrivePermission.Read } },
+                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = WellKnownAppDrives.ShardRecoveryDrive, Permission = DrivePermission.Read } }
+            ],
+            PermissionSet = new PermissionSet()
+        });
+
+        var (request, converted) = await MakeConversionAsync(frodo, zkMasterKey);
+        request.Apps.Single(a => a.AppId == app.AppId).ZkAppKeyEncryptedStorageKeys[WellKnownAppDrives.ShardRecoveryDrive.Alias.Value] =
+            ZkBrowser.Lock(ByteArrayUtil.GetRndByteArray(16), converted.AppKeys[app.AppId]);
+        var response = await ZkOwnerSteps.Client(frodo).ConvertDrive(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
+    }
+
     //
+
+    private static async Task UpdateVaultPermissionAsync(OwnerSession owner, Guid appId, DrivePermission? permission)
+    {
+        var response = await owner.RefitFor<IRefitAppRegistration>().UpdateAppPermissions(new UpdateAppPermissionsRequest
+        {
+            AppId = appId,
+            PermissionSet = new PermissionSet(),
+            Drives = permission == null
+                ? []
+                : [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = Vault, Permission = permission.Value } }]
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+    }
 
     private async Task<(OwnerSession Owner, byte[] ZkMasterKey)> OwnerWithZeroKnowledgeKeysAsync()
     {

@@ -29,9 +29,11 @@ public interface IYouAuthUnifiedService
 
     /// <summary>
     /// Keeps, for the sign-in it belongs to, the app's zero-knowledge key the owner's browser sealed at consent to the
-    /// sign-in's public key (docs/zero-knowledge-drive-api-plan.md, step 3).  The server can't open it.
+    /// sign-in's public key (docs/zero-knowledge-drive-api-plan.md, step 3).  The server can't open it; it checks that
+    /// <paramref name="lockedZkAppKey"/>, the copy the browser opened, is still the app's key.
     /// </summary>
-    Task StoreSealedZkAppKeyAsync(string clientId, string jwkbase64UrlPublicKey, string sealedZkAppKey64, IOdinContext odinContext);
+    Task StoreSealedZkAppKeyAsync(string clientId, string jwkbase64UrlPublicKey, string sealedZkAppKey64, string lockedZkAppKey,
+        IOdinContext odinContext);
 
     Task StoreConsentAsync(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
         IOdinContext odinContext);

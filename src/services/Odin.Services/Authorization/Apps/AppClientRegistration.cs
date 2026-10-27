@@ -41,11 +41,12 @@ public sealed class AppClientRegistration : IClientRegistration
     public string IssuedTo { get; set; }
 
     /// <summary>
-    /// Whether this device was handed the app's zero-knowledge key (AppZkK) when its token was made, so it can
-    /// open the keys of the zero-knowledge drives the app is granted (docs/zero-knowledge-drive-api-plan.md,
-    /// step 3).  Set once, at sign-in, by an app that asked for it.
+    /// The id (<see cref="AppRegistration.ZkAppKeyId"/>) of the app's zero-knowledge key (AppZkK) this device was
+    /// handed when its token was made; null when it was given none (docs/zero-knowledge-drive-api-plan.md, step 3).
+    /// The device opens the keys of the zero-knowledge drives the app is granted only while this is still the app's
+    /// key: a reset that forgets the app's key, or a concurrent sign-in whose key won, leaves it holding nothing.
     /// </summary>
-    public bool HoldsZkAppKey { get; init; }
+    public string ZkAppKeyId { get; init; }
 
     public int Type => CatType;
 
