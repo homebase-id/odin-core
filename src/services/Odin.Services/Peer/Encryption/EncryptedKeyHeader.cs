@@ -49,27 +49,24 @@ namespace Odin.Services.Peer.Encryption
             throw new OdinSecurityException("Unsupported encryption version");
         }
 
-        /// <remarks>A <see cref="SealedKeyHeader"/> comes back sealed, as it was given: nobody here can open it.</remarks>
         /// <summary>
-        /// For the paths that take a deposit as it comes (an upload, a peer transfer, the inbox): a
-        /// sealed key header passes through as a <see cref="SealedKeyHeader"/>, which the write stores
-        /// as it is; any other is decrypted.
+        /// For the paths that take a deposit as it comes (a peer transfer, the inbox): a sealed key header
+        /// passes through as a <see cref="ClientLockedKeyHeader"/>, which the write stores as it is; any
+        /// other is decrypted.
         /// </summary>
         public KeyHeader DecryptOrPassSealed(ref SensitiveByteArray key) =>
-            IsSealed() ? new SealedKeyHeader(this) : DecryptAesToKeyHeader(ref key);
+            IsSealed() ? new ClientLockedKeyHeader(this) : DecryptAesToKeyHeader(ref key);
 
         public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)
         {
-            if (keyHeader is SealedKeyHeader sealedKeyHeader)
+            if (keyHeader is ClientLockedKeyHeader locked)
             {
-                return sealedKeyHeader.Sealed;
-            }
-
-            if (keyHeader is ZkDriveKeyHeader)
-            {
-                // It has no AES key here: re-locking it would make a key header that opens to nothing
-                throw new OdinClientException("A zero-knowledge drive's key header can't be re-locked on the server",
-                    OdinClientErrorCode.InvalidKeyHeader);
+                // A deposit goes on sealed, as it was written.  A zero-knowledge drive's own has no AES key
+                // here: re-locking it would make a key header that opens to nothing
+                return locked.Type == EncryptionType.Sealed
+                    ? locked.Locked
+                    : throw new OdinClientException("A zero-knowledge drive's key header can't be re-locked on the server",
+                        OdinClientErrorCode.InvalidKeyHeader);
             }
 
             var secureKeyHeader = keyHeader.Combine();

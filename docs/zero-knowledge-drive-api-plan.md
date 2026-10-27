@@ -236,9 +236,16 @@ A sealed item lands on the drive as today, by direct write (S1200) or through th
 - **Read results:** a client-locked key header is returned as stored (`DriveFileUtility.CreateClientFileHeader`);
   payload and thumbnail responses carry no packed header for either type (step 1 decision 4).
 - **Writes, in one place** (the `ZkDriveFiles` checks, extended to `sealed`):
-  - the owner may write `zkDrive` (step 1);
-  - a sender's `sealed` new file or replacement is stored as sent, also over a `zkDrive` file (today
-    `AssertFitsUpdate` demands `zkDrive` and `Deposits.AssertNotDeposit` refuses updates) **(V)**;
+  - the owner may write `zkDrive` (step 1), and may update a client-locked file of either type with a
+    `zkDrive` key header (`AssertFitsUpdate`); `Deposits.AssertNotDeposit` goes **(V, built)**;
+  - the owner can't upload a `sealed` file to their own zero-knowledge drive (`DriveIsZeroKnowledge`);
+    the transient drive still takes one, to send it (`ZkDriveFiles.OpenForWrite`) **(V, built)**;
+  - a sender's `sealed` new file is stored as sent. A sender can't replace a client-locked file in this
+    step: the read rule hides it from the sender's lookup by global transit id or unique id, so a second
+    `sealed` file with a taken unique id is refused as a duplicate. Shamir isn't affected: every deal uses
+    new shard ids (`Guid.NewGuid()`, odin-js `getNewId()`) and never deletes a friend's shard **(V)**.
+    Replacing one (a Chat edit) needs a write rule saying who may find what they may replace, and comes
+    with Chat;
   - the transform, once Chat builds it (2.5);
   - nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (step 1).
 - **One type for an unopened key header:** `SealedKeyHeader` and `ZkDriveKeyHeader` merge into one
@@ -251,9 +258,12 @@ API, version-tag guard and races, under [Deferred to Chat](#deferred-to-chat-the
 with Chat.
 
 ### 2.6 Server: Shamir
-- **Lookup** (`ShamirBaseService.GetShardStoredForDealer`, by unique id) **(V)**: unchanged, except it
-  must run in a context the read rule admits (the system): its ACL-bypass context is Owner level without
-  the master key, which the extended read rule would hide a sealed shard from **(I)**.
+- **Lookup** (`ShamirBaseService.GetShardStoredForDealer`, by unique id): moved to the metadata-only
+  `GetServerFileHeaderByClientUniqueIdSkippingFileAcl`, still behind the drive Read the ACL-bypass context
+  grants. The query it used applies the read rule, which hides a sealed shard from that context (Owner
+  level, no master key): with the old lookup all 17 `FriendRecoveryTests` fail **(V, measured)**. A
+  System-level context isn't the way round it: a System caller's queries match no rows
+  (`requiredSecurityGroup BETWEEN 0 AND 1`, `ProfilePublishService.cs:190`) **(V)**.
 - **Releasable** (`CanReleaseAsync`): unchanged, a shard sealed to the drive's key; it needs the
   holder's approval. Automated holders' shards are unencrypted and untouched **(V)**. A `zkDrive` shard
   only exists once Chat's transform does; `CanReleaseAsync` takes it then.
@@ -292,10 +302,11 @@ with Chat.
 | 9 | `PeerDriveQueryService` `IsSealed()` pass-through | goes: a peer can't open a client-locked file, so the read rule hides it **(I)** |
 
 ### 2.9 Tests
-- **V2:** a gated friend's shard lands `sealed`; the owner reads it (key header as stored, no packed
-  payload header); an app or guest can't see a sealed file (query, by id, socket, peer read); a sender's
-  re-deal replaces a sealed shard; the owner can't upload a `sealed` file; an `aes` key header on a
-  zero-knowledge drive is still refused.
+- **V2:** a deposit lands `sealed` and the owner reads it by unique id and by query, as stored; an app
+  with Read on the drive doesn't see it (query, unique id 404, file id 403); the owner can't upload a
+  `sealed` file to their own zero-knowledge drive; a deposit with payloads is refused on the transient
+  drive; an `aes` key header on a zero-knowledge drive is still refused.
+- **Services:** a socket event for a deposit reaches the owner console, not an app.
 - **Shamir (Ported):** the dealer's verify sees a sealed shard through the system lookup; approval
   releases it; automated holders unchanged.
 - **odin-js:** `openKeyHeader` against the test vectors.

@@ -41,17 +41,16 @@ public static class DriveFileUtility
         }
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-        if (ZkDriveFiles.IsZkDriveFile(header))
+        if (ZkDriveFiles.IsClientLocked(header))
         {
-            // Returned as stored: only a device holding the drive's key opens it.  A backstop: the read rule
-            // (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a file this refuses
+            // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it.  A
+            // backstop: the read rule (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a
+            // file this refuses
             ZkDriveFiles.AssertVisibleTo(header, odinContext);
             sharedSecretEncryptedKeyHeader = header.EncryptedKeyHeader;
         }
         else if (header.FileMetadata.IsEncrypted)
         {
-            // A deposit's comes back sealed, as stored: only the reader's browser opens it, with the
-            // drive's write-only private key
             var keyHeader = Deposits.OpenWithDriveKey(header, odinContext);
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             sharedSecretEncryptedKeyHeader =
@@ -116,7 +115,7 @@ public static class DriveFileUtility
             return null;
         }
 
-        if (ZkDriveFiles.IsZkDriveFile(header))
+        if (ZkDriveFiles.IsClientLocked(header))
         {
             // No key header: the client opens a payload with the file's AES key and the payload's IV.  A backstop,
             // as in CreateClientFileHeader

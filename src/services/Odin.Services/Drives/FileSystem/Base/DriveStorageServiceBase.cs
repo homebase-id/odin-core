@@ -684,17 +684,22 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(driveId, odinContext);
             var drive = await this.DriveManager.GetDriveAsync(driveId);
-            if (keyHeader is SealedKeyHeader sealedKeyHeader)
+            if (keyHeader is ClientLockedKeyHeader locked)
             {
-                Deposits.AssertCanHold(drive);
-                return sealedKeyHeader.Sealed;
+                // Stored as the client locked it
+                if (locked.Type == EncryptionType.Sealed)
+                {
+                    Deposits.AssertCanHold(drive);
+                }
+                else
+                {
+                    ZkDriveFiles.AssertDriveTakes(drive, locked.Type);
+                }
+
+                return locked.Locked;
             }
 
-            ZkDriveFiles.AssertDriveTakes(drive, keyHeader is ZkDriveKeyHeader ? EncryptionType.ZkDrive : EncryptionType.Aes);
-            if (keyHeader is ZkDriveKeyHeader zkDriveKeyHeader)
-            {
-                return zkDriveKeyHeader.Locked;
-            }
+            ZkDriveFiles.AssertDriveTakes(drive, EncryptionType.Aes);
 
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
             drive.AssertValidStorageKey(storageKey);
@@ -1159,7 +1164,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
             AssertActiveForUpdate(existingServerHeader);
-            Deposits.AssertNotDeposit(existingServerHeader);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
@@ -1221,7 +1225,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <param name="newKeyHeader">
         /// The new IV, which the stored file key joins; on a zero-knowledge drive, the new key header itself
-        /// (<see cref="ZkDriveKeyHeader"/>), stored as sent
+        /// (<see cref="ClientLockedKeyHeader"/>), stored as sent
         /// </param>
         public async Task OverwriteMetadata(KeyHeader newKeyHeader, InternalDriveFileId targetFile, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
@@ -1591,13 +1595,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             //
             // Validations
             //
-            Deposits.AssertNotDeposit(existingHeader);
             if (metadata != null)
             {
                 AssertSameEncryption(existingHeader, metadata);
             }
 
-            if (ZkDriveFiles.IsZkDriveFile(existingHeader))
+            if (ZkDriveFiles.IsClientLocked(existingHeader))
             {
                 // Can't be opened to check its AES key; checked before any payload is copied
                 ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader);
@@ -2422,7 +2425,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             AssertActiveForUpdate(existingServerHeader);
-            Deposits.AssertNotDeposit(existingServerHeader);
 
             AssertSameEncryption(existingServerHeader, newMetadata);
 
@@ -2446,11 +2448,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (existingServerHeader.FileMetadata.IsEncrypted)
             {
                 ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader);
-                if (newKeyHeader is ZkDriveKeyHeader zkDriveKeyHeader)
+                if (newKeyHeader is ClientLockedKeyHeader locked)
                 {
-                    // Stored as the owner's device sent it.  Critical Note: the server can't check that it keeps
-                    // the file's AES key; if it doesn't, the payloads are lost forever.
-                    existingServerHeader.EncryptedKeyHeader = zkDriveKeyHeader.Locked;
+                    // Stored as the owner's device sent it (AssertFitsUpdate: a zkDrive one).  Critical Note: the
+                    // server can't check that it keeps the file's AES key; if it doesn't, the payloads are lost forever.
+                    existingServerHeader.EncryptedKeyHeader = locked.Locked;
                 }
                 else
                 {

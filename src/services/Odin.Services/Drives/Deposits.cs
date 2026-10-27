@@ -11,7 +11,9 @@ namespace Odin.Services.Drives;
 /// of their own and seal that key header to the drive's write-only public key
 /// (<see cref="EncryptedKeyHeader.Sealed"/>).  The server stores the sealed key header as received,
 /// passes it on as is and returns it as stored; it never opens or re-locks it
-/// (docs/zero-knowledge-recovery-plan.md, "Deposits").
+/// (docs/zero-knowledge-recovery-plan.md, "Deposits").  On the drive, a deposit is one of the two kinds
+/// of client-locked file, and who may see or change it is <see cref="ZkDriveFiles"/>'s
+/// (docs/zero-knowledge-drive-api-plan.md, step 2).
 /// </summary>
 /// <remarks>
 /// For now a deposit is a header only: a payload's key header leaves through a fixed-size response
@@ -33,7 +35,7 @@ public static class Deposits
     {
         if (IsDeposit(header))
         {
-            return new SealedKeyHeader(header.EncryptedKeyHeader);
+            return new ClientLockedKeyHeader(header.EncryptedKeyHeader);
         }
 
         var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
@@ -61,21 +63,6 @@ public static class Deposits
         {
             throw new OdinClientException("Only a zero-knowledge drive takes a deposit (a sealed key header)",
                 OdinClientErrorCode.DepositNeedsZeroKnowledgeDrive);
-        }
-    }
-
-    /// <summary>
-    /// A deposit is changed only by writing it again: nobody here can open its key to check an update
-    /// against it or re-lock it.
-    /// </summary>
-    public static void AssertNotDeposit(ServerFileHeader existingHeader) =>
-        AssertNotDeposit(existingHeader.FileMetadata.IsEncrypted, existingHeader.EncryptedKeyHeader);
-
-    public static void AssertNotDeposit(bool isEncrypted, EncryptedKeyHeader keyHeader)
-    {
-        if (IsDeposit(isEncrypted, keyHeader))
-        {
-            throw new OdinClientException("A deposit can't be updated; write it again", OdinClientErrorCode.DepositCannotBeUpdated);
         }
     }
 }

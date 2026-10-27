@@ -23,6 +23,8 @@ public class DriveEventMessageTests
 
     [TestCase(EncryptionType.ZkDrive, true, true, TestName = "AZkDriveFileReachesTheOwnerConsole")]
     [TestCase(EncryptionType.ZkDrive, false, false, TestName = "AZkDriveFileDoesNotReachAnApp")]
+    [TestCase(EncryptionType.Sealed, true, true, TestName = "ADepositReachesTheOwnerConsole")]
+    [TestCase(EncryptionType.Sealed, false, false, TestName = "ADepositDoesNotReachAnApp")]
     [TestCase(EncryptionType.Aes, false, true, TestName = "AnyOtherFileStillReachesAnApp")]
     public async Task AZkDriveFileReachesOnlyASocketHoldingTheDriveKey(EncryptionType type, bool holdsMasterKey, bool expected)
     {

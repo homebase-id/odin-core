@@ -382,8 +382,6 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
-        Deposits.AssertNotDeposit(updateDescriptor.FileMetadata.IsEncrypted, updateDescriptor.EncryptedKeyHeader);
-
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
             ? await ZkDriveFiles.OpenForWriteAsync(updateDescriptor.EncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
                 odinContext)
@@ -510,7 +508,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         }
 
         // A zero-knowledge drive's key header was checked unopened (EncryptedKeyHeader.AssertValidZkDrive)
-        if (metadata.IsEncrypted && keyHeader is not ZkDriveKeyHeader)
+        if (metadata.IsEncrypted && keyHeader is not ClientLockedKeyHeader)
         {
             if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false ||
                 ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)

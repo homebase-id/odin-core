@@ -879,12 +879,6 @@ public class PeerDriveQueryService(
 
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
-        if (encryptedKeyHeader.IsSealed())
-        {
-            // A deposit's key header comes from the peer sealed, as stored: only the reader's browser opens it
-            return encryptedKeyHeader;
-        }
-
         var newKey = odinContext.PermissionsContext.SharedSecretKey;
         var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
 
