@@ -434,6 +434,25 @@ made and compares FileKeys before sending ([odin-js](#the-transform-odin-js)).
   (`versionTagMismatch`), and one after it makes the file `sealed` again; an app or guest can't
   transform.
 
+## Deferred to Chat: a sender's edit
+
+Read 2026-10-27 **(V)**: a chat edit (chat-kmp `ChatMessageSenderService.updateMessage`) is an update by
+unique id sent to the recipients, with a new IV and the **same AES key**
+(`KeyHeader(iv = random, aesKey = msg.keyHeader.aesKey)`) and new content encrypted under them. The server
+already insists on that: `UpdateBatchCopyFilesAsync` refuses an update whose AES key differs, and
+`KeyHeader.AssertIvRotated` wants a new IV. So in an edit only the IV changes, never the file key.
+
+The rule for Chat (the user's, 2026-10-27): **a peer's update may change the content and the IVs, never the
+key header a key holder locked with DrvK.**
+- With key header version 1 the server can apply that today: the IV cancels out of the format (decision 3),
+  so it keeps the DrvK-locked bytes and takes the sender's new visible IV, and the key header opens to the
+  new IV and the same FileKey.
+- That relies on the weakness #2024 removes. Version 2 should give `appData.content` its own IV, as
+  payloads (`PayloadDescriptor.Iv`) and local app data (`LocalAppMetadata.Iv`) already have; then a key
+  header only holds FileKey, and an edit never touches it.
+- The server still can't check that the sender kept the file key; a sender that didn't makes only its own
+  edit unreadable.
+
 ## Step 2's inventory: deposits on the drive (as found in step 1)
 
 What #2013 (`1a5684df2`) added so that a deposit lands on its drive still sealed. Step 1 leaves all of
