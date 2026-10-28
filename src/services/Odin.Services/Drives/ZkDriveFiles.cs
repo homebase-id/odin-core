@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
@@ -68,7 +69,25 @@ public static class ZkDriveFiles
     {
         var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
         var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-        return OpenForWrite(sent, drive, ref sharedSecret, odinContext);
+        var keyHeader = OpenForWrite(sent, drive, ref sharedSecret, odinContext);
+        await MatchDepositKeyAsync(drive, sent, driveManager);
+        return keyHeader;
+    }
+
+    /// <summary>
+    /// Which of <paramref name="drive"/>'s write-only keys a deposit arriving on it was sealed to; refused when it is
+    /// none it takes (<see cref="IDriveManager.MatchSealedKeyAsync"/>).  Null when there is nothing to check: no sealed
+    /// key header, or the transient drive, where a sender's deposit waits to go to another identity's drive.
+    /// </summary>
+    public static async Task<SealedTo?> MatchDepositKeyAsync(StorageDrive drive, EncryptedKeyHeader? keyHeader,
+        IDriveManager driveManager)
+    {
+        if (keyHeader?.IsSealed() != true || SystemDriveConstants.IsTransientTempDrive(drive.Id))
+        {
+            return null;
+        }
+
+        return await driveManager.MatchSealedKeyAsync(drive, keyHeader, UnixTimeUtc.Now());
     }
 
     /// <summary>

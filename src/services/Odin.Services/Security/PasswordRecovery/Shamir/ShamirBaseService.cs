@@ -102,9 +102,9 @@ public abstract class ShamirBaseService<TLogger>(
             return false;
         }
 
+        // Its current key or a retired one: the private half of either still opens the shard
         var drive = await driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
-        return drive?.WriteOnlyKeyPair != null &&
-               ZkSeal.IsSealedTo(stored.DepositKeyHeader.EncryptedAesKey, drive.WriteOnlyKeyPair.PublicKeyJwk());
+        return drive != null && await driveManager.HoldsKeyForAsync(drive, stored.DepositKeyHeader.EncryptedAesKey);
     }
 
     public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)

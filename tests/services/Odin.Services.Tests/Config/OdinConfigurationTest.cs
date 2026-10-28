@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Configuration;
+using Odin.Core.Exceptions;
 using Odin.Services.Configuration;
 using Odin.Services.Email;
 
@@ -417,4 +418,18 @@ public class OdinConfigurationTest
         }
     }
 
+    [Test]
+    public void ARetiredDriveKeyMustTakeSealsAsLongAsACachedCopyAndTheOutboxCanLast()
+    {
+        var day = TimeSpan.FromDays(1);
+        Assert.DoesNotThrow(() => OdinConfiguration.HostSection.AssertRetiredDriveKeysOutliveSeals(7 * day, 7 * day, 30 * day));
+        Assert.DoesNotThrow(() => OdinConfiguration.HostSection.AssertRetiredDriveKeysOutliveSeals(7 * day, 7 * day,
+            14 * day + TimeSpan.FromHours(6)));
+
+        var e = Assert.Throws<OdinConfigException>(() => OdinConfiguration.HostSection.AssertRetiredDriveKeysOutliveSeals(
+            7 * day, 7 * day, 14 * day));
+        Assert.That(e!.Message, Does.StartWith("RetiredDriveKeyAcceptSeconds must be at least 1231200"));
+        Assert.Throws<OdinConfigException>(() => OdinConfiguration.HostSection.AssertRetiredDriveKeysOutliveSeals(
+            TimeSpan.Zero, 7 * day, 30 * day));
+    }
 }

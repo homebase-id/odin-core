@@ -50,6 +50,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
+        private bool _sealedToRetiredKey;
 
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
@@ -75,6 +76,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
                 ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.SharedSecretEncryptedKeyHeader);
+                _sealedToRetiredKey = await ZkDriveFiles.MatchDepositKeyAsync(drive, transferInstructionSet.SharedSecretEncryptedKeyHeader, driveManager) ==
+                                      SealedTo.RetiredKey;
             }
 
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
@@ -204,7 +207,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                 }
 
-                return new PeerTransferResponse() { Code = responseCode };
+                return new PeerTransferResponse() { Code = responseCode, SealedToRetiredKey = _sealedToRetiredKey };
             }
 
             throw new OdinSystemException("Unhandled Routing");

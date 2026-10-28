@@ -12,13 +12,19 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Wrappers;
+using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Mediator;
+using Odin.Services.Peer.Encryption;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
 
 [assembly: InternalsVisibleTo("Odin.Hosting")]
@@ -47,6 +53,12 @@ public class DriveManager : IDriveManager
     private readonly TableDrivesCached _tableDrives;
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
     private readonly DrivePurgeRegistry _drivePurges;
+    private readonly TableKeyValueCached _tblKeyValue;
+    private readonly OdinConfiguration _configuration;
+    private readonly IdentityDatabase _db;
+
+    private static readonly SingleKeyValueStorage RetiredWriteOnlyKeyStorage =
+        TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse("2e52bd2f-a27b-4428-b3de-ea276f6a9663"));
 
     /// <summary>
     /// Manages drive creation, metadata updates, and their overall definitions
@@ -58,7 +70,10 @@ public class DriveManager : IDriveManager
         TenantContext tenantContext,
         TableDrivesCached tableDrives,
         ScopedIdentityConnectionFactory scopedConnectionFactory,
-        DrivePurgeRegistry drivePurges)
+        DrivePurgeRegistry drivePurges,
+        TableKeyValueCached tblKeyValue,
+        OdinConfiguration configuration,
+        IdentityDatabase db)
     {
         _logger = logger;
         _driveCache = driveCache;
@@ -67,6 +82,9 @@ public class DriveManager : IDriveManager
         _tableDrives = tableDrives;
         _scopedConnectionFactory = scopedConnectionFactory;
         _drivePurges = drivePurges;
+        _tblKeyValue = tblKeyValue;
+        _configuration = configuration;
+        _db = db;
     }
 
     // The mediator handlers for DriveDefinitionAddedNotification mutate caches (e.g.
@@ -459,8 +477,8 @@ public class DriveManager : IDriveManager
     /// private half is sealed under the key that grants access to this drive.
     /// <para>
     /// Never overwrites.  Replacing a live keypair would strand every deposit already sealed to the old
-    /// public half, so a drive that has one is skipped and the run stays repeatable.  Key rotation is a
-    /// separate feature with its own grace-window handling (docs/archive/drive-addressing.md).
+    /// public half, so a drive that has one is skipped and the run stays repeatable.  Replacing one keeps
+    /// the old one retired (<see cref="ReplaceWriteOnlyKeyPairAsync"/>).
     /// </para>
     /// </remarks>
     internal async Task<bool> EnsureWriteOnlyKeyPairAsync(Guid driveId, IOdinContext odinContext)
@@ -486,6 +504,83 @@ public class DriveManager : IDriveManager
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
         return true;
+    }
+
+    /// <summary>A drive's retired write-only keys, newest first (docs/drive-key-retirement-plan.md).</summary>
+    public async Task<IReadOnlyList<RetiredWriteOnlyKey>> GetRetiredWriteOnlyKeysAsync(Guid driveId) =>
+        (await RetiredWriteOnlyKeyStorage.GetAsync<RetiredWriteOnlyKeys>(_tblKeyValue, driveId))?.Keys ?? [];
+
+    /// <summary>
+    /// Which of <paramref name="drive"/>'s write-only keys <paramref name="sealedKeyHeader"/> was sealed to: its
+    /// current key, or a retired one still taking new seals (until <c>Host:RetiredDriveKeyAcceptSeconds</c> after it
+    /// was retired).  Refuses any other, which nobody holding the drive's keys could open.
+    /// </summary>
+    public async Task<SealedTo> MatchSealedKeyAsync(StorageDrive drive, EncryptedKeyHeader sealedKeyHeader, UnixTimeUtc now)
+    {
+        var keyId = ZkSeal.ReadKeyId(sealedKeyHeader.EncryptedAesKey);
+        if (drive.WriteOnlyKeyPair != null && ZkSeal.KeyId(drive.WriteOnlyKeyPair.PublicKeyJwk()) == keyId)
+        {
+            return SealedTo.CurrentKey;
+        }
+
+        var acceptFor = (long)_configuration.Host.RetiredDriveKeyAcceptAge.TotalMilliseconds;
+        if ((await GetRetiredWriteOnlyKeysAsync(drive.Id)).Any(key =>
+                ZkSeal.KeyId(key.KeyPair.PublicKeyJwk()) == keyId && now < key.RetiredAt.AddMilliseconds(acceptFor)))
+        {
+            return SealedTo.RetiredKey;
+        }
+
+        throw new OdinClientException("Sealed to a key this drive doesn't take; fetch its public key again",
+            OdinClientErrorCode.SealedToUnknownKey);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="drive"/> still holds the private half that opens <paramref name="sealedValue"/>: its
+    /// current key's, or a retired key's, which is kept for good.
+    /// </summary>
+    public async Task<bool> HoldsKeyForAsync(StorageDrive drive, byte[] sealedValue)
+    {
+        if (!ZkSeal.IsSealed(sealedValue))
+        {
+            return false;
+        }
+
+        var keyId = ZkSeal.ReadKeyId(sealedValue);
+        return (drive.WriteOnlyKeyPair != null && ZkSeal.KeyId(drive.WriteOnlyKeyPair.PublicKeyJwk()) == keyId) ||
+               (await GetRetiredWriteOnlyKeysAsync(drive.Id)).Any(key => ZkSeal.KeyId(key.KeyPair.PublicKeyJwk()) == keyId);
+    }
+
+    /// <summary>
+    /// Gives a zero-knowledge drive a new write-only key pair made in the browser, and keeps the one it replaces as
+    /// retired (docs/drive-key-retirement-plan.md): seals made with it are still taken for a while, and its private
+    /// half stays, so what was sealed to it opens.
+    /// </summary>
+    /// <remarks>
+    /// No caller yet: the first voluntary rotation also serves the retired private halves to the devices that hold
+    /// the drive key, which open the seals.  Until then a device has only the current one.
+    /// </remarks>
+    internal async Task ReplaceWriteOnlyKeyPairAsync(Guid driveId, EccFullKeyData writeOnlyPublicKey,
+        string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        await using var tx = await _db.BeginStackedTransactionAsync();
+        var storageDrive = await GetDriveInternal(driveId);
+        if (storageDrive?.MasterKeyEncryptedStorageKey != null || storageDrive?.WriteOnlyKeyPair == null)
+        {
+            throw new OdinClientException("Only a zero-knowledge drive's write-only key is replaced this way",
+                OdinClientErrorCode.InvalidDrive);
+        }
+
+        var retired = new RetiredWriteOnlyKey(storageDrive.WriteOnlyKeyPair, storageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey,
+            UnixTimeUtc.Now());
+        await RetiredWriteOnlyKeyStorage.UpsertAsync(_tblKeyValue, driveId,
+            new RetiredWriteOnlyKeys { Keys = [retired, ..await GetRetiredWriteOnlyKeysAsync(driveId)] });
+
+        storageDrive.WriteOnlyKeyPair = writeOnlyPublicKey;
+        storageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey = zkStorageKeyEncryptedWriteOnlyPrivateKey;
+        await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+        tx.Commit();
     }
 
     /// <summary>

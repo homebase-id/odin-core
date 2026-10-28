@@ -36,7 +36,7 @@ public class PeerDriveQueryService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration,
-    ITenantLevel2Cache<PeerDriveQueryService> addressCache)
+    ITenantLevel2Cache<PeerDriveQueryService> cache)
 {
     private static readonly TimeSpan AddressCacheTtl = TimeSpan.FromMinutes(30);
 
@@ -69,7 +69,7 @@ public class PeerDriveQueryService(
         OdinSlug.Required(driveSlug, nameof(driveSlug));
 
         var cacheKey = $"peer-drive-address:{odinId}:{appSlug}:{driveSlug}";
-        var cached = await addressCache.TryGetAsync<TargetDrive>(cacheKey);
+        var cached = await cache.TryGetAsync<TargetDrive>(cacheKey);
         if (cached.HasValue && cached.Value != null)
         {
             return cached.Value;
@@ -114,19 +114,19 @@ public class PeerDriveQueryService(
                 OdinClientErrorCode.InvalidDrive);
         }
 
-        await addressCache.SetAsync(cacheKey, targetDrive, AddressCacheTtl);
+        await cache.SetAsync(cacheKey, targetDrive, AddressCacheTtl);
         return targetDrive;
     }
 
     /// <summary>
-    /// Fetches the write-only public key of <paramref name="odinId"/>'s
-    /// <c>/apps/{appSlug}/drives/{driveSlug}</c>, so this identity can seal a deposit to a drive it
-    /// may write but never read.
+    /// The write-only public key of <paramref name="odinId"/>'s <c>/apps/{appSlug}/drives/{driveSlug}</c>, so this
+    /// identity can seal a deposit to a drive it may write but never read.
     /// </summary>
     /// <remarks>
-    /// Deliberately not cached, unlike the address.  A slug is immutable, but a keypair is not: it can
-    /// be rotated, and a cached public half would keep this identity sealing to a key the remote has
-    /// stopped holding -- deposits nobody could open, with nothing to say so.
+    /// Cached for <c>Host:PeerDriveKeyCacheSeconds</c> (docs/drive-key-retirement-plan.md).  A drive that replaces
+    /// its key keeps taking seals made with the old one for longer than that plus the outbox's longest wait, and says
+    /// so ("replaced"), and the outbox then forgets the key (<see cref="ForgetDriveKeysAsync"/>), so a cached copy
+    /// never strands a deposit.
     /// </remarks>
     public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, OdinSlug appSlug,
         OdinSlug driveSlug, IOdinContext odinContext)
@@ -141,6 +141,22 @@ public class PeerDriveQueryService(
         OdinSlug.Required(appSlug, nameof(appSlug));
         OdinSlug.Required(driveSlug, nameof(driveSlug));
 
+        return await cache.GetOrSetAsync($"peer-drive-key:{odinId}:{appSlug}:{driveSlug}",
+            _ => FetchRemoteDriveWriteOnlyPublicKeyAsync(odinId, appSlug, driveSlug, odinContext),
+            odinConfiguration.Host.PeerDriveKeyCacheAge, tags: [DriveKeysTag(odinId)]);
+    }
+
+    /// <summary>
+    /// Forgets this identity's copies of <paramref name="odinId"/>'s drive public keys: one of its drives answered
+    /// that a seal used a key it replaced, or one it doesn't take.
+    /// </summary>
+    public async Task ForgetDriveKeysAsync(OdinId odinId) => await cache.RemoveByTagAsync(DriveKeysTag(odinId));
+
+    private static string DriveKeysTag(OdinId odinId) => $"peer-drive-keys:{odinId}";
+
+    private async Task<DrivePublicKeyResponse> FetchRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, OdinSlug appSlug,
+        OdinSlug driveSlug, IOdinContext odinContext)
+    {
         var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
 
         var request = new ResolveDriveAddressRequest

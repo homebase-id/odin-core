@@ -189,4 +189,7 @@ public enum OdinClientErrorCode
     ZkAppKeyMissing = 9030,
     ZkDriveNotGrantedToApp = 9031,
     DriveCannotBeConverted = 9032,
+
+    // A drive's write-only keys, current and retired (docs/drive-key-retirement-plan.md)
+    SealedToUnknownKey = 9033,
 }

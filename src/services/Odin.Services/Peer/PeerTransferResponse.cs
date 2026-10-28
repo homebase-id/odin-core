@@ -9,6 +9,12 @@ namespace Odin.Services.Peer
         /// Specifies if the transfer was successfully received
         /// </summary>
         public PeerResponseCode Code { get; set; }
+
+        /// <summary>
+        /// The file's key header was sealed to a retired write-only key of the drive: taken, but the sender's copy of
+        /// the drive's public key is out of date (docs/drive-key-retirement-plan.md)
+        /// </summary>
+        public bool SealedToRetiredKey { get; set; }
     }
 
 

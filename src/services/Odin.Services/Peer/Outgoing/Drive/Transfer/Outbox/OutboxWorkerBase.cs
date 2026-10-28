@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -15,6 +16,8 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Peer.Outgoing.Drive.Query;
+using Odin.Services.Util;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -144,6 +147,19 @@ public abstract class OutboxWorkerBase(
 
     protected abstract Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext);
+
+    /// <summary>
+    /// Forgets this identity's copies of <paramref name="recipient"/>'s drive public keys when the file's deposit was
+    /// sealed with one that is out of date: replaced, or one the drive doesn't take (docs/drive-key-retirement-plan.md).
+    /// </summary>
+    protected static async Task ForgetOutOfDateDriveKeysAsync(ApiResponse<PeerTransferResponse> response,
+        PeerDriveQueryService peerDriveQueryService, OdinId recipient)
+    {
+        if (response.Content?.SealedToRetiredKey == true || response.ErrorCode() == OdinClientErrorCode.SealedToUnknownKey)
+        {
+            await peerDriveQueryService.ForgetDriveKeysAsync(recipient);
+        }
+    }
 
     protected LatestTransferStatus MapPeerErrorResponseHttpStatus<T>(ApiResponse<T> response)
     {

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives.Management;
 
@@ -45,4 +47,13 @@ public interface IDriveManager
     Task<List<StorageDrive>> GetDrivesByAppIdAsync(Guid appId, IOdinContext odinContext);
     Task<PagedResult<StorageDrive>> GetAnonymousDrivesAsync(PageOptions pageOptions, IOdinContext odinContext);
     Task<PagedResult<StorageDrive>> GetCdnEnabledDrivesAsync(PageOptions pageOptions, IOdinContext odinContext);
+
+    /// <summary>See <see cref="DriveManager.GetRetiredWriteOnlyKeysAsync"/>.</summary>
+    Task<IReadOnlyList<RetiredWriteOnlyKey>> GetRetiredWriteOnlyKeysAsync(Guid driveId);
+
+    /// <summary>See <see cref="DriveManager.MatchSealedKeyAsync"/>.</summary>
+    Task<SealedTo> MatchSealedKeyAsync(StorageDrive drive, EncryptedKeyHeader sealedKeyHeader, UnixTimeUtc now);
+
+    /// <summary>See <see cref="DriveManager.HoldsKeyForAsync"/>.</summary>
+    Task<bool> HoldsKeyForAsync(StorageDrive drive, byte[] sealedValue);
 }
