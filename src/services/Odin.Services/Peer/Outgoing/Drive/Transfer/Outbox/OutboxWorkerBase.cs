@@ -150,7 +150,7 @@ public abstract class OutboxWorkerBase(
 
     /// <summary>
     /// Forgets this identity's copies of <paramref name="recipient"/>'s drive public keys when the file's deposit was
-    /// refused for being sealed to a key the drive doesn't hold (docs/drive-key-retirement-plan.md)
+    /// refused for being sealed to a key the drive doesn't hold (docs/drive-public-keys-plan.md)
     /// </summary>
     protected static async Task ForgetOutOfDateDriveKeysAsync(ApiResponse<PeerTransferResponse> response,
         PeerDriveQueryService peerDriveQueryService, OdinId recipient)

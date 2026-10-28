@@ -123,14 +123,13 @@ public class PeerDriveQueryService(
     /// identity can seal a deposit to a drive it may write but never read.
     /// </summary>
     /// <remarks>
-    /// Cached for <c>Host:PeerDriveKeyCacheSeconds</c> (docs/drive-key-retirement-plan.md), and only for a
+    /// Cached for <c>Host:PeerDriveKeyCacheSeconds</c> (docs/drive-public-keys-plan.md), and only for a
     /// zero-knowledge drive: one that isn't yet takes no deposits, and becomes one at its owner's next login.  A
     /// drive whose key changed refuses a deposit sealed to the old one (<c>SealedToUnknownKey</c>), and the outbox
-    /// then forgets the copy (<see cref="ForgetDriveKeysAsync"/>).  <paramref name="fresh"/> asks the remote again
-    /// and keeps its answer, for a check that must not go by a copy.
+    /// then forgets the copy (<see cref="ForgetDriveKeysAsync"/>).
     /// </remarks>
     public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, OdinSlug appSlug,
-        OdinSlug driveSlug, IOdinContext odinContext, bool fresh = false)
+        OdinSlug driveSlug, IOdinContext odinContext)
     {
         // Write, not read: this key exists to put data on someone else's drive.
         if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.UseTransitWrite))
@@ -142,13 +141,7 @@ public class PeerDriveQueryService(
         OdinSlug.Required(appSlug, nameof(appSlug));
         OdinSlug.Required(driveSlug, nameof(driveSlug));
 
-        var cacheKey = $"peer-drive-key:{odinId}:{appSlug}:{driveSlug}";
-        if (fresh)
-        {
-            await cache.RemoveAsync(cacheKey);
-        }
-
-        return await cache.GetOrSetAsync(cacheKey,
+        return await cache.GetOrSetAsync($"peer-drive-key:{odinId}:{appSlug}:{driveSlug}",
             _ => FetchRemoteDriveWriteOnlyPublicKeyAsync(odinId, appSlug, driveSlug, odinContext),
             odinConfiguration.Host.PeerDriveKeyCacheAge, _ => EntrySize.Small, tags: [DriveKeysTag(odinId)],
             storeIf: key => key.IsZeroKnowledge);
@@ -156,7 +149,7 @@ public class PeerDriveQueryService(
 
     /// <summary>
     /// Forgets this identity's copies of <paramref name="odinId"/>'s drive public keys: one of its drives refused a
-    /// deposit sealed to a key it doesn't hold.
+    /// deposit sealed to a key it doesn't hold, or a check must not go by a copy.
     /// </summary>
     public async Task ForgetDriveKeysAsync(OdinId odinId) => await cache.RemoveByTagAsync(DriveKeysTag(odinId));
 

@@ -190,6 +190,6 @@ public enum OdinClientErrorCode
     ZkDriveNotGrantedToApp = 9031,
     DriveCannotBeConverted = 9032,
 
-    // A drive's write-only keys, current and retired (docs/drive-key-retirement-plan.md)
+    // A deposit sealed to a key other than the drive's write-only key (docs/drive-public-keys-plan.md)
     SealedToUnknownKey = 9033,
 }

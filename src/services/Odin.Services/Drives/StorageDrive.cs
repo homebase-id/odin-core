@@ -5,6 +5,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Security.ZeroKnowledge;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -67,6 +68,10 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     /// browser can open.
     /// </summary>
     public bool IsZeroKnowledge => Data.MasterKeyEncryptedStorageKey == null;
+
+    /// <summary>Whether <paramref name="sealedValue"/> was sealed to this drive's write-only key (<see cref="ZkSeal"/>).</summary>
+    public bool IsSealedToWriteOnlyKey(byte[] sealedValue) =>
+        WriteOnlyKeyPair != null && ZkSeal.IsSealedTo(sealedValue, WriteOnlyKeyPair.PublicKeyJwk());
 
     /// <summary>
     /// Whether this drive takes a deposit: a file whose key header its writer sealed to the drive's

@@ -8,8 +8,6 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Drives;
-using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer.Outgoing.Drive;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
 
@@ -17,7 +15,7 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
 /// <summary>
 /// A deposit must be sealed to the drive's write-only key, and a sender's server keeps a copy of a peer drive's key
-/// until a deposit sealed with it is refused (docs/drive-key-retirement-plan.md).  Deposits on the Shard Recovery
+/// until a deposit sealed with it is refused (docs/drive-public-keys-plan.md).  Deposits on the Shard Recovery
 /// drive, a zero-knowledge drive.
 /// </summary>
 [TestFixture]
@@ -33,16 +31,16 @@ public class PeerDriveKeyCacheTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
         var drivesKey = (await ZkOwnerSteps.GetShardRecoveryDriveAsync(sam)).WriteOnlyPublicKeyJwk;
-        var app = await AppSession.SetupAsync(sam, Drive, Odin.Services.Drives.DrivePermission.ReadWrite);
+        var app = await AppSession.SetupAsync(sam, Drive, DrivePermission.ReadWrite);
 
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(drivesKey);
-        var (upload, _, _, _) = await app.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(Guid.NewGuid()),
+        var (upload, _, _, _) = await app.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(Guid.NewGuid(), Content),
             transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
 
         var (otherFileKey, sealedToAnotherKey) = ZkBrowser.SealNewFileKey(ZkBrowser.MakeKeyPair().PublicKeyJwk);
         // The upload client throws on any 400 rather than returning it
-        var e = Assert.ThrowsAsync<Exception>(() => app.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(Guid.NewGuid()),
+        var e = Assert.ThrowsAsync<Exception>(() => app.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(Guid.NewGuid(), Content),
             transitOptions: null!, keyHeader: otherFileKey, lockedKeyHeader: sealedToAnotherKey));
         Assert.That(e!.Message, Does.EndWith(nameof(OdinClientErrorCode.SealedToUnknownKey)));
     }
@@ -63,7 +61,7 @@ public class PeerDriveKeyCacheTests : V2Fixture
             "Frodo's server answers from its copy");
 
         var uniqueId = Guid.NewGuid();
-        await SendDepositAsync(frodo, sam, oldKey, uniqueId);
+        await SendDepositAsync(frodo, frodo, sam, oldKey, uniqueId, Content);
         var received = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         Assert.That(received.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "refused, not stored where nobody can open it");
 
@@ -83,19 +81,4 @@ public class PeerDriveKeyCacheTests : V2Fixture
         await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
         Assert.That((await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam)).IsZeroKnowledge, Is.True);
     }
-
-    /// <summary>Frodo writes a deposit to his transient drive and sends it to Sam's Shard Recovery drive.</summary>
-    private static async Task SendDepositAsync(OwnerSession frodo, OwnerSession sam, string publicKeyJwk, Guid uniqueId)
-    {
-        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
-        var metadata = Metadata(uniqueId);
-        metadata.AllowDistribution = true;
-        var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias, metadata,
-            new TransitOptions { IsTransient = true, Recipients = [sam.Identity.DomainName], RemoteTargetDrive = Drive },
-            keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
-        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
-        await frodo.Sync.DrainOutboxAsync();
-    }
-
-    private static UploadFileMetadata Metadata(Guid uniqueId) => ZkTestFiles.Metadata(uniqueId, Content);
 }

@@ -7,7 +7,6 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Cache;
 using Odin.Services.Registry;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
@@ -355,7 +354,7 @@ public class OdinConfiguration
         public TimeSpan OutboxRetryLaterMaxAge { get; init; }
 
         /// <summary>
-        /// How long this identity caches a peer drive's write-only public key (docs/drive-key-retirement-plan.md).
+        /// How long this identity caches a peer drive's write-only public key (docs/drive-public-keys-plan.md).
         /// </summary>
         public TimeSpan PeerDriveKeyCacheAge { get; init; }
 

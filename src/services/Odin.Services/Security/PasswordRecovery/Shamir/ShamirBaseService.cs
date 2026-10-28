@@ -103,8 +103,7 @@ public abstract class ShamirBaseService<TLogger>(
         }
 
         var drive = await driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
-        return drive?.WriteOnlyKeyPair != null &&
-               ZkSeal.IsSealedTo(stored.DepositKeyHeader.EncryptedAesKey, drive.WriteOnlyKeyPair.PublicKeyJwk());
+        return drive?.IsSealedToWriteOnlyKey(stored.DepositKeyHeader.EncryptedAesKey) == true;
     }
 
     public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)

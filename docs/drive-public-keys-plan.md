@@ -57,8 +57,8 @@ Decided 2026-10-28: build the cache and the key check now, and **leave retired k
    - The file outbox workers forget a recipient's keys when a deposit is refused with
      `SealedToUnknownKey`. The sending device learns of it through its outbox failure, and seals again
      with the key it fetches next.
-   - Shamir dealing checks the holder's key fresh (`fresh: true`), so a browser that sealed with a copy
-     is told at dealing time, and the copy is replaced.
+   - Shamir dealing forgets the holder's copy before it checks the key, so a browser that sealed with a
+     copy is told at dealing time.
 
 **What it costs without retired keys:** a drive's key changes only when the drive is converted (the
 first time, or again after a reset), and seals still in flight with the old key are refused. Before
@@ -73,7 +73,7 @@ perhaps on removing a member:
 ### The timing rule
 
 - **O**: the longest an outbox item can still be delivered: `OutboxRetryLaterMaxAge` + 6 h.
-- **C**: how long the sender's server caches a peer's drive key (new, `Host:PeerDriveKeyCacheSeconds`).
+- **C**: how long the sender's server caches a peer's drive key (`Host:PeerDriveKeyCacheSeconds`).
 - **G**: how long a retired key still accepts new seals (new, `Host:RetiredDriveKeyAcceptSeconds`).
 
 A key fetched just before it was retired is handed out for up to C; a seal made at the end of that
@@ -85,10 +85,10 @@ waits in the outbox for up to O. So **G ≥ C + O**, checked at startup. Default
   `retiredAt`. A retired key takes new seals until G has passed, answering "replaced" on the peer
   transfer response so the sender forgets its copy; its private half is kept for good. Devices then
   need every key's private half, and Shamir release must accept retired keys.
-- **From the review of a first build** (2026-10-28): a reset or a drive deletion must forget the retired
-  keys too (the reset rule); retiring needs a compare-and-swap against a second rotation; a refusal
-  should re-read the retired list past the cache before answering "unknown"; G needs a margin for the
-  outbox's normal retries after its retry-later window.
+- **What retiring must also do:** a reset or a drive deletion forgets the retired keys too (their private
+  halves are locked by the drive key it drops); retiring uses a compare-and-swap, so two rotations at
+  once don't lose a key; a seal to an unknown key re-reads the retired list past the cache before it is
+  refused; and G leaves a margin for the outbox's normal retries after its retry-later window.
 
 ## Seal v2, when Chat needs it
 
