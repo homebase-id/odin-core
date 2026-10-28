@@ -407,9 +407,12 @@ Two independent steps: the owner converts the drive in the console, and each app
 its next sign-in. Nothing new carries a key to an app beyond one field in the sign-in it already does.
 
 1. **The owner converts Vault in the owner console** ("Make Vault private"). The page asks for the
-   password, even when the console remembers ZKMK for the session (`rememberZkMasterKey` **(V)**). The
-   browser converts the drive (3.3) and locks `DrvK` with the `AppZkK` of every app granted the drive,
-   making one for an app that has none.
+   password, even when the console remembers ZKMK for the session (`rememberZkMasterKey` **(V)**). If the
+   server still holds the recovery phrase, the browser takes it over first, as a login does: a reset with
+   that phrase brings back only today's master key, so it would lose ZKMK and with it Vault's key (as
+   built). The browser then converts the drive (3.3) and locks `DrvK` with the `AppZkK` of every app
+   granted the drive, making one for an app that has none. Until a chat-kmp that reads zero-knowledge
+   drives has shipped, the section shows only with the owner app's debug flag (as built).
 2. **Every sign-in of an app that reads zero-knowledge drives carries `AppZkK`.** The app says so in its
    authorize request; the consent page opens (or makes) the app's `AppZkK`, seals it to the request's
    public key, and posts it with the consent; the server carries it untouched in the token exchange, as one
@@ -571,7 +574,8 @@ Names are proposals until the server PR; the shapes are what the clients build a
 
 ### 3.6 Clients
 - **Owner console (odin-js):**
-  - "Make Vault private": password, convert, lock `DrvK` with each granted app's `AppZkK` (open or make);
+  - "Make Vault private": password, the phrase takeover if the server still holds the phrase, convert,
+    lock `DrvK` with each granted app's `AppZkK` (open or make);
   - the consent page, for an app that reads zero-knowledge drives: backfill (`AppZkK` if missing, a locked
     copy of each granted zero-knowledge drive that has none), then seal `AppZkK` to the app;
   - the same backfill for every app at a password login;
