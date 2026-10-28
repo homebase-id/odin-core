@@ -11,6 +11,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -39,6 +40,7 @@ public class ZkDriveConversionService(
     CircleNetworkRequestService circleNetworkRequestService,
     TableDriveMainIndexCached driveMainIndex,
     OdinContextCache contextCache,
+    AppNotificationDispatcher notificationDispatcher,
     IdentityDatabase db)
 {
     /// <summary>
@@ -83,8 +85,10 @@ public class ZkDriveConversionService(
 
             relabelled = await RelabelKeyHeadersAsync(drive.Id);
 
-            // Cached contexts carry grants with the key, and the apps' contexts no copies yet
+            // Cached contexts carry grants with the key, and the apps' contexts no copies yet; so does every open
+            // socket's, kept from when it authenticated
             tx.AddPostCommitAction(() => contextCache.ResetAsync());
+            tx.AddPostCommitAction(() => notificationDispatcher.PublishDriveKeysChangedAsync(drive.Id));
             tx.Commit();
         }
 

@@ -3,13 +3,17 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
+using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -17,6 +21,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
+using Odin.Test.Helpers;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkAppSteps;
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
@@ -170,6 +175,66 @@ public class VaultConversionTests : V2Fixture
         Assert.That(ZkBrowser.Open(grant.ZkAppKeyEncryptedStorageKey!, converted.AppKeys[app.AppId]), Is.EqualTo(converted.DriveKey));
         Assert.That(ZkBrowser.Open(grant.ZkStorageKeyEncryptedWriteOnlyPrivateKey!, converted.DriveKey),
             Is.EqualTo(converted.WriteOnlyPrivateKey));
+    }
+
+    [Test]
+    public async Task ConvertingVaultClosesTheSocketsGrantedItButTheOwners()
+    {
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
+        var scope = frodo.Host.GetTenantScope(frodo.Identity.DomainName);
+        var sockets = scope.Resolve<SharedDeviceSocketCollection<AppNotificationHandler>>();
+        var dispatcher = scope.Resolve<AppNotificationDispatcher>();
+
+        var owner = Socket(GrantedOn(VaultId, masterKey: new SensitiveByteArray(Guid.NewGuid().ToByteArray())));
+        var appGrantedVault = Socket(GrantedOn(VaultId));
+        var appGrantedOtherDrive = Socket(GrantedOn(Guid.NewGuid()));
+        var notSubscribedYet = Socket(null);
+        var all = new[] { owner, appGrantedVault, appGrantedOtherDrive, notSubscribedYet };
+        foreach (var socket in all)
+        {
+            sockets.AddSocket(socket);
+        }
+
+        await dispatcher.SubscribeAsync();
+        try
+        {
+            await ConvertVaultAsync(frodo, zkMasterKey);
+
+            // Through the pub/sub channel, as on a node other than the one that converted
+            await Poll.UntilAsync(() => Task.FromResult(!sockets.GetAll().ContainsKey(appGrantedVault.Key)),
+                TimeSpan.FromSeconds(10), () => "the socket of the app granted Vault to close");
+
+            var open = sockets.GetAll().Keys;
+            Assert.That(open, Does.Contain(owner.Key), "the owner's socket holds the master key");
+            Assert.That(open, Does.Contain(appGrantedOtherDrive.Key), "an app not granted Vault");
+            Assert.That(open, Does.Not.Contain(notSubscribedYet.Key), "it would subscribe with its context from before");
+        }
+        finally
+        {
+            await dispatcher.UnsubscribeAsync();
+            foreach (var socket in all)
+            {
+                await sockets.RemoveSocket(socket.Key);
+            }
+        }
+    }
+
+    private static DeviceSocket Socket(IOdinContext? context) => new() { Key = Guid.NewGuid(), DeviceOdinContext = context };
+
+    private static OdinContext GrantedOn(Guid driveId, SensitiveByteArray? masterKey = null)
+    {
+        var grant = new DriveGrant
+        {
+            DriveId = driveId,
+            PermissionedDrive = new PermissionedDrive
+                { Drive = new TargetDrive { Alias = driveId, Type = Guid.NewGuid() }, Permission = DrivePermission.ReadWrite }
+        };
+        var context = new OdinContext { Caller = new CallerContext((OdinId)Identities.Frodo, masterKey!, SecurityGroupType.Owner) };
+        context.SetPermissionContext(new PermissionContext(
+            new System.Collections.Generic.Dictionary<string, PermissionGroup> { ["app"] = new(new PermissionSet(), [grant], null, null) },
+            sharedSecretKey: null!));
+        return context;
     }
 
     [Test]
