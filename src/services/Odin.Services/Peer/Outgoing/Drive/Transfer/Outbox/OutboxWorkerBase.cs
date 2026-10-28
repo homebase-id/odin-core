@@ -150,12 +150,12 @@ public abstract class OutboxWorkerBase(
 
     /// <summary>
     /// Forgets this identity's copies of <paramref name="recipient"/>'s drive public keys when the file's deposit was
-    /// sealed with one that is out of date: replaced, or one the drive doesn't take (docs/drive-key-retirement-plan.md).
+    /// refused for being sealed to a key the drive doesn't hold (docs/drive-key-retirement-plan.md)
     /// </summary>
     protected static async Task ForgetOutOfDateDriveKeysAsync(ApiResponse<PeerTransferResponse> response,
         PeerDriveQueryService peerDriveQueryService, OdinId recipient)
     {
-        if (response.Content?.SealedToRetiredKey == true || response.ErrorCode() == OdinClientErrorCode.SealedToUnknownKey)
+        if (response.ErrorCode() == OdinClientErrorCode.SealedToUnknownKey)
         {
             await peerDriveQueryService.ForgetDriveKeysAsync(recipient);
         }

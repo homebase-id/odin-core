@@ -1,23 +1,16 @@
-# Drive public keys: retired keys, a peer key cache and a better fingerprint
+# Drive public keys: a peer key cache, a key check on arrival, and later retired keys
 
-Status: plan, 2026-10-28. The first piece towards Chat going private. Server side (odin-core), with
-the seal format change mirrored in odin-js and chat-kmp.
-
-**(V)** = verified by reading code on main `e3a6af496`. **(I)** = inferred.
+Status: plan, 2026-10-28. The first piece towards Chat going private. **(V)** = verified by reading code
+on main `e3a6af496`. **(I)** = inferred.
 
 ## Goal
 
-A sender seals a file key to a recipient drive's write-only public key. That must keep working when
-the recipient replaces the key, and the sender's server must not have to fetch the key for every
-message:
+A sender seals a file key to a recipient drive's write-only public key. The sender's server shouldn't
+have to fetch that key for every message, and a seal made with a key the drive doesn't hold should be
+refused, not stored where nobody can open it.
 
-- the recipient keeps **retired** keys and still accepts seals made with them for a while, answering
-  "replaced";
-- the sender's server **caches** peers' drive public keys per identity;
-- a seal names its key by an **8-byte SHA-256 fingerprint** instead of a CRC;
-- a seal made with a key the drive doesn't know is **refused** with its own error code.
-
-With the timing rule below, the outbox always delivers: nothing ever has to be sealed again.
+Decided 2026-10-28: build the cache and the key check now, and **leave retired keys for later**
+(see "Later"). Seals stay v1.
 
 ## What exists today
 
@@ -47,7 +40,37 @@ With the timing rule below, the outbox always delivers: nothing ever has to be s
   retries (30 attempts) add up to about 4 hours **(I)**. A 400 from the recipient makes the outbox give up
   (`OutboxWorkerBase.cs:81-85`) **(V)**.
 
-## The timing rule
+## Now (odin-core only, no client change)
+
+1. **A deposit must be sealed to the drive's key.** On arrival, local upload and peer transfer alike,
+   a sealed key header must name the drive's current write-only key by its v1 key id; any other is
+   refused with `SealedToUnknownKey` (9033). The shape is checked first, so a malformed seal still gets
+   `InvalidKeyHeader`. Not on the transient drive, where a sender's deposit waits to go elsewhere.
+   (`ZkDriveFiles`, no database read.)
+2. **The sender's server caches a peer drive's key** per identity, for `Host:PeerDriveKeyCacheSeconds`
+   (7 days; at least the cache's 2-second minimum), in `PeerDriveQueryService`'s tenant cache.
+   - Only a zero-knowledge drive's answer is kept: one that isn't yet takes no deposits, and becomes
+     one at its owner's next login.
+   - Per identity, not per host: the recipient grants the key per asker (it requires Write), and every
+     other cache here is per tenant. A cached answer skips the remote's per-asker check, so after a
+     revoke the key is still served until it expires; the deposit is refused at the transfer.
+   - The file outbox workers forget a recipient's keys when a deposit is refused with
+     `SealedToUnknownKey`. The sending device learns of it through its outbox failure, and seals again
+     with the key it fetches next.
+   - Shamir dealing checks the holder's key fresh (`fresh: true`), so a browser that sealed with a copy
+     is told at dealing time, and the copy is replaced.
+
+**What it costs without retired keys:** a drive's key changes only when the drive is converted (the
+first time, or again after a reset), and seals still in flight with the old key are refused. Before
+this, they were stored and could never be opened.
+
+## Later: retired keys, when a voluntary rotation needs them
+
+Nothing replaces a drive key with a grace period today: converting a drive drops a key that either took
+no deposits (Collaborative) or whose private half is lost (a reset). When a rotation is built, for Chat
+perhaps on removing a member:
+
+### The timing rule
 
 - **O**: the longest an outbox item can still be delivered: `OutboxRetryLaterMaxAge` + 6 h.
 - **C**: how long the sender's server caches a peer's drive key (new, `Host:PeerDriveKeyCacheSeconds`).
@@ -57,16 +80,26 @@ A key fetched just before it was retired is handed out for up to C; a seal made 
 waits in the outbox for up to O. So **G ≥ C + O**, checked at startup. Defaults: C = 7 days, O = 7 days
 + 6 h, G = 30 days.
 
-## Design
+- **Retired keys**: the current key stays in the Drives row; retired ones in one key-value record per
+  drive (not a table: that needs the SQLite generator), each with its browser-locked private half and
+  `retiredAt`. A retired key takes new seals until G has passed, answering "replaced" on the peer
+  transfer response so the sender forgets its copy; its private half is kept for good. Devices then
+  need every key's private half, and Shamir release must accept retired keys.
+- **From the review of a first build** (2026-10-28): a reset or a drive deletion must forget the retired
+  keys too (the reset rule); retiring needs a compare-and-swap against a second rotation; a refusal
+  should re-read the retired list past the cache before answering "unknown"; G needs a margin for the
+  outbox's normal retries after its retry-later window.
 
-### 1. The fingerprint
+## Seal v2, when Chat needs it
+
+### The fingerprint
 - `KeyId` = the first 8 bytes of the key's **JWK thumbprint** (RFC 7638): SHA-256 over
   `{"crv":"P-384","kty":"EC","x":"…","y":"…"}`, members in that order, no whitespace. Built from the JWK,
   which is minimal and the same everywhere; the DER is not (it differs by origin).
 - It is only an index: it picks which of a drive's keys a seal used. A wrong match fails when the
   device opens the seal; it can't make anyone accept anything.
 
-### 2. Seal format v2
+### The format
 - `ZkSeal` v2: `0x02 ‖ key id (8 bytes) ‖ throwaway public key (97) ‖ IV (12) ‖ ciphertext + tag`, and the
   header before the IV (`0x02 ‖ key id ‖ throwaway public key`) is the AES-GCM associated data, so the
   authentication covers it. v1 authenticates the ciphertext only (`ZkSeal.cs:53-70`) **(V)**.
@@ -77,97 +110,13 @@ waits in the outbox for up to O. So **G ≥ C + O**, checked at startup. Default
   makes it**. Readers keep accepting v1 for good: v1 seals are stored (Shamir shards, deposits), and a
   v1 key id is matched by computing the CRC of each candidate key, as today.
 
-### 3. Retired keys, in the key-value store
-- The current key stays in the Drives row. Retired keys go in one key-value record per drive (the tenant's
-  key-value table, up to 1 MB), each with its public key, its browser-locked private half and `retiredAt`.
-  Not a table of its own: that needs the SQLite generator (decided 2026-10-28).
-- **Retiring is time-based**, never by count: a retired key accepts new seals until `retiredAt + G`.
-- **Its private half is kept after G.** G ends acceptance only. Files already sealed to a retired key
-  still need its private half to be opened, until a device transforms them (the designed transform) or
-  they are deleted.
-- `EccKeyListManagement` (count-based, no rotation caller in src **(V)**) is not reused; the identity
-  keys keep it.
+## Tests (now)
 
-### 4. Arrival: three answers
-At the arrival points that already have the drive loaded **(V)**: `ZkDriveFiles.OpenForWriteAsync`
-(local upload, V1 and V2) and `PeerDriveIncomingTransferService` / `PeerDriveIncomingFileUpdateService`
-(peer, before staging). The transient drive is skipped: it has no recipient key.
-- **Current key:** accept.
-- **Retired, within G:** accept, and say "replaced": a new field on the local upload result, and on the
-  peer transfer response (`PeerResponseCode` has no room for it today **(V)**).
-- **Unknown, or retired past G:** refuse with a new error code, `SealedToUnknownKey`. For a peer
-  transfer that is a 400, so the sender's outbox gives up and the sending app is told through its outbox
-  failure.
-
-### 5. The sender's cache, per identity
-- `GetRemoteDriveWriteOnlyPublicKeyAsync` reads through a per-tenant cache, keyed by
-  `(odinId, appSlug, driveSlug)`, entries kept for up to C.
-- An entry is dropped when a delivery answers "replaced" or "unknown key", so the next fetch gets the
-  current key.
-- Per identity, not per host: the recipient grants the key per asker (it requires Write), and every
-  other cache here is per tenant.
-
-### 6. Serving keys
-- `DrivePublicKeyResponse` gains `KeyId` (the fingerprint). `PublicKeyCrc32` stays until the clients
-  that read it have moved (the owner console shows it; chat-kmp may read it).
-- Devices that hold the drive key get every key's locked private half (current and retired), each with
-  its key id, through the same grant fields as today. A device opens a seal with the key its id names.
-- The owner console shows the fingerprint instead of `CRC`.
-
-### 7. Shamir
-- Release checks a shard against the drive's keys, not only the current one: a retired key whose
-  private half is still held is fine.
-
-## Who retires a key today
-
-Nobody yet, with a grace period:
-- **Converting a drive** (Vault) replaces a key the server held. A Collaborative drive can't hold
-  deposits (`StorageDrive.cs:78`) **(V)**, so nothing was ever sealed to the old key: it is dropped, not
-  retired.
-- **Converting the Shard Recovery drive again after a reset** replaces a key whose private half was
-  locked with a zero-knowledge master key that is lost. Seals to it can never be opened, so it is
-  dropped, and a late seal gets "unknown key" instead of being stored unreadable, as it is today.
-
-So step 3's grace period has no caller until a voluntary rotation exists (for Chat, perhaps on removing
-a member). The retired-key record, the arrival answers and the cache are what Chat needs first.
-
-## Decided (2026-10-28)
-
-- Build the retirement with its grace period now; retired keys in the key-value store. Defaults:
-  C = 7 days, G = 30 days.
-- The key id is the JWK thumbprint, 8 bytes; the seal v2 header is authenticated.
-
-## Build order
-
-Each a PR to main:
-1. **odin-core: drive keys** (this branch). No seal format change and no client change: seals stay v1 and
-   are matched by their 4-byte key id.
-   - Retired keys in the tenant's key-value store, one record per drive (`DriveManager`); retiring by time.
-   - The arrival answers: current key, retired key within G ("replaced", on the peer transfer response),
-     anything else refused with `SealedToUnknownKey`. A local upload is checked the same way but says
-     nothing back: its writer reads the key from its own identity, with no cache to correct.
-   - The per-identity cache of peers' drive keys (`PeerDriveQueryService`), forgotten by the file outbox
-     workers on "replaced" or `SealedToUnknownKey`.
-   - Shamir release against the current or any retired key.
-   - `Host:PeerDriveKeyCacheSeconds`, `Host:RetiredDriveKeyAcceptSeconds`, and the G ≥ C + O check at
-     startup.
-   - `DriveManager.ReplaceWriteOnlyKeyPairAsync` retires a key; it has no caller yet (see "Who retires a
-     key today"). The first voluntary rotation also serves the retired private halves to devices.
-2. **Seal v2**, when Chat needs it: readers in all three code bases first, with one shared test vector,
-   then writers. The 8-byte key id (JWK thumbprint) comes with it, in `DrivePublicKeyResponse` and the
-   owner's drive data.
-
-## Tests
-
-- V2: a seal to the current key is accepted; to a retired key within G it is accepted with "replaced";
-  past G or to an unknown key it is refused with `SealedToUnknownKey`. The same for a peer transfer.
-- The sender's cache: a second fetch within C doesn't call the peer; "replaced" drops the entry.
-- Startup refuses G < C + O.
-- Seal v1 and v2 both open; a shared test vector across odin-core, odin-js and chat-kmp for the key id
-  and the v2 seal.
-- Shamir: a shard sealed to a retired key is still released.
+- V2: a deposit sealed to the drive's key is taken, to another key refused with `SealedToUnknownKey`;
+  a sender keeps its copy of a peer's key until a deposit sealed with it is refused, then fetches the
+  new one; an answer from a drive that isn't zero knowledge yet is not kept.
 
 ## Not in this work
 
-- Voluntary key rotation itself, and when Chat would use it.
+- Retired keys and voluntary rotation; seal v2.
 - Sealing per recipient in the outbox, receiving, the transform: the next Chat pieces.

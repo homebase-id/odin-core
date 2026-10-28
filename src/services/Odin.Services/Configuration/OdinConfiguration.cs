@@ -7,7 +7,7 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Core.Storage.Cache;
 using Odin.Services.Registry;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
@@ -355,34 +355,9 @@ public class OdinConfiguration
         public TimeSpan OutboxRetryLaterMaxAge { get; init; }
 
         /// <summary>
-        /// How long this identity caches a peer drive's write-only public key (docs/drive-key-retirement-plan.md, C).
+        /// How long this identity caches a peer drive's write-only public key (docs/drive-key-retirement-plan.md).
         /// </summary>
         public TimeSpan PeerDriveKeyCacheAge { get; init; }
-
-        /// <summary>
-        /// How long a drive's retired write-only key still takes new seals (G).  At least the cache age plus the
-        /// longest an outbox item can still be delivered, so whatever was sealed with a cached key gets through.
-        /// </summary>
-        public TimeSpan RetiredDriveKeyAcceptAge { get; init; }
-
-        /// <summary>
-        /// A seal made with a key cached for up to <paramref name="cacheAge"/> can wait in the outbox for up to
-        /// <paramref name="outboxMaxAge"/> plus the longest deferral; the retired key must take it all that time.
-        /// </summary>
-        public static void AssertRetiredDriveKeysOutliveSeals(TimeSpan cacheAge, TimeSpan outboxMaxAge, TimeSpan acceptAge)
-        {
-            if (cacheAge <= TimeSpan.Zero)
-            {
-                throw new OdinConfigException("Invalid PeerDriveKeyCacheSeconds");
-            }
-
-            var longestSeal = cacheAge + outboxMaxAge + OutboxRetryLater.MaxDelay;
-            if (acceptAge < longestSeal)
-            {
-                throw new OdinConfigException($"RetiredDriveKeyAcceptSeconds must be at least {longestSeal.TotalSeconds:0}: " +
-                                              "PeerDriveKeyCacheSeconds, plus OutboxRetryLaterMaxAgeSeconds and the longest deferral");
-            }
-        }
 
         public TimeSpan PeerOperationDelayMs { get; init; }
 
@@ -454,9 +429,10 @@ public class OdinConfiguration
 
             PeerDriveKeyCacheAge =
                 TimeSpan.FromSeconds(config.GetOrDefault("Host:PeerDriveKeyCacheSeconds", 7 * 24 * 60 * 60));
-            RetiredDriveKeyAcceptAge =
-                TimeSpan.FromSeconds(config.GetOrDefault("Host:RetiredDriveKeyAcceptSeconds", 30 * 24 * 60 * 60));
-            AssertRetiredDriveKeysOutliveSeals(PeerDriveKeyCacheAge, OutboxRetryLaterMaxAge, RetiredDriveKeyAcceptAge);
+            if (PeerDriveKeyCacheAge < FusionCacheWrapper.MinL2Duration)
+            {
+                throw new OdinConfigException($"PeerDriveKeyCacheSeconds must be at least {FusionCacheWrapper.MinL2Duration.TotalSeconds}");
+            }
 
             ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
 
