@@ -46,6 +46,15 @@ public sealed class YouAuthAuthorizeRequest
     [BindProperty(Name = YouAuthDefaults.Cipher, SupportsGet = true)]
     public string Cipher { get; set; } = "";
 
+    /// <summary>
+    /// <c>1</c> when an app asks for its zero-knowledge key (<see cref="YouAuthDefaults.ZkAppKey"/>); empty otherwise,
+    /// and then left out of <see cref="ToQueryString"/>.
+    /// </summary>
+    [BindProperty(Name = YouAuthDefaults.ZkAppKey, SupportsGet = true)]
+    public string ZkAppKey { get; set; } = "";
+
+    public bool WantsZkAppKey => ZkAppKey == "1";
+
     //
 
     public YouAuthAuthorizeRequest()
@@ -63,7 +72,8 @@ public sealed class YouAuthAuthorizeRequest
         string permissionRequest,
         string clientInfo,
         string state,
-        string cipher)
+        string cipher,
+        string zkAppKey)
     {
         RedirectUri = redirectUri;
         ClientType = clientType;
@@ -73,6 +83,7 @@ public sealed class YouAuthAuthorizeRequest
         ClientInfo = clientInfo;
         State = state;
         Cipher = cipher;
+        ZkAppKey = zkAppKey;
     }
     
     //
@@ -91,6 +102,10 @@ public sealed class YouAuthAuthorizeRequest
         if (!string.IsNullOrEmpty(Cipher))
         {
             qs[YouAuthDefaults.Cipher] = Cipher;
+        }
+        if (!string.IsNullOrEmpty(ZkAppKey))
+        {
+            qs[YouAuthDefaults.ZkAppKey] = ZkAppKey;
         }
 
         return qs.ToString() ?? string.Empty;
@@ -115,7 +130,8 @@ public sealed class YouAuthAuthorizeRequest
             publicKey: qs[PublicKeyName] ?? string.Empty,
             redirectUri: qs[RedirectUriName] ?? string.Empty,
             state: qs[StateName] ?? string.Empty,
-            cipher: qs[YouAuthDefaults.Cipher] ?? string.Empty);
+            cipher: qs[YouAuthDefaults.Cipher] ?? string.Empty,
+            zkAppKey: qs[YouAuthDefaults.ZkAppKey] ?? string.Empty);
     }
 
     //
@@ -162,6 +178,10 @@ public sealed class YouAuthAuthorizeRequest
         {
             throw new BadRequestException($"Bad or missing {PublicKeyName}");
         }
+        if (!string.IsNullOrEmpty(ZkAppKey) && (!WantsZkAppKey || ClientType != ClientType.app))
+        {
+            throw new BadRequestException($"{YouAuthDefaults.ZkAppKey} is 1, and only for {ClientTypeName} {ClientType.app}");
+        }
         ParsedCipher();
     }
 
@@ -183,4 +203,13 @@ public class YouAuthAuthorizeConsentGiven
 {
     public const string ReturnUrlName = "return_url";
     public const string ConsentRequirementName = "consent_req";
+
+    /// <summary>The app's zero-knowledge key, sealed by the browser to the sign-in's public key, when the app asked for it.</summary>
+    public const string SealedZkAppKeyName = "zk_app_key_sealed";
+
+    /// <summary>
+    /// The app's key locked with the zero-knowledge master key, as the browser opened (or made) it to seal: the server
+    /// checks it is still the app's key, so the device isn't handed one a concurrent sign-in replaced.
+    /// </summary>
+    public const string LockedZkAppKeyName = "zk_app_key_locked";
 }

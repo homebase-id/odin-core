@@ -10,8 +10,8 @@ Anything without a marker is the proposed design.
 
 ## How a zero-knowledge drive holds files
 
-The model in short: the `zkDrive` type is built (step 1); `sealed` under the same rules is step 2, being
-built; the reasons, alternatives and work are in
+The model in short: the `zkDrive` type is built (step 1); `sealed` under the same rules is step 2 (#2029,
+merged 2026-10-27); the reasons, alternatives and work are in
 [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
 
 - **One key header per file, the rest under FileKey.** A file's key header holds FileKey (its AES key)
@@ -306,30 +306,40 @@ sealed to the app's own key, so nobody in between can open it.
 5. The app works out the same exchange secret and fetches the sealed result once, by its hash.
    The server then deletes it (`ExchangeDigestForEncryptedToken`).
 
-**New:** the same steps. The browser locks the drive keys, and the server only carries them.
+**New:** the same steps, carrying one **zero-knowledge app key** (`AppZkK`, proposed 2026-10-27; the
+plan is step 3 of [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md)). The browser
+locks, and the server only carries.
+
+- `AppZkK` is 16 random bytes per app, made by the browser. The server keeps `aes(ZKMK, AppZkK)` for the
+  browser, and `aes(AppZkK, DrvK)` for each zero-knowledge drive the app is granted, both on the app
+  registration, opaque to it.
+- It is the zero-knowledge twin of the app's key store key, which the device's token half opens on the
+  server today **(V)**.
+- So a device needs one key from the browser, once. Drives converted or granted later reach it through
+  the server, locked, with no new sign-in.
 
 Labels: **ZK** = the zero-knowledge master key, **MK** = today's master key, **PK** = locking to an
-ECC P-384 public key.
+ECC P-384 public key, **App** = locking with `AppZkK`.
 
 Browser (owner console, consent page):
-1. Take the ZK master key it has held since login (the password is asked for at login only).
-   (**ZK**)
-2. Open the key of each drive the app is granted, with the ZK master key. (**ZK**)
-3. Lock those drive keys to the app's public key from the authorize request, which travels in
-   the consent page's return URL **(V)**. (**PK**)
-4. Post the locked blob with the consent to the server.
+1. Take the ZK master key the console holds since its last password login, or ask for the password. (**ZK**)
+2. Open the app's `AppZkK` with it, or make one. (**ZK**)
+3. Lock the key of each zero-knowledge drive granted to the app with `AppZkK`, if not already. (**App**)
+4. Seal `AppZkK` to the app's public key from the authorize request, which travels in the consent
+   page's return URL **(V)**. (**PK**)
+5. Post the sealed key with the consent to the server, and the locked drive keys.
 
 Server (YouAuth):
 
-5. Store the blob untouched, as it holds the consent today (`TempConsentCacheKey`) **(V)**. It
+6. Store the sealed key untouched, as it holds the consent today (`TempConsentCacheKey`) **(V)**. It
    can't open it: it has neither the ZK master key nor the app's private key.
-6. Put the blob in the token response as one new field, `ZkDriveKeys`, in the same 5-minute,
-   one-time entry (`EncryptedTokenExchange`, `YouAuthTokenResponse`).
+7. Put it in the token response as one new field, `ZkAppKey`, in the same 5-minute, one-time entry
+   (`EncryptedTokenExchange`, `YouAuthTokenResponse`), and mark the device as holding it.
 
 App:
 
-7. Open `ZkDriveKeys` with its own private key. (**PK**)
-8. Keep the drive keys in the device's key store.
+8. Open `ZkAppKey` with its own private key, and keep `AppZkK` in the device's key store. (**PK**)
+9. Fetch its locked drive keys and open them with `AppZkK`. (**App**)
 
 **MK** isn't used here. It is used once per existing drive, at conversion: the server opens the
 drive key with MK, the browser locks it with ZK, and the MK copy is deleted (see
@@ -341,7 +351,8 @@ drive key with MK, the browser locks it with ZK, and the MK copy is deleted (see
 - **Redirect, or anyone in the middle:** public keys and salts only, as today.
 - **Browser:** the drive keys, while it seals them. It is the owner's own page, and it holds the
   zero-knowledge master key anyway.
-- **App:** only the storage keys of the drives it was granted, never the zero-knowledge master key.
+- **App:** `AppZkK` and the storage keys of the zero-knowledge drives it was granted, never the
+  zero-knowledge master key.
 
 **Same protection, same limits:**
 - The browser seals to the key in the authorize request, the same key the server seals the
@@ -352,17 +363,21 @@ drive key with MK, the browser locks it with ZK, and the MK copy is deleted (see
   page; it is reasoning, not something checked in this repo.
 
 **Each device, each new grant:**
-- Each device signs in on its own and gets its own sealed copy.
-- Granting an app more drives later goes through the consent page again, and that's where those
-  keys get sealed.
+- Each device signs in on its own and gets its own sealed copy of `AppZkK`.
+- Granting an app more drives later, or converting one, happens in the browser, which locks the drive
+  key with `AppZkK`; the app's devices fetch it with no new sign-in.
+- Every device of an app shares `AppZkK`, so revoking a device doesn't replace it: the same "no rotation
+  on removal" risk as drive keys.
 
 **Trusted apps (no consent screen):**
 - Today an app whose redirect is on the owner's own host skips consent: the server answers the
   authorize request itself and redirects straight back to the app (`YouAuthUnifiedService.NeedConsent`,
   `YouAuthUnifiedController`) **(V)**. They are short-circuited on purpose: they are apps we
   trust, and it keeps sign-in smooth.
-- New: the server sends them to the consent page anyway. The page shows nothing and needs no
-  click: it runs steps 1–4 and continues on its own. The user sees one extra redirect.
+- New: an app that asks for its zero-knowledge key (`zk_app_key=1`) goes to the consent page anyway
+  (`NeedConsent`) **(V)**. As built, the page shows the usual consent form and needs a click; it seals
+  the key meanwhile, and the Login button waits for it **(V)**. A page that continues on its own is
+  possible later.
 - It has to pass through the page because only the browser holds the ZK master key. A redirect
   from the server alone has no keys to hand over.
 
@@ -402,7 +417,7 @@ Server:
 4. Grants on a Private drive carry no key. `ExchangeGrantService.CreateDriveGrant` already takes
    a key source, and a keyless one exists (`NoStorageKeySource`) **(V)**. Every caller is still to
    be traced.
-5. Consent carries the browser's locked drive keys: one more field, `ZkDriveKeys`, in `EncryptedTokenExchange`
+5. Consent carries the browser's sealed `AppZkK`: one more field, `ZkAppKey`, in `EncryptedTokenExchange`
    (see [Getting ZK drive keys to an app](#getting-zk-drive-keys-to-an-app)).
 6. An owner-only conversion endpoint for steps 2 to 4 above.
 7. An owner-only endpoint that adds a ZK copy of a drive's key without converting the drive (see
@@ -523,8 +538,8 @@ chat-kmp paths are relative to the chat-kmp repo (read 2026-10-22, at `13f06b94f
 
 ### chat-kmp changes
 
-1. **Sign-in:** open the new `ZkDriveKeys` field in the token response and keep the drive keys in
-   `SecureStorage`. The sealed field should use AES-GCM, so the exchange code needs GCM.
+1. **Sign-in:** open the new `ZkAppKey` field in the token response (sealed with `ZkSeal`, AES-GCM),
+   keep `AppZkK` in `SecureStorage`, and fetch and open the app's locked drive keys with it.
 2. **One switch for headers:** on a zero-knowledge drive, open and lock headers with the drive key
    instead of the shared secret. That's `ServerFile.asHomebaseFile`, the payload/thumbnail
    decrypt in `DriveFileProvider.kt`, `UploadDescriptorBuilder.kt` and the update descriptor.
@@ -566,8 +581,8 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
      the payload's IV from the file metadata. The packed format stays for `aes`, and isn't
      replaced with JSON. GCM isn't used.
    - The plan, with the reasons and the work: [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
-4. **Sign-in:** consent accepts the browser's sealed blob, and `YouAuthTokenResponse` gets one new
-   field, `ZkDriveKeys` (`YouAuthTokenResponse.cs`) **(V)**. The YouAuth reference client too.
+4. **Sign-in:** consent accepts the browser's sealed `AppZkK`, and `YouAuthTokenResponse` gets one new
+   field, `ZkAppKey` (`YouAuthTokenResponse.cs`) **(V)**. The YouAuth reference client too.
    Trusted apps that skip consent go through the consent page without a screen (see
    [Trusted apps](#getting-zk-drive-keys-to-an-app)).
 5. **Grants carry no storage key on a zero-knowledge drive** (see

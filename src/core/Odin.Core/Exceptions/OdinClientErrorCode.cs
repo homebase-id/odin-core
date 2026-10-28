@@ -182,4 +182,10 @@ public enum OdinClientErrorCode
     // A zero-knowledge drive's own key headers (docs/zero-knowledge-drive-api-plan.md)
     ZkDriveKeyHeaderNeedsZeroKnowledgeDrive = 9027,
     ZkDriveFileCannotBeSent = 9028,
+
+    // Zero-knowledge keys for apps, and converting a drive that keeps its key (docs/zero-knowledge-drive-api-plan.md, step 3)
+    ZkAppKeyAlreadySet = 9029,
+    ZkAppKeyMissing = 9030,
+    ZkDriveNotGrantedToApp = 9031,
+    DriveCannotBeConverted = 9032,
 }

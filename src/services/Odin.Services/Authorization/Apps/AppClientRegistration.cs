@@ -40,6 +40,14 @@ public sealed class AppClientRegistration : IClientRegistration
 
     public string IssuedTo { get; set; }
 
+    /// <summary>
+    /// The id (<see cref="AppRegistration.ZkAppKeyId"/>) of the app's zero-knowledge key (AppZkK) this device was
+    /// handed when its token was made; null when it was given none (docs/zero-knowledge-drive-api-plan.md, step 3).
+    /// The device opens the keys of the zero-knowledge drives the app is granted only while this is still the app's
+    /// key: a concurrent first sign-in whose key won leaves it holding nothing.
+    /// </summary>
+    public string ZkAppKeyId { get; init; }
+
     public int Type => CatType;
 
     public int TimeToLiveSeconds => (int)TimeSpan.FromDays(365).TotalSeconds; // 3 hours

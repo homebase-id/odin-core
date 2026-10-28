@@ -257,6 +257,7 @@ public static class TenantServices
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();
         cb.RegisterType<ZeroKnowledgeKeyService>().InstancePerLifetimeScope();
+        cb.RegisterType<ZkDriveConversionService>().InstancePerLifetimeScope();
         cb.RegisterType<ZeroKnowledgeRecoveryService>().InstancePerLifetimeScope();
 
         cb.RegisterType<OwnerAuthenticationService>()

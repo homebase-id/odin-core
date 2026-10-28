@@ -12,6 +12,8 @@ using Odin.Core.Time;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Base;
+using Odin.Services.Peer.Encryption;
+using Odin.Services.Drives;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Exceptions;
@@ -262,6 +264,42 @@ public class AutomatedRecoveryTests : ShamirFixture
         var status = await ZkOwnerSteps.GetStatusAsync(recovered);
         Assert.That(status.ZkSaltKek64, Is.Null, "a reset with today's master key forgets the zero-knowledge keys");
         Assert.That(status.DealNeedsDealing, Is.True, "the next password login deals it in the browser");
+    }
+
+    /// <summary>
+    /// The apps' zero-knowledge keys were locked with the forgotten zero-knowledge master key, but the devices that hold
+    /// one may be the only way left into its drives: the reset keeps every app's key and copy, and a device signed in
+    /// before still reads Vault.
+    /// </summary>
+    [Test]
+    public async Task AResetWithTodaysMasterKeyKeepsTheAppsKeysForTheirDevices()
+    {
+        var (frodo, _) = Cast();
+        await MakeZeroKnowledgeAsync(frodo);
+        var app = await AppSession.SetupAsync(frodo, ZkAppSteps.Vault, DrivePermission.Read);
+        var converted = await ZkAppSteps.ConvertVaultAsync(frodo, ZkMasterKeyOf(frodo));
+        var (device, appKey) = await ZkAppSteps.SignInAsync(frodo, app.AppId, ZkMasterKeyOf(frodo));
+        var uniqueId = Guid.NewGuid();
+        var fileKey = KeyHeader.NewRandom16();
+        var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(ZkAppSteps.VaultId,
+            ZkTestFiles.Metadata(uniqueId, "what's in the vault"), transitOptions: null!, keyHeader: fileKey,
+            lockedKeyHeader: ZkBrowser.LockFileKey(fileKey, converted.DriveKey));
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        var before = (await ZkAppSteps.GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId);
+
+        await ArrangeServerMadeAutomatedDealAsync(frodo);
+        var recovered = await RecoverServerMadeDealAsync(frodo, NewPassword);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).ZkSaltKek64, Is.Null, "the zero-knowledge master key is gone");
+
+        var kept = (await ZkAppSteps.GetAppKeysAsync(recovered)).Single(a => a.AppId == app.AppId);
+        Assert.That(kept.ZkMasterKeyEncryptedAppKey, Is.EqualTo(before.ZkMasterKeyEncryptedAppKey));
+        Assert.That(kept.Drives.Single(d => d.DriveId == ZkAppSteps.VaultId).HasAppCopy, Is.True);
+
+        var grant = await ZkAppSteps.GrantOnAsync(device, ZkAppSteps.Vault);
+        Assert.That(grant.ZkAppKeyEncryptedStorageKey, Is.Not.Null, "the device still gets its copy of Vault's key");
+        Assert.That(ZkBrowser.Open(grant.ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(converted.DriveKey));
+        var seen = await device.Drives.Reader.GetBatchAsync(ZkAppSteps.VaultId, ZkTestFiles.QueryFor(uniqueId));
+        Assert.That(seen.Content?.SearchResults, Has.Count.EqualTo(1), seen.Error?.Content);
     }
 
     [Test]

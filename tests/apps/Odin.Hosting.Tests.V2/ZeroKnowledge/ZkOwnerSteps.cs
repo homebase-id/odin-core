@@ -1,4 +1,6 @@
 #nullable enable
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -8,6 +10,7 @@ using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Security.ZeroKnowledge;
 using Refit;
@@ -136,4 +139,16 @@ public interface IZeroKnowledgeOwnerClient
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/convert-shard-recovery-drive")]
     Task<ApiResponse<HttpContent>> ConvertShardRecoveryDrive([Body] ZkConvertDriveRequest request);
+
+    [Get(OwnerApiPathConstants.SecurityV1 + "/zk/app-keys")]
+    Task<ApiResponse<List<ZkAppKeysResponse>>> GetAppKeys();
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/app-keys")]
+    Task<ApiResponse<HttpContent>> SaveAppKeys([Body] ZkAppKeysRequest request);
+
+    [Get(OwnerApiPathConstants.SecurityV1 + "/zk/drives/{driveId}/key-for-conversion")]
+    Task<ApiResponse<ZkDriveKeyResponse>> GetDriveKeyForConversion(Guid driveId);
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/convert-drive")]
+    Task<ApiResponse<HttpContent>> ConvertDrive([Body] ZkConvertDriveKeepingKeyRequest request);
 }

@@ -105,6 +105,10 @@ public sealed class AppSession : IV2Caller
         return new AppSession(owner.Host, owner.Identity, appId, token, sharedSecret);
     }
 
+    /// <summary>A session for a token the app got some other way: its own YouAuth sign-in, say.</summary>
+    public static AppSession FromToken(OwnerSession owner, Guid appId, ClientAuthenticationToken token, byte[] sharedSecret) =>
+        new(owner.Host, owner.Identity, appId, token, sharedSecret);
+
     public static async Task<AppSession> SetupAsync(
         OwnerSession owner,
         PermissionSetGrantRequest permissions,

@@ -81,9 +81,15 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     /// the owner is offline.  Never on a zero-knowledge drive, whose key reaches an app only from the
     /// browser (docs/zero-knowledge-drives.md).
     /// </summary>
-    public bool GrantCarriesStorageKey(DrivePermission permission) =>
-        !IsZeroKnowledge &&
-        (permission.HasFlag(DrivePermission.Read) || permission.HasFlag(DrivePermission.ConditionalTemporalRead));
+    public bool GrantCarriesStorageKey(DrivePermission permission) => !IsZeroKnowledge && PermissionNeedsKey(permission);
+
+    /// <summary>
+    /// Whether a grant with <paramref name="permission"/> needs the drive's key: reading does, and
+    /// ConditionalTemporalRead does too so the grantee can decrypt in-window files while the owner is offline.
+    /// Writing alone doesn't: on a zero-knowledge drive it deposits, sealed to the drive's public key.
+    /// </summary>
+    public static bool PermissionNeedsKey(DrivePermission permission) =>
+        permission.HasFlag(DrivePermission.Read) || permission.HasFlag(DrivePermission.ConditionalTemporalRead);
 
     /// <summary>The browser's locked copy of the drive key.  Opaque to the server.</summary>
     public string ZkMasterKeyEncryptedStorageKey => Data.ZkMasterKeyEncryptedStorageKey;

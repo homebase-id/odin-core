@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -36,6 +37,7 @@ public class ZeroKnowledgeKeyService(
     TableDriveMainIndexCached driveMainIndex,
     OdinContextCache contextCache,
     StandardFileSystem fileSystem,
+    IAppRegistrationService appRegistrationService,
     IdentityDatabase db)
 {
     private static readonly Guid ZkKeyStorageId = Guid.Parse("4f1c2b8e-7d3a-4c6b-9e5f-1a2b3c4d5e6f");
@@ -280,8 +282,9 @@ public class ZeroKnowledgeKeyService(
 
     /// <summary>
     /// Forgets the keys after a reset with today's master key: they are locked by the forgotten
-    /// password and can never be opened again, and so is every copy tied to the zero-knowledge master
-    /// key.  The browser makes new ones at the next login.
+    /// password and can never be opened again.  The browser makes new ones at the next login.  The apps' keys
+    /// and their copies of drive keys stay: the devices that hold an app's key may be the only way left into its
+    /// zero-knowledge drives.
     /// </summary>
     public async Task DeleteAsync()
     {
@@ -335,6 +338,9 @@ public class ZeroKnowledgeKeyService(
                 writeOnlyPublicKey,
                 request.ZkStorageKeyEncryptedWriteOnlyPrivateKey,
                 odinContext);
+
+            // The apps' copies lock the old drive key; the backfill makes new ones
+            await appRegistrationService.RemoveZkDriveCopiesAsync(driveId, odinContext);
 
             // Cached owner contexts carry a grant with the old key; drop them once this is committed.
             tx.AddPostCommitAction(() => contextCache.ResetAsync());
