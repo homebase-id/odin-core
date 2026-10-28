@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
@@ -52,29 +53,18 @@ namespace Odin.Services.Authorization.Apps
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
             }
 
+            var appSlug = await AssignSlugAsync(request.AppId, request.AppSlug);
+
+            // Registering again would replace the app's keys and cut off its devices (#2039).  Changing what it may do
+            // has its own calls, and starting over with new keys is uninstalling it first.
+            if (await GetAppRegistrationInternalAsync(request.AppId) != null)
+            {
+                throw AlreadyRegistered(request.AppId);
+            }
+
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var hasTransit = this.HasRequestedTransit(request.PermissionSet);
-            var icrKey = hasTransit ? await icrKeyService.GetDecryptedIcrKeyAsync(odinContext) : null;
-
-            var drives = new List<DriveGrantRequest>(request.Drives ?? new List<DriveGrantRequest>());
-
-            if (hasTransit)
-            {
-                // ensure the transient temp drive is added, once
-                // Apps must be able to access the transient drive to send files directly over transit
-                if (drives.All(d => d.PermissionedDrive.Drive != SystemDriveConstants.TransientTempDrive))
-                {
-                    drives.Add(new DriveGrantRequest()
-                    {
-                        PermissionedDrive = new()
-                        {
-                            Drive = SystemDriveConstants.TransientTempDrive,
-                            Permission = DrivePermission.ReadWrite
-                        }
-                    });
-                }
-            }
+            var (drives, icrKey) = await GrantInputsAsync(request.PermissionSet, request.Drives, odinContext);
 
             // Before anything is written: the install screen is shown once, so a declared circle refused after
             // the save would never be offered again (#1939).
@@ -86,12 +76,11 @@ namespace Odin.Services.Authorization.Apps
                 keyStoreKey, request.PermissionSet!, drives, new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
-            //TODO: add check if app is already registered
 
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
-                AppSlug = await AssignSlugAsync(request.AppId, request.AppSlug),
+                AppSlug = appSlug,
                 Name = request.Name,
                 AppKeyStore = appGrant,
 
@@ -103,7 +92,15 @@ namespace Odin.Services.Authorization.Apps
             List<Guid> createdCircles;
             await using (var tx = await db.BeginStackedTransactionAsync())
             {
-                await SaveAsync(appReg);
+                // Insert only: a registration made since the checks above is refused by the database, not replaced.
+                // Either unique key refuses it, so say which.
+                if (!await db.AppRegistrations.TryInsertAsync(ToRecord(appReg)))
+                {
+                    throw await GetAppRegistrationInternalAsync(request.AppId) != null
+                        ? AlreadyRegistered(request.AppId)
+                        : new OdinClientException($"The app slug '{appSlug}' was just taken by another app",
+                            OdinClientErrorCode.IdAlreadyExists);
+                }
 
                 // After the save: a circle's owning app must exist.
                 createdCircles = await circleDefinitionService.CreateDeclaredCirclesAsync(declaredCircles, request.AppId);
@@ -134,34 +131,15 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
             }
 
-            //TODO: Should we regen the key store key?  
-
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = appReg.AppKeyStore.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var hasTransit = this.HasRequestedTransit(request.PermissionSet);
-            var icrKey = hasTransit ? await icrKeyService.GetDecryptedIcrKeyAsync(odinContext) : null;
+            var (drives, icrKey) = await GrantInputsAsync(request.PermissionSet, request.Drives, odinContext);
 
-            var drives = new List<DriveGrantRequest>(request.Drives ?? new List<DriveGrantRequest>());
-
-            if (hasTransit)
-            {
-                // ensure the transient temp drive is added, once
-                // Apps must be able to access the transient drive to send files directly over transit
-                if (drives.All(d => d.PermissionedDrive.Drive != SystemDriveConstants.TransientTempDrive))
-                {
-                    drives.Add(new DriveGrantRequest()
-                    {
-                        PermissionedDrive = new()
-                        {
-                            Drive = SystemDriveConstants.TransientTempDrive,
-                            Permission = DrivePermission.ReadWrite
-                        }
-                    });
-                }
-            }
-
+            // The same key store key, which the app's devices hold, kept as it is stored rather than locked again
+            var lockedKeyStoreKey = appReg.AppKeyStore.MasterKeyEncryptedKeyStoreKey;
             appReg.AppKeyStore = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives,
-                new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
+                new MasterKeyStorageKeySource(masterKey), masterKey: null, icrKey);
+            appReg.AppKeyStore.MasterKeyEncryptedKeyStoreKey = lockedKeyStoreKey;
 
             await SaveAsync(appReg);
 
@@ -912,8 +890,11 @@ namespace Odin.Services.Authorization.Apps
             return true;
         }
 
+        /// <summary>Saves a change to a registered app; a new one is inserted by <see cref="RegisterAppAsync"/>.</summary>
         private async Task SaveAsync(AppRegistration appReg)
         {
+            await AssertKeepsKeysAsync(appReg);
+
             // A drive-key copy lives as long as the grant that reads with it: a grant removed or narrowed to writing,
             // or a drive deleted, takes it, so a grant given again gets a fresh one from the backfill
             if (appReg.ZkAppKeyEncryptedStorageKeys is { Count: > 0 } copies)
@@ -925,8 +906,40 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
-            await db.AppRegistrations.UpsertAsync(ToRecord(appReg));
+            // An update, so an app uninstalled since it was read isn't written back.  Before v13 an app may live only
+            // in the legacy store, and its first change moves it into the table.
+            var record = ToRecord(appReg);
+            if (await db.AppRegistrations.UpdateAsync(record) == 0 &&
+                !(await legacyStore.IsPreMoveAsync() && await db.AppRegistrations.TryInsertAsync(record)))
+            {
+                throw new OdinSystemException($"App {appReg.AppId} was uninstalled while it was being changed");
+            }
         }
+
+        /// <summary>
+        /// Under every change to an app (#2039): its keys are never replaced.  Its devices hold its key store key, and its
+        /// zero-knowledge key locks their copies of drive keys, so a new one would cut them off.  Starting over with new
+        /// keys is uninstalling the app and installing it again.
+        /// </summary>
+        private async Task AssertKeepsKeysAsync(AppRegistration appReg)
+        {
+            var stored = await GetAppRegistrationInternalAsync(appReg.AppId)
+                         ?? throw new OdinSystemException($"App {appReg.AppId} isn't registered; a change never registers it");
+
+            if (!SymmetricKeyEncryptedAes.AreSame(stored.AppKeyStore?.MasterKeyEncryptedKeyStoreKey,
+                    appReg.AppKeyStore?.MasterKeyEncryptedKeyStoreKey))
+            {
+                throw new OdinSystemException($"A change to app {appReg.AppId} would replace its key store key");
+            }
+
+            if (stored.ZkMasterKeyEncryptedAppKey != null && stored.ZkMasterKeyEncryptedAppKey != appReg.ZkMasterKeyEncryptedAppKey)
+            {
+                throw new OdinSystemException($"A change to app {appReg.AppId} would replace its zero-knowledge key");
+            }
+        }
+
+        private static OdinClientException AlreadyRegistered(Guid appId) =>
+            new($"App {appId} is already registered", OdinClientErrorCode.AppAlreadyRegistered);
 
         internal static AppRegistrationsRecord ToRecord(AppRegistration appReg)
         {
@@ -963,6 +976,34 @@ namespace Odin.Services.Authorization.Apps
         private async Task ResetAppPermissionContextCacheAsync()
         {
             await cache.ResetAsync();
+        }
+
+        /// <summary>
+        /// The drives an app is granted and the ICR key it holds: an app that may use transit gets the ICR key and
+        /// read-write on the transient temp drive, which it sends files directly over transit with.
+        /// </summary>
+        private async Task<(List<DriveGrantRequest> Drives, SensitiveByteArray? IcrKey)> GrantInputsAsync(PermissionSet? permissionSet,
+            IEnumerable<DriveGrantRequest>? requested, IOdinContext odinContext)
+        {
+            var drives = new List<DriveGrantRequest>(requested ?? []);
+            if (!HasRequestedTransit(permissionSet))
+            {
+                return (drives, null);
+            }
+
+            if (drives.All(d => d.PermissionedDrive.Drive != SystemDriveConstants.TransientTempDrive))
+            {
+                drives.Add(new DriveGrantRequest
+                {
+                    PermissionedDrive = new()
+                    {
+                        Drive = SystemDriveConstants.TransientTempDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                });
+            }
+
+            return (drives, await icrKeyService.GetDecryptedIcrKeyAsync(odinContext));
         }
 
         private bool HasRequestedTransit(PermissionSet? permissionSet)

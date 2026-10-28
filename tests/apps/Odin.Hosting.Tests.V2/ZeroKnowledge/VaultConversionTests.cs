@@ -118,6 +118,41 @@ public class VaultConversionTests : V2Fixture
         Assert.That(appKeys.Drives.Single(d => d.DriveId == VaultId).HasAppCopy, Is.True);
     }
 
+    /// <summary>
+    /// Registering an app again would have replaced its keys and cut off its devices (#2039): it is refused, and a
+    /// device signed in before still reads Vault.
+    /// </summary>
+    [Test]
+    public async Task RegisteringAnAppAgainIsRefusedAndKeepsItsKeys()
+    {
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Read);
+        var converted = await ConvertVaultAsync(frodo, zkMasterKey);
+        var (device, appKey) = await SignInAsync(frodo, app.AppId, zkMasterKey);
+        var uniqueId = Guid.NewGuid();
+        var fileKey = KeyHeader.NewRandom16();
+        var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(VaultId, Metadata(uniqueId, Content),
+            transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: ZkBrowser.LockFileKey(fileKey, converted.DriveKey));
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        var before = (await GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId);
+
+        var again = await frodo.Admin.TryRegisterApp(app.AppId, new PermissionSetGrantRequest
+        {
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = Vault, Permission = DrivePermission.Read } }]
+        });
+        Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), again.Error?.Content);
+        Assert.That(again.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.AppAlreadyRegistered)).IgnoreCase);
+
+        var after = (await GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId);
+        Assert.That(after.ZkMasterKeyEncryptedAppKey, Is.EqualTo(before.ZkMasterKeyEncryptedAppKey));
+        Assert.That(after.Drives.Single(d => d.DriveId == VaultId).HasAppCopy, Is.True);
+        Assert.That(ZkBrowser.Open((await GrantOnAsync(device, Vault)).ZkAppKeyEncryptedStorageKey!, appKey),
+            Is.EqualTo(converted.DriveKey), "the device still opens its copy of Vault's key");
+        var seen = await device.Drives.Reader.GetBatchAsync(VaultId, QueryFor(uniqueId));
+        Assert.That(seen.StatusCode, Is.EqualTo(HttpStatusCode.OK), seen.Error?.Content);
+        Assert.That(seen.Content!.SearchResults, Has.Count.EqualTo(1));
+    }
+
     [Test]
     public async Task EveryGrantOnVaultLosesItsKeyAndKeepsItsPermission()
     {
