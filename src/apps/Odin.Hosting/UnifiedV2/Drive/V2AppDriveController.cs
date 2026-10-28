@@ -125,6 +125,7 @@ public class V2AppDriveController(
         Attributes = drive.Attributes,
         AppId = drive.AppId,
         DriveSlug = drive.DriveSlug,
-        DriveTypeSlug = drive.DriveTypeSlug
+        DriveTypeSlug = drive.DriveTypeSlug,
+        Created = drive.Created
     };
 }

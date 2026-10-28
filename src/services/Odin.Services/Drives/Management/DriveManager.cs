@@ -32,9 +32,10 @@ namespace Odin.Services.Drives.Management;
 /// </summary>
 public class DriveManager : IDriveManager
 {
-    // v2: entries cached before the NOT NULL migration (#1901) may carry a null AppId; a new key never reads them.
-    private const string CacheKeyDrive = "drive:v2:";
-    private const string CacheKeyAllDrives = "alldrives:v2";
+    // A new version whenever the cached data gains a field, so an entry cached before never answers without it:
+    // v2, entries before the NOT NULL migration (#1901) may carry a null AppId; v3, they have no Created (#2038).
+    private const string CacheKeyDrive = "drive:v3:";
+    private const string CacheKeyAllDrives = "alldrives:v3";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(2);
     private static readonly List<string> RootInvalidationTag = [TableDrivesCached.RootInvalidationTag];
 
@@ -1031,6 +1032,7 @@ public class DriveManager : IDriveManager
         var sdd = new StorageDriveData
         {
             Id = record.DriveId,
+            Created = record.created,
             TempOriginalDriveId = record.StorageKeyCheckValue,
             Name = record.DriveName,
             TargetDriveInfo = new TargetDrive

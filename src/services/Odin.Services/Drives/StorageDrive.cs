@@ -2,6 +2,7 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using System;
@@ -20,6 +21,7 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     internal StorageDriveData Data { get; } = data;
 
     public Guid Id => Data.Id;
+    public UnixTimeUtc Created => Data.Created;
     public string Name => Data.Name;
     public TargetDrive TargetDriveInfo => Data.TargetDriveInfo;
     public Guid TempOriginalDriveId => Data.TempOriginalDriveId;
@@ -243,6 +245,12 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 public sealed class StorageDriveData
 {
     public Guid Id { get; init; }
+
+    /// <summary>
+    /// When the drive was made (the row's <c>created</c>).  A drive deleted and made again keeps its id and slugs,
+    /// so this is how a client tells it from the one before (#2038).
+    /// </summary>
+    public UnixTimeUtc Created { get; init; }
 
     /// <summary>
     /// What <see cref="EncryptedIdValue"/> decrypts to (the StorageKeyCheckValue column).  On drives

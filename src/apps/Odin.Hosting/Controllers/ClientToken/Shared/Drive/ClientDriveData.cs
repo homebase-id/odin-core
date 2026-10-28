@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -29,5 +30,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public OdinSlug DriveSlug { get; set; }
 
         public OdinSlug DriveTypeSlug { get; set; }
+
+        /// <summary>
+        /// When the drive was made, Unix ms.  A drive deleted and made again keeps its id and slugs, so this is how
+        /// a client tells it from the one before (#2038).  Set by the V2 app drive answer.
+        /// </summary>
+        public UnixTimeUtc? Created { get; set; }
     }
 }
