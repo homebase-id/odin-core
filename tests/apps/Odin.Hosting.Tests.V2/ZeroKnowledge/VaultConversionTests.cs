@@ -21,6 +21,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
+using Odin.Test.Helpers;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkAppSteps;
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
@@ -177,22 +178,19 @@ public class VaultConversionTests : V2Fixture
     }
 
     [Test]
-    public async Task ConvertingVaultClosesEverySocketButTheOwners()
+    public async Task ConvertingVaultClosesTheSocketsGrantedItButTheOwners()
     {
-        // A socket keeps the context its client authenticated with: one from before the conversion has Vault's old
-        // grants, the key the server no longer holds and no copy for the app, so every new Vault file event would be
-        // held back from it.  The conversion closes it, subscribed yet or not, and the client reconnects.
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
         await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
         var scope = frodo.Host.GetTenantScope(frodo.Identity.DomainName);
         var sockets = scope.Resolve<SharedDeviceSocketCollection<AppNotificationHandler>>();
         var dispatcher = scope.Resolve<AppNotificationDispatcher>();
 
-        var ownerOnVault = Socket(VaultId, Context(masterKey: new SensitiveByteArray(Guid.NewGuid().ToByteArray())));
-        var appOnVault = Socket(VaultId, Context());
-        var appElsewhere = Socket(Guid.NewGuid(), Context());
-        var notSubscribedYet = Socket(null, null);
-        var all = new[] { ownerOnVault, appOnVault, appElsewhere, notSubscribedYet };
+        var owner = Socket(GrantedOn(VaultId, masterKey: new SensitiveByteArray(Guid.NewGuid().ToByteArray())));
+        var appGrantedVault = Socket(GrantedOn(VaultId));
+        var appGrantedOtherDrive = Socket(GrantedOn(Guid.NewGuid()));
+        var notSubscribedYet = Socket(null);
+        var all = new[] { owner, appGrantedVault, appGrantedOtherDrive, notSubscribedYet };
         foreach (var socket in all)
         {
             sockets.AddSocket(socket);
@@ -204,17 +202,13 @@ public class VaultConversionTests : V2Fixture
             await ConvertVaultAsync(frodo, zkMasterKey);
 
             // Through the pub/sub channel, as on a node other than the one that converted
-            var deadline = DateTime.UtcNow.AddSeconds(10);
-            while (sockets.GetAll().ContainsKey(appOnVault.Key) && DateTime.UtcNow < deadline)
-            {
-                await Task.Delay(50);
-            }
+            await Poll.UntilAsync(() => Task.FromResult(!sockets.GetAll().ContainsKey(appGrantedVault.Key)),
+                TimeSpan.FromSeconds(10), () => "the socket of the app granted Vault to close");
 
             var open = sockets.GetAll().Keys;
-            Assert.That(open, Does.Contain(ownerOnVault.Key), "the owner's socket holds the master key, and stays");
-            Assert.That(open, Does.Not.Contain(appOnVault.Key), "an app's socket on Vault");
-            Assert.That(open, Does.Not.Contain(appElsewhere.Key), "an app's socket on another drive: its context has Vault's old grant too");
-            Assert.That(open, Does.Not.Contain(notSubscribedYet.Key), "a socket that will subscribe with a context from before");
+            Assert.That(open, Does.Contain(owner.Key), "the owner's socket holds the master key");
+            Assert.That(open, Does.Contain(appGrantedOtherDrive.Key), "an app not granted Vault");
+            Assert.That(open, Does.Not.Contain(notSubscribedYet.Key), "it would subscribe with its context from before");
         }
         finally
         {
@@ -226,18 +220,22 @@ public class VaultConversionTests : V2Fixture
         }
     }
 
-    private static DeviceSocket Socket(Guid? driveId, IOdinContext? context) => new()
-    {
-        Key = Guid.NewGuid(),
-        Drives = driveId == null ? [] : [driveId.Value],
-        DeviceOdinContext = context
-    };
+    private static DeviceSocket Socket(IOdinContext? context) => new() { Key = Guid.NewGuid(), DeviceOdinContext = context };
 
-    private static OdinContext Context(SensitiveByteArray? masterKey = null) => new()
+    private static OdinContext GrantedOn(Guid driveId, SensitiveByteArray? masterKey = null)
     {
-        Caller = new CallerContext((OdinId)Identities.Frodo, masterKey!, SecurityGroupType.Owner,
-            masterKey == null ? new OdinClientContext { AppId = Guid.NewGuid() } : null!)
-    };
+        var grant = new DriveGrant
+        {
+            DriveId = driveId,
+            PermissionedDrive = new PermissionedDrive
+                { Drive = new TargetDrive { Alias = driveId, Type = Guid.NewGuid() }, Permission = DrivePermission.ReadWrite }
+        };
+        var context = new OdinContext { Caller = new CallerContext((OdinId)Identities.Frodo, masterKey!, SecurityGroupType.Owner) };
+        context.SetPermissionContext(new PermissionContext(
+            new System.Collections.Generic.Dictionary<string, PermissionGroup> { ["app"] = new(new PermissionSet(), [grant], null, null) },
+            sharedSecretKey: null!));
+        return context;
+    }
 
     [Test]
     public async Task ConversionRefusesWithoutACopyForEveryAppGrantedVault()

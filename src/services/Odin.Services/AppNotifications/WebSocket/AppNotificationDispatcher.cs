@@ -105,7 +105,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     await WsPublishAsync(notification);
                     return;
                 case DriveKeysChangedMessage changed:
-                    await CloseSocketsWithOldGrantsAsync(changed.DriveId);
+                    await CloseSocketsGrantedDriveAsync(changed.DriveId);
                     return;
                 case null:
                     _logger.LogError("Received null message");
@@ -340,17 +340,15 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         // Src: PubSub queue
         // Dst: WebSocket
-        /// <summary>
-        /// Closes every socket but the owner's.  A socket keeps the context its client authenticated with, which still
-        /// has the drive's grants from before the change: the key the server no longer holds, and no copy for the app,
-        /// so the drive's new files would be held back from it (<see cref="ZkDriveFiles.VisibleTo"/>).  That includes a
-        /// socket that authenticated but hasn't subscribed yet: its subscription would take that context.  The client
-        /// reconnects with a context of now; a device that never got its app's key still sees nothing on the drive, as
-        /// over HTTP.  The owner's sockets hold the master key, and stay.  A drive's keys change once, so all is cheap.
-        /// </summary>
-        private async Task CloseSocketsWithOldGrantsAsync(Guid driveId)
+        // A socket keeps the context it authenticated with, whose grant on the drive predates the change: each one granted
+        // the drive, or yet to subscribe, is closed, but the owner's, and its client reconnects with a context of now
+        private async Task CloseSocketsGrantedDriveAsync(Guid driveId)
         {
-            var closed = await _deviceSocketCollection.RemoveSocketsAsync(ds => ds.DeviceOdinContext?.Caller?.HasMasterKey != true,
+            var closed = await _deviceSocketCollection.RemoveSocketsAsync(
+                ds => ds.DeviceOdinContext is not { } context || (context.Caller?.HasMasterKey != true &&
+                    context.PermissionsContext is { } permissions &&
+                    (permissions.HasDrivePermission(driveId, DrivePermission.Read) ||
+                     permissions.HasDrivePermission(driveId, DrivePermission.Write))),
                 WebSocketCloseStatus.NormalClosure, "a drive's keys changed; reconnect");
 
             if (closed > 0)
