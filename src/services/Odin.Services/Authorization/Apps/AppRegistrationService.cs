@@ -92,10 +92,14 @@ namespace Odin.Services.Authorization.Apps
             List<Guid> createdCircles;
             await using (var tx = await db.BeginStackedTransactionAsync())
             {
-                // Insert only: a registration made since the check above is refused by the database, not replaced
+                // Insert only: a registration made since the checks above is refused by the database, not replaced.
+                // Either unique key refuses it, so say which.
                 if (!await db.AppRegistrations.TryInsertAsync(ToRecord(appReg)))
                 {
-                    throw AlreadyRegistered(request.AppId);
+                    throw await GetAppRegistrationInternalAsync(request.AppId) != null
+                        ? AlreadyRegistered(request.AppId)
+                        : new OdinClientException($"The app slug '{appSlug}' was just taken by another app",
+                            OdinClientErrorCode.IdAlreadyExists);
                 }
 
                 // After the save: a circle's owning app must exist.
@@ -902,7 +906,14 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
-            await db.AppRegistrations.UpsertAsync(ToRecord(appReg));
+            // An update, so an app uninstalled since it was read isn't written back.  Before v13 an app may live only
+            // in the legacy store, and its first change moves it into the table.
+            var record = ToRecord(appReg);
+            if (await db.AppRegistrations.UpdateAsync(record) == 0 &&
+                !(await legacyStore.IsPreMoveAsync() && await db.AppRegistrations.TryInsertAsync(record)))
+            {
+                throw new OdinSystemException($"App {appReg.AppId} was uninstalled while it was being changed");
+            }
         }
 
         /// <summary>
