@@ -177,20 +177,23 @@ public class VaultConversionTests : V2Fixture
     }
 
     [Test]
-    public async Task ConvertingVaultClosesEverySocketOnItThatCantSeeItsFilesAnyMore()
+    public async Task ConvertingVaultClosesEverySocketButTheOwners()
     {
-        // A socket keeps the context of its handshake: one opened before the conversion has no copy of Vault's key, so
-        // every new Vault file event would be held back from it.  The conversion closes it and the client reconnects.
+        // A socket keeps the context its client authenticated with: one from before the conversion has Vault's old
+        // grants, the key the server no longer holds and no copy for the app, so every new Vault file event would be
+        // held back from it.  The conversion closes it, subscribed yet or not, and the client reconnects.
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
         await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
         var scope = frodo.Host.GetTenantScope(frodo.Identity.DomainName);
         var sockets = scope.Resolve<SharedDeviceSocketCollection<AppNotificationHandler>>();
         var dispatcher = scope.Resolve<AppNotificationDispatcher>();
 
-        var appOnVault = SocketOn(VaultId, masterKey: null);
-        var ownerOnVault = SocketOn(VaultId, masterKey: new SensitiveByteArray(Guid.NewGuid().ToByteArray()));
-        var appElsewhere = SocketOn(Guid.NewGuid(), masterKey: null);
-        foreach (var socket in new[] { appOnVault, ownerOnVault, appElsewhere })
+        var ownerOnVault = Socket(VaultId, Context(masterKey: new SensitiveByteArray(Guid.NewGuid().ToByteArray())));
+        var appOnVault = Socket(VaultId, Context());
+        var appElsewhere = Socket(Guid.NewGuid(), Context());
+        var notSubscribedYet = Socket(null, null);
+        var all = new[] { ownerOnVault, appOnVault, appElsewhere, notSubscribedYet };
+        foreach (var socket in all)
         {
             sockets.AddSocket(socket);
         }
@@ -207,28 +210,33 @@ public class VaultConversionTests : V2Fixture
                 await Task.Delay(50);
             }
 
-            var open = sockets.GetAll();
-            Assert.That(open.ContainsKey(appOnVault.Key), Is.False, "an app's socket on Vault without its key is closed");
-            Assert.That(open.ContainsKey(ownerOnVault.Key), Is.True, "the owner's socket holds the master key, and stays");
-            Assert.That(open.ContainsKey(appElsewhere.Key), Is.True, "a socket on another drive stays");
+            var open = sockets.GetAll().Keys;
+            Assert.That(open, Does.Contain(ownerOnVault.Key), "the owner's socket holds the master key, and stays");
+            Assert.That(open, Does.Not.Contain(appOnVault.Key), "an app's socket on Vault");
+            Assert.That(open, Does.Not.Contain(appElsewhere.Key), "an app's socket on another drive: its context has Vault's old grant too");
+            Assert.That(open, Does.Not.Contain(notSubscribedYet.Key), "a socket that will subscribe with a context from before");
         }
         finally
         {
             await dispatcher.UnsubscribeAsync();
-            await sockets.RemoveSocket(ownerOnVault.Key);
-            await sockets.RemoveSocket(appElsewhere.Key);
+            foreach (var socket in all)
+            {
+                await sockets.RemoveSocket(socket.Key);
+            }
         }
     }
 
-    private static DeviceSocket SocketOn(Guid driveId, SensitiveByteArray? masterKey) => new()
+    private static DeviceSocket Socket(Guid? driveId, IOdinContext? context) => new()
     {
         Key = Guid.NewGuid(),
-        Drives = [driveId],
-        DeviceOdinContext = new OdinContext
-        {
-            Caller = new CallerContext((OdinId)Identities.Frodo, masterKey!, SecurityGroupType.Owner,
-                masterKey == null ? new OdinClientContext { HoldsZkAppKey = true, ZkDriveKeys = new System.Collections.Generic.Dictionary<Guid, ZkAppDriveKey>() } : null!)
-        }
+        Drives = driveId == null ? [] : [driveId.Value],
+        DeviceOdinContext = context
+    };
+
+    private static OdinContext Context(SensitiveByteArray? masterKey = null) => new()
+    {
+        Caller = new CallerContext((OdinId)Identities.Frodo, masterKey!, SecurityGroupType.Owner,
+            masterKey == null ? new OdinClientContext { AppId = Guid.NewGuid() } : null!)
     };
 
     [Test]

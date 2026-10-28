@@ -105,7 +105,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     await WsPublishAsync(notification);
                     return;
                 case DriveKeysChangedMessage changed:
-                    await CloseSocketsMissingDriveKeyAsync(changed.DriveId);
+                    await CloseSocketsWithOldGrantsAsync(changed.DriveId);
                     return;
                 case null:
                     _logger.LogError("Received null message");
@@ -341,23 +341,21 @@ namespace Odin.Services.AppNotifications.WebSocket
         // Src: PubSub queue
         // Dst: WebSocket
         /// <summary>
-        /// Closes each socket on the drive whose context, taken at its handshake, can no longer see the drive's files
-        /// (<see cref="ZkDriveFiles.CallerHoldsDriveKey"/>): every file event would be held back from it.  The client
-        /// reconnects, and the new handshake's context carries the app's copy of the drive key.
+        /// Closes every socket but the owner's.  A socket keeps the context its client authenticated with, which still
+        /// has the drive's grants from before the change: the key the server no longer holds, and no copy for the app,
+        /// so the drive's new files would be held back from it (<see cref="ZkDriveFiles.VisibleTo"/>).  That includes a
+        /// socket that authenticated but hasn't subscribed yet: its subscription would take that context.  The client
+        /// reconnects with a context of now; a device that never got its app's key still sees nothing on the drive, as
+        /// over HTTP.  The owner's sockets hold the master key, and stay.  A drive's keys change once, so all is cheap.
         /// </summary>
-        private async Task CloseSocketsMissingDriveKeyAsync(Guid driveId)
+        private async Task CloseSocketsWithOldGrantsAsync(Guid driveId)
         {
-            var stale = _deviceSocketCollection.GetAll().Values
-                .Where(ds => ds.Drives.Contains(driveId) && ds.DeviceOdinContext is { } context &&
-                             !ZkDriveFiles.CallerHoldsDriveKey(driveId, context))
-                .ToList();
+            var closed = await _deviceSocketCollection.RemoveSocketsAsync(ds => ds.DeviceOdinContext?.Caller?.HasMasterKey != true,
+                WebSocketCloseStatus.NormalClosure, "a drive's keys changed; reconnect");
 
-            await Task.WhenAll(stale.Select(ds => _deviceSocketCollection.RemoveSocket(ds.Key,
-                WebSocketCloseStatus.NormalClosure, "the drive's keys changed; reconnect")));
-
-            if (stale.Count > 0)
+            if (closed > 0)
             {
-                _logger.LogInformation("Closed {count} sockets on drive {driveId}, whose keys changed", stale.Count, driveId);
+                _logger.LogInformation("Closed {count} sockets: the keys of drive {driveId} changed", closed, driveId);
             }
         }
 

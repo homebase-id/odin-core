@@ -85,8 +85,8 @@ public class ZkDriveConversionService(
 
             relabelled = await RelabelKeyHeadersAsync(drive.Id);
 
-            // Cached contexts carry grants with the key, and the apps' contexts no copies yet.  So does each open
-            // socket's context, kept from its handshake: the drive's new files would be held back from it
+            // Cached contexts carry grants with the key, and the apps' contexts no copies yet; so does every open
+            // socket's, kept from when it authenticated
             tx.AddPostCommitAction(() => contextCache.ResetAsync());
             tx.AddPostCommitAction(() => notificationDispatcher.PublishDriveKeysChangedAsync(drive.Id));
             tx.Commit();
