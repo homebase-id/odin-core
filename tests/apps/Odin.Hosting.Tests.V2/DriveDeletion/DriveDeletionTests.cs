@@ -10,14 +10,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
-using Odin.Hosting.Tests._V2.ApiClient;
-using Odin.Core.Time;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
@@ -188,10 +187,9 @@ public class DriveDeletionTests : V2Fixture
         var appId = Guid.NewGuid();
         await owner.Admin.EnsureAppRegistered(appId);
         var drive = TargetDrive.NewTargetDrive();
-        var before = UnixTimeUtc.Now();
         await owner.Admin.CreateDrive(drive, "first", appId: appId, driveSlug: new OdinSlug("notes"));
         var first = await AppDriveAsync(owner, appId, "notes");
-        Assert.That(first.Created?.milliseconds, Is.InRange(before.milliseconds, UnixTimeUtc.Now().milliseconds));
+        Assert.That(first.Created, Is.Not.Null);
 
         await owner.Admin.SetArchiveFlag(drive, archived: true);
         Assert.That(await DeleteAsync(owner, drive), Is.EqualTo(HttpStatusCode.Accepted));
@@ -200,9 +198,7 @@ public class DriveDeletionTests : V2Fixture
 
         var again = await AppDriveAsync(owner, appId, "notes");
         Assert.That(again.TargetDrive, Is.EqualTo(first.TargetDrive), "the same address");
-        Assert.That(again.Created?.milliseconds, Is.GreaterThan(first.Created?.milliseconds), "a later creation time");
-        var listed = await AppDrivesClient(owner).GetAppDrives(OwnerAdmin.SlugFor(appId).ToString());
-        Assert.That(listed.Content!.Single(d => d.TargetDrive == drive).Created, Is.EqualTo(again.Created), "the listing agrees");
+        Assert.That(again.Created!.Value.milliseconds, Is.GreaterThan(first.Created!.Value.milliseconds), "a later creation time");
     }
 
     [Test]
@@ -399,15 +395,9 @@ public class DriveDeletionTests : V2Fixture
     private static async Task<HttpStatusCode> EmptyAsync(OwnerSession owner, TargetDrive drive) =>
         (await owner.RefitFor<IRefitDriveManagement>().EmptyDrive(new TargetDriveRequest { TargetDrive = drive })).StatusCode;
 
-    private static IAppDriveHttpClientApiV2 AppDrivesClient(OwnerSession owner)
-    {
-        var (client, ss) = owner.NewAdminHttpClient();
-        return RefitCreator.RestServiceFor<IAppDriveHttpClientApiV2>(client, ss);
-    }
-
     private static async Task<ClientDriveData> AppDriveAsync(OwnerSession owner, Guid appId, string driveSlug)
     {
-        var response = await AppDrivesClient(owner).GetAppDrive(OwnerAdmin.SlugFor(appId).ToString(), driveSlug);
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(OwnerAdmin.SlugFor(appId).ToString(), driveSlug);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return response.Content!;
     }

@@ -33,8 +33,20 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         /// <summary>
         /// When the drive was made, Unix ms.  A drive deleted and made again keeps its id and slugs, so this is how
-        /// a client tells it from the one before (#2038).  Set by the V2 app drive answer.
+        /// a client tells it from the one before (#2038).  Set by the V2 drive answers (<see cref="From"/>).
         /// </summary>
         public UnixTimeUtc? Created { get; set; }
+
+        /// <summary>The whole drive, as the V2 answers give it to an owner or an app.</summary>
+        public static ClientDriveData From(StorageDrive drive) => new()
+        {
+            TargetDrive = drive.TargetDriveInfo,
+            Name = drive.Name,
+            Attributes = drive.Attributes,
+            AppId = drive.AppId,
+            DriveSlug = drive.DriveSlug,
+            DriveTypeSlug = drive.DriveTypeSlug,
+            Created = drive.Created
+        };
     }
 }

@@ -244,6 +244,13 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 // This guy needs to be serializable
 public sealed class StorageDriveData
 {
+    /// <summary>
+    /// Part of the drive cache's keys, so an entry cached before a change is never read after it: raise it with any
+    /// field added here.  2, entries before the NOT NULL migration (#1901) may carry a null AppId; 3, they have no
+    /// <see cref="Created"/> (#2038).
+    /// </summary>
+    public const int CacheVersion = 3;
+
     public Guid Id { get; init; }
 
     /// <summary>

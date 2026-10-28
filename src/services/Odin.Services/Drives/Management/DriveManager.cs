@@ -32,10 +32,8 @@ namespace Odin.Services.Drives.Management;
 /// </summary>
 public class DriveManager : IDriveManager
 {
-    // A new version whenever the cached data gains a field, so an entry cached before never answers without it:
-    // v2, entries before the NOT NULL migration (#1901) may carry a null AppId; v3, they have no Created (#2038).
-    private const string CacheKeyDrive = "drive:v3:";
-    private const string CacheKeyAllDrives = "alldrives:v3";
+    private static readonly string CacheKeyDrive = $"drive:v{StorageDriveData.CacheVersion}:";
+    private static readonly string CacheKeyAllDrives = $"alldrives:v{StorageDriveData.CacheVersion}";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(2);
     private static readonly List<string> RootInvalidationTag = [TableDrivesCached.RootInvalidationTag];
 

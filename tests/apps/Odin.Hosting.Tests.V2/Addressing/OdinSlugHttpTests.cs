@@ -71,9 +71,8 @@ public class OdinSlugHttpTests : V2Fixture
     public async Task AMalformedSlugInARouteIsA400(string appSlug, string driveSlug)
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var (client, ss) = owner.NewAdminHttpClient();
 
-        var response = await RefitCreator.RestServiceFor<IAppDriveHttpClientApiV2>(client, ss).GetAppDrive(appSlug, driveSlug);
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(appSlug, driveSlug);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
         Assert.That(response.Error?.Content, Does.Contain("\"errorCode\":\"argumentError\""));
@@ -83,9 +82,8 @@ public class OdinSlugHttpTests : V2Fixture
     public async Task AMalformedTypeFilterIsA400()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var (client, ss) = owner.NewAdminHttpClient();
 
-        var response = await RefitCreator.RestServiceFor<IAppDriveHttpClientApiV2>(client, ss).GetAppDrives("chat", type: "not a slug");
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives("chat", type: "not a slug");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
         Assert.That(response.Error?.Content, Does.Contain("\"errorCode\":\"argumentError\""));
@@ -95,8 +93,7 @@ public class OdinSlugHttpTests : V2Fixture
     public async Task AnEmptyTypeFilterIsNoFilter()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var (client, ss) = owner.NewAdminHttpClient();
-        var api = RefitCreator.RestServiceFor<IAppDriveHttpClientApiV2>(client, ss);
+        var api = owner.RefitFor<IAppDriveHttpClientApiV2>();
 
         var all = await api.GetAppDrives("chat");
         var emptyFilter = await api.GetAppDrives("chat", type: "");

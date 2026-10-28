@@ -28,15 +28,7 @@ public class V2DriveMetadataController(
             new PageOptions(1, 1000),
             WebOdinContext);
 
-        var clientDriveData = drives.Results.Select(drive => new ClientDriveData()
-        {
-            TargetDrive = drive.TargetDriveInfo,
-            Name = drive.Name,
-            Attributes = drive.Attributes,
-            AppId = drive.AppId,
-            DriveSlug = drive.DriveSlug,
-            DriveTypeSlug = drive.DriveTypeSlug
-        }).ToList();
+        var clientDriveData = drives.Results.Select(ClientDriveData.From).ToList();
 
         return new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
     }

@@ -72,7 +72,7 @@ public class V2AppDriveController(
             drives = drives.Where(d => d.DriveTypeSlug == type).ToList();
         }
 
-        return drives.Select(ToClientDriveData).ToList();
+        return drives.Select(ClientDriveData.From).ToList();
     }
 
     /// <summary>
@@ -101,7 +101,7 @@ public class V2AppDriveController(
                 OdinClientErrorCode.InvalidDrive);
         }
 
-        return ToClientDriveData(drive);
+        return ClientDriveData.From(drive);
     }
 
     private async Task<Guid> ResolveAppIdAsync(OdinSlug appSlug)
@@ -117,15 +117,4 @@ public class V2AppDriveController(
 
         return app.AppId;
     }
-
-    private static ClientDriveData ToClientDriveData(Odin.Services.Drives.StorageDrive drive) => new()
-    {
-        TargetDrive = drive.TargetDriveInfo,
-        Name = drive.Name,
-        Attributes = drive.Attributes,
-        AppId = drive.AppId,
-        DriveSlug = drive.DriveSlug,
-        DriveTypeSlug = drive.DriveTypeSlug,
-        Created = drive.Created
-    };
 }
