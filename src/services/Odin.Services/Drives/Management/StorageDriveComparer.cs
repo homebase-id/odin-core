@@ -1,3 +1,4 @@
+using Odin.Core.Cryptography.Data;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -31,18 +32,8 @@ public static class StorageDriveComparer
         if (drive1.IsReadonly != drive2.IsReadonly) diffs.Add("IsReadonly differs");
         if (drive1.AllowSubscriptions != drive2.AllowSubscriptions) diffs.Add("AllowSubscriptions differs");
         
-        var mk1 = drive1.MasterKeyEncryptedStorageKey;
-        var mk2 = drive2.MasterKeyEncryptedStorageKey;
-        if (mk1 is null || mk2 is null)
-        {
-            if (mk1 is null != mk2 is null) diffs.Add("MasterKeyEncryptedStorageKey differs");
-        }
-        else
-        {
-            if (!mk1.KeyEncrypted.SequenceEqual(mk2.KeyEncrypted)) diffs.Add("MasterKeyEncryptedStorageKey KeyEncrypted differs");
-            if (!mk1.KeyIV.SequenceEqual(mk2.KeyIV)) diffs.Add("MasterKeyEncryptedStorageKey KeyIV differs");
-            if (!mk1.KeyHash.SequenceEqual(mk2.KeyHash)) diffs.Add("MasterKeyEncryptedStorageKey KeyHash differs");
-        }
+        if (!SymmetricKeyEncryptedAes.AreSame(drive1.MasterKeyEncryptedStorageKey, drive2.MasterKeyEncryptedStorageKey))
+            diffs.Add("MasterKeyEncryptedStorageKey differs");
 
         if (drive1.SharingModel != drive2.SharingModel) diffs.Add("SharingModel differs");
         if (drive1.ZkMasterKeyEncryptedStorageKey != drive2.ZkMasterKeyEncryptedStorageKey) diffs.Add("ZkMasterKeyEncryptedStorageKey differs");
