@@ -411,8 +411,8 @@ its next sign-in. Nothing new carries a key to an app beyond one field in the si
    encryption". It opens the owner console's login page as the password confirm,
    `/owner/login?redeal=vault-private&returnUrl=…`, which asks for the password even when the owner is
    logged in. After the password, the browser makes Vault private and sends the owner back to `returnUrl`:
-   same origin (web Chat) or one of our own `homebase…://` app schemes, the rule the signup's return
-   already uses (`isAppReturnUrl`). There is no "Make Vault private" section anywhere else in the console.
+   same origin (web Chat), one of our own `homebase…://` app schemes (the rule the signup's return already
+   uses, `isAppReturnUrl`), or a desktop app's loopback listener (`http://localhost:{port}/…`). There is no "Make Vault private" section anywhere else in the console.
    If the server still holds the recovery phrase, the browser takes it over first, as a login does: a reset
    with that phrase brings back only today's master key, so it would lose ZKMK and with it Vault's key. The
    browser then converts the drive (3.3) and locks `DrvK` with the `AppZkK` of every app granted the drive,
