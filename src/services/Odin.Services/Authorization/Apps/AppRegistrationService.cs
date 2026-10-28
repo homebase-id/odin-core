@@ -551,26 +551,6 @@ namespace Odin.Services.Authorization.Apps
         public Task RemoveZkDriveCopiesAsync(Guid driveId, IOdinContext odinContext) =>
             UpdateAllAppsAsync(appReg => appReg.ZkAppKeyEncryptedStorageKeys?.Remove(driveId) == true, odinContext);
 
-        /// <summary>
-        /// A reset with today's master key forgot the zero-knowledge master key, and with it every app's key, which
-        /// only it opened, and so every copy locked with one.  The browser makes new ones at the next sign-in or
-        /// login; devices holding an old key stop counting as key holders (<see cref="AppClientRegistration.ZkAppKeyId"/>).
-        /// </summary>
-        public async Task ForgetZkAppKeysAsync()
-        {
-            foreach (var appReg in await GetAllAppRegistrationsInternalAsync())
-            {
-                if (appReg.ZkMasterKeyEncryptedAppKey != null || appReg.ZkAppKeyEncryptedStorageKeys is { Count: > 0 })
-                {
-                    appReg.ZkMasterKeyEncryptedAppKey = null;
-                    appReg.ZkAppKeyEncryptedStorageKeys = null;
-                    await SaveAsync(appReg);
-                }
-            }
-
-            await ResetAppPermissionContextCacheAsync();
-        }
-
         public async Task<List<RedactedAppRegistration>> GetAppsGrantingCircleAsync(Guid circleId, IOdinContext odinContext)
         {
             var allApps = await GetRegisteredAppsInternalAsync();

@@ -282,14 +282,13 @@ public class ZeroKnowledgeKeyService(
 
     /// <summary>
     /// Forgets the keys after a reset with today's master key: they are locked by the forgotten
-    /// password and can never be opened again, and so is every copy tied to the zero-knowledge master
-    /// key: the apps' keys too, and the copies of drive keys locked with them.  The browser makes new ones at the next
-    /// login.
+    /// password and can never be opened again.  The browser makes new ones at the next login.  The apps' keys
+    /// and their copies of drive keys stay: the devices that hold an app's key may be the only way left into its
+    /// zero-knowledge drives.
     /// </summary>
     public async Task DeleteAsync()
     {
         await Storage.DeleteAsync(tblKeyValue, ZkKeyStorageId);
-        await appRegistrationService.ForgetZkAppKeysAsync();
     }
 
     /// <summary>

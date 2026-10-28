@@ -267,44 +267,39 @@ public class AutomatedRecoveryTests : ShamirFixture
     }
 
     /// <summary>
-    /// The apps' zero-knowledge keys were locked with the forgotten zero-knowledge master key, so they go with it, and
-    /// so do the copies locked with them.  A device signed in before holds a key that is no longer the app's: it no
-    /// longer counts as a key holder, even once the app has a new key and new copies.
+    /// The apps' zero-knowledge keys were locked with the forgotten zero-knowledge master key, but the devices that hold
+    /// one may be the only way left into its drives: the reset keeps every app's key and copy, and a device signed in
+    /// before still reads Vault.
     /// </summary>
     [Test]
-    public async Task AResetWithTodaysMasterKeyForgetsTheAppsKeysAndTheirDevicesHoldNone()
+    public async Task AResetWithTodaysMasterKeyKeepsTheAppsKeysForTheirDevices()
     {
         var (frodo, _) = Cast();
         await MakeZeroKnowledgeAsync(frodo);
-        var shardDrive = WellKnownAppDrives.ShardRecoveryDrive;
-        var app = await AppSession.SetupAsync(frodo, shardDrive, DrivePermission.Read);
-        var (oldDevice, _) = await ZkAppSteps.SignInAsync(frodo, app.AppId, ZkMasterKeyOf(frodo));
-        Assert.That((await ZkAppSteps.GrantOnAsync(oldDevice, shardDrive)).ZkAppKeyEncryptedStorageKey, Is.Not.Null);
+        var app = await AppSession.SetupAsync(frodo, ZkAppSteps.Vault, DrivePermission.Read);
+        var converted = await ZkAppSteps.ConvertVaultAsync(frodo, ZkMasterKeyOf(frodo));
+        var (device, appKey) = await ZkAppSteps.SignInAsync(frodo, app.AppId, ZkMasterKeyOf(frodo));
+        var uniqueId = Guid.NewGuid();
+        var fileKey = KeyHeader.NewRandom16();
+        var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(ZkAppSteps.VaultId,
+            ZkTestFiles.Metadata(uniqueId, "what's in the vault"), transitOptions: null!, keyHeader: fileKey,
+            lockedKeyHeader: ZkBrowser.LockFileKey(fileKey, converted.DriveKey));
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        var before = (await ZkAppSteps.GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId);
 
         await ArrangeServerMadeAutomatedDealAsync(frodo);
         var recovered = await RecoverServerMadeDealAsync(frodo, NewPassword);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).ZkSaltKek64, Is.Null, "the zero-knowledge master key is gone");
 
-        var forgotten = (await ZkAppSteps.GetAppKeysAsync(recovered)).Single(a => a.AppId == app.AppId);
-        Assert.That(forgotten.ZkMasterKeyEncryptedAppKey, Is.Null);
-        Assert.That(forgotten.Drives.Single(d => d.DriveId == shardDrive.Alias.Value).HasAppCopy, Is.False);
+        var kept = (await ZkAppSteps.GetAppKeysAsync(recovered)).Single(a => a.AppId == app.AppId);
+        Assert.That(kept.ZkMasterKeyEncryptedAppKey, Is.EqualTo(before.ZkMasterKeyEncryptedAppKey));
+        Assert.That(kept.Drives.Single(d => d.DriveId == ZkAppSteps.VaultId).HasAppCopy, Is.True);
 
-        // The next login makes new keys; a new sign-in gives the app a new key and a new copy
-        await MakeZeroKnowledgeAsync(recovered);
-        var (newDevice, _) = await ZkAppSteps.SignInAsync(recovered, app.AppId, ZkMasterKeyOf(recovered));
-        var driveKey = ZkBrowser.Open((await ZkOwnerSteps.GetShardRecoveryDriveAsync(recovered)).ZkMasterKeyEncryptedStorageKey,
-            ZkMasterKeyOf(recovered));
-        var uniqueId = Guid.NewGuid();
-        var fileKey = KeyHeader.NewRandom16();
-        var (upload, _, _, _) = await recovered.Drives.Writer.CreateEncryptedFile(shardDrive.Alias.Value,
-            ZkTestFiles.Metadata(uniqueId, "the browser's own"), transitOptions: null!, keyHeader: fileKey,
-            lockedKeyHeader: ZkBrowser.LockFileKey(fileKey, driveKey));
-        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
-
-        var seen = await newDevice.Drives.Reader.GetBatchAsync(shardDrive.Alias.Value, ZkTestFiles.QueryFor(uniqueId));
+        var grant = await ZkAppSteps.GrantOnAsync(device, ZkAppSteps.Vault);
+        Assert.That(grant.ZkAppKeyEncryptedStorageKey, Is.Not.Null, "the device still gets its copy of Vault's key");
+        Assert.That(ZkBrowser.Open(grant.ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(converted.DriveKey));
+        var seen = await device.Drives.Reader.GetBatchAsync(ZkAppSteps.VaultId, ZkTestFiles.QueryFor(uniqueId));
         Assert.That(seen.Content?.SearchResults, Has.Count.EqualTo(1), seen.Error?.Content);
-        var unseen = await oldDevice.Drives.Reader.GetBatchAsync(shardDrive.Alias.Value, ZkTestFiles.QueryFor(uniqueId));
-        Assert.That(unseen.StatusCode, Is.EqualTo(HttpStatusCode.OK), unseen.Error?.Content);
-        Assert.That(unseen.Content!.SearchResults, Is.Empty, "the old device holds a key the app no longer has");
     }
 
     [Test]

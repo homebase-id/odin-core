@@ -133,10 +133,11 @@ public class ZkDriveConversionService(
     /// </summary>
     private static void AssertLockedWithTheDriveKey(ZkConvertDriveKeepingKeyRequest request, SensitiveByteArray driveKey)
     {
+        byte[]? privateKeyPkcs8 = null;
         try
         {
             var locked = request.ZkStorageKeyEncryptedWriteOnlyPrivateKey.FromBase64();
-            var privateKeyPkcs8 = Odin.Core.Cryptography.Crypto.AesGcm.Decrypt(locked[12..], driveKey, locked[..12]);
+            privateKeyPkcs8 = Odin.Core.Cryptography.Crypto.AesGcm.Decrypt(locked[12..], driveKey, locked[..12]);
             using var ecdh = ECDiffieHellman.Create();
             ecdh.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
             var point = ecdh.ExportParameters(false).Q;
@@ -148,6 +149,14 @@ public class ZkDriveConversionService(
         catch (CryptographicException)
         {
             // falls through to the refusal
+        }
+        finally
+        {
+            // The server holds the drive key until this conversion commits, but no copy of the write-only key
+            if (privateKeyPkcs8 != null)
+            {
+                CryptographicOperations.ZeroMemory(privateKeyPkcs8);
+            }
         }
 
         throw new OdinClientException("The new write-only key isn't locked with the drive's key", OdinClientErrorCode.ArgumentError);

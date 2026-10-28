@@ -507,8 +507,7 @@ every app away from client-locked files: an app that can't open them stalls its 
   step 2), and only when the app asked for it: an older build never asks, so it never gets a mark. The old
   token, still valid, has no mark. The mark is the id of the key, a hash of `EncAppZkK`
   (`AppClientRegistration.ZkAppKeyId`, `AppRegistration.ZkAppKeyId`), and the device counts only while it
-  is still the app's key: a reset that forgets the app's key, or a concurrent first sign-in whose key won,
-  leaves the device with none (as built). The consent page sends the `EncAppZkK` it opened next to the
+  is still the app's key: a concurrent first sign-in whose key won leaves the device with none (as built). The consent page sends the `EncAppZkK` it opened next to the
   sealed key, and the server refuses it unless it is still the app's (`ZkAppKeyAlreadySet`). The mark
   travels with the caller's context (`OdinClientContext.HoldsZkAppKey`).
 - **`CallerHoldsDriveKey(driveId)`** becomes: the owner console, or a marked device of an app whose
@@ -565,8 +564,8 @@ Names are proposals until the server PR; the shapes are what the clients build a
   `aes(ZKMK, DrvK)` and whether a locked copy exists;
 - app registration: `EncAppZkK` and the locked drive keys. A copy lives as long as a grant that reads the drive:
   every save drops the others (a grant removed or narrowed to writing, a drive deleted); a drive given a new key
-  (Shard Recovery after a reset) drops every app's copy; a reset with today's master key forgets every
-  `EncAppZkK` and copy (as built);
+  (Shard Recovery after a reset) drops every app's copy; a reset with today's master key keeps every
+  `EncAppZkK` and copy, since the devices holding the app's key may be the only way left into its drives (as built);
 - owner: get a drive's key to convert it; convert (3.3); read and write `EncAppZkK` for the console;
 - `ZkDriveFiles.CallerHoldsDriveKey` takes the drive (3.4).
 
@@ -578,8 +577,10 @@ Names are proposals until the server PR; the shapes are what the clients build a
   - the same backfill for every app at a password login;
   - `makeZkDriveKeys` takes an existing drive key (today it always makes a new one,
     `ZeroKnowledgeKeys.ts` **(V)**);
-  - after a reset with today's master key the server has forgotten every `EncAppZkK` (the old ZKMK is gone,
-    and with it everything it locked); the next consent or login backfill makes new ones.
+  - after a reset with today's master key every `EncAppZkK` stays, locked by the old ZKMK: the devices that
+    hold an app's key keep opening its drives, but this browser can no longer open the key, so a new device's
+    `zk_app_key=1` sign-in fails at consent and the login backfill skips the app (open item: how the owner gets
+    the key back from a device that holds it).
 - **chat-kmp:**
   - `zk_app_key=1` in its authorize request, `zkAppKey` in the token response, the two new grant fields
     (3.5); optionally the banner that signs in again without clearing data;

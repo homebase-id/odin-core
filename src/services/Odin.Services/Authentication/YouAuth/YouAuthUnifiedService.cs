@@ -106,7 +106,16 @@ public sealed class YouAuthUnifiedService(
         }
 
         // The browser seals to the key in the sign-in it is consenting to; anything else would never open on the device
-        var publicKeyJwk = Base64UrlEncoder.DecodeString(jwkbase64UrlPublicKey);
+        string publicKeyJwk;
+        try
+        {
+            publicKeyJwk = Base64UrlEncoder.DecodeString(jwkbase64UrlPublicKey);
+        }
+        catch (FormatException)
+        {
+            throw new OdinClientException("The sign-in's public key isn't base64url", OdinClientErrorCode.ArgumentError);
+        }
+
         if (!ZkSeal.IsSealedTo(ZkBlob.AssertBase64(sealedZkAppKey64, nameof(sealedZkAppKey64)), publicKeyJwk))
         {
             throw new OdinClientException("The app's zero-knowledge key must be sealed to the sign-in's public key",

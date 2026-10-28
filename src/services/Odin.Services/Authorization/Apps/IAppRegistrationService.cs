@@ -114,9 +114,6 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>A zero-knowledge drive's key changed: every app's copy of the old one goes.</summary>
         Task RemoveZkDriveCopiesAsync(Guid driveId, IOdinContext odinContext);
 
-        /// <summary>The zero-knowledge master key was forgotten: so is every app's key, and every copy locked with one.</summary>
-        Task ForgetZkAppKeysAsync();
-
         Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>

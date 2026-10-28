@@ -108,9 +108,9 @@ Later:
 - **Zero-knowledge app key:** an app that asks for it at sign-in (`zk_app_key=1`) gets its zero-knowledge key sealed by
   the owner's browser at consent, and its security context carries each zero-knowledge drive's key locked with it, for
   the drives it is granted reading (`AppRegistrationService.GetZkDriveKeysAsync`) **(V)**. A device counts as holding
-  those keys only while the key it was given is still the app's (`AppClientRegistration.ZkAppKeyId`) **(V)**; a reset
-  with today's master key forgets every app's key (`ForgetZkAppKeysAsync`) **(V)**. See
-  `zero-knowledge-drive-api-plan.md`, step 3.
+  those keys only while the key it was given is still the app's (`AppClientRegistration.ZkAppKeyId`) **(V)**. A reset
+  with today's master key keeps every app's key and copies: the devices holding them may be the only way left into
+  the drives (`ZeroKnowledgeKeyService.DeleteAsync`) **(V)**. See `zero-knowledge-drive-api-plan.md`, step 3.
 - **Uninstall** can delete the app's drives and circles (`drive-deletion-and-app-uninstall.md`) **(V)**.
 
 ## 3. Drives

@@ -230,6 +230,12 @@ public class VaultConversionTests : V2Fixture
         await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, returnUrl, SealToSignIn(appKey, keyPair), ZkBrowser.Lock(appKey, zkMasterKey),
             HttpStatusCode.BadRequest);
 
+        // A sign-in whose public key isn't one: a 400 at consent, not a 500
+        var malformed = SignInRequest(app.AppId, keyPair);
+        malformed.PublicKey = "not-a-key";
+        var malformedReturn = YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, malformed));
+        await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, malformedReturn, SealToSignIn(appKey, keyPair), locked, HttpStatusCode.BadRequest);
+
         // Still at the consent page: nothing lets a sign-in that asked for the key skip it
         YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, request));
 
@@ -365,6 +371,17 @@ public class VaultConversionTests : V2Fixture
         // Nor a write-only key whose public half isn't the one sent
         (request, converted) = await MakeConversionAsync(frodo, zkMasterKey);
         request.WriteOnlyPublicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk;
+        AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
+
+        // Nor anything locked with the drive key that isn't an EC private key: a 400, not a 500
+        (request, converted) = await MakeConversionAsync(frodo, zkMasterKey);
+        request.ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(ByteArrayUtil.GetRndByteArray(100), converted.DriveKey);
+        AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        request.ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(rsa.ExportPkcs8PrivateKey(), converted.DriveKey);
+        AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
+        using var p256 = System.Security.Cryptography.ECDiffieHellman.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
+        request.ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(p256.ExportPkcs8PrivateKey(), converted.DriveKey);
         AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
     }
 
