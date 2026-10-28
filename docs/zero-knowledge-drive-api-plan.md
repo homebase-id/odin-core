@@ -412,7 +412,7 @@ its next sign-in. Nothing new carries a key to an app beyond one field in the si
    `/owner/login?redeal=vault-private&returnUrl=…`, which asks for the password even when the owner is
    logged in. After the password, the browser makes Vault private and sends the owner back to `returnUrl`:
    same origin (web Chat), one of our own `homebase…://` app schemes (the rule the signup's return already
-   uses, `isAppReturnUrl`), or a desktop app's loopback listener (`http://localhost:{port}/…`). There is no "Make Vault private" section anywhere else in the console.
+   uses, `isAppReturnUrl`), or a desktop app's loopback listener (`http://localhost:{port}/…`).
    If the server still holds the recovery phrase, the browser takes it over first, as a login does: a reset
    with that phrase brings back only today's master key, so it would lose ZKMK and with it Vault's key. The
    browser then converts the drive (3.3) and locks `DrvK` with the `AppZkK` of every app granted the drive,
@@ -579,9 +579,7 @@ Names are proposals until the server PR; the shapes are what the clients build a
 
 ### 3.6 Clients
 - **Owner console (odin-js):**
-  - the login page with `redeal=vault-private`, the Vault app's password confirm (3.2): password, the phrase
-    takeover if the server still holds the phrase, convert, lock `DrvK` with each granted app's `AppZkK`
-    (open or make), back to the app;
+  - the login page with `redeal=vault-private`, the Vault app's password confirm (3.2);
   - the consent page, for an app that reads zero-knowledge drives: backfill (`AppZkK` if missing, a locked
     copy of each granted zero-knowledge drive that has none), then seal `AppZkK` to the app;
   - the same backfill for every app at a password login;
