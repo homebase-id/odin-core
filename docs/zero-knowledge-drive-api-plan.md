@@ -406,13 +406,18 @@ zero-knowledge twin, opened only on the owner's devices:
 Two independent steps: the owner converts the drive in the console, and each app device gets `AppZkK` at
 its next sign-in. Nothing new carries a key to an app beyond one field in the sign-in it already does.
 
-1. **The owner converts Vault in the owner console** ("Make Vault private"). The page asks for the
-   password, even when the console remembers ZKMK for the session (`rememberZkMasterKey` **(V)**). If the
-   server still holds the recovery phrase, the browser takes it over first, as a login does: a reset with
-   that phrase brings back only today's master key, so it would lose ZKMK and with it Vault's key (as
-   built). The browser then converts the drive (3.3) and locks `DrvK` with the `AppZkK` of every app
-   granted the drive, making one for an app that has none. Until a chat-kmp that reads zero-knowledge
-   drives has shipped, the section shows only with the owner app's debug flag (as built).
+1. **The owner opts in from the Vault app** (decided 2026-10-27). While Vault isn't private, the Vault
+   screen in chat-kmp shows a section at the top: "Click to change your Vault Drive to true zero knowledge
+   encryption". It opens the owner console's login page as the password confirm,
+   `/owner/login?redeal=vault-private&returnUrl=…`, which asks for the password even when the owner is
+   logged in. After the password, the browser makes Vault private and sends the owner back to `returnUrl`:
+   same origin (web Chat), one of our own `homebase…://` app schemes (the rule the signup's return already
+   uses, `isAppReturnUrl`), or a desktop app's loopback listener (`http://localhost:{port}/…`).
+   If the server still holds the recovery phrase, the browser takes it over first, as a login does: a reset
+   with that phrase brings back only today's master key, so it would lose ZKMK and with it Vault's key. The
+   browser then converts the drive (3.3) and locks `DrvK` with the `AppZkK` of every app granted the drive,
+   making one for an app that has none. The Vault app's section ships with chat-kmp's zero-knowledge client:
+   once Vault is private, a device must sign in again with `zk_app_key=1`, or it sees Vault empty.
 2. **Every sign-in of an app that reads zero-knowledge drives carries `AppZkK`.** The app says so in its
    authorize request; the consent page opens (or makes) the app's `AppZkK`, seals it to the request's
    public key, and posts it with the consent; the server carries it untouched in the token exchange, as one
@@ -574,8 +579,7 @@ Names are proposals until the server PR; the shapes are what the clients build a
 
 ### 3.6 Clients
 - **Owner console (odin-js):**
-  - "Make Vault private": password, the phrase takeover if the server still holds the phrase, convert,
-    lock `DrvK` with each granted app's `AppZkK` (open or make);
+  - the login page with `redeal=vault-private`, the Vault app's password confirm (3.2);
   - the consent page, for an app that reads zero-knowledge drives: backfill (`AppZkK` if missing, a locked
     copy of each granted zero-knowledge drive that has none), then seal `AppZkK` to the app;
   - the same backfill for every app at a password login;
@@ -588,6 +592,7 @@ Names are proposals until the server PR; the shapes are what the clients build a
 - **chat-kmp:**
   - `zk_app_key=1` in its authorize request, `zkAppKey` in the token response, the two new grant fields
     (3.5); optionally the banner that signs in again without clearing data;
+  - the Vault screen's opt-in section, which opens the owner console's password confirm (3.2);
   - a `ZkSeal` port to open `ZkAppKey`: GCM exists (`AesGcm.kt`) and ECDH P-384 too, but its hkdf has no
     `info` and wants a 16-byte salt (`EccKeyFunctions.kt`, `HashUtil.kt`) **(V)**, so the port needs an
     hkdf with `info` and no salt; checked against the C#/js vectors;
