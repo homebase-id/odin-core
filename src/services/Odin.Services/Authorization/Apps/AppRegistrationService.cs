@@ -52,6 +52,15 @@ namespace Odin.Services.Authorization.Apps
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
             }
 
+            var appSlug = await AssignSlugAsync(request.AppId, request.AppSlug);
+
+            // Registering again would replace the app's keys and cut off its devices (#2039).  Changing what it may do
+            // has its own calls, and starting over with new keys is uninstalling it first.
+            if (await GetAppRegistrationInternalAsync(request.AppId) != null)
+            {
+                throw AlreadyRegistered(request.AppId);
+            }
+
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
@@ -86,12 +95,11 @@ namespace Odin.Services.Authorization.Apps
                 keyStoreKey, request.PermissionSet!, drives, new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
-            //TODO: add check if app is already registered
 
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
-                AppSlug = await AssignSlugAsync(request.AppId, request.AppSlug),
+                AppSlug = appSlug,
                 Name = request.Name,
                 AppKeyStore = appGrant,
 
@@ -103,7 +111,11 @@ namespace Odin.Services.Authorization.Apps
             List<Guid> createdCircles;
             await using (var tx = await db.BeginStackedTransactionAsync())
             {
-                await SaveAsync(appReg);
+                // Insert only: a registration made since the check above is refused by the database, not replaced
+                if (!await db.AppRegistrations.TryInsertAsync(ToRecord(appReg)))
+                {
+                    throw AlreadyRegistered(request.AppId);
+                }
 
                 // After the save: a circle's owning app must exist.
                 createdCircles = await circleDefinitionService.CreateDeclaredCirclesAsync(declaredCircles, request.AppId);
@@ -134,8 +146,6 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
             }
 
-            //TODO: Should we regen the key store key?  
-
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = appReg.AppKeyStore.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
@@ -160,8 +170,11 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
+            // The same key store key, which the app's devices hold, kept as it is stored rather than locked again
+            var lockedKeyStoreKey = appReg.AppKeyStore.MasterKeyEncryptedKeyStoreKey;
             appReg.AppKeyStore = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives,
-                new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
+                new MasterKeyStorageKeySource(masterKey), masterKey: null, icrKey);
+            appReg.AppKeyStore.MasterKeyEncryptedKeyStoreKey = lockedKeyStoreKey;
 
             await SaveAsync(appReg);
 
@@ -912,8 +925,11 @@ namespace Odin.Services.Authorization.Apps
             return true;
         }
 
+        /// <summary>Saves a change to a registered app; a new one is inserted by <see cref="RegisterAppAsync"/>.</summary>
         private async Task SaveAsync(AppRegistration appReg)
         {
+            await AssertKeepsKeysAsync(appReg);
+
             // A drive-key copy lives as long as the grant that reads with it: a grant removed or narrowed to writing,
             // or a drive deleted, takes it, so a grant given again gets a fresh one from the backfill
             if (appReg.ZkAppKeyEncryptedStorageKeys is { Count: > 0 } copies)
@@ -927,6 +943,34 @@ namespace Odin.Services.Authorization.Apps
 
             await db.AppRegistrations.UpsertAsync(ToRecord(appReg));
         }
+
+        /// <summary>
+        /// Under every change to an app (#2039): its keys are never replaced.  Its devices hold its key store key, and its
+        /// zero-knowledge key locks their copies of drive keys, so a new one would cut them off.  Starting over with new
+        /// keys is uninstalling the app and installing it again.
+        /// </summary>
+        private async Task AssertKeepsKeysAsync(AppRegistration appReg)
+        {
+            var stored = await GetAppRegistrationInternalAsync(appReg.AppId)
+                         ?? throw new OdinSystemException($"App {appReg.AppId} isn't registered; a change never registers it");
+
+            var (was, now) = (stored.AppKeyStore?.MasterKeyEncryptedKeyStoreKey, appReg.AppKeyStore?.MasterKeyEncryptedKeyStoreKey);
+            var sameKeyStoreKey = was == null
+                ? now == null
+                : now != null && was.KeyEncrypted.SequenceEqual(now.KeyEncrypted) && was.KeyIV.SequenceEqual(now.KeyIV);
+            if (!sameKeyStoreKey)
+            {
+                throw new OdinSystemException($"A change to app {appReg.AppId} would replace its key store key");
+            }
+
+            if (stored.ZkMasterKeyEncryptedAppKey != null && stored.ZkMasterKeyEncryptedAppKey != appReg.ZkMasterKeyEncryptedAppKey)
+            {
+                throw new OdinSystemException($"A change to app {appReg.AppId} would replace its zero-knowledge key");
+            }
+        }
+
+        private static OdinClientException AlreadyRegistered(Guid appId) =>
+            new($"App {appId} is already registered", OdinClientErrorCode.AppAlreadyRegistered);
 
         internal static AppRegistrationsRecord ToRecord(AppRegistration appReg)
         {

@@ -7,11 +7,13 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -47,6 +49,38 @@ public class AppRegistrationTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         await AddSampleAppNoDrive(owner, Guid.NewGuid(), "API Tests Sample App-register", "photos.odin.earth");
+    }
+
+    /// <summary>
+    /// Registering an app again would have given it a new key store key and left its clients holding the old one
+    /// (#2039): it is refused, and a client registered before still reads the app's drive.
+    /// </summary>
+    [Test]
+    public async Task RegisteringAnAppAgainIsRefusedAndItsClientsKeepTheirAccess()
+    {
+        var owner = await LoginAsOwner();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "Registered twice");
+        var app = await AppSession.SetupAsync(owner, drive, DrivePermission.Read);
+        var (upload, _, _, _) = await owner.Drives.Writer.CreateEncryptedFile(drive.Alias,
+            ZkTestFiles.Metadata(Guid.NewGuid(), "still readable"), transitOptions: null!);
+        Assert.That(upload.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK), upload.Error?.Content);
+
+        var again = await owner.RefitFor<IRefitOwnerAppRegistration>().RegisterApp(new AppRegistrationRequest
+        {
+            AppId = app.AppId,
+            AppSlug = OwnerAdmin.SlugFor(app.AppId),
+            Name = "The same app, registered again",
+            PermissionSet = new PermissionSet(),
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }]
+        });
+        Assert.That(again.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest), again.Error?.Content);
+        Assert.That(again.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.AppAlreadyRegistered)).IgnoreCase);
+
+        var read = await app.Drives.Reader.GetFileHeaderAsync(drive.Alias, upload.Content!.FileId);
+        Assert.That(read.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK), read.Error?.Content);
+        Assert.That(read.Content!.SharedSecretEncryptedKeyHeader.EncryptedAesKey, Is.Not.Empty,
+            "the client's key store key still opens the drive's key");
     }
 
     [Test]
