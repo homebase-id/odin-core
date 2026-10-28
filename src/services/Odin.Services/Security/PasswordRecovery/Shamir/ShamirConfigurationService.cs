@@ -231,6 +231,9 @@ public class ShamirConfigurationService(
     private async Task AssertSealedToHolderAsync(DealtShard shard, IOdinContext odinContext)
     {
         var holder = shard.Player.OdinId;
+        // Not by a copy: a holder's key changes when their drive is converted again after a reset, and the browser may
+        // have sealed with a copy; refusing here says so now, rather than the holder's drive refusing the shard later
+        await peerDriveQueryService.ForgetDriveKeysAsync(holder);
         var key = await peerDriveQueryService.GetRemoteDriveWriteOnlyPublicKeyAsync(holder, RecoveryAppSlug,
             BuiltinDrives.ShardRecoveryDrive.DriveSlug, odinContext);
 

@@ -9,6 +9,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Services.Drives;
 
@@ -49,6 +50,7 @@ public static class ZkDriveFiles
                 ThrowNotItsOwnKeyHeader();
             }
 
+            AssertSealedToItsKey(drive, sent);
             return new ClientLockedKeyHeader(sent);
         }
 
@@ -86,6 +88,32 @@ public static class ZkDriveFiles
         }
 
         AssertDriveTakes(drive, keyHeader?.Type ?? EncryptionType.Aes);
+        if (keyHeader?.IsSealed() == true)
+        {
+            AssertSealedToItsKey(drive, keyHeader);
+        }
+    }
+
+    /// <summary>
+    /// A deposit must be sealed to the drive's write-only key, which the seal names by its key id: one sealed to any
+    /// other key could never be opened.  Refused rather than stored, so the sender learns its copy of the public key
+    /// is out of date (docs/drive-public-keys-plan.md).  Not on the transient drive, where a sender's deposit waits to
+    /// go to another identity's drive.  Its shape first: the update paths check it nowhere else, and a malformed one
+    /// is told so rather than that its key is unknown.
+    /// </summary>
+    private static void AssertSealedToItsKey(StorageDrive drive, EncryptedKeyHeader sealedKeyHeader)
+    {
+        if (SystemDriveConstants.IsTransientTempDrive(drive.Id))
+        {
+            return;
+        }
+
+        sealedKeyHeader.AssertValidSealed();
+        if (!drive.IsSealedToWriteOnlyKey(sealedKeyHeader.EncryptedAesKey))
+        {
+            throw new OdinClientException("Sealed to a key this drive doesn't hold; fetch its public key again",
+                OdinClientErrorCode.SealedToUnknownKey);
+        }
     }
 
     /// <summary>

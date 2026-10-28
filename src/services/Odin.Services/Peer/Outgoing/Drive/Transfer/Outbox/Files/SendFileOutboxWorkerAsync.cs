@@ -17,6 +17,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Refit;
+using Odin.Services.Peer.Outgoing.Drive.Query;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 
@@ -25,7 +26,8 @@ public class SendFileOutboxWorkerAsync(
     FileSystemResolver fileSystemResolver,
     ILogger<SendFileOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
-    IOdinHttpClientFactory odinHttpClientFactory
+    IOdinHttpClientFactory odinHttpClientFactory,
+    PeerDriveQueryService peerDriveQueryService
 ) : OutboxWorkerBase(fileItem, logger, fileSystemResolver, odinConfiguration)
 {
     public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -167,6 +169,7 @@ public class SendFileOutboxWorkerAsync(
                 .WithCancellation(cancellationToken)
                 .ExecuteAsync(async () => { response = await TrySendFile(); });
 
+            await ForgetOutOfDateDriveKeysAsync(response, peerDriveQueryService, recipient);
             if (response.IsSuccessStatusCode)
             {
                 return (versionTag, globalTransitId.GetValueOrDefault());

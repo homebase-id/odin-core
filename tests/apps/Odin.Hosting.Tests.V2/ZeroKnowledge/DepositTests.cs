@@ -101,7 +101,7 @@ public class DepositTests : V2Fixture
 
         // Written to Frodo's transient drive only to be sent: his server can't open it either
         var uniqueId = Guid.NewGuid();
-        var (_, sealedKeyHeader) = await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, uniqueId);
+        var (_, sealedKeyHeader) = await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, uniqueId, Content);
 
         var received = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         if (!recipientIsZeroKnowledge)
@@ -128,7 +128,7 @@ public class DepositTests : V2Fixture
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var app = await AppSession.SetupAsync(sam, Drive, DrivePermission.Read);
         var uniqueId = Guid.NewGuid();
-        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId);
+        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
 
         var owners = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         Assert.That(owners.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the owner sees it");
@@ -151,7 +151,7 @@ public class DepositTests : V2Fixture
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var app = await AppSession.SetupAsync(frodo, Drive, DrivePermission.Read, [PermissionKeys.UseTransitWrite]);
         var uniqueId = Guid.NewGuid();
-        var (_, sealedKeyHeader) = await SendDepositAsync(app, frodo, sam, samsKeys.PublicKeyJwk, uniqueId);
+        var (_, sealedKeyHeader) = await SendDepositAsync(app, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
 
         var received = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         Assert.That(received.StatusCode, Is.EqualTo(HttpStatusCode.OK), received.Error?.Content);
@@ -188,7 +188,7 @@ public class DepositTests : V2Fixture
         // and a new IV; the file key stays, and the deposit becomes the drive's own
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var uniqueId = Guid.NewGuid();
-        var (fileKey, _) = await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId);
+        var (fileKey, _) = await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
         var received = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
 
         var newKey = WithNewIv(fileKey);
@@ -208,7 +208,7 @@ public class DepositTests : V2Fixture
         // A caller holding the drive's key writes zkDrive, in an update or a metadata-only upload too
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var uniqueId = Guid.NewGuid();
-        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId);
+        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
         var received = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
 
         var (newKey, sealedAgain) = ZkBrowser.SealNewFileKey(samsKeys.PublicKeyJwk);
@@ -227,7 +227,7 @@ public class DepositTests : V2Fixture
     {
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var uniqueId = Guid.NewGuid();
-        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId);
+        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
         var received = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
@@ -277,28 +277,6 @@ public class DepositTests : V2Fixture
         var (_, writeOnlyPrivateKey, driveKey) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
         var publicKey = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
         return (frodo, sam, new SamsKeys(writeOnlyPrivateKey, driveKey, publicKey.PublicKeyJwk));
-    }
-
-    /// <summary>
-    /// <paramref name="sender"/> (Frodo, or an app of his) writes a deposit to his transient drive and sends it to
-    /// Sam's Shard Recovery drive.
-    /// </summary>
-    private static async Task<(KeyHeader FileKey, EncryptedKeyHeader Sealed)> SendDepositAsync(IV2Caller sender,
-        OwnerSession frodo, OwnerSession sam, string publicKeyJwk, Guid uniqueId)
-    {
-        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
-        var metadata = Metadata(uniqueId);
-        metadata.AllowDistribution = true;
-        var (upload, _, _, _) = await sender.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias, metadata,
-            new TransitOptions
-            {
-                IsTransient = true,
-                Recipients = [sam.Identity.DomainName],
-                RemoteTargetDrive = Drive
-            }, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
-        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
-        await frodo.Sync.DrainOutboxAsync();
-        return (fileKey, sealedKeyHeader);
     }
 
     private static UploadFileMetadata Metadata(Guid uniqueId) => ZkTestFiles.Metadata(uniqueId, Content);
