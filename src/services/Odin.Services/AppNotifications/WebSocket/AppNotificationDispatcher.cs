@@ -104,6 +104,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                 case InboxItemReceivedNotificationMessage notification:
                     await WsPublishAsync(notification);
                     return;
+                case DriveKeysChangedMessage changed:
+                    await CloseSocketsMissingDriveKeyAsync(changed.DriveId);
+                    return;
                 case null:
                     _logger.LogError("Received null message");
                     return;
@@ -325,6 +328,40 @@ namespace Odin.Services.AppNotifications.WebSocket
         }
 
         //
+        // A drive's keys changed
+        //
+
+        // Src: a drive becoming zero knowledge
+        // Dst: PubSub queue, so every node closes its own sockets
+        public async Task PublishDriveKeysChangedAsync(Guid driveId)
+        {
+            await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(new DriveKeysChangedMessage { DriveId = driveId }));
+        }
+
+        // Src: PubSub queue
+        // Dst: WebSocket
+        /// <summary>
+        /// Closes each socket on the drive whose context, taken at its handshake, can no longer see the drive's files
+        /// (<see cref="ZkDriveFiles.CallerHoldsDriveKey"/>): every file event would be held back from it.  The client
+        /// reconnects, and the new handshake's context carries the app's copy of the drive key.
+        /// </summary>
+        private async Task CloseSocketsMissingDriveKeyAsync(Guid driveId)
+        {
+            var stale = _deviceSocketCollection.GetAll().Values
+                .Where(ds => ds.Drives.Contains(driveId) && ds.DeviceOdinContext is { } context &&
+                             !ZkDriveFiles.CallerHoldsDriveKey(driveId, context))
+                .ToList();
+
+            await Task.WhenAll(stale.Select(ds => _deviceSocketCollection.RemoveSocket(ds.Key,
+                WebSocketCloseStatus.NormalClosure, "the drive's keys changed; reconnect")));
+
+            if (stale.Count > 0)
+            {
+                _logger.LogInformation("Closed {count} sockets on drive {driveId}, whose keys changed", stale.Count, driveId);
+            }
+        }
+
+        //
 
         private async Task TryDrainInboxForDriveAsync(Guid driveId)
         {
@@ -514,6 +551,11 @@ namespace Odin.Services.AppNotifications.WebSocket
             public required TargetDrive TargetDrive { get; init; }
             public required FileSystemType FileSystemType { get; init; }
             public required TransferFileType TransferFileType { get; init; }
+        }
+
+        private class DriveKeysChangedMessage
+        {
+            public required Guid DriveId { get; init; }
         }
     }
 }

@@ -3,13 +3,17 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
+using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -171,6 +175,61 @@ public class VaultConversionTests : V2Fixture
         Assert.That(ZkBrowser.Open(grant.ZkStorageKeyEncryptedWriteOnlyPrivateKey!, converted.DriveKey),
             Is.EqualTo(converted.WriteOnlyPrivateKey));
     }
+
+    [Test]
+    public async Task ConvertingVaultClosesEverySocketOnItThatCantSeeItsFilesAnyMore()
+    {
+        // A socket keeps the context of its handshake: one opened before the conversion has no copy of Vault's key, so
+        // every new Vault file event would be held back from it.  The conversion closes it and the client reconnects.
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
+        var scope = frodo.Host.GetTenantScope(frodo.Identity.DomainName);
+        var sockets = scope.Resolve<SharedDeviceSocketCollection<AppNotificationHandler>>();
+        var dispatcher = scope.Resolve<AppNotificationDispatcher>();
+
+        var appOnVault = SocketOn(VaultId, masterKey: null);
+        var ownerOnVault = SocketOn(VaultId, masterKey: new SensitiveByteArray(Guid.NewGuid().ToByteArray()));
+        var appElsewhere = SocketOn(Guid.NewGuid(), masterKey: null);
+        foreach (var socket in new[] { appOnVault, ownerOnVault, appElsewhere })
+        {
+            sockets.AddSocket(socket);
+        }
+
+        await dispatcher.SubscribeAsync();
+        try
+        {
+            await ConvertVaultAsync(frodo, zkMasterKey);
+
+            // Through the pub/sub channel, as on a node other than the one that converted
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (sockets.GetAll().ContainsKey(appOnVault.Key) && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(50);
+            }
+
+            var open = sockets.GetAll();
+            Assert.That(open.ContainsKey(appOnVault.Key), Is.False, "an app's socket on Vault without its key is closed");
+            Assert.That(open.ContainsKey(ownerOnVault.Key), Is.True, "the owner's socket holds the master key, and stays");
+            Assert.That(open.ContainsKey(appElsewhere.Key), Is.True, "a socket on another drive stays");
+        }
+        finally
+        {
+            await dispatcher.UnsubscribeAsync();
+            await sockets.RemoveSocket(ownerOnVault.Key);
+            await sockets.RemoveSocket(appElsewhere.Key);
+        }
+    }
+
+    private static DeviceSocket SocketOn(Guid driveId, SensitiveByteArray? masterKey) => new()
+    {
+        Key = Guid.NewGuid(),
+        Drives = [driveId],
+        DeviceOdinContext = new OdinContext
+        {
+            Caller = new CallerContext((OdinId)Identities.Frodo, masterKey!, SecurityGroupType.Owner,
+                masterKey == null ? new OdinClientContext { HoldsZkAppKey = true, ZkDriveKeys = new System.Collections.Generic.Dictionary<Guid, ZkAppDriveKey>() } : null!)
+        }
+    };
 
     [Test]
     public async Task ConversionRefusesWithoutACopyForEveryAppGrantedVault()
