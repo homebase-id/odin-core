@@ -181,7 +181,7 @@ public class DriveDeletionTests : V2Fixture
     /// one before (#2038).
     /// </summary>
     [Test]
-    public async Task ADriveMadeAgainAnswersALaterCreationTime()
+    public async Task ADriveMadeAgainAnswersAnotherCreationTime()
     {
         var owner = await LoginAsOwner();
         var appId = Guid.NewGuid();
@@ -198,7 +198,7 @@ public class DriveDeletionTests : V2Fixture
 
         var again = await AppDriveAsync(owner, appId, "notes");
         Assert.That(again.TargetDrive, Is.EqualTo(first.TargetDrive), "the same address");
-        Assert.That(again.Created!.Value.milliseconds, Is.GreaterThan(first.Created!.Value.milliseconds), "a later creation time");
+        Assert.That(again.Created, Is.Not.EqualTo(first.Created), "another creation time");
     }
 
     [Test]

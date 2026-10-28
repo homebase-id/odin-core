@@ -33,7 +33,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         /// <summary>
         /// When the drive was made, Unix ms.  A drive deleted and made again keeps its id and slugs, so this is how
-        /// a client tells it from the one before (#2038).  Set by the V2 drive answers (<see cref="From"/>).
+        /// a client tells it from the one before (#2038): compare it for a change, not for order, since the clocks
+        /// of the hosts that made the two need not agree.  Set by the V2 drive answers (<see cref="From"/>).
         /// </summary>
         public UnixTimeUtc? Created { get; set; }
 
