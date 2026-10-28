@@ -136,12 +136,8 @@ public class VaultConversionTests : V2Fixture
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
         var before = (await GetAppKeysAsync(frodo)).Single(a => a.AppId == app.AppId);
 
-        var again = await frodo.RefitFor<IRefitAppRegistration>().RegisterApp(new AppRegistrationRequest
+        var again = await frodo.Admin.TryRegisterApp(app.AppId, new PermissionSetGrantRequest
         {
-            AppId = app.AppId,
-            AppSlug = OwnerAdmin.SlugFor(app.AppId),
-            Name = "The same app, registered again",
-            PermissionSet = new PermissionSet(),
             Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = Vault, Permission = DrivePermission.Read } }]
         });
         Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), again.Error?.Content);

@@ -66,12 +66,8 @@ public class AppRegistrationTests : V2Fixture
             ZkTestFiles.Metadata(Guid.NewGuid(), "still readable"), transitOptions: null!);
         Assert.That(upload.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK), upload.Error?.Content);
 
-        var again = await owner.RefitFor<IRefitOwnerAppRegistration>().RegisterApp(new AppRegistrationRequest
+        var again = await owner.Admin.TryRegisterApp(app.AppId, new PermissionSetGrantRequest
         {
-            AppId = app.AppId,
-            AppSlug = OwnerAdmin.SlugFor(app.AppId),
-            Name = "The same app, registered again",
-            PermissionSet = new PermissionSet(),
             Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }]
         });
         Assert.That(again.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest), again.Error?.Content);

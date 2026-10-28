@@ -35,7 +35,7 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
 
         // A pre-v12 Chat app: no ManageCircleMembership, plus an unrelated drive grant and
         // permission key that must survive the migration untouched.
-        await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
+        await owner.Admin.SetAppGrants(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
             {
@@ -79,7 +79,7 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
+        await owner.Admin.SetAppGrants(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
             {
@@ -120,7 +120,7 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
+        await owner.Admin.SetAppGrants(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
             {
