@@ -123,6 +123,7 @@ public enum OdinClientErrorCode
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
     AppRevoked = 6002,
+    AppAlreadyRegistered = 6003,
     DomainNotRegistered = 6050,
     AppHasNoAuthorizedCircles = 6700,
     InvalidAccessRegistrationId = 6800,
