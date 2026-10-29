@@ -30,6 +30,9 @@ public interface IFollowerHttpClientApiV2
     [Get(Root + "/follower")]
     Task<ApiResponse<FollowerDefinition>> GetFollower(string odinId);
 
+    [Get(Root + "/suggestions")]
+    Task<ApiResponse<FollowerSuggestionsResult>> GetSuggestions(int count, bool refresh);
+
     [Get(Root + "/follower-configuration")]
     Task<ApiResponse<FollowerDefinition>> GetFollowerConfiguration();
 

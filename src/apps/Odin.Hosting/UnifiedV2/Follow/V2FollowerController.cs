@@ -23,7 +23,8 @@ namespace Odin.Hosting.UnifiedV2.Follow;
 [ApiController]
 [Route(UnifiedApiRouteConstants.Followers)]
 [ApiExplorerSettings(GroupName = "v2")]
-public class V2FollowerController(FollowerService followerService) : OdinControllerBase
+public class V2FollowerController(FollowerService followerService, FollowerSuggestionService suggestionService)
+    : OdinControllerBase
 {
     [HttpPost("follow")]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
@@ -87,6 +88,18 @@ public class V2FollowerController(FollowerService followerService) : OdinControl
     {
         AssertIsValidOdinId(odinId, out var id);
         return await followerService.GetFollowerAsync(id, WebOdinContext);
+    }
+
+    /// <summary>
+    /// People you may know: what your connections share with you of their own connections and follows, ranked by how
+    /// many of them lead to each person. See <see cref="FollowerSuggestionService"/>.
+    /// </summary>
+    [HttpGet("suggestions")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+    [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get people you may know, from your connections' lists")]
+    public async Task<FollowerSuggestionsResult> GetSuggestions(int count = 50, bool refresh = false)
+    {
+        return await suggestionService.GetSuggestionsAsync(count, refresh, WebOdinContext);
     }
 
     /// <summary>

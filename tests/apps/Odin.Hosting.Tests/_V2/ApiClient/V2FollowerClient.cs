@@ -35,6 +35,9 @@ public class V2FollowerClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<FollowerDefinition>> GetFollowerAsync(OdinId odinId)
         => await Service().GetFollower(odinId.DomainName);
 
+    public async Task<ApiResponse<FollowerSuggestionsResult>> GetSuggestionsAsync(int count = 50, bool refresh = true)
+        => await Service().GetSuggestions(count, refresh);
+
     public async Task<ApiResponse<FollowerDefinition>> GetFollowerConfigurationAsync()
         => await Service().GetFollowerConfiguration();
 

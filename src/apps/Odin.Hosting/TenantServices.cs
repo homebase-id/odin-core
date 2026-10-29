@@ -363,6 +363,7 @@ public static class TenantServices
         // lifecycle-driven enrichment is deferred — see docs/contact-enrichment-phase2.md.
 
         cb.RegisterType<FollowerService>().InstancePerLifetimeScope();
+        cb.RegisterType<FollowerSuggestionService>().InstancePerLifetimeScope();
         cb.RegisterType<FollowerPerimeterService>().InstancePerLifetimeScope();
 
         cb.RegisterType<PeerOutbox>().InstancePerLifetimeScope();
