@@ -73,8 +73,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <para>
 /// <b>Outbox verdict.</b> <c>ConfigureShards</c> writes each player's encrypted shard to the
 /// transient temp drive and sends it peer-wise, then signals the outbox through a post-commit
-/// <c>ProcessOutboxNow</c> — which the fast host's <c>NonNotifyingBackgroundServiceManager</c>
-/// swallows. V1's <c>WaitForEmptyOutbox(TransientTempDrive)</c> becomes
+/// <c>ProcessOutboxNow</c> — which wakes nothing on the fast host, since it never starts the
+/// outbox processor. V1's <c>WaitForEmptyOutbox(TransientTempDrive)</c> becomes
 /// <c>dealer.Sync.DrainOutboxAsync()</c>. Every player is a live tenant in-process, so the file
 /// worker resolves each send permanently and the items are <i>gone</i> after the drain; that is what
 /// lets <c>VerifyShards</c> — which asks each player whether it is holding the shard — come back
