@@ -11,7 +11,7 @@ namespace Odin.Services.Registry.PayloadMove;
 
 /// <summary>
 /// On the target of a payload move: a payload that is not here yet may simply not have arrived. Reading it
-/// is then a 404 with Retry-After that no cache keeps (not the server error a lost payload is), for as long as
+/// is then a 404 with Retry-After that no cache keeps (not the 410 of a payload nothing will bring), for as long as
 /// the identity's transfer is unfinished.
 /// </summary>
 public class PayloadMoveArrivals(TableJobs tableJobs, TenantContext tenantContext)

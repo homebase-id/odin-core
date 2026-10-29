@@ -13,9 +13,8 @@ namespace Odin.Core.Exceptions;
 /// time-of-check/time-of-use window, and the honest answer is "that version is gone" rather than
 /// "the server failed".
 /// <para>
-/// Distinct from <see cref="OdinFileHeaderHasCorruptPayloadException"/>, which is the same missing
-/// file with the version <i>unchanged</i> -- there the store really has lost data and a 500 is the
-/// truth.
+/// Distinct from <see cref="OdinPayloadGoneException"/>, which is the same missing file with the
+/// version <i>unchanged</i> -- there the payload itself is gone and a re-read will not bring it back.
 /// </para>
 /// </remarks>
 public class OdinPayloadVersionGoneException : OdinClientException

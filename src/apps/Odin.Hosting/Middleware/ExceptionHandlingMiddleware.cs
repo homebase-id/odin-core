@@ -48,6 +48,13 @@ namespace Odin.Hosting.Middleware
                 // the file header gets the caller the current one.
                 await HandleExceptionAsync(context, new NotFoundException(e.Message, e.ErrorCode, e));
             }
+            catch (OdinPayloadGoneException e) // => HTTP 410
+            {
+                // Caught ahead of OdinClientException, which it derives from: a payload the header names but
+                // the store does not have, and that nothing is bringing, will not arrive (#1913). The service
+                // has logged it; the caller shows it as unavailable instead of retrying.
+                await HandleExceptionAsync(context, new GoneException(e.Message, e.ErrorCode, e));
+            }
             catch (OdinClientException e) // => HTTP 400
             {
                 // SEB:TODO OdinClientException is used in a lot of places.
