@@ -154,7 +154,7 @@ public class PayloadMoveTests
     }
 
     [Test]
-    public async Task APayloadNotHereYetIsAnUncacheable404WhileAMoveIsBringingIt()
+    public async Task APayloadNotHereYetIsAnUncacheable404WhileAMoveIsBringingIt_AndGoneOtherwise()
     {
         var (file, payload, targetDrive) = await UploadWithDriveAsync();
         var identityId = IdOf(TestIdentities.Frodo);
@@ -168,9 +168,11 @@ public class PayloadMoveTests
         var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var fileId = new ExternalFileIdentifier { FileId = file.fileId, TargetDrive = targetDrive };
 
-        // No move: a missing payload is what it always was, a server error
+        // No move: nothing will bring it, so it is gone, not a server error (#1913)
         var withoutMove = await owner.DriveRedux.GetPayload(fileId, payload.Key);
-        Assert.That(withoutMove.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        Assert.That(withoutMove.StatusCode, Is.EqualTo(HttpStatusCode.Gone));
+        Assert.That(withoutMove.Headers.CacheControl?.NoStore, Is.True, withoutMove.Headers.ToString());
+        Assert.That(withoutMove.Headers.RetryAfter, Is.Null, "gone is not worth retrying");
         _scaffold.ClearLogEvents();
 
         // A move bringing it (its source unreachable, so it stays unfinished)
