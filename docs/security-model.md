@@ -89,7 +89,11 @@ drives belong to the owner console (`StorageDriveData.AppId`) **(V)**.
    - `Drives`: drive grants, each with `driveMeta` to create the drive if it's missing. For example, two drives;
    - `Circles`: circles the app declares and will own (#1939);
    - `AuthorizedCircles` + `CircleMemberPermissionGrant`: existing circles whose members may use the identity through
-     this app, and what they get.
+     this app, and what they get. Each must be a circle this identity has: an unknown id, or one of the retired
+     Confirmed Connections / Auto Connections circles (deleted by #1809), is refused with 400
+     (`AppRegistrationService.AssertCirclesExistAsync`, #2001). Authorizing a circle with no members would grant
+     nothing, silently. Updating the authorized circles checks only the ones added, so a registration that already
+     holds a circle that is gone still saves **(V)**.
 4. The owner approves [047]. The console then:
    - creates each missing drive with the installing app as owner (`useApp.ts ensureAppOwnedDrives`, odin-js). It never
      creates a well-known drive for an app that doesn't own it; that grant is left for the server to refuse;
