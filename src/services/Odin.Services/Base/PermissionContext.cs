@@ -309,12 +309,12 @@ namespace Odin.Services.Base
             return false;
         }
 
-        /// <param name="zkDriveKeys">An app's locked keys to its zero-knowledge drives, shown on their grants</param>
-        public RedactedPermissionContext Redacted(IReadOnlyDictionary<Guid, ZkAppDriveKey> zkDriveKeys = null)
+        /// <param name="app">An app caller's zero-knowledge drives and its locked keys to them, shown on their grants</param>
+        public RedactedPermissionContext Redacted(OdinClientContext app = null)
         {
             return new RedactedPermissionContext()
             {
-                PermissionGroups = PermissionGroups.Values.Select(pg => pg.Redacted(zkDriveKeys)),
+                PermissionGroups = PermissionGroups.Values.Select(pg => pg.Redacted(app)),
             };
         }
     }

@@ -163,12 +163,15 @@ public class VaultConversionTests : V2Fixture
     {
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
         var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
-        Assert.That((await GrantOnAsync(app, Vault)).HasStorageKey, Is.True, "the grant carries the key, before");
+        var before = await GrantOnAsync(app, Vault);
+        Assert.That(before.HasStorageKey, Is.True, "the grant carries the key, before");
+        Assert.That(before.IsZeroKnowledge, Is.False);
 
         var converted = await ConvertVaultAsync(frodo, zkMasterKey);
 
         var grant = await GrantOnAsync(app, Vault);
         Assert.That(grant.HasStorageKey, Is.False, "no grant carries the key any more");
+        Assert.That(grant.IsZeroKnowledge, Is.True);
         Assert.That(grant.PermissionedDrive.Permission, Is.EqualTo(DrivePermission.ReadWrite), "the permission stays");
 
         // Any device of the app sees its locked copy: chat-kmp reads it as "this drive is zero knowledge"

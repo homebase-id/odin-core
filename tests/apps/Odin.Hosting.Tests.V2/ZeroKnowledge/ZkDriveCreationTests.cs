@@ -62,7 +62,10 @@ public class ZkDriveCreationTests : V2Fixture
 
         // An app granted it gets no key on its grant; a device that signs in with the app's key opens the drive's key
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.ReadWrite);
-        Assert.That((await GrantOnAsync(app, drive)).HasStorageKey, Is.False);
+        var before = await GrantOnAsync(app, drive);
+        Assert.That(before.HasStorageKey, Is.False);
+        Assert.That(before.IsZeroKnowledge, Is.True, "the app sees the drive is private before it has a copy, and signs in again");
+        Assert.That(before.ZkAppKeyEncryptedStorageKey, Is.Null);
         var (device, appKey) = await SignInAsync(frodo, app.AppId, zkMasterKey);
         Assert.That(ZkBrowser.Open((await GrantOnAsync(device, drive)).ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(keys.DriveKey));
     }

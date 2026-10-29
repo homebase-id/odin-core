@@ -293,6 +293,7 @@ namespace Odin.Services.Authorization.Apps
                             AppId = appReg.AppId,
                             DevicePushNotificationKey = null,
                             ZkDriveKeys = await GetZkDriveKeysAsync(appReg),
+                            ZkDriveIds = await GetZkDriveIdsAsync(appReg),
                             HoldsZkAppKey = appClient.HoldsZkAppKeyOf(appReg)
                         })
                 };
@@ -356,6 +357,21 @@ namespace Odin.Services.Authorization.Apps
             }
 
             return keys.Count > 0 ? keys : null;
+        }
+
+        /// <summary>The zero-knowledge drives among those the app is granted reading; null when there are none.</summary>
+        private async Task<IReadOnlySet<Guid>?> GetZkDriveIdsAsync(AppRegistration appReg)
+        {
+            var ids = new HashSet<Guid>();
+            foreach (var driveId in KeyedDriveIds(appReg))
+            {
+                if (await driveManager.GetDriveAsync(driveId) is { IsZeroKnowledge: true })
+                {
+                    ids.Add(driveId);
+                }
+            }
+
+            return ids.Count > 0 ? ids : null;
         }
 
         /// <summary>

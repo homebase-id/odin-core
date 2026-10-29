@@ -50,14 +50,15 @@ namespace Odin.Services.Authorization.ExchangeGrants
             };
         }
 
-        /// <param name="zkDriveKeys">An app's locked keys to its zero-knowledge drives (<see cref="OdinClientContext.ZkDriveKeys"/>),
-        /// shown on this grant when they include its drive</param>
-        public RedactedDriveGrant Redacted(IReadOnlyDictionary<Guid, ZkAppDriveKey> zkDriveKeys = null)
+        /// <param name="app">An app caller (<see cref="OdinClientContext"/>): whether this grant's drive is zero knowledge,
+        /// and the app's locked keys to it when it has a copy</param>
+        public RedactedDriveGrant Redacted(OdinClientContext app = null)
         {
-            var zk = zkDriveKeys?.GetValueOrDefault(DriveId);
+            var zk = app?.ZkDriveKeys?.GetValueOrDefault(DriveId);
             return new RedactedDriveGrant()
             {
                 HasStorageKey = KeyStoreKeyEncryptedStorageKey != null,
+                IsZeroKnowledge = app?.ZkDriveIds?.Contains(DriveId) == true,
                 PermissionedDrive = this.PermissionedDrive,
                 ZkAppKeyEncryptedStorageKey = zk?.ZkAppKeyEncryptedStorageKey,
                 ZkStorageKeyEncryptedWriteOnlyPrivateKey = zk?.ZkStorageKeyEncryptedWriteOnlyPrivateKey
@@ -69,6 +70,13 @@ namespace Odin.Services.Authorization.ExchangeGrants
     {
         public PermissionedDrive PermissionedDrive { get; set; }
         public bool HasStorageKey { get; set; }
+
+        /// <summary>
+        /// Whether the drive is zero knowledge, for an app caller.  With no <see cref="ZkAppKeyEncryptedStorageKey"/>, the
+        /// app has no copy of the key yet, and a device of it signs in again rather than taking the drive for one
+        /// whose key the server holds (docs/zero-knowledge-drive-api-plan.md, 4.2).
+        /// </summary>
+        public bool IsZeroKnowledge { get; set; }
 
         /// <summary>
         /// On a zero-knowledge drive the app is granted: the drive key locked with the app's zero-knowledge key,

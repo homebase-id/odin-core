@@ -156,7 +156,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         return _encryptedIcrKey?.DecryptKeyClone(key);
     }
 
-    public RedactedPermissionGroup Redacted(IReadOnlyDictionary<Guid, ZkAppDriveKey>? zkDriveKeys = null)
+    public RedactedPermissionGroup Redacted(OdinClientContext? app = null)
     {
         if (null == _permissionSet)
         {
@@ -170,7 +170,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         return new RedactedPermissionGroup()
         {
             PermissionSet = _permissionSet == null ? new PermissionSet().Redacted() : _permissionSet.Redacted(),
-            DriveGrants = _driveGrants?.Select(r => r.Redacted(zkDriveKeys)) ?? new List<RedactedDriveGrant>()
+            DriveGrants = _driveGrants?.Select(r => r.Redacted(app)) ?? new List<RedactedDriveGrant>()
         };
     }
 }
