@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Services.DataSubscription.Follower;
 using Refit;
@@ -10,10 +11,7 @@ using Refit;
 namespace Odin.Hosting.Tests.V2.Api;
 
 /// <summary>
-/// The <c>/api/v2/followers/*</c> surface. Every route here is served by
-/// <c>V2FollowerController</c>, which subclasses the same <c>FollowerControllerBase</c> as the
-/// owner/app/guest v1 controllers — so these tests cover the v2 routing and policy, not the
-/// follow logic itself, which the v1 tests already exercise.
+/// The <c>/api/v2/followers/*</c> surface, served by <c>V2FollowerController</c>.
 /// </summary>
 public sealed class FollowersHandle
 {
@@ -38,17 +36,17 @@ public sealed class FollowersHandle
 
     /// <summary>POST /api/v2/followers/unfollow</summary>
     public Task<ApiResponse<HttpContent>> UnfollowAsync(OdinId identity)
-        => _v2Followers.UnfollowAsync(new UnfollowRequest { OdinId = identity });
+        => _v2Followers.UnfollowAsync(new OdinIdRequest { OdinId = identity });
 
-    /// <summary>GET /api/v2/followers/IdentitiesIFollow</summary>
-    public Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollowAsync(int max = 100, string cursor = "")
-        => _v2Followers.GetIdentitiesIFollowAsync(max, cursor);
+    /// <summary>GET /api/v2/followers/identities-i-follow</summary>
+    public Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollowAsync(int count = 100, string cursor = "")
+        => _v2Followers.GetIdentitiesIFollowAsync(count, cursor);
 
-    /// <summary>GET /api/v2/followers/followingme</summary>
-    public Task<ApiResponse<CursoredResult<string>>> GetFollowingMeAsync(int max = 100, string cursor = "")
-        => _v2Followers.GetFollowingMeAsync(max, cursor);
+    /// <summary>GET /api/v2/followers/following-me</summary>
+    public Task<ApiResponse<CursoredResult<string>>> GetFollowingMeAsync(int count = 100, string cursor = "")
+        => _v2Followers.GetFollowingMeAsync(count, cursor);
 
-    /// <summary>GET /api/v2/followers/IdentityIFollow</summary>
+    /// <summary>GET /api/v2/followers/identity-i-follow</summary>
     public Task<ApiResponse<FollowerDefinition>> GetIdentityIFollowAsync(OdinId identity)
         => _v2Followers.GetIdentityIFollowAsync(identity);
 
@@ -58,5 +56,5 @@ public sealed class FollowersHandle
 
     /// <summary>POST /api/v2/followers/sync-feed-history</summary>
     public Task<ApiResponse<HttpContent>> SynchronizeFeedHistoryAsync(OdinId identity)
-        => _v2Followers.SynchronizeFeedHistoryAsync(new SynchronizeFeedHistoryRequest { OdinId = identity });
+        => _v2Followers.SynchronizeFeedHistoryAsync(new OdinIdRequest { OdinId = identity });
 }

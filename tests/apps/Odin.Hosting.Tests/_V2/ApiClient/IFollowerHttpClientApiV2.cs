@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Hosting.Controllers;
 using Odin.Hosting.UnifiedV2;
 using Odin.Services.DataSubscription.Follower;
 using Refit;
@@ -15,20 +16,20 @@ public interface IFollowerHttpClientApiV2
     Task<ApiResponse<HttpContent>> Follow([Body] FollowRequest request);
 
     [Post(Root + "/unfollow")]
-    Task<ApiResponse<HttpContent>> Unfollow([Body] UnfollowRequest request);
+    Task<ApiResponse<HttpContent>> Unfollow([Body] OdinIdRequest request);
 
-    [Get(Root + "/IdentitiesIFollow")]
-    Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollow(int max, string cursor);
+    [Get(Root + "/identities-i-follow")]
+    Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollow(int count, string cursor);
 
-    [Get(Root + "/followingme")]
-    Task<ApiResponse<CursoredResult<string>>> GetFollowingMe(int max, string cursor);
+    [Get(Root + "/following-me")]
+    Task<ApiResponse<CursoredResult<string>>> GetFollowingMe(int count, string cursor);
 
-    [Get(Root + "/IdentityIFollow")]
+    [Get(Root + "/identity-i-follow")]
     Task<ApiResponse<FollowerDefinition>> GetIdentityIFollow(string odinId);
 
     [Get(Root + "/follower")]
     Task<ApiResponse<FollowerDefinition>> GetFollower(string odinId);
 
     [Post(Root + "/sync-feed-history")]
-    Task<ApiResponse<HttpContent>> SynchronizeFeedHistory([Body] SynchronizeFeedHistoryRequest request);
+    Task<ApiResponse<HttpContent>> SynchronizeFeedHistory([Body] OdinIdRequest request);
 }

@@ -11,9 +11,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Follow;
 /// <see href="https://github.com/homebase-id/odin-core/issues/1611">#1611</see>, where every one of
 /// these routes 404'd because no follower controller existed under <c>UnifiedV2/</c>.
 ///
-/// The follow *logic* is shared with the v1 owner/app/guest controllers via
-/// <c>FollowerControllerBase</c> and is covered by their tests; what these assert is that the v2
-/// routes exist, bind, and run under the v2 bearer-token policy. The 404 regression is asserted
+/// They assert that the v2 routes exist, bind and run under the v2 bearer-token policy; the follow
+/// logic itself is <c>FollowerService</c>'s, which the v1 tests cover. The 404 regression is asserted
 /// explicitly in <see cref="AllFollowerRoutes_AreRouted_AndDoNotReturnNotFound"/>.
 /// </summary>
 [TestFixture]
@@ -28,7 +27,7 @@ public class FollowerV2Tests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
 
         var follow = await frodo.Followers.FollowAsync(sam.Identity);
-        Assert.That(follow.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        Assert.That(follow.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var iFollow = await frodo.Followers.GetIdentitiesIFollowAsync();
         Assert.That(iFollow.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -84,7 +83,7 @@ public class FollowerV2Tests : V2Fixture
         await frodo.Followers.FollowAsync(sam.Identity);
 
         var unfollow = await frodo.Followers.UnfollowAsync(sam.Identity);
-        Assert.That(unfollow.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        Assert.That(unfollow.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var iFollow = await frodo.Followers.GetIdentitiesIFollowAsync();
         Assert.That(iFollow.Content!.Results, Does.Not.Contain(sam.Identity.DomainName));
@@ -119,9 +118,9 @@ public class FollowerV2Tests : V2Fixture
         var statuses = new[]
         {
             (route: "POST /follow", status: (await frodo.Followers.FollowAsync(sam.Identity)).StatusCode),
-            (route: "GET /IdentitiesIFollow", status: (await frodo.Followers.GetIdentitiesIFollowAsync()).StatusCode),
-            (route: "GET /followingme", status: (await frodo.Followers.GetFollowingMeAsync()).StatusCode),
-            (route: "GET /IdentityIFollow", status: (await frodo.Followers.GetIdentityIFollowAsync(sam.Identity)).StatusCode),
+            (route: "GET /identities-i-follow", status: (await frodo.Followers.GetIdentitiesIFollowAsync()).StatusCode),
+            (route: "GET /following-me", status: (await frodo.Followers.GetFollowingMeAsync()).StatusCode),
+            (route: "GET /identity-i-follow", status: (await frodo.Followers.GetIdentityIFollowAsync(sam.Identity)).StatusCode),
             (route: "GET /follower", status: (await sam.Followers.GetFollowerAsync(frodo.Identity)).StatusCode),
             (route: "POST /sync-feed-history", status: (await frodo.Followers.SynchronizeFeedHistoryAsync(sam.Identity)).StatusCode),
             (route: "POST /unfollow", status: (await frodo.Followers.UnfollowAsync(sam.Identity)).StatusCode)

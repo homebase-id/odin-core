@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Services.DataSubscription.Follower;
 using Refit;
@@ -19,14 +20,14 @@ public class V2FollowerClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<HttpContent>> FollowAsync(FollowRequest request)
         => await Service().Follow(request);
 
-    public async Task<ApiResponse<HttpContent>> UnfollowAsync(UnfollowRequest request)
+    public async Task<ApiResponse<HttpContent>> UnfollowAsync(OdinIdRequest request)
         => await Service().Unfollow(request);
 
-    public async Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollowAsync(int max = 100, string cursor = "")
-        => await Service().GetIdentitiesIFollow(max, cursor);
+    public async Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollowAsync(int count = 100, string cursor = "")
+        => await Service().GetIdentitiesIFollow(count, cursor);
 
-    public async Task<ApiResponse<CursoredResult<string>>> GetFollowingMeAsync(int max = 100, string cursor = "")
-        => await Service().GetFollowingMe(max, cursor);
+    public async Task<ApiResponse<CursoredResult<string>>> GetFollowingMeAsync(int count = 100, string cursor = "")
+        => await Service().GetFollowingMe(count, cursor);
 
     public async Task<ApiResponse<FollowerDefinition>> GetIdentityIFollowAsync(OdinId odinId)
         => await Service().GetIdentityIFollow(odinId.DomainName);
@@ -34,6 +35,6 @@ public class V2FollowerClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<FollowerDefinition>> GetFollowerAsync(OdinId odinId)
         => await Service().GetFollower(odinId.DomainName);
 
-    public async Task<ApiResponse<HttpContent>> SynchronizeFeedHistoryAsync(SynchronizeFeedHistoryRequest request)
+    public async Task<ApiResponse<HttpContent>> SynchronizeFeedHistoryAsync(OdinIdRequest request)
         => await Service().SynchronizeFeedHistory(request);
 }
