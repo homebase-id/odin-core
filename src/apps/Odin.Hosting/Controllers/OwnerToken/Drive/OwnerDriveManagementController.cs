@@ -45,13 +45,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("create")]
         public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
         {
-            // A zero-knowledge drive's key is locked with the zero-knowledge master key, which must exist first
-            if (request.SharingModel.IsZeroKnowledge())
-            {
-                await zeroKnowledgeKeyService.AssertKeysExistAsync();
-            }
-
-            var _ = await driveManager.CreateDriveAsync(request, WebOdinContext);
+            var _ = request.SharingModel.IsZeroKnowledge()
+                ? await zeroKnowledgeKeyService.CreateZeroKnowledgeDriveAsync(request, WebOdinContext)
+                : await driveManager.CreateDriveAsync(request, WebOdinContext);
             return true;
         }
 

@@ -19,6 +19,7 @@ using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
 
 [assembly: InternalsVisibleTo("Odin.Hosting")]
@@ -164,31 +165,7 @@ public class DriveManager : IDriveManager
         var mk = odinContext.Caller.GetMasterKey();
         var id = request.TargetDrive.Alias.Value;
 
-        // A zero-knowledge drive's keys come from the owner's browser, and the server never holds its key: no
-        // master-key copy, and the write-only private key only as the browser locked it with the drive key
-        SymmetricKeyEncryptedAes? driveKey = null;
-        SensitiveByteArray? storageKey = null;
-        EccFullKeyData writeOnlyKeyPair;
-        byte[] encryptedIdIv, encryptedIdValue;
-        if (zeroKnowledge)
-        {
-            writeOnlyKeyPair = DriveWriteOnlyKey.FromPublicKeyJwk(request.ZkKeys.WriteOnlyPublicKeyJwk);
-            encryptedIdIv = request.ZkKeys.EncryptedIdIv64.FromBase64();
-            encryptedIdValue = request.ZkKeys.EncryptedIdValue64.FromBase64();
-        }
-        else
-        {
-            driveKey = new SymmetricKeyEncryptedAes(mk);
-            storageKey = driveKey.DecryptKeyClone(mk);
-
-            // Minted here because this is the one moment the storage key is guaranteed to be in hand: it is
-            // derived from the master key two lines up.  Later paths can only reach it through a grant that
-            // carries it, and the caller who most needs the public half -- a stranger fetching it over peer
-            // to deposit -- holds no grant at all, so it cannot be minted on demand for them.
-            writeOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
-
-            (encryptedIdIv, encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
-        }
+        var keys = zeroKnowledge ? BrowserMadeKeys(request.ZkKeys) : ServerMadeKeys(id, mk);
 
         var driveData = new StorageDriveDetails()
         {
@@ -207,9 +184,9 @@ public class DriveManager : IDriveManager
             DriveId = id,
             DriveName = request.Name,
             DriveType = request.TargetDrive.Type.Value,
-            MasterKeyEncryptedStorageKeyJson = driveKey == null ? null : OdinSystemSerializer.Serialize(driveKey),
-            EncryptedIdIv64 = encryptedIdIv.ToBase64(),
-            EncryptedIdValue64 = encryptedIdValue.ToBase64(),
+            MasterKeyEncryptedStorageKeyJson = keys.MasterKeyCopy == null ? null : OdinSystemSerializer.Serialize(keys.MasterKeyCopy),
+            EncryptedIdIv64 = keys.EncryptedIdIv.ToBase64(),
+            EncryptedIdValue64 = keys.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(driveData),
             StorageKeyCheckValue = id,
 
@@ -218,7 +195,7 @@ public class DriveManager : IDriveManager
             AppId = appId,
             DriveSlug = driveSlug,
             DriveTypeSlug = driveTypeSlug,
-            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(writeOnlyKeyPair),
+            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(keys.WriteOnlyKeyPair),
 
             SharingModel = (int)request.SharingModel,
             ZkMasterKeyEncryptedStorageKey = request.ZkKeys?.ZkMasterKeyEncryptedStorageKey,
@@ -237,7 +214,7 @@ public class DriveManager : IDriveManager
         }
         finally
         {
-            storageKey?.Wipe();
+            keys.StorageKey?.Wipe();
         }
 
         var storageDrive = ToStorageDrive(ToStorageDriveData(record));
@@ -556,7 +533,7 @@ public class DriveManager : IDriveManager
         }
 
         storageDrive.MasterKeyEncryptedStorageKey = null;
-        storageDrive.SharingModel = sharingModel; // how an existing drive becomes zero knowledge; a new one is created so
+        storageDrive.SharingModel = sharingModel; // how an existing drive becomes zero knowledge (a new one is created as one)
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
         if (newEncryptedId is var (iv, value))
         {
@@ -927,6 +904,36 @@ public class DriveManager : IDriveManager
         var drive = ToStorageDriveData(record);
         return drive;
     }
+
+    /// <summary>A new drive's keys: the server's own, or the ones the owner's browser made for a zero-knowledge drive.</summary>
+    private readonly record struct NewDriveKeys(
+        SymmetricKeyEncryptedAes? MasterKeyCopy,
+        SensitiveByteArray? StorageKey,
+        EccFullKeyData WriteOnlyKeyPair,
+        byte[] EncryptedIdIv,
+        byte[] EncryptedIdValue);
+
+    private static NewDriveKeys ServerMadeKeys(Guid id, SensitiveByteArray mk)
+    {
+        var driveKey = new SymmetricKeyEncryptedAes(mk);
+        var storageKey = driveKey.DecryptKeyClone(mk);
+
+        // Minted here because this is the one moment the storage key is guaranteed to be in hand: it is
+        // derived from the master key two lines up.  Later paths can only reach it through a grant that
+        // carries it, and the caller who most needs the public half -- a stranger fetching it over peer
+        // to deposit -- holds no grant at all, so it cannot be minted on demand for them.
+        var writeOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
+        var (encryptedIdIv, encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
+        return new NewDriveKeys(driveKey, storageKey, writeOnlyKeyPair, encryptedIdIv, encryptedIdValue);
+    }
+
+    /// <summary>
+    /// The server never holds a zero-knowledge drive's key: no master-key copy, and the write-only private key only as
+    /// the browser locked it with the drive key.
+    /// </summary>
+    private static NewDriveKeys BrowserMadeKeys(ZkConvertDriveRequest keys) => new(null, null,
+        DriveWriteOnlyKey.FromPublicKeyJwk(keys.WriteOnlyPublicKeyJwk), keys.EncryptedIdIv64.FromBase64(),
+        keys.EncryptedIdValue64.FromBase64());
 
     /// <summary>The rule every drive row is written under, by a save and by creation alike.</summary>
     private static void AssertKeyCopies(Guid driveId, DriveSharingModel sharingModel, bool hasMasterKeyCopy, bool hasZkCopy)

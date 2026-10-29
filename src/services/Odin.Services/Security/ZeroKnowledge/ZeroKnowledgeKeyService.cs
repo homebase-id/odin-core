@@ -375,9 +375,19 @@ public class ZeroKnowledgeKeyService(
         return await Storage.GetAsync<ZkKeyRecord>(tblKeyValue, ZkKeyStorageId);
     }
 
-    public async Task AssertKeysExistAsync()
+    internal async Task AssertKeysExistAsync()
     {
         await GetRecordOrFailAsync();
+    }
+
+    /// <summary>
+    /// Creates a drive Private or SelectiveShare with the keys the owner's browser made (docs/zero-knowledge-drive-api-plan.md,
+    /// 4.2): its key is locked with the zero-knowledge master key, which must exist first.
+    /// </summary>
+    public async Task<StorageDrive> CreateZeroKnowledgeDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
+    {
+        await GetRecordOrFailAsync();
+        return await driveManager.CreateDriveAsync(request, odinContext);
     }
 
     private async Task<ZkKeyRecord> GetRecordOrFailAsync()
