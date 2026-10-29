@@ -4,6 +4,8 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Storage.Database.Identity;
+using Autofac;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
@@ -211,6 +213,65 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var updatedChatAppCircleGrants = AppCircleGrantsFor(updatedAppGrants, setup.App, expectedCount: 1);
 
         AssertAppCircleGrant(updatedChatAppCircleGrants, setup.DocumentSharingCircleId, setup.App);
+    }
+
+    /// <summary>
+    /// #2000: a member left holding no grant for the app (what a failed or skipped reconcile leaves behind) made
+    /// removing the circle from the app's authorized circles 500, so the authorization could not be undone.
+    /// </summary>
+    [Test]
+    public async Task RemovingAnAuthorizedCircle_WhoseMemberHoldsNoGrantForTheApp_Succeeds()
+    {
+        var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
+        var samOwnerClient = await LoginAsOwner(Identities.Sam);
+
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 1);
+        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
+        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
+        AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 1);
+
+        await DropAppGrantsAsync(frodoOwnerClient, samOwnerClient.Identity);
+
+        await UpdateAppAuthorizedCircles(frodoOwnerClient, setup.App.AppId, new List<Guid>(),
+            setup.App.CircleMemberPermissionSetGrantRequest);
+
+        var updatedApp = await GetAppRegistration(frodoOwnerClient, setup.App.AppId);
+        Assert.That(updatedApp.AuthorizedCircles, Is.Empty, "the circle is no longer authorized");
+        var connectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
+        Assert.That(connectionInfo.AccessGrant.AppGrants.Keys, Does.Not.Contain(setup.App.AppId.Value));
+    }
+
+    /// <summary>
+    /// #2000: authorizing the same circles again gives a member who lost the app's grant their grant back.
+    /// </summary>
+    [Test]
+    public async Task AuthorizingTheSameCirclesAgain_RestoresAMissingGrant()
+    {
+        var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
+        var samOwnerClient = await LoginAsOwner(Identities.Sam);
+
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 1);
+        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
+        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
+
+        await DropAppGrantsAsync(frodoOwnerClient, samOwnerClient.Identity);
+
+        await UpdateAppAuthorizedCircles(frodoOwnerClient, setup.App.AppId, setup.CircleIds,
+            setup.App.CircleMemberPermissionSetGrantRequest);
+
+        var grants = AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App,
+            expectedCount: 1);
+        AssertAppCircleGrant(grants, setup.ChatFriendsCircleId, setup.App);
+    }
+
+    /// <summary>
+    /// Deletes every app grant <paramref name="member"/> holds on <paramref name="owner"/>'s identity, leaving the
+    /// circle membership: the state a reconcile that failed or skipped the member leaves behind.
+    /// </summary>
+    private static async Task DropAppGrantsAsync(OwnerSession owner, OdinId member)
+    {
+        await using var scope = owner.Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
+        await scope.Resolve<IdentityDatabase>().AppGrantsCached.DeleteByIdentityAsync(member.ToHashId());
     }
 
     // -------------------------------------------------------------------------------------------
