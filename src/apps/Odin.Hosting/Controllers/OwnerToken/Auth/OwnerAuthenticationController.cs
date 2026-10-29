@@ -118,7 +118,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             return isValid;
         }
 
+        /// <remarks>
+        /// Never cached: each nonce is used once, and a browser that answered two parallel requests with
+        /// one response gave two password proofs the same nonce, so the second was refused.
+        /// </remarks>
         [HttpGet("nonce")]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var result = await ss.GenerateAuthenticationNonceAsync();
