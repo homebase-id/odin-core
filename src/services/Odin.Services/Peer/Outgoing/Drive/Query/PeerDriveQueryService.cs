@@ -913,6 +913,15 @@ public class PeerDriveQueryService(
         return newEncryptedKeyHeader;
     }
 
+    // The peer's payload or thumbnail will not arrive (#1913): passed on as the same 410, not an unhandled error
+    private static void AssertPayloadNotGone(OdinId odinId, ApiResponse<HttpContent> response)
+    {
+        if (response.StatusCode == HttpStatusCode.Gone)
+        {
+            throw new OdinPayloadGoneException($"The payload is not available at [{odinId}]", null);
+        }
+    }
+
     private async Task HandleInvalidResponseAsync<T>(OdinId odinId, ApiResponse<T> response, IOdinContext odinContext)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -994,6 +1003,7 @@ public class PeerDriveQueryService(
             return (null, default, null, null, Stream.Null);
         }
 
+        AssertPayloadNotGone(odinId, response);
         await HandleInvalidResponseAsync(odinId, response, odinContext);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
@@ -1059,6 +1069,7 @@ public class PeerDriveQueryService(
                 $"The range is not satisfiable at [{odinId}]");
         }
 
+        AssertPayloadNotGone(odinId, response);
         await HandleInvalidResponseAsync(odinId, response, odinContext);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();

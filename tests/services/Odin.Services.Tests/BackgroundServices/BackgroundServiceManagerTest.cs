@@ -13,6 +13,7 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Services.Background;
 using Odin.Services.Background.BackgroundServices;
+using Odin.Test.Helpers;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
 
@@ -195,10 +196,29 @@ public class BackgroundServiceManagerTest
         await manager.NotifyWorkAvailableAsync("service-a");
         Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
 
-        // Starting again restores the wait-for-startup behaviour
         await manager.StartAsync<LoopingBackgroundService>("service-a");
         await manager.NotifyWorkAvailableAsync("service-a");
         await manager.StopAllAsync();
+    }
+
+    [Test]
+    public async Task ItShouldWakeAServiceNotifiedBeforeItStarted()
+    {
+        // A tenant's services start before the system ones, and may notify one (e.g. the job runner) first.
+        // The notify must not wait for it, and the wake-up must not be lost.
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+
+        var sw = Stopwatch.StartNew();
+        await manager.NotifyWorkAvailableAsync(nameof(NotifyTestBackgroundService));
+        Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+
+        // Sleeps an hour before doing anything, unless woken
+        var service = await manager.StartAsync<NotifyTestBackgroundService>();
+        await Poll.UntilAsync(() => Task.FromResult(service.Notified), TimeSpan.FromSeconds(5),
+            () => "the service started after the notify was never woken");
+
+        await manager.StopAsync<NotifyTestBackgroundService>();
+        AssertLogEvents();
     }
 
     [Test]
