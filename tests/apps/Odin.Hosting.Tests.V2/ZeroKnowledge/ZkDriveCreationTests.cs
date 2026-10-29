@@ -14,6 +14,8 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -169,6 +171,29 @@ public class ZkDriveCreationTests : V2Fixture
         Assert.That((await frodo.Admin.GetCircleDefinition(BuiltinCircles.VaultCircle.Id)).Id,
             Is.EqualTo(BuiltinCircles.VaultCircle.Id));
         Assert.That((await client.GetMissingDrives()).Content, Is.Empty);
+    }
+
+    [Test]
+    public async Task AnAppThatAsksForNoPermissionKeysStillSeesItsDriveGrant()
+    {
+        // As Filesync registers: a drive and no permission keys.  Its security context must still show the grant,
+        // the only place its devices find the drive's key (it once came back empty for a group with no keys)
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var drive = TargetDrive.NewTargetDrive();
+        var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
+        await frodo.Admin.CreateDrive(drive, "Synced", allowAnonymousReads: false, sharingModel: DriveSharingModel.SelectiveShare,
+            zkKeys: keys.Request);
+
+        var app = await AppSession.SetupAsync(frodo, new PermissionSetGrantRequest
+        {
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.ReadWrite } }],
+            PermissionSet = null!
+        });
+        var (device, appKey) = await SignInAsync(frodo, app.AppId, zkMasterKey);
+
+        var grant = await GrantOnAsync(device, drive);
+        Assert.That(grant.IsZeroKnowledge, Is.True);
+        Assert.That(ZkBrowser.Open(grant.ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(keys.DriveKey));
     }
 
     private static async Task<RedactedAppRegistration?> BuiltinAppAsync(OwnerSession owner, Guid appId)

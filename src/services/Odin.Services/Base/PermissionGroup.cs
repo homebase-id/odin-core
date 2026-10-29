@@ -156,17 +156,12 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         return _encryptedIcrKey?.DecryptKeyClone(key);
     }
 
+    /// <remarks>
+    /// A group with no permission keys still shows its drive grants: an app that asks for none (Filesync) reads its
+    /// drive's grant, and on a zero-knowledge drive the app's copy of the key, from here.
+    /// </remarks>
     public RedactedPermissionGroup Redacted(OdinClientContext? app = null)
     {
-        if (null == _permissionSet)
-        {
-            return new RedactedPermissionGroup()
-            {
-                PermissionSet = new RedactedPermissionSet(),
-                DriveGrants = new List<RedactedDriveGrant>()
-            };
-        }
-
         return new RedactedPermissionGroup()
         {
             PermissionSet = _permissionSet == null ? new PermissionSet().Redacted() : _permissionSet.Redacted(),
