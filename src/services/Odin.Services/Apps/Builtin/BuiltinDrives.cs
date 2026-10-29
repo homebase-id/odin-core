@@ -64,11 +64,15 @@ public static class BuiltinDrives
     };
 
     // --- Email ---
+    /// <summary>
+    /// Private from the start, as <see cref="VaultDrive"/> is: it holds the OpenPGP keyring (docs/zero-knowledge-drive-api-plan.md,
+    /// 4.8).  An identity that already has an Email drive keeps it as it is, Collaborative until the owner upgrades it.
+    /// </summary>
     public static readonly CreateDriveRequest EmailDrive = new()
     {
         Name = "Email", TargetDrive = WellKnownAppDrives.EmailAppDrive, Metadata = "",
         AppId = SystemAppConstants.EmailAppId, DriveSlug = (OdinSlug)"email", DriveTypeSlug = (OdinSlug)"email",
-        AllowAnonymousReads = false, OwnerOnly = true
+        AllowAnonymousReads = false, OwnerOnly = true, SharingModel = DriveSharingModel.Private
     };
 
     // --- Feed ---
@@ -163,11 +167,16 @@ public static class BuiltinDrives
     // Drives the mapping names that do not exist yet, so have no counterpart in SystemDriveConstants.
     // Settings are placeholders -- nothing seeds these, since none of their apps is built-in.
     //
+    /// <summary>
+    /// Private from the start (docs/zero-knowledge-drive-api-plan.md, 4.7): the owner's browser creates it with its
+    /// keys at setup or a password login, so the server never sees its key.  An identity that already has a Vault keeps
+    /// it as it is, Collaborative until the owner upgrades it.
+    /// </summary>
     public static readonly CreateDriveRequest VaultDrive = new()
     {
         Name = "Vault", TargetDrive = WellKnownAppDrives.VaultDrive, Metadata = "",
         AppId = SystemAppConstants.VaultAppId, DriveSlug = (OdinSlug)"vault", DriveTypeSlug = (OdinSlug)"vault",
-        AllowAnonymousReads = false, OwnerOnly = true
+        AllowAnonymousReads = false, OwnerOnly = true, SharingModel = DriveSharingModel.Private
     };
 
     public static readonly CreateDriveRequest CommunityDrive = new()

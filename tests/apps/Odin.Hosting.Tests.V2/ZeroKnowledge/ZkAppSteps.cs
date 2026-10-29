@@ -36,30 +36,36 @@ internal static class ZkAppSteps
     public sealed record Converted(byte[] DriveKey, byte[] WriteOnlyPrivateKey, Dictionary<Guid, byte[]> AppKeys);
 
     /// <summary>The browser converts Vault: its key re-locked with the zero-knowledge master key, a copy for each app.</summary>
-    public static async Task<Converted> ConvertVaultAsync(OwnerSession owner, byte[] zkMasterKey)
+    public static Task<Converted> ConvertVaultAsync(OwnerSession owner, byte[] zkMasterKey) =>
+        ConvertDriveAsync(owner, zkMasterKey, VaultId, DriveSharingModel.Private);
+
+    public static async Task<Converted> ConvertDriveAsync(OwnerSession owner, byte[] zkMasterKey, Guid driveId,
+        DriveSharingModel sharingModel)
     {
-        var (request, converted) = await MakeConversionAsync(owner, zkMasterKey);
+        var (request, converted) = await MakeConversionAsync(owner, zkMasterKey, driveId: driveId, sharingModel: sharingModel);
         var response = await ZkOwnerSteps.Client(owner).ConvertDrive(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return converted;
     }
 
     /// <summary>
-    /// What the browser sends to convert Vault: the drive's key, which the server hands over one last time, locked with
+    /// What the browser sends to convert a drive: the drive's key, which the server hands over one last time, locked with
     /// the zero-knowledge master key; a new write-only key pair; and, for every app granted the drive but those
     /// <paramref name="leaveOut"/> names, the key locked with the app's key (made where the app has none).
     /// </summary>
     public static async Task<(ZkConvertDriveKeepingKeyRequest Request, Converted Converted)> MakeConversionAsync(OwnerSession owner,
-        byte[] zkMasterKey, Func<Guid, bool>? leaveOut = null)
+        byte[] zkMasterKey, Func<Guid, bool>? leaveOut = null, Guid? driveId = null,
+        DriveSharingModel sharingModel = DriveSharingModel.Private)
     {
+        var id = driveId ?? VaultId;
         var client = ZkOwnerSteps.Client(owner);
-        var keyResponse = await client.GetDriveKeyForConversion(VaultId);
+        var keyResponse = await client.GetDriveKeyForConversion(id);
         Assert.That(keyResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), keyResponse.Error?.Content);
         var driveKey = keyResponse.Content!.StorageKey64.FromBase64();
 
         var appKeys = new Dictionary<Guid, byte[]>();
         var apps = new List<ZkAppKeysRequest>();
-        foreach (var app in (await GetAppKeysAsync(owner)).Where(a => a.Drives.Any(d => d.DriveId == VaultId)))
+        foreach (var app in (await GetAppKeysAsync(owner)).Where(a => a.Drives.Any(d => d.DriveId == id)))
         {
             if (leaveOut?.Invoke(app.AppId) == true)
             {
@@ -72,14 +78,15 @@ internal static class ZkAppSteps
             {
                 AppId = app.AppId,
                 ZkMasterKeyEncryptedAppKey = newLocked,
-                ZkAppKeyEncryptedStorageKeys = { [VaultId] = ZkBrowser.Lock(driveKey, appKey) }
+                ZkAppKeyEncryptedStorageKeys = { [id] = ZkBrowser.Lock(driveKey, appKey) }
             });
         }
 
         var writeOnly = ZkBrowser.MakeKeyPair();
         var request = new ZkConvertDriveKeepingKeyRequest
         {
-            DriveId = VaultId,
+            DriveId = id,
+            SharingModel = sharingModel,
             ZkMasterKeyEncryptedStorageKey = ZkBrowser.Lock(driveKey, zkMasterKey),
             WriteOnlyPublicKeyJwk = writeOnly.PublicKeyJwk,
             ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(writeOnly.PrivateKeyPkcs8, driveKey),

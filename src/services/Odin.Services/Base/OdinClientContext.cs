@@ -35,6 +35,12 @@ public class OdinClientContext : IGenericCloneable<OdinClientContext>
     public IReadOnlyDictionary<Guid, ZkAppDriveKey> ZkDriveKeys { get; init; }
 
     /// <summary>
+    /// The zero-knowledge drives the app is granted, reading or writing, whether or not it has a copy of their key yet; only shown
+    /// to the app (<c>RedactedDriveGrant.IsZeroKnowledge</c>).  Holding a key is <see cref="ZkDriveKeys"/>, never this.
+    /// </summary>
+    public IReadOnlySet<Guid> ZkDriveIds { get; init; }
+
+    /// <summary>
     /// Whether this device holds the app's zero-knowledge key, so counts as holding the key of each drive in
     /// <see cref="ZkDriveKeys"/> (<c>ZkDriveFiles.CallerHoldsDriveKey</c>).
     /// </summary>
@@ -50,6 +56,7 @@ public class OdinClientContext : IGenericCloneable<OdinClientContext>
             DevicePushNotificationKey = DevicePushNotificationKey,
             ClientIdOrDomain = ClientIdOrDomain,
             ZkDriveKeys = ZkDriveKeys, // immutable
+            ZkDriveIds = ZkDriveIds, // immutable
             HoldsZkAppKey = HoldsZkAppKey
         };
     }

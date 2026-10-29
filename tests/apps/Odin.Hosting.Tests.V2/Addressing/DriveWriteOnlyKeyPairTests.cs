@@ -240,7 +240,7 @@ public class DriveWriteOnlyKeyPairTests : V2Fixture
         // Asked one drive at a time: the paged read needs a caller context to filter on, and this
         // assertion is about storage, not visibility.
         var missing = new System.Collections.Generic.List<string>();
-        foreach (var seeded in BuiltinApps.SeededDrives)
+        foreach (var seeded in BuiltinApps.DrivesMadeAtSetup)
         {
             var stored = await driveManager.GetDriveAsync(seeded.TargetDrive.Alias, failIfInvalid: true);
             if (stored.WriteOnlyKeyPair == null)

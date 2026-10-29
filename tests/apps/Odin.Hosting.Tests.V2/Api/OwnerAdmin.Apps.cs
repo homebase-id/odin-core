@@ -7,9 +7,11 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.YouAuth;
 using Odin.Services.Authorization.Apps;
@@ -38,6 +40,14 @@ public sealed partial class OwnerAdmin
 
     /// <summary>A slug for a test app, derived from its id; see <see cref="TestAppSlug"/>.</summary>
     public static OdinSlug SlugFor(Guid appId) => TestAppSlug.For(appId);
+
+    /// <summary>An app's drive by its slug, as the app's own drive answer gives it.</summary>
+    public async Task<ClientDriveData> GetAppDrive(Guid appId, string driveSlug)
+    {
+        var response = await _owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(SlugFor(appId).ToString(), driveSlug);
+        EnsureSuccess(response, nameof(GetAppDrive));
+        return response.Content!;
+    }
 
     public async Task<bool> IsAppRegistered(Guid appId)
     {

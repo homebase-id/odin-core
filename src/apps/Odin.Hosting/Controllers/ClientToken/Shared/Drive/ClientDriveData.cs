@@ -38,6 +38,12 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         /// </summary>
         public UnixTimeUtc? Created { get; set; }
 
+        /// <summary>
+        /// What the drive is: Collaborative, Private or SelectiveShare (docs/zero-knowledge-drive-api-plan.md, 4.2).  On a
+        /// zero-knowledge drive the app's own copy of the key can lag behind: a grant with none means sign in again.
+        /// </summary>
+        public DriveSharingModel? SharingModel { get; set; }
+
         /// <summary>The whole drive, as the V2 answers give it to an owner or an app.</summary>
         public static ClientDriveData From(StorageDrive drive) => new()
         {
@@ -47,7 +53,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             AppId = drive.AppId,
             DriveSlug = drive.DriveSlug,
             DriveTypeSlug = drive.DriveTypeSlug,
-            Created = drive.Created
+            Created = drive.Created,
+            SharingModel = drive.SharingModel
         };
     }
 }

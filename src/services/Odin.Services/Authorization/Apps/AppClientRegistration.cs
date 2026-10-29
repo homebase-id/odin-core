@@ -48,6 +48,10 @@ public sealed class AppClientRegistration : IClientRegistration
     /// </summary>
     public string ZkAppKeyId { get; init; }
 
+    /// <summary>Whether this device was handed the app's current zero-knowledge key.</summary>
+    public bool HoldsZkAppKeyOf(AppRegistration app) =>
+        ZkAppKeyId != null && ZkAppKeyId == AppRegistration.ZkAppKeyId(app.ZkMasterKeyEncryptedAppKey);
+
     public int Type => CatType;
 
     public int TimeToLiveSeconds => (int)TimeSpan.FromDays(365).TotalSeconds; // 3 hours

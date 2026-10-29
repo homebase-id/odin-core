@@ -160,12 +160,7 @@ public class DriveDeletionTests : V2Fixture
 
         // gone at once, but its alias is held until the files are
         Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.False);
-        var tooSoon = await owner.RefitFor<IRefitDriveManagement>().CreateDrive(new CreateDriveRequest
-        {
-            DriveSlug = TestSlug.New(),
-            DriveTypeSlug = TestSlug.DriveType,
-            TargetDrive = drive, Name = "too soon", Metadata = "", AllowAnonymousReads = false
-        });
+        var tooSoon = await owner.Admin.TryCreateDrive(drive, "too soon", allowAnonymousReads: false);
         Assert.That(tooSoon.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the alias was reusable before the purge");
 
         await RunPurgeAsync(owner);
@@ -188,7 +183,7 @@ public class DriveDeletionTests : V2Fixture
         await owner.Admin.EnsureAppRegistered(appId);
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "first", appId: appId, driveSlug: new OdinSlug("notes"));
-        var first = await AppDriveAsync(owner, appId, "notes");
+        var first = await owner.Admin.GetAppDrive(appId, "notes");
         Assert.That(first.Created, Is.Not.Null);
 
         await owner.Admin.SetArchiveFlag(drive, archived: true);
@@ -196,7 +191,7 @@ public class DriveDeletionTests : V2Fixture
         await RunPurgeAsync(owner);
         await owner.Admin.CreateDrive(drive, "again", appId: appId, driveSlug: new OdinSlug("notes"));
 
-        var again = await AppDriveAsync(owner, appId, "notes");
+        var again = await owner.Admin.GetAppDrive(appId, "notes");
         Assert.That(again.TargetDrive, Is.EqualTo(first.TargetDrive), "the same address");
         Assert.That(again.Created, Is.Not.EqualTo(first.Created), "another creation time");
     }
@@ -394,13 +389,6 @@ public class DriveDeletionTests : V2Fixture
 
     private static async Task<HttpStatusCode> EmptyAsync(OwnerSession owner, TargetDrive drive) =>
         (await owner.RefitFor<IRefitDriveManagement>().EmptyDrive(new TargetDriveRequest { TargetDrive = drive })).StatusCode;
-
-    private static async Task<ClientDriveData> AppDriveAsync(OwnerSession owner, Guid appId, string driveSlug)
-    {
-        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(OwnerAdmin.SlugFor(appId).ToString(), driveSlug);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
-        return response.Content!;
-    }
 
     private static async Task<HttpStatusCode> DeleteAsync(OwnerSession owner, TargetDrive drive) =>
         (await owner.RefitFor<IRefitDriveManagement>().DeleteDrive(new TargetDriveRequest { TargetDrive = drive })).StatusCode;

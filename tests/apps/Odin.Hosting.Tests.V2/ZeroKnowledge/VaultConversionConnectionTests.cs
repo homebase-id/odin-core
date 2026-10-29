@@ -28,6 +28,7 @@ public class VaultConversionConnectionTests : V2Fixture
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
+        await GiveTheDrivesAnOlderIdentityHasAsync(frodo);
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
 
         var send = await frodo.Connections.SendConnectionRequest(sam.Identity, [BuiltinCircles.VaultCircle.Id]);

@@ -68,7 +68,7 @@ public class VaultConversionTests : V2Fixture
         Assert.That(plainAfter.FileMetadata.AppData.Content, Is.EqualTo("plain"));
 
         // The drive: private, its key only in the browser's copy
-        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == Vault);
+        var drive = await frodo.Admin.GetDrive(Vault);
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Private));
         Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(converted.DriveKey));
 
@@ -163,12 +163,15 @@ public class VaultConversionTests : V2Fixture
     {
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
         var app = await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
-        Assert.That((await GrantOnAsync(app, Vault)).HasStorageKey, Is.True, "the grant carries the key, before");
+        var before = await GrantOnAsync(app, Vault);
+        Assert.That(before.HasStorageKey, Is.True, "the grant carries the key, before");
+        Assert.That(before.IsZeroKnowledge, Is.False);
 
         var converted = await ConvertVaultAsync(frodo, zkMasterKey);
 
         var grant = await GrantOnAsync(app, Vault);
         Assert.That(grant.HasStorageKey, Is.False, "no grant carries the key any more");
+        Assert.That(grant.IsZeroKnowledge, Is.True);
         Assert.That(grant.PermissionedDrive.Permission, Is.EqualTo(DrivePermission.ReadWrite), "the permission stays");
 
         // Any device of the app sees its locked copy: chat-kmp reads it as "this drive is zero knowledge"
@@ -249,13 +252,13 @@ public class VaultConversionTests : V2Fixture
         Assert.That(response.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.ZkAppKeyMissing)).IgnoreCase);
 
         // Nothing happened: one transaction
-        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == Vault);
+        var drive = await frodo.Admin.GetDrive(Vault);
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Collaborative));
         Assert.That((await GrantOnAsync(app, Vault)).HasStorageKey, Is.True);
     }
 
     [Test]
-    public async Task OnlyVaultConvertsThisWayAndOnlyOnce()
+    public async Task ADriveNotListedIsRefusedAndAConvertedOneDoesNotConvertAgain()
     {
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
         var client = ZkOwnerSteps.Client(frodo);
@@ -268,6 +271,45 @@ public class VaultConversionTests : V2Fixture
         var again = await client.GetDriveKeyForConversion(VaultId);
         Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "Vault, a second time: the server holds no key to hand over");
         Assert.That(again.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.DriveCannotBeConverted)).IgnoreCase);
+    }
+
+    [Test]
+    public async Task FilesyncUpgradesToSelectiveShareAndKeepsItsCreationTime()
+    {
+        // Filesync's own drive, as its app makes it, upgraded to the model its app asks for; desktop clients set their
+        // records aside when created changes
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var filesync = WellKnownAppDrives.FilesyncDrive;
+        var filesyncId = filesync.Alias.Value;
+        var appId = Guid.NewGuid();
+        await frodo.Admin.EnsureAppRegistered(appId);
+        await frodo.Admin.CreateDrive(filesync, "Filesync", allowAnonymousReads: false, appId: appId,
+            driveSlug: new OdinSlug("filesync"));
+        var app = await AppSession.SetupAsync(frodo, filesync, DrivePermission.ReadWrite);
+        var fileKey = KeyHeader.NewRandom16();
+        var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(filesyncId, Metadata(Guid.NewGuid(), Content),
+            transitOptions: null!, keyHeader: fileKey);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        var createdBefore = (await frodo.Admin.GetAppDrive(appId, "filesync")).Created;
+        Assert.That(createdBefore, Is.Not.Null);
+
+        var converted = await ConvertDriveAsync(frodo, zkMasterKey, filesyncId, DriveSharingModel.SelectiveShare);
+
+        var drive = await frodo.Admin.GetDrive(filesync);
+        Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.SelectiveShare));
+        Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(converted.DriveKey));
+        Assert.That((await frodo.Admin.GetAppDrive(appId, "filesync")).Created, Is.EqualTo(createdBefore));
+
+        // An app granted the drive keeps its permission and gets its own copy of the key, as with Vault
+        var grant = await GrantOnAsync(app, filesync);
+        Assert.That(grant.HasStorageKey, Is.False);
+        Assert.That(ZkBrowser.Open(grant.ZkAppKeyEncryptedStorageKey!, converted.AppKeys[app.AppId]), Is.EqualTo(converted.DriveKey));
+
+        var read = await frodo.Drives.Reader.GetFileHeaderAsync(filesyncId, upload.Content!.FileId);
+        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.OK), read.Error?.Content);
+        Assert.That(read.Content!.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
+        Assert.That(ZkBrowser.OpenFileKey(read.Content.SharedSecretEncryptedKeyHeader, converted.DriveKey).AesKey.GetKey(),
+            Is.EqualTo(fileKey.AesKey.GetKey()));
     }
 
     [Test]
@@ -448,6 +490,10 @@ public class VaultConversionTests : V2Fixture
         Assert.That(noCopies.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), noCopies.Error?.Content);
 
         var (request, _) = await MakeConversionAsync(frodo, zkMasterKey);
+        request.SharingModel = DriveSharingModel.Collaborative; // a conversion makes a drive zero knowledge
+        AssertArgumentError(await client.ConvertDrive(request));
+
+        request.SharingModel = DriveSharingModel.Private;
         request.Apps.Add(request.Apps.Single(a => a.AppId == app.AppId));
         AssertArgumentError(await client.ConvertDrive(request));
 
@@ -465,7 +511,7 @@ public class VaultConversionTests : V2Fixture
         request.ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(converted.WriteOnlyPrivateKey, ByteArrayUtil.GetRndByteArray(16));
         AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
 
-        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == Vault);
+        var drive = await frodo.Admin.GetDrive(Vault);
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Collaborative), "nothing happened");
 
         // Nor a write-only key whose public half isn't the one sent
@@ -544,6 +590,7 @@ public class VaultConversionTests : V2Fixture
     private async Task<(OwnerSession Owner, byte[] ZkMasterKey)> OwnerWithZeroKnowledgeKeysAsync()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
+        await GiveTheDrivesAnOlderIdentityHasAsync(frodo);
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
         return (frodo, zkMasterKey);
     }

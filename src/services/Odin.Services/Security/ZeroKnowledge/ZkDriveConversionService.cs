@@ -25,7 +25,7 @@ namespace Odin.Services.Security.ZeroKnowledge;
 /// <summary>
 /// Converts a drive to zero knowledge while it keeps its key (docs/zero-knowledge-drive-api-plan.md, step 3): the owner's
 /// browser re-locks the drive key with the zero-knowledge master key, and the server drops every copy it could open.
-/// No file is re-encrypted.  Vault only, for now.
+/// No file is re-encrypted.  Only the drives in <see cref="ConvertibleDrives"/>, for now.
 /// </summary>
 /// <remarks>
 /// The trade, accepted: the server opened the key every time it served the drive before, so a key leaked then still
@@ -76,8 +76,9 @@ public class ZkDriveConversionService(
             drive = await GetConvertibleDriveAsync(request.DriveId);
             AssertLockedWithTheDriveKey(request, odinContext.PermissionsContext.GetDriveStorageKey(drive.Id));
 
-            await driveManager.ApplyZeroKnowledgeKeysKeepingKeyAsync(drive.Id, request.ZkMasterKeyEncryptedStorageKey,
-                writeOnlyPublicKey, request.ZkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
+            await driveManager.ApplyZeroKnowledgeKeysKeepingKeyAsync(drive.Id, request.SharingModel,
+                request.ZkMasterKeyEncryptedStorageKey, writeOnlyPublicKey, request.ZkStorageKeyEncryptedWriteOnlyPrivateKey,
+                odinContext);
 
             await appRegistrationService.SetZkAppKeysForConversionAsync(drive.Id, request.Apps, odinContext);
             await circleNetworkService.RemoveStorageKeyFromAllGrantsAsync(drive.Id, odinContext);
@@ -166,7 +167,18 @@ public class ZkDriveConversionService(
         throw new OdinClientException("The new write-only key isn't locked with the drive's key", OdinClientErrorCode.ArgumentError);
     }
 
-    /// <summary>Vault, not yet zero knowledge: the one drive converted this way for now (plan 3.7).</summary>
+    /// <summary>
+    /// The drives that existed before they could be made zero knowledge and are upgraded this way, for now (plan 3.7).
+    /// A new drive is made zero knowledge when it is created, never converted.
+    /// </summary>
+    private static readonly HashSet<Guid> ConvertibleDrives =
+    [
+        WellKnownAppDrives.VaultDrive.Alias.Value,
+        WellKnownAppDrives.FilesyncDrive.Alias.Value,
+        WellKnownAppDrives.EmailAppDrive.Alias.Value
+    ];
+
+    /// <summary>A drive of <see cref="ConvertibleDrives"/>, not yet zero knowledge.</summary>
     private async Task<StorageDrive> GetConvertibleDriveAsync(Guid driveId)
     {
         var drive = (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!; // never null: it throws instead
@@ -176,9 +188,9 @@ public class ZkDriveConversionService(
             throw new OdinClientException($"Drive {driveId} is already zero knowledge", OdinClientErrorCode.DriveCannotBeConverted);
         }
 
-        if (driveId != WellKnownAppDrives.VaultDrive.Alias.Value)
+        if (!ConvertibleDrives.Contains(driveId))
         {
-            throw new OdinClientException("Only the Vault drive converts to zero knowledge for now",
+            throw new OdinClientException($"Drive {driveId} isn't one that converts to zero knowledge",
                 OdinClientErrorCode.DriveCannotBeConverted);
         }
 
@@ -190,6 +202,9 @@ public class ZkDriveConversionService(
 public sealed class ZkConvertDriveKeepingKeyRequest
 {
     public Guid DriveId { get; set; }
+
+    /// <summary>What the drive becomes, as the app that asked for the upgrade wants it: Private or SelectiveShare.</summary>
+    public DriveSharingModel SharingModel { get; set; }
 
     /// <summary>The drive's existing key, locked with the zero-knowledge master key.</summary>
     public string ZkMasterKeyEncryptedStorageKey { get; set; } = "";
@@ -208,6 +223,11 @@ public sealed class ZkConvertDriveKeepingKeyRequest
         if (DriveId == Guid.Empty)
         {
             throw new OdinClientException("A drive id is required", OdinClientErrorCode.ArgumentError);
+        }
+
+        if (!SharingModel.IsZeroKnowledge())
+        {
+            throw new OdinClientException($"{nameof(SharingModel)} is Private or SelectiveShare", OdinClientErrorCode.ArgumentError);
         }
 
         // The limits are the Drives columns'

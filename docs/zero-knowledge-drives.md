@@ -444,9 +444,10 @@ Decided 2026-10-23: from step 4 on, every drive has a copy of its key locked by 
 zero-knowledge master key, whatever its sharing model. Every app is handed the keys of the drives
 it is granted, locked to the app at consent. Whether it uses them is up to the app.
 
-- **A ZK copy is not conversion.** Collaborative and Selective Share drives keep their master-key
-  copy, and the server keeps working with it as today. Only a Private drive loses its master-key
-  copy, at conversion. Zero knowledge means "no master-key copy" (`StorageDrive.IsZeroKnowledge`),
+- **A ZK copy is not conversion.** Collaborative drives keep their master-key copy, and the server
+  keeps working with it as today. Private and Selective Share drives hold their key the same way: both
+  lose the master-key copy, at creation or at conversion, and differ only in the shares a Selective
+  Share drive adds later (corrected 2026-10-29; this said Selective Share kept its copy). Zero knowledge means "no master-key copy" (`StorageDrive.IsZeroKnowledge`),
   so a drive with both copies isn't mistaken for zero knowledge **(V)**.
 - **New drives always get one.**
   - When the owner console creates a drive, the browser is there: it adds the ZK copy right away.

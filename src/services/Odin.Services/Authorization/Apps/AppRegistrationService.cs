@@ -278,6 +278,7 @@ namespace Odin.Services.Authorization.Apps
                     odinContext,
                     includeAnonymousDrives: true);
 
+                var (zkDriveKeys, zkDriveIds) = await GetZkDrivesAsync(appReg);
                 var dotYouContext = new OdinContext()
                 {
                     Tenant = tenantContext.HostOdinId,
@@ -292,9 +293,9 @@ namespace Odin.Services.Authorization.Apps
                             AccessRegistrationId = accessReg.Id,
                             AppId = appReg.AppId,
                             DevicePushNotificationKey = null,
-                            ZkDriveKeys = await GetZkDriveKeysAsync(appReg),
-                            HoldsZkAppKey = appClient.ZkAppKeyId != null &&
-                                            appClient.ZkAppKeyId == AppRegistration.ZkAppKeyId(appReg.ZkMasterKeyEncryptedAppKey)
+                            ZkDriveKeys = zkDriveKeys,
+                            ZkDriveIds = zkDriveIds,
+                            HoldsZkAppKey = appClient.HoldsZkAppKeyOf(appReg)
                         })
                 };
 
@@ -336,27 +337,32 @@ namespace Odin.Services.Authorization.Apps
         }
 
         /// <summary>
-        /// The app's locked keys to the zero-knowledge drives it has a copy for (a copy lives only as long as the grant
-        /// that reads the drive, <see cref="SaveAsync"/>), with each drive's locked write-only private key
-        /// (docs/zero-knowledge-drive-api-plan.md, step 3); null when there are none.
+        /// The zero-knowledge drives the app is granted, reading or writing (shown on its grants, never deciding what it
+        /// may read), and its locked keys to those it has a copy for (a copy lives only as long as the grant that reads
+        /// the drive, <see cref="SaveAsync"/>), with each drive's locked write-only private key
+        /// (docs/zero-knowledge-drive-api-plan.md, steps 3 and 4).  One pass, one drive lookup each; null for none.
         /// </summary>
-        private async Task<IReadOnlyDictionary<Guid, ZkAppDriveKey>?> GetZkDriveKeysAsync(AppRegistration appReg)
+        private async Task<(IReadOnlyDictionary<Guid, ZkAppDriveKey>? Keys, IReadOnlySet<Guid>? DriveIds)> GetZkDrivesAsync(
+            AppRegistration appReg)
         {
-            if (appReg.ZkAppKeyEncryptedStorageKeys is not { Count: > 0 } copies)
-            {
-                return null;
-            }
-
+            // A copy goes with the grant that reads its drive (SaveAsync), so the grants cover every copy
             var keys = new Dictionary<Guid, ZkAppDriveKey>();
-            foreach (var (driveId, locked) in copies)
+            var ids = new HashSet<Guid>();
+            foreach (var driveId in appReg.AppKeyStore?.DriveGrants?.Select(g => g.DriveId).Distinct() ?? [])
             {
-                if (await driveManager.GetDriveAsync(driveId) is { IsZeroKnowledge: true } drive)
+                if (await driveManager.GetDriveAsync(driveId) is not { IsZeroKnowledge: true } drive)
+                {
+                    continue;
+                }
+
+                ids.Add(driveId);
+                if (appReg.ZkAppKeyEncryptedStorageKeys?.TryGetValue(driveId, out var locked) == true)
                 {
                     keys[driveId] = new ZkAppDriveKey(locked, drive.ZkStorageKeyEncryptedWriteOnlyPrivateKey);
                 }
             }
 
-            return keys.Count > 0 ? keys : null;
+            return (keys.Count > 0 ? keys : null, ids.Count > 0 ? ids : null);
         }
 
         /// <summary>
@@ -589,8 +595,10 @@ namespace Odin.Services.Authorization.Apps
         {
             var list = await clientRegistrationStorage.GetByTypeAndCategoryIdAsync<AppClientRegistration>(AppClientRegistration.CatType,
                 appId);
+            var appReg = await GetAppRegistrationInternalAsync(appId);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
+                HoldsZkAppKey = appReg != null && appClient.HoldsZkAppKeyOf(appReg),
                 AppId = appClient.AppId,
                 AccessRegistrationId = appClient.ServerHalfOfClientKey.Id,
                 FriendlyName = appClient.FriendlyName,

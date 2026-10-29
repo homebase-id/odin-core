@@ -9,7 +9,11 @@ using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
+using Odin.Services.Membership.Circles;
 using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2;
@@ -363,6 +367,44 @@ public abstract class V2Fixture
     {
         var scope = Host.GetTenantScope(owner.Identity.DomainName);
         return (scope, await BuildOwnerContextAsync(scope, owner));
+    }
+
+    /// <summary>
+    /// The protected built-in drives a new identity has before its owner's browser has run: all but the ones the
+    /// browser creates zero knowledge (Vault, Email), which the server leaves out at setup.
+    /// </summary>
+    protected static List<TargetDrive> ProtectedDrivesMadeAtSetup =>
+        BuiltinDrives.Protected
+            .Where(d => BuiltinApps.BrowserMadeDrives.All(b => b.TargetDrive != d)).ToList();
+
+    /// <summary>The seeded circles setup makes: those whose app has no browser-made drive to wait for.</summary>
+    protected static List<CircleDefinition> CirclesMadeAtSetup =>
+        BuiltinApps.Builtin
+            .Where(a => !a.Drives.Any(d => BuiltinApps.BrowserMadeDrives.Contains(d)))
+            .SelectMany(a => a.Circles).ToList();
+
+    /// <summary>
+    /// The Vault and Email drives an identity made before they were created private (docs/zero-knowledge-drive-api-plan.md,
+    /// 4.7, 4.8) has: Collaborative, created by the server at setup, with their built-in apps and circles.  What the
+    /// upgrade tests start from; an identity made now has neither until the owner's browser creates them.
+    /// </summary>
+    protected async Task GiveTheDrivesAnOlderIdentityHasAsync(OwnerSession owner)
+    {
+        var (scope, odinContext) = await MigrationContextAsync(owner);
+        var driveManager = scope.Resolve<IDriveManager>();
+        foreach (var drive in BuiltinApps.BrowserMadeDrives)
+        {
+            await driveManager.CreateDriveAsync(new CreateDriveRequest
+            {
+                Name = drive.Name, TargetDrive = drive.TargetDrive, Metadata = drive.Metadata, AppId = drive.AppId,
+                DriveSlug = drive.DriveSlug, DriveTypeSlug = drive.DriveTypeSlug, AllowAnonymousReads = drive.AllowAnonymousReads,
+                OwnerOnly = drive.OwnerOnly
+            }, odinContext);
+        }
+
+        var provisioner = scope.Resolve<BuiltinProvisioner>();
+        await provisioner.EnsureCirclesAsync(odinContext);
+        await provisioner.EnsureAppsAsync(odinContext);
     }
 
     /// <summary>

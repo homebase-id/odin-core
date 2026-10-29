@@ -12,6 +12,8 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Services.Security.ZeroKnowledge;
 using Refit;
 
@@ -34,7 +36,7 @@ internal static class ZkOwnerSteps
 
     /// <summary>Where the browser looks to see whether the drive is converted.</summary>
     public static async Task<OwnerClientDriveData> GetShardRecoveryDriveAsync(OwnerSession owner) =>
-        (await owner.Admin.GetDrives()).Single(d => d.TargetDriveInfo == WellKnownAppDrives.ShardRecoveryDrive);
+        await owner.Admin.GetDrive(WellKnownAppDrives.ShardRecoveryDrive);
 
     public static async Task<ZkBrowser.Keys> CreateKeysAsync(OwnerSession owner, string password)
     {
@@ -105,6 +107,28 @@ internal static class ZkOwnerSteps
         return (keys.MasterKey, driveKeys.WriteOnlyPrivateKey, driveKeys.DriveKey);
     }
 
+    /// <summary>
+    /// The browser's part at setup or a password login (plan 4.7): each built-in private drive the identity is missing,
+    /// created with keys it makes.  Returns them by drive alias.
+    /// </summary>
+    public static async Task<Dictionary<Guid, ZkBrowser.DriveKeys>> CreateMissingDrivesAsync(OwnerSession owner, byte[] zkMasterKey)
+    {
+        var missing = await Client(owner).GetMissingDrives();
+        Assert.That(missing.StatusCode, Is.EqualTo(HttpStatusCode.OK), missing.Error?.Content);
+
+        var created = new Dictionary<Guid, ZkBrowser.DriveKeys>();
+        foreach (var request in missing.Content!)
+        {
+            var keys = ZkBrowser.MakeDriveKeys(request.TargetDrive.Alias, zkMasterKey);
+            request.ZkKeys = keys.Request;
+            var response = await owner.RefitFor<IRefitDriveManagement>().CreateDrive(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+            created[request.TargetDrive.Alias] = keys;
+        }
+
+        return created;
+    }
+
     public static async Task<ZkBrowser.DriveKeys> ConvertShardRecoveryDriveAsync(OwnerSession owner, byte[] zkMasterKey)
     {
         var driveKeys = ZkBrowser.MakeDriveKeys(WellKnownAppDrives.ShardRecoveryDrive.Alias, zkMasterKey);
@@ -118,6 +142,9 @@ public interface IZeroKnowledgeOwnerClient
 {
     [Get(OwnerApiPathConstants.SecurityV1 + "/zk")]
     Task<ApiResponse<ZkStatusResponse>> GetStatus();
+
+    [Get(OwnerApiPathConstants.SecurityV1 + "/zk/missing-drives")]
+    Task<ApiResponse<List<CreateDriveRequest>>> GetMissingDrives();
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/keys")]
     Task<ApiResponse<HttpContent>> CreateKeys([Body] ZkKeysRequest request);

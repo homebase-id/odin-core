@@ -87,6 +87,9 @@ namespace Odin.Services.Peer.Encryption
         /// joins them) sealed to a drive's write-only public key.  The IV is also kept as is, as for an
         /// AES key header.
         /// </summary>
+        public static EncryptedKeyHeader SealedTo(KeyHeader fileKey, string publicKeyJwk) =>
+            Sealed(fileKey.Iv, ZkSeal.Seal(fileKey.Combine().GetKey(), publicKeyJwk));
+
         public static EncryptedKeyHeader Sealed(byte[] iv, byte[] sealedKeyHeader) => new()
         {
             EncryptionVersion = 1,
