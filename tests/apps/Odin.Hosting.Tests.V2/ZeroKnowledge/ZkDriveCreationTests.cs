@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -15,7 +16,6 @@ using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -174,26 +174,47 @@ public class ZkDriveCreationTests : V2Fixture
     }
 
     [Test]
-    public async Task AnAppThatAsksForNoPermissionKeysStillSeesItsDriveGrant()
+    public async Task AnAppThatAsksForNoPermissionKeysStillSeesItsDriveGrants()
     {
-        // As Filesync registers: a drive and no permission keys.  Its security context must still show the grant,
-        // the only place its devices find the drive's key (it once came back empty for a group with no keys)
+        // As Filesync registers: drives and no permission keys.  Its security context must still show the grants, the
+        // only place its devices find a private drive's key (they once came back empty for a group with no keys)
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
-        var drive = TargetDrive.NewTargetDrive();
-        var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
-        await frodo.Admin.CreateDrive(drive, "Synced", allowAnonymousReads: false, sharingModel: DriveSharingModel.SelectiveShare,
+        var shared = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(shared, "Shared", allowAnonymousReads: false);
+        var zk = TargetDrive.NewTargetDrive();
+        var keys = ZkBrowser.MakeDriveKeys(zk.Alias, zkMasterKey);
+        await frodo.Admin.CreateDrive(zk, "Synced", allowAnonymousReads: false, sharingModel: DriveSharingModel.SelectiveShare,
             zkKeys: keys.Request);
 
         var app = await AppSession.SetupAsync(frodo, new PermissionSetGrantRequest
         {
-            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.ReadWrite } }],
+            Drives =
+            [
+                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = shared, Permission = DrivePermission.Read } },
+                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = zk, Permission = DrivePermission.ReadWrite } }
+            ],
             PermissionSet = null!
         });
-        var (device, appKey) = await SignInAsync(frodo, app.AppId, zkMasterKey);
 
-        var grant = await GrantOnAsync(device, drive);
-        Assert.That(grant.IsZeroKnowledge, Is.True);
-        Assert.That(ZkBrowser.Open(grant.ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(keys.DriveKey));
+        // A device from before the app had its key: both grants, the private one marked so it signs in again
+        var before = await GrantsAsync(app);
+        Assert.That(before.Select(g => g.PermissionedDrive.Drive), Is.SupersetOf(new[] { shared, zk }));
+        Assert.That(before.Single(g => g.PermissionedDrive.Drive == shared).HasStorageKey, Is.True);
+        var zkBefore = before.Single(g => g.PermissionedDrive.Drive == zk);
+        Assert.That((zkBefore.IsZeroKnowledge, zkBefore.ZkAppKeyEncryptedStorageKey, zkBefore.PermissionedDrive.Permission),
+            Is.EqualTo((true, (string?)null, DrivePermission.ReadWrite)));
+
+        // A device signed in with the app's key opens the private drive's key from its grant
+        var (device, appKey) = await SignInAsync(frodo, app.AppId, zkMasterKey);
+        var zkGrant = (await GrantsAsync(device)).Single(g => g.PermissionedDrive.Drive == zk);
+        Assert.That(ZkBrowser.Open(zkGrant.ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(keys.DriveKey));
+    }
+
+    private static async Task<List<RedactedDriveGrant>> GrantsAsync(AppSession app)
+    {
+        var response = await app.Auth.GetSecurityContext();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        return response.Content!.PermissionContext.PermissionGroups.SelectMany(g => g.DriveGrants).ToList();
     }
 
     private static async Task<RedactedAppRegistration?> BuiltinAppAsync(OwnerSession owner, Guid appId)
