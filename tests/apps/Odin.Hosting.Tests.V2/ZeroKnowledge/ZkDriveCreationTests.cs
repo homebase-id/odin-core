@@ -89,6 +89,40 @@ public class ZkDriveCreationTests : V2Fixture
         await AssertRefusedAsync(frodo, DriveSharingModel.Unclassified, withKeys: false, zkMasterKey, "no such model to ask for");
         await AssertRefusedAsync(frodo, DriveSharingModel.SelectiveShare, withKeys: true, zkMasterKey, "anonymous reads",
             allowAnonymousReads: true);
+        await AssertRefusedAsync(frodo, DriveSharingModel.Private, withKeys: true, zkMasterKey, "the CDN", allowCdn: true);
+        await AssertRefusedAsync(frodo, DriveSharingModel.Private, withKeys: true, zkMasterKey, "subscriptions",
+            allowSubscriptions: true);
+    }
+
+    [Test]
+    public async Task ADriveAskedForAsPrivateIsCreatedPrivate()
+    {
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var drive = TargetDrive.NewTargetDrive();
+        var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
+
+        await frodo.Admin.CreateDrive(drive, "Kept", allowAnonymousReads: false, sharingModel: DriveSharingModel.Private,
+            zkKeys: keys.Request);
+
+        var created = await frodo.Admin.GetDrive(drive);
+        Assert.That(created.SharingModel, Is.EqualTo(DriveSharingModel.Private));
+        Assert.That(ZkBrowser.Open(created.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(keys.DriveKey));
+    }
+
+    [Test]
+    public async Task AZeroKnowledgeDriveNeedsTheOwnersZeroKnowledgeKeysFirst()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var drive = TargetDrive.NewTargetDrive();
+        var response = await frodo.RefitFor<IRefitDriveManagement>().CreateDrive(new CreateDriveRequest
+        {
+            TargetDrive = drive, Name = "Too early", Metadata = "", DriveSlug = TestSlug.New(), DriveTypeSlug = TestSlug.DriveType,
+            SharingModel = DriveSharingModel.Private,
+            ZkKeys = ZkBrowser.MakeDriveKeys(drive.Alias, ByteArrayUtil.GetRndByteArray(16)).Request
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
+        Assert.That(response.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.ZeroKnowledgeKeysNotSet)).IgnoreCase);
     }
 
     [Test]
@@ -105,7 +139,7 @@ public class ZkDriveCreationTests : V2Fixture
     }
 
     private static async Task AssertRefusedAsync(OwnerSession owner, DriveSharingModel model, bool withKeys, byte[] zkMasterKey,
-        string why, bool allowAnonymousReads = false)
+        string why, bool allowAnonymousReads = false, bool allowCdn = false, bool allowSubscriptions = false)
     {
         var drive = TargetDrive.NewTargetDrive();
         var response = await owner.RefitFor<IRefitDriveManagement>().CreateDrive(new CreateDriveRequest
@@ -116,6 +150,8 @@ public class ZkDriveCreationTests : V2Fixture
             DriveSlug = TestSlug.New(),
             DriveTypeSlug = TestSlug.DriveType,
             AllowAnonymousReads = allowAnonymousReads,
+            AllowCdn = allowCdn,
+            AllowSubscriptions = allowSubscriptions,
             SharingModel = model,
             ZkKeys = withKeys ? ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey).Request : null!
         });

@@ -293,8 +293,7 @@ namespace Odin.Services.Authorization.Apps
                             AppId = appReg.AppId,
                             DevicePushNotificationKey = null,
                             ZkDriveKeys = await GetZkDriveKeysAsync(appReg),
-                            HoldsZkAppKey = appClient.ZkAppKeyId != null &&
-                                            appClient.ZkAppKeyId == AppRegistration.ZkAppKeyId(appReg.ZkMasterKeyEncryptedAppKey)
+                            HoldsZkAppKey = appClient.HoldsZkAppKeyOf(appReg)
                         })
                 };
 
@@ -589,10 +588,10 @@ namespace Odin.Services.Authorization.Apps
         {
             var list = await clientRegistrationStorage.GetByTypeAndCategoryIdAsync<AppClientRegistration>(AppClientRegistration.CatType,
                 appId);
-            var zkAppKeyId = AppRegistration.ZkAppKeyId((await GetAppRegistrationInternalAsync(appId))?.ZkMasterKeyEncryptedAppKey);
+            var appReg = await GetAppRegistrationInternalAsync(appId);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
-                HoldsZkAppKey = zkAppKeyId != null && appClient.ZkAppKeyId == zkAppKeyId,
+                HoldsZkAppKey = appReg != null && appClient.HoldsZkAppKeyOf(appReg),
                 AppId = appClient.AppId,
                 AccessRegistrationId = appClient.ServerHalfOfClientKey.Id,
                 FriendlyName = appClient.FriendlyName,

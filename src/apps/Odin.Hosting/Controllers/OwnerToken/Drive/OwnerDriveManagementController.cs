@@ -12,6 +12,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive
@@ -24,7 +25,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         DriveManager driveManager,
         DriveDeletionService driveDeletionService,
         Defragmenter defragmenter,
-        IAppRegistrationService appRegistrationService
+        IAppRegistrationService appRegistrationService,
+        ZeroKnowledgeKeyService zeroKnowledgeKeyService
         ) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
@@ -43,8 +45,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("create")]
         public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
         {
-            //create a drive on the drive service
-            
+            // A zero-knowledge drive's key is locked with the zero-knowledge master key, which must exist first
+            if (request.SharingModel.IsZeroKnowledge())
+            {
+                await zeroKnowledgeKeyService.AssertKeysExistAsync();
+            }
+
             var _ = await driveManager.CreateDriveAsync(request, WebOdinContext);
             return true;
         }

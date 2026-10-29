@@ -4,7 +4,8 @@ namespace Odin.Services.Drives;
 /// Who holds which key to a drive (docs/zero-knowledge-drives.md, "Three sharing models").
 /// </summary>
 /// <remarks>
-/// Every drive starts Collaborative; conversion is what makes one Private or SelectiveShare, so the label never claims
+/// A drive is Collaborative unless its app asked for Private or SelectiveShare when it was created, with keys made in the
+/// owner's browser; an existing drive becomes one only by conversion.  So the label never claims
 /// more than <see cref="StorageDrive.IsZeroKnowledge"/>.  Stored as an int in the Drives table; the
 /// values are frozen.
 /// </remarks>

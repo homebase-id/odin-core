@@ -97,10 +97,11 @@ public class CreateDriveRequest
 
         ZkKeys.Validate();
 
-        // The server can't open what such a drive holds, so nothing may read it on the server's behalf
-        if (AllowAnonymousReads || AllowCdn)
+        // The server can't open what such a drive holds, so nothing may read it on the server's behalf, and the feed
+        // never distributes from it (FeedDriveDistributionRouter)
+        if (AllowAnonymousReads || AllowCdn || AllowSubscriptions)
         {
-            throw new OdinClientException($"A {SharingModel} drive allows neither anonymous reads nor the CDN",
+            throw new OdinClientException($"A {SharingModel} drive allows neither anonymous reads, the CDN nor subscriptions",
                 OdinClientErrorCode.ArgumentError);
         }
 

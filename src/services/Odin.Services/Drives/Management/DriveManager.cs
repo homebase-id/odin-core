@@ -225,6 +225,9 @@ public class DriveManager : IDriveManager
             ZkStorageKeyEncryptedWriteOnlyPrivateKey = request.ZkKeys?.ZkStorageKeyEncryptedWriteOnlyPrivateKey
         };
 
+        AssertKeyCopies(id, request.SharingModel, record.MasterKeyEncryptedStorageKeyJson != null,
+            record.ZkMasterKeyEncryptedStorageKey != null);
+
         try
         {
             if (!await _tableDrives.TryInsertAsync(record))
@@ -553,7 +556,7 @@ public class DriveManager : IDriveManager
         }
 
         storageDrive.MasterKeyEncryptedStorageKey = null;
-        storageDrive.SharingModel = sharingModel; // the only way a drive becomes zero knowledge
+        storageDrive.SharingModel = sharingModel; // how an existing drive becomes zero knowledge; a new one is created so
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
         if (newEncryptedId is var (iv, value))
         {
@@ -925,20 +928,27 @@ public class DriveManager : IDriveManager
         return drive;
     }
 
-    private static DrivesRecord ToRecord(StorageDriveData storageDrive)
+    /// <summary>The rule every drive row is written under, by a save and by creation alike.</summary>
+    private static void AssertKeyCopies(Guid driveId, DriveSharingModel sharingModel, bool hasMasterKeyCopy, bool hasZkCopy)
     {
         // A missing master-key copy is what makes a drive zero knowledge, so a drive with neither
         // copy would pass for one with no key anywhere.
-        if (storageDrive.MasterKeyEncryptedStorageKey == null && storageDrive.ZkMasterKeyEncryptedStorageKey == null)
+        if (!hasMasterKeyCopy && !hasZkCopy)
         {
-            throw new OdinSystemException($"Drive {storageDrive.Id} has no copy of its key");
+            throw new OdinSystemException($"Drive {driveId} has no copy of its key");
         }
 
         // A zero-knowledge drive whose key the server can still open would only pose as one.
-        if (storageDrive.SharingModel.IsZeroKnowledge() && storageDrive.MasterKeyEncryptedStorageKey != null)
+        if (sharingModel.IsZeroKnowledge() && hasMasterKeyCopy)
         {
-            throw new OdinSystemException($"Drive {storageDrive.Id} is {storageDrive.SharingModel} but the server holds its key");
+            throw new OdinSystemException($"Drive {driveId} is {sharingModel} but the server holds its key");
         }
+    }
+
+    private static DrivesRecord ToRecord(StorageDriveData storageDrive)
+    {
+        AssertKeyCopies(storageDrive.Id, storageDrive.SharingModel, storageDrive.MasterKeyEncryptedStorageKey != null,
+            storageDrive.ZkMasterKeyEncryptedStorageKey != null);
 
         var details = new StorageDriveDetails
         {

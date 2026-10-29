@@ -375,7 +375,7 @@ public class ZeroKnowledgeKeyService(
         return await Storage.GetAsync<ZkKeyRecord>(tblKeyValue, ZkKeyStorageId);
     }
 
-    internal async Task AssertKeysExistAsync()
+    public async Task AssertKeysExistAsync()
     {
         await GetRecordOrFailAsync();
     }

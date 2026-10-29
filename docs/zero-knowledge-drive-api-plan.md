@@ -640,7 +640,8 @@ the opt-in is the only way in, because converting a drive cuts off every app tha
 
 ## Step 4: an app asks for the model
 
-Status: plan, 2026-10-29. Odin-core branch `filesync-selective-share` has 4.1 built. **(V)** = read in code
+Status: built 2026-10-29: odin-core branch `filesync-selective-share` (4.1-4.3), odin-js branch
+`drive-private-models` (4.4); chat-kmp `drive-sharing-model` and filesync add `sm`. **(V)** = read in code
 on 2026-10-29 (odin-core, odin-js main e3808e2e, chat-kmp main b7e8ebf60, filesync main f1ddbddc);
 **(I)** = inferred. Decided with the user:
 - **The app requesting a drive says which model it wants.** odin-core is an app platform, so it keeps
@@ -679,7 +680,8 @@ strings, odin-js `DriveTypes.ts:25` **(V)**). Absent means collaborative.
 **The owner console.** Every app drive is created in `ensureAppOwnedDrives` (`useApp.ts:63`), from both
 the install page (`/owner/appreg`) and the permission extension (`/owner/appupdate`) **(V)**.
 - `drivesParamProblems` (`AppDefinition/util.ts:32`) refuses an unknown `sm`, and a zero-knowledge `sm`
-  together with anonymous reads (`r`) or CDN, so a request is never quietly downgraded.
+  together with anonymous reads (`r`), subscriptions (`s`) or a channel-type drive (which the console makes
+  CDN-enabled), so a request is never quietly downgraded.
 - For a new drive with a zero-knowledge `sm`, the console gets the zero-knowledge master key from the
   session (`getZkMasterKey`, `ZeroKnowledgeProvider.ts:296`) **(V)**, or asks for the password as part of
   the page.
@@ -697,7 +699,9 @@ the install page (`/owner/appreg`) and the permission extension (`/owner/appupda
   model:
   - it stores the browser's keys and sets no master-key copy;
   - it makes no write-only key pair of its own;
-  - it refuses a zero-knowledge model without keys, keys without one, and anonymous reads or CDN with one.
+  - it refuses a zero-knowledge model without keys, keys without one, and anonymous reads, the CDN or
+    subscriptions with one (the feed never distributes from a zero-knowledge drive);
+  - the owner's zero-knowledge keys must exist first.
 - The save guard already refuses a zero-knowledge drive with a master-key copy.
 - The server can't check the encrypted drive id, as with the Shard Recovery drive: a wrong one only
   breaks the browser that sent it.
@@ -719,8 +723,10 @@ key: such a device gets nothing from the drive until it signs in again (3.4).
 - A warning, not a refusal: the owner can revoke an old device, or ignore it.
 
 ### 4.4 The owner console, in one odin-js PR
-- The generic upgrade link: `redeal=drive-private&drive=<id>&model=<model>`, naming the drive on the
-  password page and returning only to the app that owns it. `vault-private` stays, as Private.
+- The generic upgrade link: `redeal=drive-private&drive=<id>&model=<model>`, naming the drive and its model on
+  the password page. It returns by Vault's rule (same origin, a `homebase…://` scheme, or a loopback listener),
+  which doesn't tell one app from another; a per-app rule needs a map of apps to return targets, which doesn't
+  exist. `vault-private` stays, as Private.
 - The conversion sends `sharingModel` (4.1 refuses a request without it).
 - `sm` at creation (4.2), and the device warning (4.3).
 - `DriveDetails.tsx:210` marks Selective Share as zero knowledge too, not only Private **(V)**.
@@ -736,6 +742,9 @@ key: such a device gets nothing from the drive until it signs in again (3.4).
 
 ### 4.6 Not in this step
 - Shares (the Selective Share key header table).
+- Turning on anonymous reads or the CDN later on a zero-knowledge drive (`SetDriveReadModeAsync`,
+  `SetDriveAllowCdnAsync`): creation refuses both, the setters don't check yet. Listed in review, not fixed
+  here: it changes the existing drive-settings flow.
 - Upgrading a drive without rewriting every file's key header label (3.3's relabel); the user accepted
   the per-file cost for now.
 - An upload already running when its drive is upgraded can save a key header nobody can open; the user
