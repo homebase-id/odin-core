@@ -162,7 +162,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
                 }
 
                 var appReg = legacyApp.ToAppRegistration();
-                appReg.AppSlug = slugs[appReg.AppId];
+                appReg.AppSlug = new OdinSlug(slugs[appReg.AppId]);
 
                 await db.AppRegistrations.UpsertAsync(AppRegistrationService.ToRecord(appReg));
                 moved++;
@@ -212,7 +212,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
                         $"Validation failed: app {appReg.AppId} is in blob storage but not in AppRegistrations");
                 }
 
-                if (!AppSlugGenerator.IsValid(record.AppSlug))
+                if (!OdinSlug.IsValid(record.AppSlug))
                 {
                     throw new OdinSystemException(
                         $"Validation failed: app {appReg.AppId} has an invalid slug '{record.AppSlug}'");

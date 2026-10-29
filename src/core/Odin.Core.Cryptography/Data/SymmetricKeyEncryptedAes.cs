@@ -58,6 +58,13 @@ namespace Odin.Core.Cryptography.Data
             return new SymmetricKeyEncryptedAes(this);
         }
 
+        /// <summary>The same locked key, byte for byte; both null counts as the same</summary>
+        public static bool AreSame(SymmetricKeyEncryptedAes a, SymmetricKeyEncryptedAes b) =>
+            a == null || b == null
+                ? a == b
+                : a.KeyEncrypted.AsSpan().SequenceEqual(b.KeyEncrypted) && a.KeyIV.AsSpan().SequenceEqual(b.KeyIV) &&
+                  a.KeyHash.AsSpan().SequenceEqual(b.KeyHash);
+
         private byte[] CalcKeyHash(SensitiveByteArray key)
         {
             // KeyHash = HashUtil.ReduceSHA256Hash(key.GetKey());

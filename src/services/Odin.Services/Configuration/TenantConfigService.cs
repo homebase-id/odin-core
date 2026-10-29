@@ -336,17 +336,6 @@ public class TenantConfigService(
         tenantContext.UpdateSystemConfig(cfg);
     }
 
-    public async Task EnableAutoPasswordRecovery(IOdinContext odinContext)
-    {
-        odinContext.Caller.AssertHasMasterKey();
-        if (!await IsIdentityServerConfiguredAsync())
-        {
-            throw new OdinClientException("Identity must first be configured");
-        }
-
-        await shamirConfigurationService.ConfigureAutomatedRecovery(odinContext);
-    }
-
     public void AssertCanUseAutoPasswordRecovery(IOdinContext odinContext)
     {
         shamirConfigurationService.AssertCanUseAutomatedRecovery();

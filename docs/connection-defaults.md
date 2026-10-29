@@ -1,12 +1,12 @@
 # Connection defaults: enrollment, default circles, and the review (part 2/4)
 
-Previous doc: odin-core PR#1589 docs/drive-addressing.md
+Previous doc: odin-core PR#1589 docs/archive/drive-addressing.md
 Next doc: odin-core PR#1589 docs/weak-key-retirement.md
 
 *Status: proposal for the phase **after** the drive-addressing / app-owned-circles work — for
 discussion. The schema columns this doc relies on (`GrantOn` on `Circle`,
 plus `Designation` and `Emoji`) ship **dormant**
-with the drive-addressing schema work (see `drive-addressing.md`, *Schema*); every default is
+with the drive-addressing schema work (see `archive/drive-addressing.md`, *Schema*); every default is
 "off", so nothing in this document changes behavior until this phase is implemented.*
 
 *This is the **server half** of the phase. The client/product half — contact states, the review
@@ -25,7 +25,7 @@ invite them to chat), and "confirm" is a special-cased swap between the two circ
 
 App-owned circles can absorb both, via one indexed column that ships (dormant) with the
 drive-addressing schema work: **`Circle.GrantOn`** (`None | Connect | OwnFlowConnect | Review`).
-**The DDL lives in `drive-addressing.md`** (*Connection defaults* section) — this document
+**The DDL lives in `archive/drive-addressing.md`** (*Connection defaults* section) — this document
 defines only what the values mean.
 
 **Semantics.**
@@ -58,7 +58,7 @@ tables and could not express an app holding one ambient circle *and* one own-flo
 
 **The deposit-only invariant.** An `Connect` circle may grant only Write/React drive
 permissions — no read beyond `AllowAnonymousReads` drives, and no permission keys. Enforced at
-**definition-write time**, next to the confused-deputy validation (`drive-addressing.md`, *Circles*), and re-checked whenever
+**definition-write time**, next to the confused-deputy validation (`archive/drive-addressing.md`, *Circles*), and re-checked whenever
 `GrantOn` changes. Rationale: the review is the key ceremony. Auto-connection hands out deposit
 capability; storage keys for anything non-public are minted only by the owner's explicit act. An
 identity that is never reviewed can *give* you things and *see* nothing — so the worst a
@@ -89,7 +89,7 @@ toggles, personal-circle selection — is specified client-side in chat-kmp's
 in principle carry read grants**. Note the key context: the review runs **inside the app**, so
 only App Keys are available — not the master key. That is sufficient, by construction: each
 verified circle is owned by the app whose defaults it carries, an app circle may only reference
-drives its app can already read (the definition-write rule — `drive-addressing.md`, *Circles*), and those are precisely the
+drives its app can already read (the definition-write rule — `archive/drive-addressing.md`, *Circles*), and those are precisely the
 drives whose storage keys its App Key can source. So a well-formed verified circle mints working
 read grants in-app, and never a keyless one. Grants for apps whose keys the reviewing
 client does not hold are not lost — they queue as pending enrollments and complete when that app

@@ -884,7 +884,7 @@ namespace Odin.Services.Membership.Connections
 
                 keyStoreKey.Wipe();
             }
-            else if (!circleDefinition.RequiresPeerKey())
+            else if (!await RequiresPeerKeyAsync(circleDefinition))
             {
                 // Nothing in this grant is sealed to anything, so the Peer Key the caller cannot reach is
                 // not needed: a write/react grant is a plaintext {driveId, permission} record. Depositing
@@ -2577,7 +2577,7 @@ namespace Odin.Services.Membership.Connections
                             // wait for its owning app (IsOutOfReachAsync). Entries parked before #1946
                             // drain this way the next time any app calls in. An owner-console circle still
                             // waits for the owner; AssertAppMayEnroll would refuse the app anyway.
-                            var anyAppMayFinish = !circleDefinition.RequiresPeerKey() &&
+                            var anyAppMayFinish = !await RequiresPeerKeyAsync(circleDefinition) &&
                                                   !SystemAppConstants.IsOwnerConsole(circleDefinition.AppId);
                             if (callerAppId != null && circleDefinition.AppId != callerAppId && !anyAppMayFinish)
                             {
@@ -2640,6 +2640,37 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// True when minting this circle's grant needs the connection's Peer Key -- i.e. when some drive
+        /// grant carries a storage key that has to be wrapped for the member
+        /// (<see cref="StorageDrive.GrantCarriesStorageKey"/>).
+        /// </summary>
+        /// <remarks>
+        /// This is the line between a grant an app can mint on its own and one it cannot.  A read grant
+        /// escrows the drive's storage key under the Peer Key, which only the owner (master key) and the
+        /// peer (their CAT) can reach -- so an app has to deposit it instead and let conversion finish the
+        /// job.  A write/react grant, or any grant on a zero-knowledge drive, carries no key material at
+        /// all: it is a plaintext <c>{driveId, permission}</c> record, and the Peer Key never enters into it.
+        /// <para>
+        /// Permission keys are deliberately not counted.  They live in clear on the grant, so they need no
+        /// Peer Key either; whether an app may hand them out is a policy question, and the deposit path
+        /// already answers it "yes" by carrying <c>PermissionSet</c> through untouched.
+        /// </para>
+        /// </remarks>
+        private async Task<bool> RequiresPeerKeyAsync(CircleDefinition circleDefinition)
+        {
+            foreach (var req in circleDefinition.DriveGrants ?? [])
+            {
+                var drive = await driveManager.GetDriveAsync(req.PermissionedDrive.Drive.Alias, true);
+                if (drive.GrantCarriesStorageKey(req.PermissionedDrive.Permission))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Whether this caller could produce every part of the circle's grant itself.
         /// </summary>
         /// <remarks>
@@ -2657,8 +2688,7 @@ namespace Odin.Services.Membership.Connections
                 var drive = await driveManager.GetDriveAsync(req.PermissionedDrive.Drive.Alias, true);
                 var permission = req.PermissionedDrive.Permission;
 
-                var needsStorageKey = permission.HasFlag(DrivePermission.Read) ||
-                                      permission.HasFlag(DrivePermission.ConditionalTemporalRead);
+                var needsStorageKey = drive.GrantCarriesStorageKey(permission);
 
                 if (needsStorageKey)
                 {
@@ -2753,7 +2783,7 @@ namespace Odin.Services.Membership.Connections
         /// nothing: whoever processes the entry re-checks scope then.
         /// </summary>
         /// <remarks>
-        /// A keyless circle (<see cref="CircleDefinition.RequiresPeerKey"/> false, e.g. Recovery's write-only
+        /// A keyless circle (<see cref="RequiresPeerKeyAsync"/> false, e.g. Recovery's write-only
         /// grant) is never out of reach.  Its grant is a plaintext <c>{drive, permission}</c> record any
         /// caller can mint, and the circle definition is already the authority on what it hands out:
         /// built-in circles come from the catalogue, app circles were checked against their app when
@@ -2763,7 +2793,7 @@ namespace Odin.Services.Membership.Connections
         private async Task<bool> IsOutOfReachAsync(CircleDefinition circleDefinition, IOdinContext odinContext)
         {
             return !odinContext.Caller.HasMasterKey &&
-                   circleDefinition.RequiresPeerKey() &&
+                   await RequiresPeerKeyAsync(circleDefinition) &&
                    !await CallerCanGrantCircleAsync(circleDefinition, odinContext);
         }
 
@@ -2849,8 +2879,7 @@ namespace Odin.Services.Membership.Connections
             {
                 var drive = await driveManager.GetDriveAsync(req.PermissionedDrive.Drive.Alias, true);
 
-                bool needsStorageKey = req.PermissionedDrive.Permission.HasFlag(DrivePermission.Read) ||
-                                       req.PermissionedDrive.Permission.HasFlag(DrivePermission.ConditionalTemporalRead);
+                bool needsStorageKey = drive.GrantCarriesStorageKey(req.PermissionedDrive.Permission);
 
                 EccEncryptedPayload sealedStorageKey = null;
                 if (needsStorageKey)
@@ -3182,6 +3211,17 @@ namespace Odin.Services.Membership.Connections
         {
             await circleMembershipService.RemoveDriveFromAllGrantsAsync(driveId, odinContext);
             await UpdateAllConnectionsAsync(store => store.RemoveDriveFromDeposits(driveId), odinContext);
+        }
+
+        /// <summary>
+        /// Takes a drive's storage key off every grant this identity has handed out, keeping the permission: circle and
+        /// app grants (see <see cref="CircleMembershipService.RemoveStorageKeyFromAllGrantsAsync"/>) and deposits.  The
+        /// drive went zero knowledge and kept its key (docs/zero-knowledge-drive-api-plan.md, 3.3).
+        /// </summary>
+        public async Task RemoveStorageKeyFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
+        {
+            await circleMembershipService.RemoveStorageKeyFromAllGrantsAsync(driveId, odinContext);
+            await UpdateAllConnectionsAsync(store => store.RemoveStorageKeyFromDeposits(driveId), odinContext);
         }
 
         /// <summary>

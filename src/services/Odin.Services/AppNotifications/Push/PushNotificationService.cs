@@ -373,7 +373,7 @@ public class PushNotificationService(
             return;
         }
 
-        logger.LogDebug("Sending push notification to {deviceToken}", subscription.FirebaseDeviceToken);
+        logger.LogDebug("Sending push notification to subscription {subscription}", subscription.AccessRegistrationId);
 
         try
         {

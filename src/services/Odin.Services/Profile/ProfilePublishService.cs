@@ -194,7 +194,7 @@ public class ProfilePublishService(
     /// below every real ACL level -- so a System-level caller's queries silently match zero rows despite
     /// the isSystem permission bypass (that bypass only covers the drive-grant gate *before* the query
     /// runs, not this row filter). Owner's numeric value happens to be the range's max, so it covers every
-    /// ACL level; <see cref="DriveAclAuthorizationService.CallerHasPermission"/>'s post-query check also
+    /// ACL level; <see cref="DriveAclAuthorizationService.CallerMayReadAsync"/>'s post-query check also
     /// short-circuits true for <c>caller.IsOwner</c>, same as it does for System.
     /// </para>
     ///

@@ -186,9 +186,25 @@ Before a PR is opened or merged, remind me to run `/simplify` on the branch. Ask
 
 Why it is worth the nag: review reads a diff for correctness, and rarely notices that the diff re-implements a helper this codebase already has, that a block was copy-pasted inside the same PR, that a field is derivable from another, or that work landed on a path that runs per request. Those cost nothing to fix on the branch and get expensive once a second caller copies them -- and a copy that outlives review is how two call sites end up answering the same question differently.
 
-If a finding is a design change rather than a cleanup, file it instead of widening the PR.
-
 **Always prefix the commit title with `SIMPLIFY: `** when the commit comes from a `/simplify` pass -- e.g. `SIMPLIFY: one definition of who may own a drive`. It keeps a cleanup pass legible in `git log` next to the feature work it follows, and tells a reviewer the diff is meant to preserve behaviour, so any behaviour change in it is either a bug or something the body must call out.
+
+## Scope during review and simplify
+
+A finding from `/code-review` or `/simplify` may be fixed on the branch when it is:
+
+- in code the PR adds or changes; or
+- a cleanup anywhere that keeps behaviour the same: merging a near-copy, deleting dead code, calling a
+  helper that already exists. Touching other parts of the code this way is welcome.
+
+A fix that changes how a flow the PR did not set out to change behaves is out of scope, however real the
+finding: password reset, recovery, login, another app's sign-in. List it for me with the finding instead,
+and file it if I agree.
+
+The test before fixing: name the flow whose behaviour the fix changes. If the PR's description doesn't
+name it, don't fix it -- ask.
+
+When new code seems to break a rule written for an older flow ("a reset forgets everything the old key
+locked"), ask whether the rule should cover the new code before changing either.
 
 ## Reporting findings
 

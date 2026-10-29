@@ -22,6 +22,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Introductions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Reactions;
+using Odin.Services.Peer.Outgoing.Drive.Query;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
@@ -392,7 +393,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 fileSystemResolver,
                 workLogger,
                 odinConfiguration,
-                odinHttpClientFactory
+                odinHttpClientFactory,
+                childScope.Resolve<PeerDriveQueryService>()
             );
 
             return await worker.Send(odinContext, cancellationToken);
@@ -411,7 +413,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 fileSystemResolver,
                 workLogger,
                 odinConfiguration,
-                odinHttpClientFactory
+                odinHttpClientFactory,
+                childScope.Resolve<PeerDriveQueryService>()
             );
 
             return await worker.Send(odinContext, cancellationToken);

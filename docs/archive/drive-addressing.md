@@ -1,8 +1,15 @@
 # Drive addressing: DriveId, Type, Slug, AppId (part 1/4)
 
+> **Archived 2026-10-24.** Built (#1787, #1901, #1703, #1939). What is true today, and the reasons
+> for the design, are in [security-model.md, section 3, Drive addressing](../security-model.md#drive-addressing-slugs).
+> This copy keeps the original argument; parts of it were changed or never built (the slug cap is
+> 14, not 12; the columns are `NOT NULL`; the type-pair checks and retiring
+> `metadata/channel-drives` are open issues). It was written in `docs/`, so the files it names
+> "next to this file" are in the folder above.
+
 This is a continuation of the document docs/app-circle-mmembership-plan.md
 
-*Status: proposal, for discussion. Prompted by the app-owned-drives direction.*
+*Status (at the time): proposal, for discussion. Prompted by the app-owned-drives direction.*
 
 Today a drive is addressed by Guids that both ends must hardcode. We want an app to name its own
 drives, and a **remote** caller to address them, with short slugs — `/apps/chat/drives/messages`.
@@ -289,10 +296,13 @@ optional; here it is required.)*
 A slug is a URL path segment *and* a wire address, so it must survive both with no encoding.
 Applies to **`AppSlug`**, **`DriveSlug`** and **`DriveTypeSlug`** alike:
 
-- `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$` — lowercase letters, digits, internal hyphens only.
-- **No** spaces, `/`, `.`, `%`, `?`, `#`, `&`, `:`, `@`, and no uppercase. Nothing that needs
+- `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$` — lowercase letters, digits, internal hyphens only. That is
+  RFC 3986 §2.3 *unreserved* narrowed to an RFC 1123 §2.1 host name label.
+- **No** spaces, `/`, `.`, `%`, `?`, `#`, `&`, `:`, `@`. Nothing that needs
   percent-encoding; nothing readable as a path separator or as `.` / `..`.
-- 1–12 characters — capped in the C# validator, not in the column type.
+- **Always lowercase.** Upper case is lowercased when the slug is made, so `Chat` and `chat` are
+  the same slug everywhere (as `AsciiDomainName` does for domains).
+- 1–14 characters — capped in the C# type, not in the column type.
 - **Not a reserved route segment.** A slug must never collide with a literal sibling at its
   position. Rooting the slug tree at `/apps` buys this almost for free: `{appSlug}` sits under
   `/apps` and `{driveSlug}` under `/apps/{appSlug}/drives`, and neither has a literal sibling
@@ -300,9 +310,13 @@ Applies to **`AppSlug`**, **`DriveSlug`** and **`DriveTypeSlug`** alike:
   `/api/v2/drives/metadata/channel-drives`.) Keep a denylist anyway, and grow it whenever a
   literal segment is added at either position.
 
-**Validate and reject at write; never coerce.** The value is immutable and ends up in *other
-identities'* URLs, so silently lowercasing or stripping a character produces an address the caller
-did not ask for.
+**Lowercase, then validate and reject; never strip.** The value is immutable and ends up in *other
+identities'* URLs, so silently stripping or replacing a character produces an address the caller
+did not ask for. Lowercasing does not: upper and lower case name the same slug.
+
+*(Changed: this first said "never coerce", lowercasing included, and lookups lowercased the
+caller's value. Lowercasing at the type is simpler: no slug is ever stored, compared or routed in
+another case.)*
 
 ### Make it a type, not a convention
 
@@ -311,24 +325,24 @@ a path-segment charset, and `Uri.CheckHostName` is for hosts. A rule enforced by
 remembers to call the validator" will be violated.
 
 So wrap it, exactly the way `OdinId` wraps a domain name — a `readonly struct` that **validates in
-its constructor** and cannot exist in an invalid state:
+its constructor** and cannot exist in an invalid state. Built as `Odin.Core.OdinSlug`:
 
 ```
-OdinSlugValidator   — the rules (cf. AsciiDomainNameValidator)
-readonly struct OdinSlug   — validates on construction; throws OdinClientException
-OdinSlugConverter   — JsonConverter<OdinSlug>, reads/writes a plain string (cf. OdinIdConverter)
+readonly struct OdinSlug    — lowercases, then validates; throws OdinClientException (argumentError)
+OdinSlugConverter           — JsonConverter<OdinSlug>, reads/writes a plain string (cf. OdinIdConverter)
+OdinSlugModelBinder         — route and query values, so a malformed one is a 400 argumentError
 ```
 
 Then any `OdinSlug` anywhere in the system is URL-kosher **by construction**, which is the same
-guarantee `OdinId` already gives for domains. Route binding needs nothing special: V2 handlers
-already take `[FromRoute] string odinId` and construct the value type immediately — do the same.
-The column stays `TEXT`; convert at the storage boundary.
+guarantee `OdinId` already gives for domains. Comparing one with a string lowercases the string
+first, so `slug == "Chat"` is true for `chat`. V2 handlers take `[FromRoute] OdinSlug`. The column
+stays `TEXT`; convert at the storage boundary.
 
 **We already have the bug this prevents.** `ChannelDefinition.Slug` and `PostContent.Slug` are
 plain client-supplied `string`s, and `HomebaseSsrService` interpolates them straight into a path —
 `ToSsrUrl($"/posts/{channelKey}/{content.Slug}")` — where `SsrUrlHelper.ToSsrUrl` only *trims*; it
 does not escape. A slug containing `/`, `..`, or `%` yields a malformed or mis-pointing link today.
-Worth fixing on its own, and a good reason to land the type before more slugs exist.
+Worth fixing on its own (#2010); those feed slugs are not `OdinSlug`s.
 
 Why these shapes:
 

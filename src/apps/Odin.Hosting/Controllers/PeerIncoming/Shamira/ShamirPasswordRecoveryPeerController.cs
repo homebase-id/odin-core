@@ -40,6 +40,16 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
             return result;
         }
 
+        /// <summary>
+        /// As an automatic holder: the dealer passes on the code from the link this holder emailed the
+        /// owner, and gets the shard sealed to the recovering browser's key.
+        /// </summary>
+        [HttpPost("release-automatic-shard")]
+        public async Task<RetrieveShardResult> ReleaseAutomaticShard(ReleaseAutomaticShardRequest request)
+        {
+            return await recoveryService.HandleReleaseAutomaticShardAsync(request, WebOdinContext);
+        }
+
         [HttpPost("accept-player-shard")]
         public async Task<IActionResult> AcceptPlayerShard([FromBody] RetrieveShardResult result)
         {

@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 
 /// <summary>
 /// Every drive is minted a write-only keypair at creation: an ECC-384 key whose private half is
-/// escrowed under that drive's own storage key (docs/drive-addressing.md).
+/// escrowed under that drive's own storage key (docs/security-model.md, Drive addressing).
 /// </summary>
 /// <remarks>
 /// Nothing serves the public half yet -- the peer <c>public-key</c> endpoint is not built -- so these
@@ -240,7 +240,7 @@ public class DriveWriteOnlyKeyPairTests : V2Fixture
         // Asked one drive at a time: the paged read needs a caller context to filter on, and this
         // assertion is about storage, not visibility.
         var missing = new System.Collections.Generic.List<string>();
-        foreach (var seeded in BuiltinApps.SeededDrives)
+        foreach (var seeded in BuiltinApps.DrivesMadeAtSetup)
         {
             var stored = await driveManager.GetDriveAsync(seeded.TargetDrive.Alias, failIfInvalid: true);
             if (stored.WriteOnlyKeyPair == null)

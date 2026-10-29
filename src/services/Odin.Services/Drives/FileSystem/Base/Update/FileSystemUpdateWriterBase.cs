@@ -383,7 +383,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
-            ? updateDescriptor.EncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
+            ? await ZkDriveFiles.OpenForWriteAsync(updateDescriptor.EncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
+                odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(updateDescriptor);
@@ -490,6 +491,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
         PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);
 
+        ZkDriveFiles.AssertNotSent(drive, package.InstructionSet.Recipients);
+
         if (package.InstructionSet.Locale == UpdateLocale.Local)
         {
             await PayloadHash.AssertIvsRotatedAsync(package.Payloads, metadata.IsEncrypted,
@@ -504,7 +507,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             }
         }
 
-        if (metadata.IsEncrypted)
+        // A zero-knowledge drive's key header was checked unopened (EncryptedKeyHeader.AssertValidZkDrive)
+        if (metadata.IsEncrypted && keyHeader is not ClientLockedKeyHeader)
         {
             if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false ||
                 ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)

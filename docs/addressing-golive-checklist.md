@@ -1,7 +1,7 @@
 # Go-live checklist: Circle, AppRegistrations and Drive addressing
 
 Derived working checklist for the table moves (#1688), chat circle ownership (#1691), and the drive
-addressing columns. `docs/drive-addressing.md` and `docs/connection-defaults.md` remain the specs;
+addressing columns. `docs/archive/drive-addressing.md` and `docs/connection-defaults.md` remain the specs;
 where this file and those disagree, those win.
 
 Status as of 2026-08-27.
@@ -19,8 +19,9 @@ Status as of 2026-08-27.
 | 0.7 | Legacy blob read with a frozen DTO -- the `[JsonIgnore]` bug that migrated zero apps | #1688 |
 | 0.8 | Chat app owns Friends/Family/Work/Acquaintances; v13 -> v14 rebinds ownership only | #1691 |
 | 0.9 | `AppId` / `DriveSlug` / `DriveTypeSlug` plumbed through `StorageDrive`, `DriveManager`, `CreateDriveRequest`, `OwnerClientDriveData`; `OdinSlug` format validator | #1688 |
+| 0.12 | `OdinSlug` is a value type (`Odin.Core`), always lowercase, for app, drive, drive-type and circle slugs; a malformed one is a 400 `argumentError` in a body, route or query | #2011 |
 | 0.10 | The same three on `ClientDriveData` (app and V2 routes), redacted for third parties as `Name` already is | #1688 |
-| 0.11 | `AppRegistrationRequest.AppSlug`: optional, format-validated, taken verbatim or refused, never silently replaced. Omitted still derives from `Name` | #1688 |
+| 0.11 | `AppRegistrationRequest.AppSlug`: lowercased, then format-validated and taken or refused, never silently replaced. Required since #1901; it is no longer derived from `Name` | #1688 |
 
 ## Blocked on decisions
 
@@ -29,10 +30,10 @@ Status as of 2026-08-27.
 | 1.1 | Owning app per system drive | `scratchpad/drives.csv`. Not inferable: no drive is granted to exactly one app, and Contact/Profile/Sticker are granted to all three |
 | 1.2 | `DriveSlug` per system drive | Same file. Defaults in it are proposals, not from the codebase |
 | 1.3 | `DriveTypeSlug` values, and whether it follows the type guid or the drive | Profile/Wallet/HomePageConfig share one type guid; Moments/Lists share another. Per-type means HomePageConfig's slug reads as `profile` |
-| 1.4 | Do ownerless drives get slugs at all? | `drive-addressing.md` OQ3. The doc's invariant says `DriveSlug` is null when `AppId` is null |
+| 1.4 | Do ownerless drives get slugs at all? | `archive/drive-addressing.md` OQ3. The doc's invariant says `DriveSlug` is null when `AppId` is null |
 | 1.5 | Owning app for Confirmed / Auto-connected / Emergency Location Access | `scratchpad/circles.csv`. Emergency Location should agree with whoever owns LocationDrive |
 | 1.6 | Do Lists, Location and ShardRecovery become their own apps before or after this ships? | If before, defaulting them to chat means a second ownership migration |
-| 1.7 | Is `(AppSlug, DriveSlug)` the successor to `TargetDrive` or a parallel name? | `drive-addressing.md` OQ1. Decides whether slugs are an address or a convenience |
+| 1.7 | Is `(AppSlug, DriveSlug)` the successor to `TargetDrive` or a parallel name? | `archive/drive-addressing.md` OQ1. Decides whether slugs are an address or a convenience |
 
 ## Derivation and backfill
 
@@ -51,17 +52,17 @@ to tighten, because each one can reject a call that works today.
 
 | # | Item | Today |
 |---|---|---|
-| 3.1 | **App slug supplied by the caller** at registration | **Done** (0.11). Optional: supplied is validated and taken verbatim, omitted derives from `Name`. Requiring it is a separate decision -- it would break every client that registers an app today |
+| 3.1 | **App slug supplied by the caller** at registration | **Done** (0.11). Required since #1901: a missing slug is refused, never derived |
 | 3.2 | **App slug immutability** across updates | Enforced: updates carry the stored slug forward, and no update request carries a slug field |
 | 3.3 | **App slug uniqueness** | Enforced by `UNIQUE(identityId, AppSlug)`, and a supplied duplicate is refused with a client error before it reaches the constraint |
 | 3.3a | **App slug is derived in two places** | `AppRegistrationService.AssignSlugAsync` and the v12 -> v13 migration, both through `AppSlugGenerator`, so a migrated app and a freshly registered one land on the same value. Decided 2026-08-27 to keep it that way rather than make the column nullable |
-| 3.3b | **Derived slugs truncate at 12 characters** | `Acme Receipts` becomes `acme-receipt`. Fine for a derived fallback; worth saying out loud before any client relies on round-tripping a name |
+| 3.3b | **Derived slugs truncate at 14 characters** (`OdinSlug.MaxLength`) | `Acme Receipts Inc` becomes `acme-receipts`. Fine for a derived fallback; worth saying out loud before any client relies on round-tripping a name |
 | 3.4 | **Drive slug required when `AppId` is set** | Not enforced. An app-owned drive can be created with no slug |
 | 3.5 | **Drive slug forbidden when `AppId` is null** | Not enforced. The doc's invariant; without it, ownerless drives can carry slugs the unique index cannot constrain (NULL `AppId` rows do not collide in either dialect) |
 | 3.6 | **Drive slug uniqueness for ownerless drives** | Impossible at the constraint level while `AppId` is null; needs a code check, or 3.5 |
 | 3.7 | **Drive slug immutability** | No update path writes it yet. Once slugs are addresses, renaming breaks other identities' links |
 | 3.8 | **Reserved-segment denylist** | `OdinSlug.Reserved` is empty and must grow whenever a literal route segment is added at `{appSlug}` or `{driveSlug}` position |
-| 3.9 | **System app slugs protected** | **Open, and now reachable.** `AppSlugGenerator` orders known apps first when *deriving*, but a caller may now supply `chat` on an identity where the chat app is not yet registered, and take it first-come. `drive-addressing.md` OQ2 (no global registry) is the same question |
+| 3.9 | **System app slugs protected** | **Open, and now reachable.** `AppSlugGenerator` orders known apps first when *deriving*, but a caller may now supply `chat` on an identity where the chat app is not yet registered, and take it first-come. `archive/drive-addressing.md` OQ2 (no global registry) is the same question |
 | 3.10 | **`Type` becomes app-scoped** | Four call sites still read it as a global vocabulary: `FollowerService`, `FollowerPerimeterService`, `FeedDriveDistributionRouter`, `FeedNotificationMapper` |
 
 ## Routes

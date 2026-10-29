@@ -12,6 +12,7 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Security.Email;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
 
 namespace Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -20,7 +21,8 @@ public class PasswordKeyRecoveryService(
     TableKeyValueCached tblKeyValue,
     TenantContext tenantContext,
     RecoveryNotifier recoveryNotifier,
-    OdinConfiguration configuration)
+    OdinConfiguration configuration,
+    ZeroKnowledgeKeyService zeroKnowledgeKeyService)
 {
     private static readonly Guid RecordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
     private const string ContextKey = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
@@ -41,6 +43,12 @@ public class PasswordKeyRecoveryService(
     public async Task<SensitiveByteArray> AssertValidKeyAsync(string text)
     {
         var existingKey = await GetKeyInternalAsync();
+        if (existingKey?.TakenOver != null)
+        {
+            throw new OdinClientException("The recovery phrase now recovers the password in the browser",
+                OdinClientErrorCode.RecoveryPhraseTakenOver);
+        }
+
         if (null == existingKey?.MasterKeyEncryptedRecoverKey)
         {
             throw new OdinSystemException("Recovery key not configured");
@@ -71,11 +79,14 @@ public class PasswordKeyRecoveryService(
         // if they have never viewed the recovery key, allow us to see the key now
         if (recoveryKey?.InitialRecoveryKeyViewingDate == null)
         {
-            await ConfirmInitialRecoveryKeyStorage(odinContext);
+            // The reveal first: a reveal that fails (the phrase waits to be typed in again) must not
+            // spend the one free view.
             var leKeyNow = await GetRecoveryKeyAsync(true, odinContext);
+            await ConfirmInitialRecoveryKeyStorage(odinContext);
             return new RequestRecoveryKeyResult()
             {
                 Key = leKeyNow.Key,
+                ZkMasterKeyEncryptedPhraseKey = leKeyNow.ZkMasterKeyEncryptedPhraseKey,
                 NextViewableDate = UnixTimeUtc.ZeroTime
             };
         }
@@ -116,21 +127,26 @@ public class PasswordKeyRecoveryService(
 
         async Task<RecoveryKeyResult> DecryptedRecoveryKey(RecoveryKeyRecord recoveryKeyRecord)
         {
-            var masterKey = odinContext.Caller.GetMasterKey();
-            var recoverKey = recoveryKeyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(masterKey);
-
-            var readableText = BIP39Util.GenerateBIP39(recoverKey.GetKey());
+            // Once taken over, the browser opens its copy and shows the words; the server can't.
+            var takenOver = recoveryKeyRecord.TakenOver != null;
+            var keys = takenOver ? await zeroKnowledgeKeyService.GetKeysAsync(odinContext) : null;
+            if (takenOver && keys?.HasPhraseCopies() != true)
+            {
+                // The waiting period is left as it was.
+                throw new OdinClientException("Type the recovery phrase in again to keep it",
+                    OdinClientErrorCode.RecoveryPhraseNeedsReentry);
+            }
 
             var decryptedRecoveryKey = new RecoveryKeyResult
             {
-                Key = readableText,
+                Key = takenOver ? null : OpenPhrase(recoveryKeyRecord, odinContext),
+                ZkMasterKeyEncryptedPhraseKey = keys?.ZkMasterKeyEncryptedPhraseKey,
                 Created = recoveryKeyRecord.Created,
                 NextViewableDate = null, // doesnt matter
                 HasInitiallyReviewedKey = recoveryKeyRecord.InitialRecoveryKeyViewingDate != null
             };
 
             await ClearNextViewableDate();
-            recoverKey.Wipe();
             return decryptedRecoveryKey;
         }
 
@@ -185,13 +201,35 @@ public class PasswordKeyRecoveryService(
         };
     }
 
+    /// <summary>
+    /// The owner's one email, the security page's: every recovery email goes there, and the deals hash
+    /// it.  The registration address until the owner sets one.
+    /// </summary>
+    public async Task<string> GetRecoveryEmailAsync() => (await GetRecoveryInfo()).Email;
+
     public async Task<Guid> GetHashedRecoveryEmail()
     {
-        var recoveryInfo = await GetRecoveryInfo();
-        OdinValidationUtils.AssertValidEmail(recoveryInfo?.Email, "Recovery email must be set to configure sharding");
-        var hash = ByteArrayUtil.ReduceSHA256Hash(recoveryInfo?.Email);
-        return hash;
+        var email = await GetRecoveryEmailAsync();
+        OdinValidationUtils.AssertValidEmail(email, "Recovery email must be set to configure sharding");
+        return HashRecoveryEmail(email);
     }
+
+    /// <summary>
+    /// The recovery email as each shard stores it at the deal: an automatic holder checks the address
+    /// a dealer sends against it before it emails a link there.  Of the address trimmed and in lower
+    /// case, so <c>Michael@example.com</c> and <c>michael@example.com</c> are the same address.
+    /// </summary>
+    public static Guid HashRecoveryEmail(string email) => ByteArrayUtil.ReduceSHA256Hash(email.Trim().ToLowerInvariant());
+
+    /// <summary>
+    /// The hash as deals took it before <see cref="HashRecoveryEmail"/> ignored case: of the address
+    /// exactly as stored.  Only server-made deals have it; the next password login deals them again.
+    /// </summary>
+    public static Guid LegacyHashRecoveryEmail(string email) => ByteArrayUtil.ReduceSHA256Hash(email);
+
+    /// <summary>Whether <paramref name="email"/> is the address a shard's <paramref name="hash"/> was taken of, either way.</summary>
+    public static bool MatchesRecoveryEmailHash(string email, Guid hash) =>
+        HashRecoveryEmail(email) == hash || LegacyHashRecoveryEmail(email) == hash;
 
     public async Task UpdateAccountRecoveryEmail(Guid nonceId)
     {
@@ -207,6 +245,97 @@ public class PasswordKeyRecoveryService(
     {
         var recovery = await AccountRecoveryInfoStorage.GetAsync<AccountRecoveryInfo>(tblKeyValue, _accountRecoveryInfoStorageId);
         return recovery;
+    }
+
+    /// <summary>Whether a phrase exists, and whether the browser took it over.</summary>
+    public async Task<(bool Exists, bool TakenOver)> GetPhraseStateAsync()
+    {
+        var record = await GetKeyInternalAsync();
+        return (record != null, record?.TakenOver != null);
+    }
+
+    /// <summary>
+    /// Hands the phrase to the browser once, for the takeover.  Refused once taken over: from then on
+    /// the server has no copy to hand over.
+    /// </summary>
+    public async Task<string> GetPhraseForTakeoverAsync(IOdinContext odinContext)
+    {
+        return OpenPhrase(await GetRecordForTakeoverAsync(), odinContext);
+    }
+
+    /// <summary>Refuses unless the server still holds the phrase for a takeover.</summary>
+    internal async Task AssertNotTakenOverAsync()
+    {
+        await GetRecordForTakeoverAsync();
+    }
+
+    /// <summary>
+    /// The server's half of the takeover, once the browser stored its copies: keeps the check value,
+    /// which the caller verified with <see cref="AssertPhraseCheckAsync"/>, and deletes both copies the
+    /// server could open.
+    /// </summary>
+    internal async Task CompleteTakeoverAsync(string verifiedPhraseCheck64)
+    {
+        var record = await GetRecordForTakeoverAsync();
+        record.PhraseCheck64 = verifiedPhraseCheck64;
+        record.MasterKeyEncryptedRecoverKey = null;
+        record.RecoveryKeyEncryptedMasterKey = null;
+        record.TakenOver = UnixTimeUtc.Now();
+        await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, record);
+    }
+
+    /// <summary>
+    /// Refuses a phrase whose check value isn't the owner's phrase's.  The browser only ever sends the
+    /// check value: before the takeover the server works out the expected one from its own copy.
+    /// </summary>
+    public async Task AssertPhraseCheckAsync(string phraseCheck64, IOdinContext odinContext)
+    {
+        var given = ZkBlob.AssertBase64(phraseCheck64, nameof(phraseCheck64), exactLength: RecoveryPhraseCheck.Length);
+
+        var record = await GetKeyInternalAsync() ?? throw new OdinClientException("No recovery phrase",
+            OdinClientErrorCode.NotInitialized);
+        var expected = (record.PhraseCheck64 ?? ComputePhraseCheck(record, odinContext)).FromBase64();
+
+        if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(expected, given))
+        {
+            throw new OdinClientException("That is not the recovery phrase", OdinClientErrorCode.RecoveryPhraseMismatch);
+        }
+    }
+
+    private static string ComputePhraseCheck(RecoveryKeyRecord record, IOdinContext odinContext)
+    {
+        using var phraseKey = OpenPhraseKey(record, odinContext);
+        return RecoveryPhraseCheck.Compute(phraseKey.GetKey());
+    }
+
+    private static string OpenPhrase(RecoveryKeyRecord record, IOdinContext odinContext)
+    {
+        using var phraseKey = OpenPhraseKey(record, odinContext);
+        return BIP39Util.GenerateBIP39(phraseKey.GetKey());
+    }
+
+    /// <summary>The server's own copy of the phrase, while it still has one.</summary>
+    private static SensitiveByteArray OpenPhraseKey(RecoveryKeyRecord record, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        return record.MasterKeyEncryptedRecoverKey.DecryptKeyClone(odinContext.Caller.GetMasterKey());
+    }
+
+    private async Task<RecoveryKeyRecord> GetRecordForTakeoverAsync()
+    {
+        var record = await GetKeyInternalAsync();
+        if (record?.TakenOver != null)
+        {
+            throw new OdinClientException("The recovery phrase was already taken over",
+                OdinClientErrorCode.RecoveryPhraseTakenOver);
+        }
+
+        if (record?.MasterKeyEncryptedRecoverKey == null)
+        {
+            throw new OdinClientException("No recovery phrase to take over", OdinClientErrorCode.NotInitialized);
+        }
+
+        return record;
     }
 
     private async Task<RecoveryKeyRecord> GetKeyInternalAsync()

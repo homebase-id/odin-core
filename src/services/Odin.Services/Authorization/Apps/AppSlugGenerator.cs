@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Apps.Builtin;
 
@@ -26,9 +27,6 @@ namespace Odin.Services.Authorization.Apps
     /// </remarks>
     public static class AppSlugGenerator
     {
-        public const int MaxLength = 14;
-
-        private static readonly Regex ValidSlug = new("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", RegexOptions.Compiled);
         private static readonly Regex NonSlugRun = new("[^a-z0-9]+", RegexOptions.Compiled);
 
         /// <summary>
@@ -51,8 +49,7 @@ namespace Odin.Services.Authorization.Apps
         /// <remarks>
         /// A duplicate id or a malformed slug is a mistake in the tree itself, and it is worth naming
         /// here rather than letting it reach a registration: past this point the slug is written to a
-        /// row that other identities resolve against.  Declared after <see cref="ValidSlug"/> because
-        /// static initialisers run in textual order and this reads it.
+        /// row that other identities resolve against.
         /// </remarks>
         private static Dictionary<Guid, string> BuildKnownAppSlugs()
         {
@@ -60,7 +57,7 @@ namespace Odin.Services.Authorization.Apps
 
             foreach (var app in BuiltinApps.All)
             {
-                if (!IsValid(app.AppSlug))
+                if (!app.AppSlug.HasValue)
                 {
                     throw new OdinSystemException(
                         $"App tree entry '{app.Name}' has '{app.AppSlug}', which is not a valid slug");
@@ -151,7 +148,7 @@ namespace Odin.Services.Authorization.Apps
                 for (var suffix = 2; suffix <= 99; suffix++)
                 {
                     var tail = "-" + suffix;
-                    var trimmed = baseSlug[..Math.Min(baseSlug.Length, MaxLength - tail.Length)].TrimEnd('-');
+                    var trimmed = baseSlug[..Math.Min(baseSlug.Length, OdinSlug.MaxLength - tail.Length)].TrimEnd('-');
 
                     if (trimmed.Length == 0)
                     {
@@ -159,15 +156,15 @@ namespace Odin.Services.Authorization.Apps
                     }
 
                     var candidate = trimmed + tail;
-                    if (ValidSlug.IsMatch(candidate) && !taken.Contains(candidate))
+                    if (OdinSlug.IsValid(candidate) && !taken.Contains(candidate))
                     {
                         return candidate;
                     }
                 }
             }
 
-            var fromId = appId.ToString("N")[..MaxLength];
-            if (!taken.Contains(fromId) && ValidSlug.IsMatch(fromId))
+            var fromId = appId.ToString("N")[..OdinSlug.MaxLength];
+            if (!taken.Contains(fromId) && OdinSlug.IsValid(fromId))
             {
                 return fromId;
             }
@@ -196,17 +193,12 @@ namespace Odin.Services.Authorization.Apps
 
             var collapsed = NonSlugRun.Replace(lowered.ToString(), "-").Trim('-');
 
-            if (collapsed.Length > MaxLength)
+            if (collapsed.Length > OdinSlug.MaxLength)
             {
-                collapsed = collapsed[..MaxLength].TrimEnd('-');
+                collapsed = collapsed[..OdinSlug.MaxLength].TrimEnd('-');
             }
 
-            return collapsed.Length > 0 && ValidSlug.IsMatch(collapsed) ? collapsed : null;
-        }
-
-        public static bool IsValid(string? slug)
-        {
-            return !string.IsNullOrEmpty(slug) && slug.Length <= MaxLength && ValidSlug.IsMatch(slug);
+            return collapsed.Length > 0 && OdinSlug.IsValid(collapsed) ? collapsed : null;
         }
     }
 }

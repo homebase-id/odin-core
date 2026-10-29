@@ -39,7 +39,10 @@ public static class StorageKeySource
     }
 }
 
-/// <summary>Owner path: the drive's canonical root, unwrapped with the master key.</summary>
+/// <summary>
+/// Owner path: the drive's canonical root, unwrapped with the master key.  Never asked for a
+/// zero-knowledge drive, which has no master-key copy (<see cref="StorageDrive.GrantCarriesStorageKey"/>).
+/// </summary>
 public sealed class MasterKeyStorageKeySource(SensitiveByteArray masterKey) : IStorageKeySource
 {
     public SensitiveByteArray GetStorageKey(StorageDrive drive)

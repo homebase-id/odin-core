@@ -11,10 +11,12 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
@@ -158,12 +160,7 @@ public class DriveDeletionTests : V2Fixture
 
         // gone at once, but its alias is held until the files are
         Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.False);
-        var tooSoon = await owner.RefitFor<IRefitDriveManagement>().CreateDrive(new CreateDriveRequest
-        {
-            DriveSlug = TestSlug.New(),
-            DriveTypeSlug = TestSlug.DriveType,
-            TargetDrive = drive, Name = "too soon", Metadata = "", AllowAnonymousReads = false
-        });
+        var tooSoon = await owner.Admin.TryCreateDrive(drive, "too soon", allowAnonymousReads: false);
         Assert.That(tooSoon.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the alias was reusable before the purge");
 
         await RunPurgeAsync(owner);
@@ -172,6 +169,31 @@ public class DriveDeletionTests : V2Fixture
         // the alias is free again, and the new drive starts empty
         await owner.Admin.CreateDrive(drive, "reborn", allowAnonymousReads: false);
         Assert.That((await owner.V1.Drive.GetFileHeader(file)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    /// <summary>
+    /// A drive deleted and made again keeps its alias and slugs; its creation time is how a client tells it from the
+    /// one before (#2038).
+    /// </summary>
+    [Test]
+    public async Task ADriveMadeAgainAnswersAnotherCreationTime()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        await owner.Admin.EnsureAppRegistered(appId);
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "first", appId: appId, driveSlug: new OdinSlug("notes"));
+        var first = await owner.Admin.GetAppDrive(appId, "notes");
+        Assert.That(first.Created, Is.Not.Null);
+
+        await owner.Admin.SetArchiveFlag(drive, archived: true);
+        Assert.That(await DeleteAsync(owner, drive), Is.EqualTo(HttpStatusCode.Accepted));
+        await RunPurgeAsync(owner);
+        await owner.Admin.CreateDrive(drive, "again", appId: appId, driveSlug: new OdinSlug("notes"));
+
+        var again = await owner.Admin.GetAppDrive(appId, "notes");
+        Assert.That(again.TargetDrive, Is.EqualTo(first.TargetDrive), "the same address");
+        Assert.That(again.Created, Is.Not.EqualTo(first.Created), "another creation time");
     }
 
     [Test]

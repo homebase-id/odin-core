@@ -19,6 +19,12 @@ public class YouAuthTokenResponse
     /// </summary>
     public string? Cipher { get; set; }
 
+    /// <summary>
+    /// The app's zero-knowledge key, sealed by the owner's browser to the sign-in's public key (<c>ZkSeal</c> version 1,
+    /// base64); only when the app asked for it with <c>zk_app_key=1</c> (docs/zero-knowledge-drive-api-plan.md, 3.5).
+    /// </summary>
+    public string? ZkAppKey { get; set; }
+
     /// <summary>YouAuth [140]: what the identity cached at [070], base64, with the cipher that sealed it.</summary>
     public static YouAuthTokenResponse From(EncryptedTokenExchange exchange) => new()
     {
@@ -27,5 +33,6 @@ public class YouAuthTokenResponse
         Base64ClientAuthTokenCipher = Convert.ToBase64String(exchange.ClientAuthTokenCipher),
         Base64ClientAuthTokenIv = Convert.ToBase64String(exchange.ClientAuthTokenIv),
         Cipher = exchange.Cipher.WireName(),
+        ZkAppKey = exchange.ZkAppKey,
     };
 }

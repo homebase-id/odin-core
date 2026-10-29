@@ -9,6 +9,7 @@ namespace Odin.PushNotification.Tests;
 public class SignatureCheckTest
 {
     [Test]
+    [Explicit("Live network: TLS to www.google.com:443")]
     public async Task ItShouldDownloadCertificate()
     {
         var logger = new Mock<ILogger<SignatureCheck>>();

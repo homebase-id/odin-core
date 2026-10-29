@@ -36,10 +36,12 @@ public class ShamirReadinessCheckerService(
         var (requiresUpgrade, _, _) = await versionUpgradeScheduler.RequiresUpgradeAsync();
         var isValid = !requiresUpgrade;
         //&& !isConfirmedConnection
+        var shardDrive = await _driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
         return new RemotePlayerReadinessResult()
         {
             IsValid = isValid,
-            TrustLevel = await GetTrustLevel(odinContext)
+            TrustLevel = await GetTrustLevel(odinContext),
+            IsZeroKnowledge = shardDrive?.IsZeroKnowledge == true
         };
     }
 
@@ -222,8 +224,10 @@ public class ShamirReadinessCheckerService(
                 };
             }
 
-            var (shard, sender) = await GetShardStoredForDealer(shardId, odinContext);
-            var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
+            // A gated shard counts only while this identity's browser can still open it
+            var stored = await GetShardStoredForDealer(shardId, odinContext);
+            var (shard, sender, _) = stored;
+            var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault() && await CanReleaseAsync(stored);
 
             if (isValid)
             {

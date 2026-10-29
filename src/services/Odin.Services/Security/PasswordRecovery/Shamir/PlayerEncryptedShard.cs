@@ -10,7 +10,7 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir;
 /// Represents what the player stores: the shard encrypted by the dealer with the random key.
 /// </summary>
 [DebuggerDisplay("Player: {Player.OdinId} Type: {Player.Type}")]
-public class PlayerEncryptedShard
+public record PlayerEncryptedShard
 {
     public Guid Id { get; init; }
     public int Index { get; init; }

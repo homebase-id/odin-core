@@ -31,9 +31,9 @@ public static class FileTtlJobContext
 {
     /// <summary>
     /// The drive grant is not redundant with <c>isSystem</c>. isSystem short-circuits the permission
-    /// *checks*, but the delete path also builds a client file header on its way to publishing the
-    /// deleted-file notification, and that resolves the drive through
-    /// <c>PermissionContext.GetTargetDrive</c> - which walks the grants and throws when it finds none.
+    /// *checks*, but anything on the delete path that resolves the drive through
+    /// <c>PermissionContext.GetTargetDrive</c> walks the grants and throws when it finds none. (The
+    /// deleted-file notification no longer builds a client file header, which was the first such caller.)
     /// </summary>
     public static IOdinContext BuildSystemContext(OdinId tenant, TargetDrive drive)
     {

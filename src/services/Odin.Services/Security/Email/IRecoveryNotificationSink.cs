@@ -8,20 +8,30 @@ public enum RecoveryNotificationKind
     VerifyRecoveryEmail,
     EnterRecoveryMode,
     ExitRecoveryMode,
-    FinalizeRecovery
+
+    /// <summary>Enough shards are in; the link-free "go back to the browser where you started" email.</summary>
+    ShardsCollected,
+
+    /// <summary>
+    /// An automatic holder's own email to the recovering owner: its link releases the holder's shard.
+    /// Sent by the holder's host, for the dealer's recovery.
+    /// </summary>
+    ReleaseShard
 }
 
 /// <summary>
-/// A recovery link <see cref="RecoveryNotifier"/> generated for <paramref name="Tenant"/>, with the
-/// secrets it carries. <paramref name="FinalRecoveryKey"/> is set only for
-/// <see cref="RecoveryNotificationKind.FinalizeRecovery"/>.
+/// A recovery link a <see cref="RecoveryNotifier"/> generated for <paramref name="Tenant"/>'s recovery,
+/// with the secrets it carries.  <paramref name="Holder"/> is set only for
+/// <see cref="RecoveryNotificationKind.ReleaseShard"/>: the holder that sent it.  <paramref name="To"/>
+/// is the address the email goes to.
 /// </summary>
 public sealed record RecoveryNotification(
     OdinId Tenant,
     RecoveryNotificationKind Kind,
     string Link,
     Guid NonceId,
-    Guid? FinalRecoveryKey = null);
+    OdinId? Holder = null,
+    string To = null);
 
 /// <summary>
 /// Receives every recovery link <see cref="RecoveryNotifier"/> generates, whether or not an email is

@@ -32,19 +32,12 @@ public class SingleKeyValueStorage
     public async Task<T> GetAsync<T>(TableKeyValueCached tblKeyValue, Guid key) where T : class
     {
         var item = await tblKeyValue.GetAsync(MakeStorageKey(key));
-
-        if (null == item)
-        {
-            return null;
-        }
-
-        if (null == item.data)
-        {
-            return null;
-        }
-
-        return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
+        return Deserialize<T>(item?.data);
     }
+
+    /// <summary>A stored value as <see cref="GetAsync{T}"/> reads it, from its bytes (<see cref="GetBytesAsync"/>).</summary>
+    public static T Deserialize<T>(byte[] data) where T : class =>
+        data == null ? null : OdinSystemSerializer.Deserialize<T>(data.ToStringFromUtf8Bytes());
 
     public async Task<byte[]> GetBytesAsync(TableKeyValueCached tblKeyValue, Guid key)
     {
@@ -67,6 +60,25 @@ public class SingleKeyValueStorage
     {
         var json = OdinSystemSerializer.Serialize(value);
         return await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+    }
+
+    /// <summary>Saves <paramref name="value"/> only when nothing is stored under <paramref name="key"/>.</summary>
+    /// <returns>False when something already was; it is left as it was.</returns>
+    public async Task<bool> TryInsertAsync<T>(TableKeyValueCached tblKeyValue, Guid key, T value)
+    {
+        var json = OdinSystemSerializer.Serialize(value);
+        return await tblKeyValue.TryInsertAsync(new KeyValueRecord { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+    }
+
+    /// <summary>
+    /// Saves <paramref name="value"/> only while <paramref name="key"/> still holds
+    /// <paramref name="expected"/>, the bytes as read (<see cref="GetBytesAsync"/>): a compare-and-swap.
+    /// </summary>
+    /// <returns>False when it doesn't (changed since, or gone); it stays as it is.</returns>
+    public async Task<bool> TryReplaceAsync<T>(TableKeyValueCached tblKeyValue, Guid key, byte[] expected, T value)
+    {
+        var json = OdinSystemSerializer.Serialize(value);
+        return await tblKeyValue.UpdateIfUnchangedAsync(MakeStorageKey(key), expected, json.ToUtf8ByteArray());
     }
 
     public async Task<int> UpsertBytesAsync(TableKeyValueCached tblKeyValue, Guid key, byte[] value)

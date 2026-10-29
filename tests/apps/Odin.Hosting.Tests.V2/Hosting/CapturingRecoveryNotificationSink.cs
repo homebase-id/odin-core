@@ -24,6 +24,33 @@ public sealed class CapturingRecoveryNotificationSink : IRecoveryNotificationSin
         }
     }
 
+    /// <summary>How many <paramref name="kind"/> notifications <paramref name="tenant"/> got so far.</summary>
+    public int Count(OdinId tenant, RecoveryNotificationKind kind)
+    {
+        lock (_notifications)
+        {
+            return _notifications.Count(n => n.Tenant == tenant && n.Kind == kind);
+        }
+    }
+
+    /// <summary>Forgets every notification so far: the sink outlives each test's reset.</summary>
+    public void Clear()
+    {
+        lock (_notifications)
+        {
+            _notifications.Clear();
+        }
+    }
+
+    /// <summary>Every <paramref name="kind"/> notification for <paramref name="tenant"/>, oldest first.</summary>
+    public IReadOnlyList<RecoveryNotification> All(OdinId tenant, RecoveryNotificationKind kind)
+    {
+        lock (_notifications)
+        {
+            return _notifications.Where(n => n.Tenant == tenant && n.Kind == kind).ToList();
+        }
+    }
+
     /// <summary>
     /// The newest <paramref name="kind"/> notification for <paramref name="tenant"/>. Newest because a
     /// test may enter recovery mode twice and must follow the second link, the first nonce being

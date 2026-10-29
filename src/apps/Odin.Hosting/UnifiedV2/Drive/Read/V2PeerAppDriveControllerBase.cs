@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Drives;
@@ -10,7 +11,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read;
 
 /// <summary>
 /// Shared plumbing for the slug-addressed peer routes,
-/// <c>/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/…</c> (docs/drive-addressing.md).
+/// <c>/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/…</c> (docs/security-model.md, Drive addressing).
 /// </summary>
 /// <remarks>
 /// These routes exist so a caller can address another identity's drive without both hosts sharing
@@ -39,7 +40,7 @@ public abstract class V2PeerAppDriveControllerBase(PeerDriveQueryService peerDri
     /// — the remote does not distinguish the two, so neither can this.
     /// </summary>
     protected async Task<(OdinId Recipient, TargetDrive TargetDrive)> ResolveAsync(
-        string odinId, string appSlug, string driveSlug)
+        string odinId, OdinSlug appSlug, OdinSlug driveSlug)
     {
         AssertIsValidOdinId(odinId, out var id);
         var targetDrive = await PeerQuery.ResolveRemoteDriveAsync(id, appSlug, driveSlug, WebOdinContext);

@@ -15,7 +15,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
-using Odin.Services.EncryptionKeyService;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -32,7 +31,6 @@ public class OwnerSecurityHealthService(
     TenantConfigService tenantConfigService,
     ShamirConfigurationService shamirConfigurationService,
     ShamirReadinessCheckerService readinessCheckerService,
-    PublicPrivateKeyService publicPrivateKeyService,
     IDriveManager driveManager,
     ILogger<OwnerSecurityHealthService> logger,
     RecoveryNotifier recoveryNotifier,
@@ -61,12 +59,8 @@ public class OwnerSecurityHealthService(
 
     public async Task VerifyRecoveryKeyAsync(VerifyRecoveryKeyRequest request, IOdinContext odinContext)
     {
-        var decryptedBytes = await publicPrivateKeyService.EccDecryptPayload(request.EncryptedRecoveryKey, odinContext);
-        var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
-
-        // this throws an OdinSecurityException if the key is invalid
-        var mk = await recoveryService.AssertValidKeyAsync(recoveryKey);
-        mk.Wipe();
+        odinContext.Caller.AssertHasMasterKey();
+        await recoveryService.AssertPhraseCheckAsync(request.PhraseCheck64, odinContext);
         await UpdateVerificationStatusInternalAsync(updateRecoveryKeyLastVerified: true);
         await recoveryService.ConfirmInitialRecoveryKeyStorage(odinContext);
     }
@@ -115,8 +109,7 @@ public class OwnerSecurityHealthService(
             EmailLastVerified = recoveryInfo?.EmailLastVerified,
             Status = await GetVerificationStatusInternalAsync(),
             HasRecoveryKeyBeenViewed = await recoveryService.HasRecoveryKeyBeenViewed(),
-            RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus),
-            RotationPending = await shamirConfigurationService.IsRotationPending(package)
+            RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus)
         };
     }
 
@@ -236,8 +229,7 @@ public class OwnerSecurityHealthService(
         if (!recoveryInfo.IsConfigured ||
             string.IsNullOrEmpty(recoveryInfo.Email) ||
             !recoveryInfo.EmailLastVerified.HasValue ||
-            !recoveryInfo.RecoveryRisk.IsRecoverable ||
-            recoveryInfo.RotationPending)
+            !recoveryInfo.RecoveryRisk.IsRecoverable)
         {
             return true;
         }

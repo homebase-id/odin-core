@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Base;
@@ -13,7 +14,7 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 
 /// <summary>
 /// The local slug-addressed drive routes, <c>/api/v2/apps/{appSlug}/drives[/{driveSlug}]</c>
-/// (docs/drive-addressing.md).  These name a drive by app and slug instead of by guid.
+/// (docs/security-model.md, Drive addressing).  These name a drive by app and slug instead of by guid.
 /// </summary>
 /// <remarks>
 /// The app half of the address is a real registration -- these tests use a built-in app the tree
@@ -29,17 +30,11 @@ public class AppDriveAddressingTests : V2Fixture
     private const string ChatDriveSlug = "chat";
     private const string StickerDriveSlug = "stickers";
 
-    private static IAppDriveHttpClientApiV2 ClientFor(OwnerSession owner)
-    {
-        var (client, ss) = owner.NewAdminHttpClient();
-        return RefitCreator.RestServiceFor<IAppDriveHttpClientApiV2>(client, ss);
-    }
-
     [Test]
     public async Task ListsTheDrivesAnAppOwns()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var response = await ClientFor(owner).GetAppDrives(ChatAppSlug);
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives(ChatAppSlug);
 
         Assert.That(response.IsSuccessStatusCode, Is.True, $"got {response.StatusCode}");
         Assert.That(response.Content, Is.Not.Null);
@@ -60,7 +55,7 @@ public class AppDriveAddressingTests : V2Fixture
         // The point of the endpoint: you arrive knowing a name and leave holding the TargetDrive
         // every other route takes.
         var owner = await LoginAsOwner(Identities.Frodo);
-        var response = await ClientFor(owner).GetAppDrives(ChatAppSlug);
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives(ChatAppSlug);
 
         var chat = response.Content!.Single(d => d.DriveSlug == ChatDriveSlug);
         Assert.That(chat.TargetDrive, Is.Not.Null);
@@ -74,8 +69,8 @@ public class AppDriveAddressingTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var all = await ClientFor(owner).GetAppDrives(ChatAppSlug);
-        var filtered = await ClientFor(owner).GetAppDrives(ChatAppSlug, type: "sticker");
+        var all = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives(ChatAppSlug);
+        var filtered = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives(ChatAppSlug, type: "sticker");
 
         Assert.That(filtered.IsSuccessStatusCode, Is.True, $"got {filtered.StatusCode}");
         Assert.That(filtered.Content!.Count, Is.LessThan(all.Content!.Count),
@@ -90,7 +85,7 @@ public class AppDriveAddressingTests : V2Fixture
         // A filter nobody matches must return nothing, not fall back to unfiltered -- the failure
         // mode here is silently over-returning.
         var owner = await LoginAsOwner(Identities.Frodo);
-        var response = await ClientFor(owner).GetAppDrives(ChatAppSlug, type: "no-such-type");
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives(ChatAppSlug, type: "no-such-type");
 
         Assert.That(response.IsSuccessStatusCode, Is.True);
         Assert.That(response.Content, Is.Empty);
@@ -100,7 +95,7 @@ public class AppDriveAddressingTests : V2Fixture
     public async Task ResolvesASingleDriveBySlug()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var response = await ClientFor(owner).GetAppDrive(ChatAppSlug, ChatDriveSlug);
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(ChatAppSlug, ChatDriveSlug);
 
         Assert.That(response.IsSuccessStatusCode, Is.True, $"got {response.StatusCode}");
         Assert.That(response.Content!.DriveSlug, Is.EqualTo(ChatDriveSlug));
@@ -113,11 +108,11 @@ public class AppDriveAddressingTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var drive = await ClientFor(owner).GetAppDrive(ChatAppSlug.ToUpperInvariant(), ChatDriveSlug.ToUpperInvariant());
+        var drive = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(ChatAppSlug.ToUpperInvariant(), ChatDriveSlug.ToUpperInvariant());
         Assert.That(drive.IsSuccessStatusCode, Is.True, $"got {drive.StatusCode}");
         Assert.That(drive.Content!.DriveSlug, Is.EqualTo(ChatDriveSlug));
 
-        var filtered = await ClientFor(owner).GetAppDrives(ChatAppSlug, type: "STICKER");
+        var filtered = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives(ChatAppSlug, type: "STICKER");
         Assert.That(filtered.Content!.Select(d => d.DriveSlug), Does.Contain(StickerDriveSlug));
     }
 
@@ -127,9 +122,9 @@ public class AppDriveAddressingTests : V2Fixture
         // Two routes, one drive: if they disagree, one of them is lying about the address.
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var fromList = (await ClientFor(owner).GetAppDrives(ChatAppSlug)).Content!
+        var fromList = (await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives(ChatAppSlug)).Content!
             .Single(d => d.DriveSlug == ChatDriveSlug);
-        var direct = (await ClientFor(owner).GetAppDrive(ChatAppSlug, ChatDriveSlug)).Content!;
+        var direct = (await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(ChatAppSlug, ChatDriveSlug)).Content!;
 
         Assert.That(direct.TargetDrive, Is.EqualTo(fromList.TargetDrive));
         Assert.That(direct.Name, Is.EqualTo(fromList.Name));
@@ -140,7 +135,7 @@ public class AppDriveAddressingTests : V2Fixture
     public async Task UnknownAppSlugIsRejected()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var response = await ClientFor(owner).GetAppDrives("no-such-app");
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrives("no-such-app");
 
         Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
@@ -150,7 +145,7 @@ public class AppDriveAddressingTests : V2Fixture
     public async Task UnknownDriveSlugIsRejected()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var response = await ClientFor(owner).GetAppDrive(ChatAppSlug, "no-such-drive");
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(ChatAppSlug, "no-such-drive");
 
         Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
@@ -163,14 +158,14 @@ public class AppDriveAddressingTests : V2Fixture
         // drives by name.  Asserted so the property is not lost in a later refactor.
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var badApp = await ClientFor(owner).GetAppDrive("no-such-app", ChatDriveSlug);
-        var badDrive = await ClientFor(owner).GetAppDrive(ChatAppSlug, "no-such-drive");
+        var badApp = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive("no-such-app", ChatDriveSlug);
+        var badDrive = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(ChatAppSlug, "no-such-drive");
 
         Assert.That(badApp.StatusCode, Is.EqualTo(badDrive.StatusCode));
     }
 
     private static Task RegisterAppAsync(OwnerSession owner, Guid appId, string appSlug) =>
-        owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: appSlug);
+        owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: new OdinSlug(appSlug));
 
     [Test]
     public async Task ADriveCreatedWithAnExplicitSlugIsAddressableByIt()
@@ -183,10 +178,10 @@ public class AppDriveAddressingTests : V2Fixture
         await RegisterAppAsync(owner, appId, appSlug);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Notes", appId: appId, driveSlug: "notes",
-            driveTypeSlug: "note");
+        await owner.Admin.CreateDrive(drive, "Notes", appId: appId, driveSlug: new OdinSlug("notes"),
+            driveTypeSlug: new OdinSlug("note"));
 
-        var response = await ClientFor(owner).GetAppDrive(appSlug, "notes");
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(appSlug, "notes");
 
         Assert.That(response.IsSuccessStatusCode, Is.True, $"got {response.StatusCode}");
         Assert.That(response.Content!.TargetDrive, Is.EqualTo(drive));
@@ -209,11 +204,11 @@ public class AppDriveAddressingTests : V2Fixture
 
         var driveA = TargetDrive.NewTargetDrive();
         var driveB = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(driveA, "News A", appId: appA, driveSlug: "news");
-        await owner.Admin.CreateDrive(driveB, "News B", appId: appB, driveSlug: "news");
+        await owner.Admin.CreateDrive(driveA, "News A", appId: appA, driveSlug: new OdinSlug("news"));
+        await owner.Admin.CreateDrive(driveB, "News B", appId: appB, driveSlug: new OdinSlug("news"));
 
-        var fromA = await ClientFor(owner).GetAppDrive(slugA, "news");
-        var fromB = await ClientFor(owner).GetAppDrive(slugB, "news");
+        var fromA = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(slugA, "news");
+        var fromB = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(slugB, "news");
 
         Assert.That(fromA.Content!.TargetDrive, Is.EqualTo(driveA));
         Assert.That(fromB.Content!.TargetDrive, Is.EqualTo(driveB));
@@ -232,11 +227,11 @@ public class AppDriveAddressingTests : V2Fixture
         await RegisterAppAsync(owner, appId, appSlug);
 
         await owner.Admin.CreateDrive(TargetDrive.NewTargetDrive(), "First", appId: appId,
-            driveSlug: "shared");
+            driveSlug: new OdinSlug("shared"));
 
         var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
             await owner.Admin.CreateDrive(TargetDrive.NewTargetDrive(), "Second", appId: appId,
-                driveSlug: "shared"));
+                driveSlug: new OdinSlug("shared")));
 
         // The error has to name the conflict and carry idAlreadyExists -- a client needs to tell a
         // taken slug apart from a malformed one, and a raw UNIQUE violation would say neither.
