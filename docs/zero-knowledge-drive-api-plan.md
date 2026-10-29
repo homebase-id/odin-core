@@ -740,6 +740,21 @@ key: such a device gets nothing from the drive until it signs in again (3.4).
    the drive's model from the drive, not from its request.
 5. Merge odin-core and odin-js together.
 
+### 4.7 A new identity's Vault, created Private
+Vault is a built-in drive: the server created it at setup with its own key (`BuiltinApps.Builtin`,
+`BuiltinProvisioner.EnsureDrivesAsync`) **(V)**, so every new identity started with a Collaborative Vault, and an
+app's `sm` couldn't help: the drive already existed, and the console doesn't create a drive another well-known app
+owns (`ensureAppOwnedDrives`) **(V)**. Decided with the user 2026-10-29: in this round.
+- `BuiltinDrives.VaultDrive` says Private. Setup leaves such a drive out (`BuiltinApps.BrowserMadeDrives`), and holds
+  back its app's registration and circles, whose grants need the drive.
+- At each password login, once the zero-knowledge keys are open, the console asks for the missing ones
+  (`GET security/zk/missing-drives`) and creates each with keys it makes (`drive/mgmt/create` with `zkKeys`), before
+  the login's app-key backfill. Creating one runs the provisioner's circles and apps again, so the Vault app and
+  circle arrive, owned and granted as before.
+- Until that login a new identity has no Vault. Chat asks for Vault only from its Vault onboarding ("Set up"), never
+  at sign-in (chat-kmp, (V) by its agent); a grant on the missing drive is refused and Chat stays on the onboarding.
+- Identities made before keep their Collaborative Vault and upgrade it (4.1).
+
 ### 4.6 Not in this step
 - Shares (the Selective Share key header table).
 - Turning on anonymous reads or the CDN later on a zero-knowledge drive (`SetDriveReadModeAsync`,
