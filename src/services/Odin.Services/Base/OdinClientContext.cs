@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Odin.Core;
 using Odin.Core.Serialization;
 
@@ -26,6 +27,25 @@ public class OdinClientContext : IGenericCloneable<OdinClientContext>
 
     public string ClientIdOrDomain { get; set; }
 
+    /// <summary>
+    /// The app's locked keys to the zero-knowledge drives it is granted, by drive id; null for a caller that isn't
+    /// an app, or an app with none.  Any token of the app gets them in its security context: they open only with
+    /// the app's zero-knowledge key (docs/zero-knowledge-drive-api-plan.md, step 3).
+    /// </summary>
+    public IReadOnlyDictionary<Guid, ZkAppDriveKey> ZkDriveKeys { get; init; }
+
+    /// <summary>
+    /// The zero-knowledge drives the app is granted, reading or writing, whether or not it has a copy of their key yet; only shown
+    /// to the app (<c>RedactedDriveGrant.IsZeroKnowledge</c>).  Holding a key is <see cref="ZkDriveKeys"/>, never this.
+    /// </summary>
+    public IReadOnlySet<Guid> ZkDriveIds { get; init; }
+
+    /// <summary>
+    /// Whether this device holds the app's zero-knowledge key, so counts as holding the key of each drive in
+    /// <see cref="ZkDriveKeys"/> (<c>ZkDriveFiles.CallerHoldsDriveKey</c>).
+    /// </summary>
+    public bool HoldsZkAppKey { get; init; }
+
     public OdinClientContext Clone()
     {
         return new OdinClientContext
@@ -34,7 +54,17 @@ public class OdinClientContext : IGenericCloneable<OdinClientContext>
             AccessRegistrationId = AccessRegistrationId?.Clone(),
             AppId = AppId?.Clone(),
             DevicePushNotificationKey = DevicePushNotificationKey,
-            ClientIdOrDomain = ClientIdOrDomain
+            ClientIdOrDomain = ClientIdOrDomain,
+            ZkDriveKeys = ZkDriveKeys, // immutable
+            ZkDriveIds = ZkDriveIds, // immutable
+            HoldsZkAppKey = HoldsZkAppKey
         };
     }
 }
+
+/// <summary>
+/// A zero-knowledge drive's keys as an app receives them: the drive key locked with the app's zero-knowledge key
+/// (<c>aes(AppZkK, DrvK)</c>), and the drive's write-only private key locked with the drive key, both as the browser
+/// locked them (base64 of a 12-byte IV, the AES-GCM ciphertext and its tag).
+/// </summary>
+public sealed record ZkAppDriveKey(string ZkAppKeyEncryptedStorageKey, string ZkStorageKeyEncryptedWriteOnlyPrivateKey);

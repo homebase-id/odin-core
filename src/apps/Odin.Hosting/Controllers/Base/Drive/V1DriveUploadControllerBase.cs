@@ -217,9 +217,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var receiveSw = System.Diagnostics.Stopwatch.StartNew();
 
             section = await ReadNextMultipartSectionAsync(reader);
-            AssertIsPart(section, MultipartUploadParts.Metadata);
             logger.LogDebug("ReceiveFileStream: AddMetadata");
-            await driveUploadService.AddMetadata(section!.Body);
+            await AddMetadataPartAsync(driveUploadService, section);
 
             await ReadUploadPartsAsync(reader, driveUploadService);
 
@@ -297,6 +296,25 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException(
                     "Malformed or truncated multipart request body.",
                     OdinClientErrorCode.MissingUploadData);
+            }
+        }
+
+        /// <summary>
+        /// Adds the metadata part, which the writer checks before any payload is read. A refusal therefore leaves the
+        /// rest of the body unread, so the response says the connection closes: Kestrel needn't drain the body first,
+        /// and an HTTP/1.1 client that watches for a response while it sends stops sending (RFC 9112 9.6).
+        /// </summary>
+        private protected async Task AddMetadataPartAsync(FileSystemStreamWriterBase writer, MultipartSection section)
+        {
+            AssertIsPart(section, MultipartUploadParts.Metadata);
+            try
+            {
+                await writer.AddMetadata(section!.Body, WebOdinContext);
+            }
+            catch
+            {
+                HttpContext.Response.Headers.Connection = "close";
+                throw;
             }
         }
 

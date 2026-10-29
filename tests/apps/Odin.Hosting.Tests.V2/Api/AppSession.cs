@@ -105,6 +105,10 @@ public sealed class AppSession : IV2Caller
         return new AppSession(owner.Host, owner.Identity, appId, token, sharedSecret);
     }
 
+    /// <summary>A session for a token the app got some other way: its own YouAuth sign-in, say.</summary>
+    public static AppSession FromToken(OwnerSession owner, Guid appId, ClientAuthenticationToken token, byte[] sharedSecret) =>
+        new(owner.Host, owner.Identity, appId, token, sharedSecret);
+
     public static async Task<AppSession> SetupAsync(
         OwnerSession owner,
         PermissionSetGrantRequest permissions,
@@ -114,7 +118,16 @@ public sealed class AppSession : IV2Caller
     {
         var appId = knownAppId ?? Guid.NewGuid();
 
-        await owner.Admin.RegisterApp(appId, permissions, authorizedCircles, circleMemberGrantRequest);
+        // A known id may already be registered, as the bare owner of a fixture's circle or drive
+        if (knownAppId.HasValue && await owner.Admin.IsAppRegistered(appId))
+        {
+            await owner.Admin.SetAppGrants(appId, permissions, authorizedCircles, circleMemberGrantRequest);
+        }
+        else
+        {
+            await owner.Admin.RegisterApp(appId, permissions, authorizedCircles, circleMemberGrantRequest);
+        }
+
         var (token, sharedSecret) = await owner.Admin.RegisterAppClient(appId);
 
         return new AppSession(owner.Host, owner.Identity, appId, token, sharedSecret);

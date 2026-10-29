@@ -88,7 +88,7 @@ public class PreV13ReadFallbackTests : V2Fixture
         var single = await apps.GetAppRegistration(appId, ctx);
         Assert.That(single, Is.Not.Null, "app-token auth resolves through this path");
         Assert.That(single.Name, Is.EqualTo("Acme Receipts"));
-        Assert.That(AppSlugGenerator.IsValid(single.AppSlug), Is.True,
+        Assert.That(OdinSlug.IsValid(single.AppSlug), Is.True,
             "the slug must be the one the move will coin, so the address does not change on upgrade");
         Assert.That(single.AppSlug, Is.EqualTo("acme-receipts"));
 

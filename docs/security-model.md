@@ -6,10 +6,12 @@ Markers: **(V)** verified in the code (file named), **(?)** intent the code does
 the design before acting on a (?).
 
 Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key model, deposits),
-[app-circle-membership-status.md](app-circle-membership-status.md), [drive-addressing.md](drive-addressing.md)
-(slugs, drive public key, app-owned circles), [drive-deletion-and-app-uninstall.md](drive-deletion-and-app-uninstall.md),
+[app-circle-membership-status.md](app-circle-membership-status.md), [archive/drive-addressing.md](archive/drive-addressing.md)
+(the slug design's full argument; the facts are in section 3), [drive-deletion-and-app-uninstall.md](drive-deletion-and-app-uninstall.md),
 [connection-defaults.md](connection-defaults.md), [autoconnected-security-level-audit.md](autoconnected-security-level-audit.md),
-[youauth-unified-authorization.md](youauth-unified-authorization.md), [weak-key-retirement.md](weak-key-retirement.md).
+[youauth-unified-authorization.md](youauth-unified-authorization.md), [weak-key-retirement.md](weak-key-retirement.md),
+[zero-knowledge-drives.md](zero-knowledge-drives.md) (direction: sharing models, keys only on devices),
+[owner-keys.md](owner-keys.md) (every owner key and what locks it, with the shorthand we write them in).
 
 ## 1. The platform
 
@@ -20,6 +22,21 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - An app sees only what it was granted: "an app gains nothing beyond its own reach". This is cryptographic, not just a
   check: no storage key in hand, no working grant (`PermissionContextStorageKeySource`) **(V)**.
 - All files are zero knowledge encrypted at rest. No decryption keys are stored on the server, they only appears as in-memory blips when the user is online and calls the API.
+- **Zero-knowledge drives** (today only Shard Recovery) have no master-key copy of their key: the only copy is locked
+  by the owner's zero-knowledge master key, which only the browser opens (`StorageDrive.IsZeroKnowledge`). The server
+  never encrypts for one, and no grant on one carries its key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
+- **Recovery in the browser** ([zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md)): once the browser
+  takes the recovery phrase over, the server holds no copy of it it can open (`RecoveryKeyRecord.TakenOver`). The
+  phrase locks the zero-knowledge master key and the private half of a phrase key pair; the password is sealed to the
+  public half, so a login can write it but only the phrase reads it. The phrase recovery read
+  (`authentication/zk-phrase-recovery`) needs **no login**: it returns only those locked values, useless without the
+  128-bit phrase. The handover, the takeover and the password copy need proof of the password itself, as a password
+  change does (`PasswordReply`, `ZeroKnowledgeRecoveryService`), so a stolen session without the password can do none
+  of them. Someone *with* the password can still seal junk the server can't open or check, so recovery doesn't rely on
+  it alone: the server locks today's master key with the phrase's reset key, hkdf(phrase), itself
+  (`ResetKeyEncryptedMasterKey`), and `authentication/zk-phrase-reset` (no login, the key encrypted to the host)
+  resets the password with it and ends every owner session. Nothing the password opens reads the copy or makes the
+  reset key. Server-dealt Shamir locks the master key, not the phrase. **(V)**
 
 ### Callers
 
@@ -85,7 +102,15 @@ Later:
 - **Extend permissions** (owner console `ExtendAppPermissions`) adds drives at runtime, e.g. one per feed channel.
 - **Owned circles at runtime:** an app may create circles, but only granting permission keys and drive access it holds
   itself. On a drive it doesn't own it may grant Read only, and only with the storage key
-  (`CircleMembershipService` → `AssertAppMayGrantDrivesAsync`) **(V)**.
+  (`CircleMembershipService` → `AssertAppMayGrantDrivesAsync`) **(V)**. An app's grant on a zero-knowledge drive
+  carries no storage key (its devices get the key only from the owner's browser, below), so Read on one it doesn't
+  own is refused **(V)**.
+- **Zero-knowledge app key:** an app that asks for it at sign-in (`zk_app_key=1`) gets its zero-knowledge key sealed by
+  the owner's browser at consent, and its security context carries each zero-knowledge drive's key locked with it, for
+  the drives it is granted reading (`AppRegistrationService.GetZkDriveKeysAsync`) **(V)**. A device counts as holding
+  those keys only while the key it was given is still the app's (`AppClientRegistration.ZkAppKeyId`) **(V)**. A reset
+  with today's master key keeps every app's key and copies: the devices holding them may be the only way left into
+  the drives (`ZeroKnowledgeKeyService.DeleteAsync`) **(V)**. See `zero-knowledge-drive-api-plan.md`, step 3.
 - **Uninstall** can delete the app's drives and circles (`drive-deletion-and-app-uninstall.md`) **(V)**.
 
 ## 3. Drives
@@ -121,6 +146,54 @@ Later:
 - Tenant settings add rights on anonymous drives for authenticated and connected identities: Read always,
   Comment/React by flag (`TenantSettings.GetAnonymousDrivePermissionsFor…`) **(V)**.
 
+### Drive addressing (slugs)
+
+A drive has two names: `DriveId`, the internal handle, and `(AppSlug, DriveSlug)`, the portable one a remote caller
+uses on another identity. The original design, with its full argument, is archived in
+[archive/drive-addressing.md](archive/drive-addressing.md).
+
+- **Routes** (`UnifiedApiRouteConstants`) **(V)**: `/api/v2/apps/{appSlug}/drives/{driveSlug}/…` and
+  `/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/…`, beside the Guid routes
+  (`/api/v2/drives/{driveId}/…`). Authorization is unchanged: the slug replaces only the address, and a caller still
+  needs the drive grant.
+- **Listing** `GET /api/v2/apps/{appSlug}/drives?type=` (`V2AppDriveController`) **(V)** returns only drives the caller
+  can already reach: its own, plus cross-app grants. The owner console sees all.
+- **A drive's public key** (`…/drives/{driveSlug}/public-key`, `V2PeerAppDrivePublicKeyController`) **(V)** is served
+  only to a caller with Write on that drive; anyone else gets a security exception, not a 404, since resolving the
+  address already showed the drive exists. So a stranger with no grant can't deposit yet
+  ([weak-key-retirement.md](weak-key-retirement.md)).
+- **Slug format** (`OdinSlug`) **(V)**: `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`, 1–14 characters, for `AppSlug`, `DriveSlug`,
+  `DriveTypeSlug` and circle slugs alike, plus a reserved list (empty today) for route segments. That is RFC 3986
+  *unreserved* narrowed to an RFC 1123 host name label, so a slug never needs escaping in a URL, HTML or JSON.
+  `OdinSlug` is a value type like `OdinId`, so an invalid one can't exist. **Always lowercase**: upper case is
+  lowercased when a slug is made, so `Chat` and `chat` are one slug, and comparing a slug with a string lowercases
+  the string. Anything else malformed is **refused, never changed**: a slug is immutable and ends up in other
+  identities' URLs, so stripping a character would make an address the caller didn't ask for. A malformed slug is a
+  400 `argumentError` in a body, route or query.
+- **Uniqueness:** `AppSlug` per identity, `DriveSlug` per app (`UNIQUE(identityId, AppId, DriveSlug)`), all `NOT NULL`
+  since #1901 **(V)**.
+- **Slugs are resolved by the recipient.** `/peer/{odinId}/apps/chat/…` means whatever app *that identity* registered
+  as `chat`. An `AppSlug` is a package name, first come first served per identity, with **no global registry**: a
+  different app can register as `chat` on an identity where the real one isn't installed. It still needs a grant to
+  be written to, so this is a naming risk, not an access one. Interop is by referencing another app's drive, never by
+  taking its name.
+
+Why it is built this way:
+- **The tree is rooted at `/apps`**, not under `/drives`, so every segment names what follows it (`/drives/feed`
+  would read as "the drive called feed"), and slugs could be added without touching the Guid routes.
+- **The type stays out of every unique key:** an app may own many drives of one type (the feed app's channels),
+  told apart by `DriveSlug`. `DriveTypeSlug` is the type's readable form, kept on `Drives` beside the type Guid
+  rather than in a registry table: drives number in the tens, and a single code path writes them.
+- **`AppRegistrations` is a real table**, because `UNIQUE(identityId, AppSlug)` can't be expressed over the old
+  key-value blobs, and a slug other identities resolve against can't be "unique, best effort".
+- **`detailsJson` exists from the start**, unused, because a nullable column costs nothing now and a migration
+  across both databases later.
+- **A circle's `AppId` is a column, not a field in its JSON**, so "delete the app's circles" and the ownership check
+  on every app write are one indexed query rather than a parse of every circle.
+
+Not built from that design: validating the type pair at drive creation (#2007); retiring `metadata/channel-drives`
+(#2008); the feed services still read the global channel drive type rather than `AllowSubscriptions` (#2009).
+
 ## 4. Circles
 
 Circles are a consequence of apps: each pre-installed app brings its circle (Chat → Chat, Feed → Feed,
@@ -130,14 +203,34 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
 - A connected caller's rights are the union of their enabled circles' grants. A disabled circle grants nothing **(V)**.
 - `AppId` on a circle is the owning app; null = owner circle. An app may change only its own circles and can't enrol
   anyone into an owner circle **(V)**.
-- **Read grants need the Peer Key** (the drive's storage key is wrapped for the member). Write/react grants carry no key
-  material (`RequiresPeerKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
+- **Read grants need the Peer Key** (the drive's storage key is wrapped for the member). Write/react grants, and every
+  grant on a zero-knowledge drive, carry no key material (`CircleNetworkService.RequiresPeerKeyAsync`, which asks
+  `StorageDrive.GrantCarriesStorageKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
   grant next time the Peer Key is in scope **(V)**.
 - **No confused deputy:** an app can't plant a circle naming a drive it can't read, which the owner's next grant would
-  otherwise make work (`drive-addressing.md`). Creation is bounded by what the app holds (section 2), and updating a
+  otherwise make work ([archive/drive-addressing.md](archive/drive-addressing.md#circles)). Creation is bounded by what the app holds (section 2), and updating a
   circle definition needs the master key (`CircleMembershipService.UpdateAsync`) **(V)**.
 - Unreviewed connections are treated as `Authenticated`, not `Connected`, when content is evaluated
   (`ReviewedSecurityTier`) **(V)**.
+
+### Enrollment: when a circle grants itself (`CircleGrantOn`) **(V)**
+
+Details in [connection-defaults.md](connection-defaults.md).
+
+| `GrantOn` | Granted |
+|---|---|
+| `None` | never automatically: manual membership. The default |
+| `Connect` | at any connection, ambient introductions included |
+| `OwnFlowConnect` | only when the connection is made through the owning app's own consent flow (the vendor case) |
+| `Review` | when the owner completes the connection review |
+
+- **Deposit-only invariant:** a `Connect` or `OwnFlowConnect` circle may grant only write/react on drives, no read
+  beyond anonymous drives, and no permission keys. Checked when the definition is written
+  (`CircleDefinitionService.AssertDepositOnlyIfAmbientAsync`), because read grants need the key ceremony the review is
+  for **(V)**.
+- **Membership implies review:** a manual or review-granted circle refuses an unreviewed contact, and the review
+  can't be cleared while the contact is in a personal circle (`CannotClearReviewWhilePersonalCircleMember`) **(V)**.
+- Anyone but the owner sees a connection redacted to the identity list (`RedactedForExternalViewer`) **(V)**.
 
 ## 5. Files and their ACL
 
@@ -151,8 +244,10 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   sent to a peer, so a recipient never learns who else was named **(V)**. `System` (1) is a caller level, never a file
   ACL **(V)**.
 - Owner and `System` callers skip the ACL **(V)**.
-- Reading a file needs **both** drive Read and the ACL. Queries also drop encrypted files the caller has no storage key for
-  (`DriveQueryServiceBase` filter) **(V)**.
+- Reading a file needs **both** drive Read and the ACL. Past drive Read, one rule decides whether the caller may see a stored
+  file (`IDriveAclAuthorizationService.CallerMayReadAsync`): the ACL, and a client-locked file (sealed or zkDrive) only for a caller holding the
+  drive's key, except a deposit staged on the transient drive (`ZkDriveFiles.VisibleTo`). A read by id, a query and a socket event all ask it **(V)**. Queries also drop
+  encrypted files the caller has no storage key for (`DriveQueryServiceBase` filter) **(V)**.
 - `LocalAppMetadata` never leaves the identity.
 
 ## 6. Comments, reactions and other special file kinds
@@ -216,6 +311,26 @@ serverMetadata
 
 ## 8. Envelope encryption
 
+**The rule.** A file has one key header (FileKey and an IV); content, local app data, payloads and
+thumbnails are all encrypted with FileKey, each with its own IV **(V)**. Only the key header is locked:
+- **Normal drive:** by the server with the drive's key (DrvK, `type: aes`). A peer's key header arrives
+  wrapped in the connection's shared secret and waits in the drive's inbox until the owner or an app is
+  signed in; the server then re-locks it with the keys that caller lends it (`PeerInboxProcessor`) **(V)**.
+- **Zero-knowledge drive:** by a client, and the server opens neither kind: by a device holding DrvK
+  (`type: zkDrive`), or sealed to the drive's write-only public key by anyone with Write (`type: sealed`,
+  a deposit) **(V)**. A key holder may later transform `sealed` into `zkDrive` (designed, built with
+  Chat). One exception writes server-side: on a private Email drive the server seals the OpenPGP keyring and its
+  pointer to the drive itself (`EmailKeyMaterialWriter`), skipping the write rules a client's upload passes
+  (`OpenForWrite`, `AssertMayReplace`), so a rotation's sealed pointer replaces a `zkDrive` one on an upgraded drive;
+  it refuses a caller that doesn't hold the drive's key **(V)**. One read rule (`IDriveAclAuthorizationService.CallerMayReadAsync`) shows a client-locked file
+  only to a caller that can open it; the model and decisions are in
+  [zero-knowledge-drives.md](zero-knowledge-drives.md#how-a-zero-knowledge-drive-holds-files), the work in
+  [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
+
+Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md). The owner's
+own keys above the storage key (password, master key, zero-knowledge master key, recovery phrase, reset key, Shamir),
+and what each one locks: [owner-keys.md](owner-keys.md).
+
 ```
 master key ──► storage key (one per drive; MasterKeyEncryptedStorageKey)
 App Key / Peer Key ──► storage key (one wrapping per grant)
@@ -230,6 +345,17 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
   and rewraps it with its own storage key **(V)**. Payload bytes are not re-encrypted **(inferred)**.
 - `IsEncrypted = false` files use an empty KeyHeader and are stored in clear **(V)**.
 - `StorageDrive.AssertValidStorageKey` checks a key against the drive's encrypted id before use **(V)**.
+- A zero-knowledge drive takes only key headers an owner device locked with its key (`zkDrive`), and
+  deposits. It refuses one locked with the shared secret by its type, before opening it
+  (`ZkDriveFiles.OpenForWrite` → `DriveIsZeroKnowledge`) **(V)**. Reads return a `zkDrive` key header as
+  stored, only to a caller holding the drive's key: the owner console, or an app device given the app's
+  zero-knowledge key (`ZkDriveFiles.CallerHoldsDriveKey`) **(V)**; and a payload or thumbnail read sends no
+  `SharedSecretEncryptedHeader64`: the client uses the file key and the payload's IV **(V)**.
+- The key header format (`EncryptKeyHeaderAes`) encrypts `IV ‖ key` with AES-CBC under that same IV, so
+  the IV cancels out of the first block: the 48 bytes depend only on the locking key and the file key,
+  and the IV the reader gets back is the visible `Iv` field **(V, `ZkDriveFileTests`)**. Two key
+  headers for the same file key show it, and whoever stores a key header can change its IV. Key header
+  version 2 fixes it, with per-file integrity ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
 - Ciphers: AES-CBC in `KeyHeader`, AES-GCM preferred for newer paths (CLAUDE.md, `youauth` docs).
 - Write-without-read keys: drive `WriteOnlyKeyPair` (data deposits) and `PeerKeyStore.WriteOnlyKeyPair` (grant deposits)
   **(V)**.

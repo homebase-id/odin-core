@@ -453,7 +453,7 @@ public class DriveManagementTests : V2Fixture
         var owner = await LoginAsOwner();
         var svc = owner.RefitFor<IRefitDriveManagement>();
 
-        foreach (var systemDrive in BuiltinDrives.Protected)
+        foreach (var systemDrive in ProtectedDrivesMadeAtSetup)
         {
             var response = await svc.SetDriveReadMode(new UpdateDriveReadModeRequest
             {

@@ -225,7 +225,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
 
         // A system app (Chat) that predates the app-level StickerDrive grant. It holds an unrelated
         // drive but no StickerDrive grant.
-        await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
+        await owner.Admin.SetAppGrants(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
             {
@@ -305,7 +305,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
 
         // A v8-era Chat app: its circle-member grant covers the ChatDrive but predates the v9 ListsDrive
         // grant that a fresh v9 install ships with (see SystemAppConstants.ChatAppRegistrationRequest).
-        await owner.Admin.RegisterApp(
+        await owner.Admin.SetAppGrants(
             SystemAppConstants.ChatAppId,
             new PermissionSetGrantRequest
             {

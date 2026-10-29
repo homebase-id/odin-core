@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
@@ -107,7 +108,7 @@ public class FriendsCircleResetMigrationTests : V2Fixture
     {
         Id = V20ToV21VersionMigrationService.RetiredCircleIds[index],
         Name = name,
-        Slug = name.ToLowerInvariant(),
+        Slug = new OdinSlug(name),
         Description = name,
         AppId = SystemAppConstants.ContactsAppId,
         GrantOn = CircleGrantOn.None,

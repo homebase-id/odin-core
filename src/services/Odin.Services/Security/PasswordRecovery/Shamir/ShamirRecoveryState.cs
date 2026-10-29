@@ -10,7 +10,9 @@ public enum ShamirRecoveryState
     AwaitingOwnerEmailVerificationToEnterRecoveryMode,
 
     /// <summary>
-    /// Email was sent to owner; we are waiting for the owner to click the email link to verify and exit recovery mode
+    /// No longer set: asking to exit only sends the email, and recovery goes on as it was until the
+    /// owner confirms with it (anyone can ask).  A status stored with it has no browser key, and
+    /// reads as no recovery; kept so such a status still deserializes.
     /// </summary>
     AwaitingOwnerEmailVerificationToExitRecoveryMode,
 
@@ -21,7 +23,15 @@ public enum ShamirRecoveryState
     AwaitingSufficientDelegateConfirmation,
     
     /// <summary>
-    /// Owner has all things needed to recover their password.  They just need click the email link and reset their password
+    /// No longer set: the server rebuilt a server-made deal's secret and emailed a finalize link.  Every
+    /// deal now waits in <see cref="AwaitingRecoveringBrowser"/>.  A status stored with it has no browser
+    /// key, and reads as no recovery; kept so such a status still deserializes.
     /// </summary>
-    AwaitingOwnerFinalization
+    AwaitingOwnerFinalization,
+
+    /// <summary>
+    /// Enough shards are in, for any deal.  The browser that started recovery fetches them, sealed
+    /// to its throwaway key, and rebuilds the secret itself.
+    /// </summary>
+    AwaitingRecoveringBrowser
 }

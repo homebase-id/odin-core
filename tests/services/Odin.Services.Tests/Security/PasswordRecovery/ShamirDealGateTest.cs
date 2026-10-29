@@ -6,15 +6,14 @@ namespace Odin.Services.Tests.Security.PasswordRecovery;
 #nullable enable
 
 /// <summary>
-/// The gate's two guarantees without a host: one rotation attempt at a time, and none for an hour
-/// after one fails. The end-to-end tests (<c>FailedShardRotationTests</c> in Odin.Hosting.Tests.V2) need
-/// recovery nonces that only exist in Debug, so these are what Release CI runs (#1866).
+/// The gate's two guarantees without a host: one change to the deal at a time, and none for an hour
+/// after one fails.
 /// </summary>
-public class ShardRotationGateTest
+public class ShamirDealGateTest
 {
     private long _now = 1_000_000;
 
-    private ShardRotationGate NewGate() => new(() => _now);
+    private ShamirDealGate NewGate() => new(() => _now);
 
     [Test]
     public void OnlyOneHolderAtATime()
@@ -37,7 +36,7 @@ public class ShardRotationGateTest
         gate.Failed();
         gate.Exit();
 
-        _now += ShardRotationGate.CooldownMs - 1;
+        _now += ShamirDealGate.CooldownMs - 1;
         Assert.That(gate.TryEnter(), Is.False, "entered during the cooldown");
 
         _now += 1;
@@ -48,7 +47,7 @@ public class ShardRotationGateTest
     public void AFailureBetweenTheCheckAndTheClaimStillHoldsOff()
     {
         System.Action? onClockRead = null;
-        var gate = new ShardRotationGate(() =>
+        var gate = new ShamirDealGate(() =>
         {
             var hook = onClockRead;
             onClockRead = null;
@@ -60,7 +59,7 @@ public class ShardRotationGateTest
         Assert.That(gate.TryEnter(), Is.True);
         gate.Failed();
         gate.Exit();
-        _now += ShardRotationGate.CooldownMs;
+        _now += ShamirDealGate.CooldownMs;
 
         Assert.That(gate.TryEnter(), Is.True, "the holder");
 
@@ -73,6 +72,38 @@ public class ShardRotationGateTest
 
         Assert.That(gate.TryEnter(), Is.False, "retried straight after a failure");
         Assert.That(gate.TryEnter(), Is.False, "left the gate held or the cooldown off");
+    }
+
+    /// <summary>The phrase takeover's entry: a failed change's cooldown must not block it.</summary>
+    [Test]
+    public async System.Threading.Tasks.Task WaitToEnterIgnoresTheCooldown()
+    {
+        var gate = NewGate();
+        Assert.That(gate.TryEnter(), Is.True);
+        gate.Failed();
+        gate.Exit();
+
+        Assert.That(await gate.WaitToEnterAsync(System.TimeSpan.Zero), Is.True, "held off by the cooldown");
+        Assert.That(await gate.WaitToEnterAsync(System.TimeSpan.Zero), Is.False, "did not take the gate");
+        gate.Exit();
+    }
+
+    [Test]
+    public async System.Threading.Tasks.Task WaitToEnterWaitsForTheHolder()
+    {
+        var gate = new ShamirDealGate();
+        Assert.That(gate.TryEnter(), Is.True);
+
+        var waiting = gate.WaitToEnterAsync(System.TimeSpan.FromSeconds(10));
+        await System.Threading.Tasks.Task.Delay(100);
+        Assert.That(waiting.IsCompleted, Is.False, "entered while held");
+
+        gate.Exit();
+        Assert.That(await waiting, Is.True);
+        gate.Exit();
+
+        Assert.That(gate.TryEnter(), Is.True);
+        Assert.That(await gate.WaitToEnterAsync(System.TimeSpan.FromMilliseconds(100)), Is.False, "did not give up");
     }
 
     [Test]

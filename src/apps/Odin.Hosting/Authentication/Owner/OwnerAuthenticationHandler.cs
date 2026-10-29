@@ -116,7 +116,7 @@ namespace Odin.Hosting.Authentication.Owner
                     }
 
                     await _versionUpgradeScheduler.EnsureScheduledAsync(authResult, odinContext);
-                    await _shamirConfigurationService.RotateShardKeysIfNeeded(odinContext);
+                    await _shamirConfigurationService.RemoveDeadFriendDealIfNeeded(odinContext);
                 }
                 catch (OdinSecurityException e)
                 {

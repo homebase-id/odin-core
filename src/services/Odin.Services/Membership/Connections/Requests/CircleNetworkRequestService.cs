@@ -1455,6 +1455,10 @@ namespace Odin.Services.Membership.Connections.Requests
         public Task RemoveDriveFromSentRequestsAsync(Guid driveId, IOdinContext odinContext) =>
             UpdateAllSentRequestsAsync(store => store.RemoveDrive(driveId), odinContext);
 
+        /// <summary>Takes a drive's storage key off every sent request's grants, keeping the permission (a drive gone zero knowledge).</summary>
+        public Task RemoveStorageKeyFromSentRequestsAsync(Guid driveId, IOdinContext odinContext) =>
+            UpdateAllSentRequestsAsync(store => store.RemoveStorageKey(driveId), odinContext);
+
         /// <summary>Takes an uninstalled app, and the circles it owned, out of every sent, not-yet-accepted request.</summary>
         public Task RemoveAppFromSentRequestsAsync(Guid appId, IReadOnlyCollection<Guid> ownedCircleIds,
             IOdinContext odinContext) =>

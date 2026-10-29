@@ -9,6 +9,15 @@ re-run". A test nobody has written down is a test everyone re-investigates.
 Before assuming a red test is your change: check this file, then confirm by running the test on
 a clean tree (`git stash`), and by checking whether recent runs on `main` pass.
 
+## Tests on the live network are `[Explicit]`
+
+A test that reaches the real network (public DNS, a public website, google.com) fails whenever that
+network does, so it is marked `[Explicit("Live network: ...")]`: `dotnet test` and CI skip it, and it
+runs only when asked for by name. Done for 30 tests on 2026-10-26 (branch
+`live-network-tests-explicit`); a new one gets the same mark. A test that only needs DNS for a
+fixed name (the link extractor's `IsUrlSafe` resolving `example.com`) counts: it can run offline once
+the resolver can be swapped in the test.
+
 ## How to add an entry
 
 Name the test by its fully-qualified name, say **where** it fails (CI OS/db matrix, or local
@@ -92,6 +101,32 @@ many desktop apps are open at the time: the same build passed 1420/1420 once and
 
 **Workaround:** raise the limit (`sudo sysctl fs.inotify.max_user_instances=512`, persist it in
 `/etc/sysctl.d/`), or close desktop apps. CI is unaffected.
+
+**Seen again 2026-10-22** on `zk-keys-plan-a`: 50, then 148 of 1728 failed, every one in
+`OneTimeSetUp` with the same `IOException`; 96 of the 128 instances were held before the run. The
+50 from the first run passed when re-run on their own (50/50). Evidence it is not the branch: the
+branch base `35031efe3` is green on `main` CI
+(ubuntu sqlite and postgres, windows sqlite; runs 39692849693, 39692849925, 39692849864); and on
+2026-10-23, with no tests running, the desktop already held 96 of 128 instances. Not re-run on a
+clean tree (`git stash`): it passed on the same tree, so a clean run would show nothing more.
+
+**Seen again 2026-10-24** on `zk-recovery-phrase`: 84 of 1750 failed in the full run, each in 1-6 ms
+(fixture setup), across unrelated fixtures (YouAuth, plans and quota, zero knowledge); 99 of the 128
+instances were held by the desktop after the run. The 84 passed when re-run on their own (84/84).
+
+**Seen again 2026-10-26/27** on `zk-drive-api` and `zk-drive-follow-ups`: 637, then 191 of 1828, then about
+30 of 1828, each failing in 1-40 ms across unrelated fixtures (peer transfers, reactions, profile, Shamir,
+slugs). The error text was not captured, so inotify is likely but not confirmed. Twice another test run
+overlapped: a code-review agent's, and a second V2 run of mine. Each overlapping run adds its own test
+hosts' watchers. Sampled failures passed on their own (35/35), and the next full run on the same build,
+alone, passed 1767/1767. The desktop held 90 of 128 instances during a run on 2026-10-27. Run one full V2
+suite at a time.
+
+**Seen again 2026-10-27** on `zk-drive-step-3`: about 40+ failures across unrelated fixtures (local tags, mail
+activation, notifications), each in 5-30 ms. Other sessions' Gradle/Kotlin daemons (chat-kmp builds) were running,
+and 99 of the 128 instances were held right after the run. A sample (CanGetListOfNotifications,
+ItShouldRejectBadInput, CanQueryBatchByLocalTagsMatchAll) passed on its own, 7/7. Another session's build daemons
+count against the same per-user limit as the desktop does.
 
 ---
 
@@ -899,8 +934,9 @@ assertion prints `error`.
 - `TestFacebookUrl` (and, by the same mechanism, every test in this file that calls `ExtractAsync`
   on a real URL: Twitter/X, Instagram, LinkedIn, Google Meet, GitHub, ...)
 
-**Where:** local only. These tests sit under `#if !CI_GITHUB`, so CI never compiles them. Seen
-2026-09-28 while fixing #1754.
+**Where:** local only, mostly. Most sit under `#if !CI_GITHUB`, so CI never compiles them; `TestHtmlUrl`
+did not, and ran in CI too. Seen 2026-09-28 while fixing #1754. **All `[Explicit]` since 2026-10-26**
+(see the top of this file).
 
 **Symptom:** `NullReferenceException` at `ogp.Title` -- `ExtractAsync` returned null because the
 page fetch itself failed. Once in six runs; the other five fetched the page.
@@ -1027,6 +1063,11 @@ at `RunAfterAnyTests`, and the test does not declare the Error it causes. `main`
 `ubuntu/sqlite/release` on b9b076985 the same day, so the event usually doesn't reach the count. Why it
 only sometimes does is **undiagnosed**. It may also be the unexplained Error in the 10-06 failure above.
 
+**Again 2026-10-26, twice:** `windows/sqlite/debug` on PR #2013 (run 40318120453) and
+`ubuntu/postgres/release` on `main` right after #2013 merged (run 40320676997), the same event both
+times. #2013's other jobs passed on the same code, and it touches no registry or tenant-status code:
+three occurrences in five days, on three OS/db combinations, so it is no longer rare.
+
 ---
 
 ## `Odin.Core.Storage.Tests.Cache.CrossNodeStaleFillTests`
@@ -1056,12 +1097,15 @@ background tasks still settling. Undiagnosed; the failed job was re-run.
   `NullReferenceException`, `main`, 2026-09-15 (run 34917362703), ubuntu/sqlite. Before #1771 changed
   that refusal to a 400; not seen since.
 - `SignatureCheckTest.ItShouldDownloadCertificate` (PushNotification) -- downloads from the internet;
-  Windows, 2026-09-17.
+  Windows, 2026-09-17. `[Explicit]` since 2026-10-26.
 - `ConnectionChangeNotificationTests` (3 tests) and `OwnerAppSettingsTests.CanGetAndReadOwnerAppSetting`
   -- `OneTimeSetUp` could not resolve `*.dotyou.cloud` (2026-09-11, 09-13): runner DNS, not a test.
 - `DnsProbeTests` -- failed on every run while the live DNS records they assert on were changing
   (2026-10-01), fixed by #1858 and b195cf613. Broken, not flaky; a test that asserts on live DNS will
-  do it again.
+  do it again. Again 2026-10-26, Windows only (run 40318120453, PR #2013):
+  `ItShouldResolveARecordDomainToIpWithCache` got an empty address after its three retries, while
+  `homebase.id` still resolved to the expected 75.2.60.5 from elsewhere and the Linux jobs on the same
+  commit passed: the runner's DNS. **All five `[Explicit]` since 2026-10-26.**
 - Two Windows runs stopped after about an hour with no failing test in the log (36480736192,
   36573203843): a hang, test unknown.
 - Ten Odin.Hosting.Tests.V2 tests in one local full run on macOS, 2026-10-17, branch `plan-quota`:

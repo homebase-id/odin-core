@@ -233,6 +233,8 @@ public class VersionUpgradeService(
             // idempotent and version-independent, so a single up-front pass lets the version ladder assume
             // the invariant — migrations that grant a (possibly newly-introduced) system drive no longer
             // each need to create it first. New drives are added by appending to EnsureSystemDrivesExist.
+            // Except the browser-made ones (BuiltinApps.BrowserMadeDrives: Vault, Email), which the server can't create
+            // and the owner's browser does at a password login: a migration must not assume those exist.
             if (cancellationToken.IsCancellationRequested)
             {
                 return;

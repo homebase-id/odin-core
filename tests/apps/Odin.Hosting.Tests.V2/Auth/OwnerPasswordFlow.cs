@@ -15,6 +15,7 @@ using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Security;
+using Odin.Services.Security.ZeroKnowledge;
 using Refit;
 
 namespace Odin.Hosting.Tests.V2.Auth;
@@ -94,6 +95,18 @@ internal static class OwnerPasswordFlow
         return await CalculatePasswordReplyAsync(authClient, password, clientEccFullKey);
     }
 
+    /// <summary>
+    /// Proof of <paramref name="password"/> against a fresh authentication nonce, as an endpoint that
+    /// wants the password itself (a password change, the phrase handover) takes it.
+    /// </summary>
+    public static async Task<PasswordReply> CalculateAuthenticationPasswordReplyAsync(
+        OdinHost host, string identity, string password)
+    {
+        using var authClient = host.CreateAnonymousClient(identity);
+        var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+        return await CalculateAuthenticationPasswordReplyAsync(authClient, password, clientEccFullKey);
+    }
+
     /// <summary>Logs in as owner with <paramref name="password"/>, returning the raw response.</summary>
     public static async Task<ApiResponse<OwnerAuthenticationResult>> LoginAsync(
         OdinHost host, string identity, string password, EccFullKeyData clientEccFullKey)
@@ -129,11 +142,48 @@ internal static class OwnerPasswordFlow
     public static async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKeyAsync(
         OdinHost host, string identity, string recoveryKey, string newPassword)
     {
-        const PublicPrivateKeyType keyType = PublicPrivateKeyType.OfflineKey;
+        using var authClient = host.CreateAnonymousClient(identity);
+        var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+        var saltyReply = await CalculatePasswordReplyAsync(authClient, newPassword, clientEccFullKey);
+        var encryptedRecoveryKey = await EncryptForHostAsync(authClient, recoveryKey, saltyReply, clientEccFullKey);
+        var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
+
+        var resetRequest = new ResetPasswordUsingRecoveryKeyRequest
+        {
+            EncryptedRecoveryKey = encryptedRecoveryKey,
+            PasswordReply = saltyReply // The sensitive parts here are GCM encrypted.
+        };
+
+        return await svc.ResetPasswordUsingRecoveryKey(resetRequest);
+    }
+
+    /// <summary>
+    /// Recovery with a reset key (the phrase's or the friends'), as the recovery pages send it: the key
+    /// encrypted to the host, a new password, and <paramref name="zkKeys"/>.
+    /// </summary>
+    public static async Task<ApiResponse<HttpContent>> ResetPasswordWithResetKeyAsync(
+        OdinHost host, string identity, byte[] resetKey, string newPassword, ZkKeysRequest zkKeys)
+    {
         using var authClient = host.CreateAnonymousClient(identity);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
         var saltyReply = await CalculatePasswordReplyAsync(authClient, newPassword, clientEccFullKey);
 
+        return await RestService.For<IOwnerAuthenticationClient>(authClient).ResetPasswordWithResetKey(new ZkResetRequest
+        {
+            EncryptedResetKey = await EncryptForHostAsync(authClient, resetKey.ToBase64(), saltyReply, clientEccFullKey),
+            PasswordReply = saltyReply,
+            ZkKeys = zkKeys
+        });
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> encrypted to the host's offline key, salted with <paramref name="reply"/>'s
+    /// nonce, as the browser sends the recovery phrase and the reset key.
+    /// </summary>
+    private static async Task<EccEncryptedPayload> EncryptForHostAsync(HttpClient authClient, string text,
+        PasswordReply reply, EccFullKeyData clientEccFullKey)
+    {
+        const PublicPrivateKeyType keyType = PublicPrivateKeyType.OfflineKey;
         var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
         var publicKeyResponse = await svc.GetPublicKeyEcc(keyType);
         Assert.That(publicKeyResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -143,27 +193,19 @@ internal static class OwnerPasswordFlow
         hostPublicKey.crc32c = publicKey.CRC32c;
         hostPublicKey.expiration = new UnixTimeUtc(publicKey.Expiration);
 
-        var transferSharedSecret = clientEccFullKey.GetEcdhSharedSecret(
-            EccKeyListManagement.zeroSensitiveKey, hostPublicKey, saltyReply.Nonce64.FromBase64());
+        var salt = reply.Nonce64.FromBase64();
+        var transferSharedSecret = clientEccFullKey.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicKey, salt);
 
-        var encryptedRecoveryKey = new EccEncryptedPayload
+        return new EccEncryptedPayload
         {
             //Note: i exclude the key type here because the methods that receive
             //this must decide the encryption they expect
             RemotePublicKeyJwk = clientEccFullKey.PublicKeyJwk(),
-            Salt = saltyReply.Nonce64.FromBase64(),
-            Iv = saltyReply.Nonce64.FromBase64(),
+            Salt = salt,
+            Iv = salt,
             EncryptionPublicKeyCrc32 = hostPublicKey.crc32c,
-            EncryptedData = AesGcm.Encrypt(recoveryKey.ToUtf8ByteArray(), transferSharedSecret, saltyReply.Nonce64.FromBase64()),
+            EncryptedData = AesGcm.Encrypt(text.ToUtf8ByteArray(), transferSharedSecret, salt),
             KeyType = keyType
         };
-
-        var resetRequest = new ResetPasswordUsingRecoveryKeyRequest
-        {
-            EncryptedRecoveryKey = encryptedRecoveryKey,
-            PasswordReply = saltyReply // The sensitive parts here are GCM encrypted.
-        };
-
-        return await svc.ResetPasswordUsingRecoveryKey(resetRequest);
     }
 }

@@ -410,6 +410,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(
                 inboxItem.Data.ToStringFromUtf8Bytes());
 
+            // What a sealed key header may replace is checked where the existing file is known (ZkDriveFiles.AssertMayReplace)
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
                 inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
 
@@ -514,7 +515,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var icr = await circleNetworkService.GetIcrAsync(sender, odinContext, overrideHack: true, tryUpgradeEncryption: true);
             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
-            var decryptedKeyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            var decryptedKeyHeader = encryptedKeyHeader.DecryptOrPassSealed(ref sharedSecret);
             return decryptedKeyHeader;
         }
 

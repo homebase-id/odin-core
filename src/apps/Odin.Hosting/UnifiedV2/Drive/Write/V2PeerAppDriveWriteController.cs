@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -21,7 +22,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write;
 /// <summary>
 /// Writes to a drive hosted by another identity, named by slug:
 /// <c>POST /api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/send</c> — the case
-/// docs/drive-addressing.md leads with, since sending to another identity's chat drive otherwise
+/// docs/archive/drive-addressing.md leads with, since sending to another identity's chat drive otherwise
 /// requires both hosts to share hardcoded guid constants.
 /// </summary>
 /// <remarks>
@@ -130,8 +131,8 @@ public class V2PeerAppDriveWriteController(
     private async Task<(OdinId Recipient, TargetDrive TargetDrive)> ResolveFromRouteAsync()
     {
         var odinId = RouteData.Values["odinId"]?.ToString();
-        var appSlug = RouteData.Values["appSlug"]?.ToString();
-        var driveSlug = RouteData.Values["driveSlug"]?.ToString();
+        var appSlug = OdinSlug.Create(RouteData.Values["appSlug"]?.ToString(), "appSlug");
+        var driveSlug = OdinSlug.Create(RouteData.Values["driveSlug"]?.ToString(), "driveSlug");
 
         AssertIsValidOdinId(odinId, out var id);
 

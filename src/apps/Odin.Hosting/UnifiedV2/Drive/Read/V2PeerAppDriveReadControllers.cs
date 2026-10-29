@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
@@ -41,8 +42,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<QueryBatchResponse> QueryBatch(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromBody] QueryBatchRequestV2 request)
         {
             OdinValidationUtils.AssertNotNull(request, "request");
@@ -94,8 +95,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<IActionResult> GetFileHeader(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid fileId)
         {
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
@@ -126,8 +127,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid fileId,
             [FromRoute] string payloadKey)
         {
@@ -156,8 +157,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid fileId,
             [FromRoute] string payloadKey,
             [FromRoute] Int64 start,
@@ -188,8 +189,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [NoSharedSecretOnResponse]
         public async Task<IActionResult> GetThumbnail(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid fileId,
             [FromRoute] string payloadKey,
             [FromRoute] int width,
@@ -204,7 +205,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return HandlePeerThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
 
-        private async Task<IActionResult> GetPayloadInternal(string odinId, string appSlug, string driveSlug,
+        private async Task<IActionResult> GetPayloadInternal(string odinId, OdinSlug appSlug, OdinSlug driveSlug,
             Guid fileId, string payloadKey, FileChunk chunk)
         {
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
@@ -246,8 +247,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<FileExistsOnPeerResponse> GetExists(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid uid)
         {
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
@@ -284,8 +285,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<FileExistsOnPeerResponse> GetExists(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid gtid)
         {
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
@@ -311,8 +312,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<IActionResult> GetFileHeader(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid gtid)
         {
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
@@ -343,8 +344,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid gtid,
             [FromRoute] string payloadKey)
         {
@@ -373,8 +374,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid gtid,
             [FromRoute] string payloadKey,
             [FromRoute] Int64 start,
@@ -407,8 +408,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [NoSharedSecretOnResponse]
         public async Task<IActionResult> GetThumbnail(
             [FromRoute] string odinId,
-            [FromRoute] string appSlug,
-            [FromRoute] string driveSlug,
+            [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug,
             [FromRoute] Guid gtid,
             [FromRoute] string payloadKey,
             [FromRoute] int width,
@@ -425,7 +426,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return HandlePeerThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
 
-        private async Task<IActionResult> GetPayloadInternal(string odinId, string appSlug, string driveSlug,
+        private async Task<IActionResult> GetPayloadInternal(string odinId, OdinSlug appSlug, OdinSlug driveSlug,
             Guid gtid, string payloadKey, FileChunk chunk)
         {
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);

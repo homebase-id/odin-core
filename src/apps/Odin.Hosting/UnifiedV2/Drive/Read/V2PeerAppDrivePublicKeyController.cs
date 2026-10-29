@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Peer.Incoming.Drive.Query;
@@ -15,7 +16,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     /// <remarks>
     /// The point of the key is writing to a drive you cannot read: seal to the public half and only a
     /// holder of that drive's storage key can open it, so collecting deposits costs the recipient no new
-    /// grant (docs/drive-addressing.md).
+    /// grant (docs/security-model.md, Drive addressing).
     /// <para>
     /// A read has no use for it, so <b>Write on the target drive is required</b> and a caller without it
     /// is refused rather than told the drive is missing — by the time you ask you have already resolved
@@ -40,8 +41,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [HttpGet("public-key")]
-        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKey(string odinId, string appSlug,
-            string driveSlug)
+        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKey([FromRoute] string odinId, [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug)
         {
             OdinValidationUtils.AssertIsValidOdinId(odinId, out var id);
 

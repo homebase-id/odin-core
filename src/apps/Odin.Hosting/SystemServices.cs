@@ -79,7 +79,7 @@ public static class SystemServices
         services.AddSingleton<ILastSeenService, LastSeenService>();
         services.AddSingleton<MemoryDiagnostics>();
 
-        services.AddControllers()
+        services.AddControllers(options => options.ModelBinderProviders.Insert(0, new OdinSlugModelBinderProvider()))
             .AddJsonOptions(options =>
             {
                 foreach (var c in OdinSystemSerializer.JsonSerializerOptions!.Converters)
