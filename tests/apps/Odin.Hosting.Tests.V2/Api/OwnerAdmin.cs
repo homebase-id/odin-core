@@ -19,6 +19,7 @@ using Odin.Services.Drives.Management;
 using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Test.Helpers;
 using Refit;
 
@@ -91,12 +92,16 @@ public sealed partial class OwnerAdmin
         bool allowCdn = false,
         Guid? appId = null,
         OdinSlug driveSlug = default,
-        OdinSlug driveTypeSlug = default)
+        OdinSlug driveTypeSlug = default,
+        DriveSharingModel sharingModel = DriveSharingModel.Collaborative,
+        ZkConvertDriveRequest? zkKeys = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            SharingModel = sharingModel,
+            ZkKeys = zkKeys!,
             TargetDrive = drive,
             Name = name,
             Metadata = string.Empty,

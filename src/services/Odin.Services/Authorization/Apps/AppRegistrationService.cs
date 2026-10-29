@@ -589,8 +589,10 @@ namespace Odin.Services.Authorization.Apps
         {
             var list = await clientRegistrationStorage.GetByTypeAndCategoryIdAsync<AppClientRegistration>(AppClientRegistration.CatType,
                 appId);
+            var zkAppKeyId = AppRegistration.ZkAppKeyId((await GetAppRegistrationInternalAsync(appId))?.ZkMasterKeyEncryptedAppKey);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
+                HoldsZkAppKey = zkAppKeyId != null && appClient.ZkAppKeyId == zkAppKeyId,
                 AppId = appClient.AppId,
                 AccessRegistrationId = appClient.ServerHalfOfClientKey.Id,
                 FriendlyName = appClient.FriendlyName,

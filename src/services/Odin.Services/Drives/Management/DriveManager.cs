@@ -106,6 +106,8 @@ public class DriveManager : IDriveManager
                 OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
+        var zeroKnowledge = request.AssertSharingModel();
+
         var existingDriveByTargetDriveAsync = await _tableDrives.GetByTargetDriveAsync(request.TargetDrive.Alias, request.TargetDrive.Type);
         if (null != existingDriveByTargetDriveAsync)
         {
@@ -160,19 +162,33 @@ public class DriveManager : IDriveManager
         }
 
         var mk = odinContext.Caller.GetMasterKey();
-
-        var driveKey = new SymmetricKeyEncryptedAes(mk);
-
         var id = request.TargetDrive.Alias.Value;
-        var storageKey = driveKey.DecryptKeyClone(mk);
 
-        // Minted here because this is the one moment the storage key is guaranteed to be in hand: it is
-        // derived from the master key two lines up.  Later paths can only reach it through a grant that
-        // carries it, and the caller who most needs the public half -- a stranger fetching it over peer
-        // to deposit -- holds no grant at all, so it cannot be minted on demand for them.
-        var writeOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
+        // A zero-knowledge drive's keys come from the owner's browser, and the server never holds its key: no
+        // master-key copy, and the write-only private key only as the browser locked it with the drive key
+        SymmetricKeyEncryptedAes? driveKey = null;
+        SensitiveByteArray? storageKey = null;
+        EccFullKeyData writeOnlyKeyPair;
+        byte[] encryptedIdIv, encryptedIdValue;
+        if (zeroKnowledge)
+        {
+            writeOnlyKeyPair = DriveWriteOnlyKey.FromPublicKeyJwk(request.ZkKeys.WriteOnlyPublicKeyJwk);
+            encryptedIdIv = request.ZkKeys.EncryptedIdIv64.FromBase64();
+            encryptedIdValue = request.ZkKeys.EncryptedIdValue64.FromBase64();
+        }
+        else
+        {
+            driveKey = new SymmetricKeyEncryptedAes(mk);
+            storageKey = driveKey.DecryptKeyClone(mk);
 
-        (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
+            // Minted here because this is the one moment the storage key is guaranteed to be in hand: it is
+            // derived from the master key two lines up.  Later paths can only reach it through a grant that
+            // carries it, and the caller who most needs the public half -- a stranger fetching it over peer
+            // to deposit -- holds no grant at all, so it cannot be minted on demand for them.
+            writeOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
+
+            (encryptedIdIv, encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
+        }
 
         var driveData = new StorageDriveDetails()
         {
@@ -191,7 +207,7 @@ public class DriveManager : IDriveManager
             DriveId = id,
             DriveName = request.Name,
             DriveType = request.TargetDrive.Type.Value,
-            MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(driveKey),
+            MasterKeyEncryptedStorageKeyJson = driveKey == null ? null : OdinSystemSerializer.Serialize(driveKey),
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(driveData),
@@ -204,8 +220,9 @@ public class DriveManager : IDriveManager
             DriveTypeSlug = driveTypeSlug,
             WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(writeOnlyKeyPair),
 
-            // Every new drive is Collaborative: the server made its key.  Only conversion makes one zero knowledge.
-            SharingModel = (int)DriveSharingModel.Collaborative
+            SharingModel = (int)request.SharingModel,
+            ZkMasterKeyEncryptedStorageKey = request.ZkKeys?.ZkMasterKeyEncryptedStorageKey,
+            ZkStorageKeyEncryptedWriteOnlyPrivateKey = request.ZkKeys?.ZkStorageKeyEncryptedWriteOnlyPrivateKey
         };
 
         try
@@ -217,7 +234,7 @@ public class DriveManager : IDriveManager
         }
         finally
         {
-            storageKey.Wipe();
+            storageKey?.Wipe();
         }
 
         var storageDrive = ToStorageDrive(ToStorageDriveData(record));
