@@ -44,11 +44,9 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     private readonly AsyncReaderWriterLock _lock = new();
     private readonly Dictionary<string, ScopedAbstractBackgroundService> _backgroundServices = new();
     private readonly string _correlationId = Guid.NewGuid().ToString();
-    // Set by StopAllAsync, cleared by the next start: every service was stopped on purpose (e.g. a paused
-    // tenant), so a missing service is expected rather than not started yet.
-    private volatile bool _allStopped;
-    // Services stopped on purpose one by one, until created again. Their own in-flight work may still notify them.
-    private readonly HashSet<string> _stopped = new();
+    // Services notified while not registered: not started yet (a tenant's services start before the system ones),
+    // or stopped on purpose. Each is woken as soon as it is created again, so the wake-up is not lost.
+    private readonly HashSet<string> _pendingWakeUps = new();
     // Services removed from _backgroundServices whose stop has not completed yet
     private int _stoppingCount;
     private readonly ILogger<BackgroundServiceManager> _logger = lifetimeScope.Resolve<ILogger<BackgroundServiceManager>>();
@@ -89,9 +87,13 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
                 throw new InvalidOperationException($"Background service '{serviceIdentifier}' already exists.");
             }
 
-            _stopped.Remove(serviceIdentifier);
             var serviceScope = lifetimeScope.BeginLifetimeScope($"{serviceIdentifier}:{Guid.NewGuid()}");
             var backgroundService = serviceScope.Resolve<T>();
+            if (_pendingWakeUps.Remove(serviceIdentifier))
+            {
+                // The wake-up event stays set until the service's first sleep, which then returns at once
+                backgroundService.InternalNotifyWorkAvailable();
+            }
             var scopedService = new ScopedAbstractBackgroundService(serviceScope, backgroundService);
             _backgroundServices.Add(serviceIdentifier, scopedService);           
             
@@ -131,7 +133,6 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             var correlationContext = scopedService.Scope.Resolve<ICorrelationContext>();
             correlationContext.Id = newCorrelationId;
 
-            _allStopped = false;
             await scopedService.BackgroundService.InternalStartAsync(_stoppingCts.Token);
         }
     }
@@ -159,7 +160,6 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         {
             if (_backgroundServices.Remove(serviceIdentifier, out scopedAbstractBackgroundService))
             {
-                _stopped.Add(serviceIdentifier);
                 // Counted under the same lock, so IsRunning never sees the service as gone before its stop completes
                 Interlocked.Increment(ref _stoppingCount);
             }
@@ -191,8 +191,6 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     public async Task StopAllAsync()
     {
-        // Before stopping: a service finishing its work may notify a sibling that is already gone
-        _allStopped = true;
         List<string> identifiers;
         using (await _lock.ReaderLockAsync())
         {
@@ -215,54 +213,32 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     {
         ArgumentException.ThrowIfNullOrEmpty(serviceIdentifier);
 
-        ScopedAbstractBackgroundService? backgroundService;
-        const int attempts = 30;
-        for (var attempt = 0; ; attempt++)
+        if (_stoppingCts.IsCancellationRequested)
         {
-            using (await _lock.ReaderLockAsync())
-            {
-                if (_stopped.Contains(serviceIdentifier))
-                {
-                    // Stopped on purpose, not yet started: nothing to wake
-                    return;
-                }
-                _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
-            }
+            return;
+        }
 
-            if (backgroundService != null)
+        using (await _lock.ReaderLockAsync())
+        {
+            if (_backgroundServices.TryGetValue(serviceIdentifier, out var backgroundService))
             {
-                break;
-            }
-
-            if (_allStopped)
-            {
-                // Nothing to wake: the services were stopped on purpose and will catch up when started again
-                return;
-            }
-
-            if (attempt == attempts)
-            {
-                if (_stoppingCts.IsCancellationRequested)
-                {
-                    return;
-                }
-                throw new InvalidOperationException(
-                    $"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
-            }
-
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(1), _stoppingCts.Token);
-            }
-            catch (OperationCanceledException)
-            {
+                backgroundService.BackgroundService.InternalNotifyWorkAvailable();
                 return;
             }
         }
 
-        if (!_stoppingCts.IsCancellationRequested)
+        // Not registered: record it for Create rather than wait for it, so a caller never blocks on a service
+        // that starts later or not at all
+        using (await _lock.WriterLockAsync())
         {
-            backgroundService.BackgroundService.InternalNotifyWorkAvailable();
+            if (_backgroundServices.TryGetValue(serviceIdentifier, out var backgroundService))
+            {
+                backgroundService.BackgroundService.InternalNotifyWorkAvailable();
+            }
+            else
+            {
+                _pendingWakeUps.Add(serviceIdentifier);
+            }
         }
     }
 
