@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using System;
+using Odin.Services.Configuration.VersionUpgrade.Version19tov20;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -71,6 +72,7 @@ namespace Odin.Services.Authorization.Apps
             var declaredCircles = request.Circles ?? [];
             await circleDefinitionService.AssertDeclaredCirclesAsync(declaredCircles, request.AppId, drives,
                 request.PermissionSet!);
+            await AssertCirclesExistAsync(request.AuthorizedCircles);
 
             var appGrant = await exchangeGrantService.CreateExchangeGrantAsync(
                 keyStoreKey, request.PermissionSet!, drives, new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
@@ -164,6 +166,10 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
+            // Only the circles this request adds: a registration may already hold one that is gone (a retired
+            // system circle, a deleted circle), and the version upgrades pass stored lists back through here
+            await AssertCirclesExistAsync(request.AuthorizedCircles?.Except(oldRegistration.AuthorizedCircles ?? []));
+
             var updatedAppReg = new AppRegistration()
             {
                 AppId = oldRegistration.AppId,
@@ -184,6 +190,29 @@ namespace Odin.Services.Authorization.Apps
 
             await NotifyAppChanged(oldRegistration, updatedAppReg, odinContext);
             await ResetAppPermissionContextCacheAsync();
+        }
+
+        /// <summary>
+        /// An app may only be authorized for circles this identity has (#2001). A retired system circle (Confirmed
+        /// Connections, Auto Connections, deleted by #1809) has no members to reconcile, so authorizing it silently
+        /// grants nothing; it is refused with a pointer to app-owned circles instead.
+        /// </summary>
+        private async Task AssertCirclesExistAsync(IEnumerable<Guid>? circleIds)
+        {
+            foreach (var circleId in (circleIds ?? []).Distinct())
+            {
+                if (await circleDefinitionService.GetCircleAsync(circleId) != null)
+                {
+                    continue;
+                }
+
+                throw new OdinClientException(
+                    V19ToV20VersionMigrationService.RetiredSystemCircleIds.Contains(circleId)
+                        ? $"Circle {circleId} was retired (Confirmed Connections and Auto Connections no longer exist); " +
+                          "an app that wants to reach people should own a circle and add them to it"
+                        : $"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
         }
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName,

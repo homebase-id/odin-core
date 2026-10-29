@@ -853,12 +853,13 @@ public class CircleNetworkServiceTests : V2Fixture
             authorizedCircles: cids.Select(c => c.Value).ToList(),
             circleMemberGrantRequest: circleMemberGrantRequest);
 
+        // The circles are Frodo's: on Sam's identity they do not exist, and an app can only be authorized for
+        // circles its identity has (#2001)
         var recipient = await SetupTestSampleAppAsync(samOwner,
             TestIdentities.Samwise,
             appId,
             canReadConnections: true,
             targetDrive: appTargetDrive,
-            authorizedCircles: cids.Select(c => c.Value).ToList(),
             circleMemberGrantRequest: circleMemberGrantRequest);
 
         var id = Guid.NewGuid();
