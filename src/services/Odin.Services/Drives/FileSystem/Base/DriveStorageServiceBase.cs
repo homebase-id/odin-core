@@ -534,7 +534,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// Why a payload or thumbnail read failed, asked in a fixed order: still arriving in a payload move
         /// (404, retry later), then replaced since the caller resolved it (see
-        /// <see cref="AssertPayloadVersionHasNotMovedAsync"/>). Returns quietly if neither; the caller rethrows.
+        /// <see cref="AssertPayloadVersionHasNotMovedAsync"/>), then gone: the file is missing and nothing will
+        /// bring it (<see cref="OdinPayloadGoneException"/>, 410, #1913). Returns quietly only for a read that
+        /// failed with the file there; the caller rethrows.
         /// </summary>
         private async Task ExplainMissingPayloadAsync(
             InternalDriveFileId file,
@@ -544,12 +546,22 @@ namespace Odin.Services.Drives.FileSystem.Base
             Exception inner,
             PayloadDescriptor currentInHand = null)
         {
-            if (inner is OdinFileHeaderHasCorruptPayloadException)
+            var isMissing = inner is OdinFileHeaderHasCorruptPayloadException;
+            if (isMissing)
             {
                 await payloadMoveArrivals.AssertNotStillArrivingAsync();
             }
 
             await AssertPayloadVersionHasNotMovedAsync(file, payloadKey, resolvedUid, odinContext, inner, currentInHand);
+
+            if (isMissing)
+            {
+                // Logged here, not as the 500 it used to be: a source that never had it, or a store that lost it
+                _logger.LogWarning(inner, "Payload {payloadKey} on file {fileId} is named by its header but not in the store",
+                    payloadKey, file.FileId);
+                throw new OdinPayloadGoneException(
+                    $"Payload '{payloadKey}' on file {file.FileId} is not available and will not be.", inner);
+            }
         }
 
         /// <summary>
@@ -561,9 +573,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// while the file itself is fine -- a 500 tells the caller "the server broke" when the truth is
         /// "that version is gone", and a re-read gets them the new one.
         /// <para>
-        /// Whether the version moved is the whole difference between a client error and a server one, so
+        /// Whether the version moved is the difference between "re-read the header" and "it is gone", so
         /// it is asked rather than assumed: if the current header still names the uid whose file is
-        /// missing, the store really has lost data and the caller keeps the fault it had.
+        /// missing, the payload really is gone, and <see cref="ExplainMissingPayloadAsync"/> says so.
         /// </para>
         /// </remarks>
         private async Task AssertPayloadVersionHasNotMovedAsync(
