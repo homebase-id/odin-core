@@ -197,6 +197,34 @@ public class ExceptionHandlingMiddlewareTest
             "the code is what tells a client to re-read the header rather than retry the same url");
     }
 
+    /// <summary>
+    /// A payload nothing will bring is a 410 that no cache keeps (#1913). Pinned like the 404 above: its
+    /// catch is ordered ahead of <c>OdinClientException</c>'s, or it would be a 400.
+    /// </summary>
+    [Test]
+    public async Task PayloadGoneExceptionIsGone()
+    {
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await Task.CompletedTask;
+            throw new OdinPayloadGoneException("that payload is gone", new Exception("inner"));
+        });
+        var client = server.CreateClient();
+
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Gone));
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True, "a cache must not keep it, in case it is restored");
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo((int)HttpStatusCode.Gone));
+        Assert.That(problems.Title, Is.EqualTo("that payload is gone"));
+        Assert.That(Enum.Parse<OdinClientErrorCode>(problems.Extensions["errorCode"].ToString()!, true),
+            Is.EqualTo(OdinClientErrorCode.PayloadGone));
+    }
+
     [Test]
     public async Task InternalServerErrorExceptionInProduction()
     {
