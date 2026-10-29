@@ -727,9 +727,11 @@ P-384 public key (97 bytes) ‖ 12-byte IV ‖ AES-GCM`. The phrase pair's seal 
   9019). The owner may update a deposit with a zkDrive key header; nothing adds payloads to one.
 - Converting the Shard Recovery drive deletes the deposits sealed to the old write-only key. It
   still refuses files locked with the drive key.
-- **Limit: a deposit has no payloads.** A payload's key header leaves in a fixed-size response
-  header (`SharedSecretEncryptedHeader64`: IV 16, key 48, version 4), which a sealed one doesn't fit.
-  Chat and Mail attachments will need that changed.
+- **Limit: a deposit has no payloads.** It was first because a payload's key header left in a
+  fixed-size response header (`SharedSecretEncryptedHeader64`: IV 16, key 48, version 4), which a
+  sealed one doesn't fit. Step 1 of zero-knowledge-drive-api-plan.md dropped that header for every
+  client-locked file, so what keeps the limit now is only that nothing needs payloads yet
+  (`Deposits`). Chat and Mail attachments lift it.
 
 **`configure-shards`** takes `{ minMatchingShards, shards: [DealtShard], shamirCopies }`
 (`ConfigureShardsRequest`). The server refuses:

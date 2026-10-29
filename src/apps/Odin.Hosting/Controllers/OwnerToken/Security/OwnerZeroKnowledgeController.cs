@@ -1,9 +1,13 @@
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.Apps;
+using Odin.Services.Drives.Management;
 using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
@@ -20,7 +24,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 public class OwnerZeroKnowledgeController(
     ZeroKnowledgeKeyService zeroKnowledgeKeyService,
     ZeroKnowledgeRecoveryService recoveryService,
-    OwnerAuthenticationService ownerAuthenticationService) : OdinControllerBase
+    OwnerAuthenticationService ownerAuthenticationService,
+    IAppRegistrationService appRegistrationService,
+    ZkDriveConversionService driveConversionService) : OdinControllerBase
 {
     /// <summary>
     /// What the browser needs after login: its locked master key and salt (null until it makes them),
@@ -78,6 +84,49 @@ public class OwnerZeroKnowledgeController(
     {
         var key = await ownerAuthenticationService.GetZkSessionKeyAsync(WebOdinContext);
         return new ZkSessionKeyResponse { SessionKey64 = key.ToBase64() };
+    }
+
+    /// <summary>
+    /// Every app's zero-knowledge keys: its key and the drive keys locked with it, for the consent page and the login
+    /// backfill (docs/zero-knowledge-drive-api-plan.md, step 3).
+    /// </summary>
+    [HttpGet("app-keys")]
+    public async Task<List<ZkAppKeysResponse>> GetAppKeys()
+    {
+        return await appRegistrationService.GetZkAppKeysAsync(WebOdinContext);
+    }
+
+    /// <summary>What the browser locked for an app: its key if it had none, and copies of drive keys.</summary>
+    [HttpPost("app-keys")]
+    public async Task<IActionResult> SaveAppKeys([FromBody] ZkAppKeysRequest request)
+    {
+        await appRegistrationService.SaveZkAppKeysAsync(request, WebOdinContext);
+        return Ok();
+    }
+
+    /// <summary>The key of a drive about to be converted, for the browser to re-lock: the server's last look at it.</summary>
+    [HttpGet("drives/{driveId:guid}/key-for-conversion")]
+    public async Task<ZkDriveKeyResponse> GetDriveKeyForConversion(Guid driveId)
+    {
+        return new ZkDriveKeyResponse { StorageKey64 = await driveConversionService.GetDriveKeyForConversionAsync(driveId, WebOdinContext) };
+    }
+
+    /// <summary>Converts a drive to zero knowledge while it keeps its key.</summary>
+    [HttpPost("convert-drive")]
+    public async Task<IActionResult> ConvertDrive([FromBody] ZkConvertDriveKeepingKeyRequest request)
+    {
+        await driveConversionService.ConvertDriveKeepingKeyAsync(request, WebOdinContext);
+        return Ok();
+    }
+
+    /// <summary>
+    /// The built-in Private or SelectiveShare drives the identity doesn't have yet, for the browser to create at a
+    /// password login with its own keys (POST drive/mgmt/create, with each request's model and the keys).
+    /// </summary>
+    [HttpGet("missing-drives")]
+    public async Task<List<CreateDriveRequest>> GetMissingDrives()
+    {
+        return await zeroKnowledgeKeyService.GetMissingZeroKnowledgeDrivesAsync(WebOdinContext);
     }
 
     /// <summary>Gives the Shard Recovery drive new keys made in the browser.</summary>

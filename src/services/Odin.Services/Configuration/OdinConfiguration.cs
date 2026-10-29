@@ -353,6 +353,11 @@ public class OdinConfiguration
         /// </summary>
         public TimeSpan OutboxRetryLaterMaxAge { get; init; }
 
+        /// <summary>
+        /// How long this identity caches a peer drive's write-only public key (docs/drive-public-keys-plan.md).
+        /// </summary>
+        public TimeSpan PeerDriveKeyCacheAge { get; init; }
+
         public TimeSpan PeerOperationDelayMs { get; init; }
 
         /// <summary>
@@ -419,6 +424,13 @@ public class OdinConfiguration
             if (OutboxRetryLaterMaxAge <= TimeSpan.Zero)
             {
                 throw new OdinConfigException("Invalid OutboxRetryLaterMaxAgeSeconds");
+            }
+
+            PeerDriveKeyCacheAge =
+                TimeSpan.FromSeconds(config.GetOrDefault("Host:PeerDriveKeyCacheSeconds", 7 * 24 * 60 * 60));
+            if (PeerDriveKeyCacheAge < FusionCacheWrapper.MinL2Duration)
+            {
+                throw new OdinConfigException($"PeerDriveKeyCacheSeconds must be at least {FusionCacheWrapper.MinL2Duration.TotalSeconds}");
             }
 
             ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");

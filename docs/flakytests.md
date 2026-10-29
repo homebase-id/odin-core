@@ -122,6 +122,12 @@ hosts' watchers. Sampled failures passed on their own (35/35), and the next full
 alone, passed 1767/1767. The desktop held 90 of 128 instances during a run on 2026-10-27. Run one full V2
 suite at a time.
 
+**Seen again 2026-10-27** on `zk-drive-step-3`: about 40+ failures across unrelated fixtures (local tags, mail
+activation, notifications), each in 5-30 ms. Other sessions' Gradle/Kotlin daemons (chat-kmp builds) were running,
+and 99 of the 128 instances were held right after the run. A sample (CanGetListOfNotifications,
+ItShouldRejectBadInput, CanQueryBatchByLocalTagsMatchAll) passed on its own, 7/7. Another session's build daemons
+count against the same per-user limit as the desktop does.
+
 ---
 
 ## `Odin.Hosting.Tests.V2.Ported.Peer.TemporalReadTests`

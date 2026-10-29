@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -29,5 +30,31 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public OdinSlug DriveSlug { get; set; }
 
         public OdinSlug DriveTypeSlug { get; set; }
+
+        /// <summary>
+        /// When the drive was made, Unix ms.  A drive deleted and made again keeps its id and slugs, so this is how
+        /// a client tells it from the one before (#2038): compare it for a change, not for order, since the clocks
+        /// of the hosts that made the two need not agree.  Set by the V2 drive answers (<see cref="From"/>).
+        /// </summary>
+        public UnixTimeUtc? Created { get; set; }
+
+        /// <summary>
+        /// What the drive is: Collaborative, Private or SelectiveShare (docs/zero-knowledge-drive-api-plan.md, 4.2).  On a
+        /// zero-knowledge drive the app's own copy of the key can lag behind: a grant with none means sign in again.
+        /// </summary>
+        public DriveSharingModel? SharingModel { get; set; }
+
+        /// <summary>The whole drive, as the V2 answers give it to an owner or an app.</summary>
+        public static ClientDriveData From(StorageDrive drive) => new()
+        {
+            TargetDrive = drive.TargetDriveInfo,
+            Name = drive.Name,
+            Attributes = drive.Attributes,
+            AppId = drive.AppId,
+            DriveSlug = drive.DriveSlug,
+            DriveTypeSlug = drive.DriveTypeSlug,
+            Created = drive.Created,
+            SharingModel = drive.SharingModel
+        };
     }
 }

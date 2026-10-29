@@ -9,6 +9,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Services.Drives;
 
@@ -44,11 +45,12 @@ public static class ZkDriveFiles
         AssertDriveTakes(drive, sent.Type);
         if (sent.IsSealed())
         {
-            if (drive.IsZeroKnowledge && CallerHoldsDriveKey(odinContext))
+            if (drive.IsZeroKnowledge && CallerHoldsDriveKey(drive.Id, odinContext))
             {
                 ThrowNotItsOwnKeyHeader();
             }
 
+            AssertSealedToItsKey(drive, sent);
             return new ClientLockedKeyHeader(sent);
         }
 
@@ -86,6 +88,32 @@ public static class ZkDriveFiles
         }
 
         AssertDriveTakes(drive, keyHeader?.Type ?? EncryptionType.Aes);
+        if (keyHeader?.IsSealed() == true)
+        {
+            AssertSealedToItsKey(drive, keyHeader);
+        }
+    }
+
+    /// <summary>
+    /// A deposit must be sealed to the drive's write-only key, which the seal names by its key id: one sealed to any
+    /// other key could never be opened.  Refused rather than stored, so the sender learns its copy of the public key
+    /// is out of date (docs/drive-public-keys-plan.md).  Not on the transient drive, where a sender's deposit waits to
+    /// go to another identity's drive.  Its shape first: the update paths check it nowhere else, and a malformed one
+    /// is told so rather than that its key is unknown.
+    /// </summary>
+    private static void AssertSealedToItsKey(StorageDrive drive, EncryptedKeyHeader sealedKeyHeader)
+    {
+        if (SystemDriveConstants.IsTransientTempDrive(drive.Id))
+        {
+            return;
+        }
+
+        sealedKeyHeader.AssertValidSealed();
+        if (!drive.IsSealedToWriteOnlyKey(sealedKeyHeader.EncryptedAesKey))
+        {
+            throw new OdinClientException("Sealed to a key this drive doesn't hold; fetch its public key again",
+                OdinClientErrorCode.SealedToUnknownKey);
+        }
     }
 
     /// <summary>
@@ -133,13 +161,19 @@ public static class ZkDriveFiles
     }
 
     /// <summary>
-    /// Whether the caller holds a zero-knowledge drive's key, so may read and write its own files.  Only
-    /// the owner console, for now: it opens the drive's key with the zero-knowledge master key.  An app
-    /// learns the drive's key only at consent (docs/zero-knowledge-drives.md, item 4); an app that can't
-    /// open a key header must not be handed one (chat-kmp stalls its whole sync on it), and one that
-    /// can't lock a key header can only write junk over the owner's.
+    /// Whether the caller holds zero-knowledge drive <paramref name="driveId"/>'s key, so may read and write its
+    /// own files: the owner console, which opens the drive's key with the zero-knowledge master key, or a device
+    /// that was handed its app's zero-knowledge key at sign-in, of an app holding a locked copy of this drive's key
+    /// (docs/zero-knowledge-drive-api-plan.md, step 3).  Any other device of an app, an older build among them,
+    /// is not: an app that can't open a key header must not be handed one (chat-kmp stalls its whole sync on it),
+    /// and one that can't lock a key header can only write junk over the owner's.
     /// </summary>
-    public static bool CallerHoldsDriveKey(IOdinContext odinContext) => odinContext.Caller?.HasMasterKey == true;
+    public static bool CallerHoldsDriveKey(Guid driveId, IOdinContext odinContext)
+    {
+        var caller = odinContext.Caller;
+        return caller?.HasMasterKey == true ||
+               caller?.OdinClientContext is { HoldsZkAppKey: true, ZkDriveKeys: { } keys } && keys.ContainsKey(driveId);
+    }
 
     /// <summary>
     /// Whether <paramref name="header"/> may reach the caller: a client-locked file only reaches one
@@ -158,7 +192,7 @@ public static class ZkDriveFiles
     /// </remarks>
     public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
         !IsClientLocked(header) || SystemDriveConstants.IsTransientTempDrive(header!.FileMetadata.File.DriveId) ||
-        CallerHoldsDriveKey(odinContext) || odinContext.Caller?.IsSystem == true;
+        CallerHoldsDriveKey(header.FileMetadata.File.DriveId, odinContext) || odinContext.Caller?.IsSystem == true;
 
     /// <summary>Refuses a file the caller may not see (<see cref="VisibleTo"/>), as a read by id does</summary>
     public static void AssertVisibleTo(ServerFileHeader header, IOdinContext odinContext)
@@ -171,7 +205,7 @@ public static class ZkDriveFiles
 
     private static void AssertCallerHoldsDriveKey(Guid driveId, IOdinContext odinContext)
     {
-        if (!CallerHoldsDriveKey(odinContext))
+        if (!CallerHoldsDriveKey(driveId, odinContext))
         {
             ThrowNoAccess(driveId);
         }

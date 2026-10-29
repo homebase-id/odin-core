@@ -15,6 +15,8 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.Management;
+using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Services.Email;
 
@@ -33,11 +35,15 @@ namespace Odin.Services.Email;
 /// keyring exists", by construction.
 ///
 /// The keyring is encrypted at rest like any drive file, under a key header the caller's own
-/// storage key protects. Owner-only ACL, never distributed.
+/// storage key protects. Owner-only ACL, never distributed.  On a zero-knowledge Email drive the server
+/// holds no storage key: the file key is sealed to the drive's write-only public key instead, as a deposit
+/// is, so only the owner's devices open the keyring once it is written
+/// (docs/zero-knowledge-drive-api-plan.md, 4.8).  The server still made the key, and saw it then.
 /// </summary>
 public class EmailKeyMaterialWriter(
     ILogger<EmailKeyMaterialWriter> logger,
-    StandardFileSystem fileSystem)
+    StandardFileSystem fileSystem,
+    IDriveManager driveManager)
 {
     // The client will not be allowed to rewrite anything larger than its own 7000-byte header
     // budget, so hold to the tighter of the two limits rather than the server's 10KB.
@@ -54,8 +60,6 @@ public class EmailKeyMaterialWriter(
         string userId,
         IOdinContext odinContext)
     {
-        AssertCanResolveStorageKey(odinContext);
-
         var uniqueId = Guid.NewGuid();
         var content = new EmailKeyMaterialContent
         {
@@ -82,8 +86,6 @@ public class EmailKeyMaterialWriter(
         string fingerprintHex,
         IOdinContext odinContext)
     {
-        AssertCanResolveStorageKey(odinContext);
-
         var content = new EmailCurrentKeyContent
         {
             KeyFileUniqueId = keyFileUniqueId,
@@ -102,14 +104,33 @@ public class EmailKeyMaterialWriter(
 
     private async Task WriteFileAsync<T>(int fileType, Guid uniqueId, T content, IOdinContext odinContext)
     {
-        var existing = await FindByUniqueIdAsync(uniqueId, odinContext);
+        var drive = await driveManager.GetDriveAsync(DriveId, failIfInvalid: true);
+        if (!drive.IsZeroKnowledge)
+        {
+            AssertCanResolveStorageKey(odinContext);
+        }
+        else if (!ZkDriveFiles.CallerHoldsDriveKey(DriveId, odinContext))
+        {
+            // Before anything is written: such a device couldn't read the keyring, nor overwrite the pointer, a sealed
+            // file, so it would only leave a keyring nothing points at
+            throw new OdinClientException("The Email drive is private and this device holds no key to it; sign in again",
+                OdinClientErrorCode.ZkAppKeyMissing);
+        }
+
+        // Skipping the file's ACL: a pointer the server wrote is found whoever asks; the write still runs as the caller
+        var existing = await fileSystem.Query.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(DriveId, uniqueId, odinContext);
 
         var file = existing?.FileMetadata.File
                    ?? await fileSystem.Storage.CreateInternalFileId(DriveId, odinContext);
 
-        var keyHeader = KeyHeader.NewRandom16();
+        var fileKey = KeyHeader.NewRandom16();
         var json = OdinSystemSerializer.Serialize(content);
-        var storedContent = keyHeader.EncryptDataAes(json.ToUtf8ByteArray()).ToBase64();
+        var storedContent = fileKey.EncryptDataAes(json.ToUtf8ByteArray()).ToBase64();
+
+        // Stored as sealed on a zero-knowledge drive, which takes only keys a client could have locked
+        var keyHeader = drive.IsZeroKnowledge
+            ? new ClientLockedKeyHeader(EncryptedKeyHeader.SealedTo(fileKey, drive.WriteOnlyKeyPair.PublicKeyJwk()))
+            : fileKey;
 
         if (storedContent.ToUtf8ByteArray().Length > MaxHeaderContentBytes)
         {
@@ -150,27 +171,6 @@ public class EmailKeyMaterialWriter(
         {
             await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
         }
-    }
-
-    private async Task<ServerFileHeader?> FindByUniqueIdAsync(Guid uniqueId, IOdinContext odinContext)
-    {
-        var results = await fileSystem.Query.GetBatch(
-            DriveId,
-            new FileQueryParams
-            {
-                ClientUniqueIdAtLeastOne = [uniqueId],
-            },
-            new QueryBatchResultOptions { MaxRecords = 1 },
-            odinContext);
-
-        var match = results.SearchResults.FirstOrDefault();
-        if (match == null)
-        {
-            return null;
-        }
-
-        return await fileSystem.Storage.GetServerFileHeader(
-            new InternalDriveFileId { DriveId = DriveId, FileId = match.FileId }, odinContext);
     }
 
     /// <summary>

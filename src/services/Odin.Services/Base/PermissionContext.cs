@@ -309,11 +309,12 @@ namespace Odin.Services.Base
             return false;
         }
 
-        public RedactedPermissionContext Redacted()
+        /// <param name="app">An app caller's zero-knowledge drives and its locked keys to them, shown on their grants</param>
+        public RedactedPermissionContext Redacted(OdinClientContext app = null)
         {
             return new RedactedPermissionContext()
             {
-                PermissionGroups = PermissionGroups.Values.Select(pg => pg.Redacted()),
+                PermissionGroups = PermissionGroups.Values.Select(pg => pg.Redacted(app)),
             };
         }
     }

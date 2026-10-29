@@ -1,6 +1,6 @@
 # Zero-knowledge drive API: plan
 
-Status: step 1 built and merged (#2023, follow-up #2027). Step 2 built on branch `zk-drive-step-2` (2026-10-27). It details items 1-3 and 6 of
+Status: step 1 built and merged (#2023, follow-up #2027). Step 2 merged (#2029, odin-js #1006, 2026-10-27). Step 3 (Vault) built 2026-10-27 on branch `zk-drive-step-3` (odin-core and odin-js), not yet pushed. It details items 1-3 and 6 of
 "odin-core API changes" in [zero-knowledge-drives.md](zero-knowledge-drives.md). Key names follow
 [owner-keys.md](owner-keys.md).
 
@@ -36,6 +36,14 @@ Status: step 1 built and merged (#2023, follow-up #2027). Step 2 built on branch
    - Shamir leaves its shards `sealed`; approval unseals the one it needs.
    - The deposit exceptions on drive files fold into the two rules (2.8).
    - Chat reuses this step.
+3. **Vault goes private** ([Step 3](#step-3-vault-goes-private)): a zero-knowledge app key (`AppZkK`)
+   reaches each device at sign-in and opens the app's drive keys; the owner converts Vault in the
+   console; the drive keeps its key, re-locked with ZKMK; every grant loses its copy; every file is
+   relabelled `zkDrive`.
+
+4. **An app asks for the model** ([Step 4](#step-4-an-app-asks-for-the-model)): a new drive is created
+   Private or Selective Share when its app asks, never created and converted; Filesync's existing drive
+   upgrades to Selective Share from Chat's banner.
 
 Each step is its own PR (pair), and each targets main.
 
@@ -362,6 +370,421 @@ bytes) **(V, measured)**:
   times slower) and chat-kmp's Kotlin crypto **(I)**. Shamir's few shards cost nothing noticeable; for
   Chat it argues for transforming once rather than unsealing on every read.
 
+## Step 3: Vault goes private
+
+Status: built 2026-10-27 on branch `zk-drive-step-3` (odin-core and odin-js); chat-kmp built in parallel on its branch `vault-zero-knowledge`. **(V)** = read in code on 2026-10-27; **(I)** = inferred, to
+check while building. Decided with the user:
+- keep the drive key, re-locked from the master key to the zero-knowledge master key (no new key, no
+  re-encryption); anything else is too complex for now;
+- the owner converts Vault in the owner console; each app device gets the key at its next sign-in;
+- **a zero-knowledge app key (`AppZkK`)** carries drive keys to an app. ZKMK never leaves the browser.
+
+### 3.1 The zero-knowledge app key
+Today an app reaches its drive keys through a chain the server opens on every request: the device's
+token half opens the app's key store key (`ClientKeyEncryptedKeyStoreKey`), which opens the drive key on
+each of the app's grants (`KeyStoreKeyEncryptedStorageKey`) **(V)**. `AppZkK` is that chain's
+zero-knowledge twin, opened only on the owner's devices:
+
+| Today (the server opens) | Zero knowledge (the device opens) |
+|---|---|
+| device token half → app key store key | `AppZkK`, sealed to the device once, through YouAuth |
+| key store key → drive key on each grant | `AppZkK` → each zero-knowledge drive key the app is granted, locked by the browser |
+| master key → key store key | `ZKMK` → `AppZkK` (the browser's copy) |
+
+- **Made:** 16 random bytes, by the browser, the first time an app needs it (a sign-in or a conversion).
+  Not derived from ZKMK (`hkdf(ZKMK, appId)`): one app's key could then never be replaced on its own, and
+  a new ZKMK after a reset would change every app's key.
+- **Stored on the app registration** (server, opaque to it):
+  - `EncAppZkK = aes(ZKMK, AppZkK)` (`zkLock`), for the browser;
+  - one `aes(AppZkK, DrvK)` per zero-knowledge drive the app is granted, keyed by drive id, for the app.
+    On the registration, not on the grant: the server re-mints an app's grants without the browser
+    (`UpdateAppPermissionsAsync`) **(V)**, which would drop a field it can't make.
+- **Delivered once per device, through YouAuth** (3.2). From then on the device fetches its locked drive keys
+  like any other app data (3.4), so a drive converted or granted later reaches every device that already
+  holds `AppZkK`, with no new sign-in.
+- **Accepted:** every device of an app shares `AppZkK`, so revoking one device doesn't replace it. The
+  same "no rotation on removal" risk as drive keys (zero-knowledge-drives.md, decisions).
+- Every device of every app holds only `AppZkK` and the drive keys it opens, never ZKMK.
+
+### 3.2 The flow
+Two independent steps: the owner converts the drive in the console, and each app device gets `AppZkK` at
+its next sign-in. Nothing new carries a key to an app beyond one field in the sign-in it already does.
+
+1. **The owner opts in from the Vault app** (decided 2026-10-27). While Vault isn't private, the Vault
+   screen in chat-kmp shows a section at the top: "Click to change your Vault Drive to true zero knowledge
+   encryption". It opens the owner console's login page as the password confirm,
+   `/owner/login?redeal=vault-private&returnUrl=…`, which asks for the password even when the owner is
+   logged in. After the password, the browser makes Vault private and sends the owner back to `returnUrl`:
+   same origin (web Chat), one of our own `homebase…://` app schemes (the rule the signup's return already
+   uses, `isAppReturnUrl`), or a desktop app's loopback listener (`http://localhost:{port}/…`).
+   If the server still holds the recovery phrase, the browser takes it over first, as a login does: a reset
+   with that phrase brings back only today's master key, so it would lose ZKMK and with it Vault's key. The
+   browser then converts the drive (3.3) and locks `DrvK` with the `AppZkK` of every app granted the drive,
+   making one for an app that has none. The Vault app's section ships with chat-kmp's zero-knowledge client:
+   once Vault is private, a device must sign in again with `zk_app_key=1`, or it sees Vault empty.
+2. **Every sign-in of an app that reads zero-knowledge drives carries `AppZkK`.** The app says so in its
+   authorize request; the consent page opens (or makes) the app's `AppZkK`, seals it to the request's
+   public key, and posts it with the consent; the server carries it untouched in the token exchange, as one
+   new field (`ZkAppKey`) of `EncryptedTokenExchange` / `YouAuthTokenResponse`, and marks the new token's
+   device record (3.4).
+   - The field is the minimum: today the exchange carries only what the server made, the shared secret and
+     the client token (`EncryptedTokenExchange`) **(V)**, and `AppZkK` can only come from the browser.
+   - Sealing it to the key the token exchange is already bound to adds no gap (zero-knowledge-drives.md,
+     "Same protection, same limits").
+   - Only `AppZkK` travels in the sign-in. The drive keys stay on the server, each locked with `AppZkK`,
+     and reach the app through its security context (3.5).
+   - **The consent page backfills** what the app is missing first (below).
+3. **The app opens `ZkAppKey`** with its private key, keeps `AppZkK` in `SecureStorage`, and fetches its
+   locked drive keys (3.4).
+
+**Backfill at consent (decided 2026-10-27).** Before sealing, the consent page makes sure the app is
+complete, whatever was defined before step 3:
+- **No `AppZkK` yet:** the browser makes one and posts `EncAppZkK = aes(ZKMK, AppZkK)` with the consent.
+- **A zero-knowledge drive granted to the app without a locked copy** (the Shard Recovery drive, converted
+  before step 3; a grant made later without the browser, such as built-in provisioning at a version upgrade,
+  `BuiltinProvisioner` **(V)**): the browser opens `DrvK` from the drive's `aes(ZKMK, DrvK)`
+  (`StorageDrive.ZkMasterKeyEncryptedStorageKey` **(V)**), locks it with `AppZkK`, and posts it with the
+  consent.
+- The server hands the page what it needs: the app's `EncAppZkK` (if any), and for each zero-knowledge
+  drive the app is granted, whether a locked copy exists and the drive's `aes(ZKMK, DrvK)`. It stores a
+  posted copy only for a zero-knowledge drive the app is granted, and only on the app it is for.
+- Whether any app holds a grant on the Shard Recovery drive today is unchecked (I); the backfill covers
+  it either way.
+
+**Backfill at the console's password login (decided 2026-10-27, built with step 3):** the same check for every app, so an app whose
+devices don't sign in again still gets the locked copy of a drive granted to it. The console already runs a
+login check of this kind: `ensureZeroKnowledgeKeys` converts the Shard Recovery drive when its zero-knowledge
+copy doesn't open **(V)**.
+
+**How an existing device gets there:** it signs in again. Logging out and in works with no other app
+change, but chat-kmp clears its local data and resyncs. Optional, in chat-kmp: a banner on the Vault screen
+that re-runs the sign-in without clearing data: a new token doesn't revoke the old one
+(`YouAuthUnifiedService.CreateClientAccessTokenAsync` refuses only a revoked app) **(V)**, so the app
+moves to the new token and keeps its data.
+
+Until a device signs in again it has no mark, so it sees the converted drive as empty (3.4).
+
+### 3.3 Server: converting a drive that keeps its key
+One owner-only endpoint, given what the browser made: `aes(ZKMK, DrvK)`, a new write-only key pair (public
+JWK, private half locked with `DrvK`), and `aes(AppZkK, DrvK)` (plus `EncAppZkK` where new) for each app
+granted the drive. In one transaction:
+
+- **The drive row** (`DriveManager`, reusing `ApplyZeroKnowledgeKeysAsync` with the key kept): store the
+  ZKMK copy, drop `MasterKeyEncryptedStorageKey`, set `Private`, store the new write-only pair.
+  - Keep `EncryptedIdIv` / `EncryptedIdValue` and `TempOriginalDriveId`: they encrypt the drive id with
+    the same key and stay valid. `ApplyZeroKnowledgeKeysAsync` sets `TempOriginalDriveId = Id`, which is
+    wrong here: on older drives the two differ (`StorageDrive.cs:236-245`) **(V)**.
+  - A new write-only pair, not the server-made one: the server made that pair, so it has seen the private
+    half (`DriveWriteOnlyKey.CreateKeyPair`) **(V)**. Nothing is sealed to it: only a zero-knowledge drive
+    holds deposits (`CanHoldDeposits`) **(V)**.
+- **The apps' locked copies** go on their registrations (3.1). An app granted the drive whose copy is
+  missing is refused, so no app is silently cut off (I: or warned on the page).
+- **Every grant loses its copy of the key, and keeps its permission.** New grants already come out keyless
+  (`GrantCarriesStorageKey`) **(V)**; stored ones keep theirs. The walk is the one drive deletion does
+  (`DriveDeletionService.DeleteDriveAsync`) **(V)**, stripping the key instead of the grant:
+  - app registrations (`AppRegistrationService`, `AppKeyStore.DriveGrants`);
+  - circle members, identities and YouAuth domains alike, and app circle grants (`CircleMembershipService`);
+  - connections' deposited grants (`PeerKeyStore.DepositedGrants`) and sent connection requests
+    (`PendingPeerKeyStore`);
+  - app devices hold no drive keys, only the app's key store key **(V)**.
+- **Every encrypted file's key header becomes `zkDrive`.** A stored `aes` header is `aes(DrvK, IV ‖ FileKey)`,
+  locked with this drive's key (`EncryptKeyHeader`) **(V)**, and version 1 of `zkDrive` is the same 48 bytes
+  (decision 3) **(V)**. So conversion only changes the type, and nothing is opened.
+  - As built: per file, only the key header column (`TableDriveMainIndex.UpdateEncryptedKeyHeaderAsync`),
+    guarded by the version tag the conversion read; the version tag and `modified` stay, so no client
+    resyncs, as for the transform (2.5). A file updated in between fails the conversion
+    (`VersionTagMismatch`), and the owner retries.
+  - Decided by the header's shape (`EncryptedKeyHeader.HasZkDriveShape`, the check every `zkDrive` write
+    passes), not by `IsEncrypted`: an unencrypted file stores `EncryptedKeyHeader.Empty()`, type `aes` with
+    a zero IV, which stays as is; a deleted file's tombstone keeps its real key header but not
+    `IsEncrypted`, and is relabelled **(V)**.
+  - Accepted, narrow: a file *added* while the conversion commits (an upload that read the drive key just
+    before, or a queued transfer) can still land as `aes`, which nobody then opens (I). Vault takes no
+    transfers today; the owner converts from the console, with the apps otherwise idle.
+  - An unencrypted file on the drive stays readable by the server. Vault encrypts its uploads (I: check
+    chat-kmp).
+- **Refused** if the drive is already zero knowledge, or isn't Vault or Filesync (3.7), or the request's
+  `SharingModel` isn't Private or SelectiveShare. The request names the model: the app that asked for the
+  upgrade decides it, not a list in odin-core.
+- **After commit:** reset `OdinContextCache` (as `ConvertShardRecoveryDriveAsync` does) **(V)**. Open
+  websockets keep the context they started with (`DeviceSocket`) (I: check what they can still reach).
+
+The browser gets the existing key the way an owner read does today: the server opens it with the master
+key and sends it locked to the owner's shared secret. That is the server's last look at it
+(zero-knowledge-drives.md, "Converting an existing drive").
+
+### 3.4 Server: a device that holds the key
+Today `ZkDriveFiles.CallerHoldsDriveKey` is the owner console only (`HasMasterKey`) **(V)**, which keeps
+every app away from client-locked files: an app that can't open them stalls its sync.
+
+- **The device record marks which `AppZkK` it received,** at the token exchange that carried it (3.2,
+  step 2), and only when the app asked for it: an older build never asks, so it never gets a mark. The old
+  token, still valid, has no mark. The mark is the id of the key, a hash of `EncAppZkK`
+  (`AppClientRegistration.ZkAppKeyId`, `AppRegistration.ZkAppKeyId`), and the device counts only while it
+  is still the app's key: a concurrent first sign-in whose key won leaves the device with none (as built). The consent page sends the `EncAppZkK` it opened next to the
+  sealed key, and the server refuses it unless it is still the app's (`ZkAppKeyAlreadySet`). The mark
+  travels with the caller's context (`OdinClientContext.HoldsZkAppKey`).
+- **`CallerHoldsDriveKey(driveId)`** becomes: the owner console, or a marked device of an app whose
+  registration holds a locked copy of this drive's key. The read and write rules (2.4) don't change, only
+  who counts as a key holder. A device on an older build sees the drive as empty, and its `aes` writes are
+  refused by type, rather than stalling on headers it can't open.
+- **The app fetches its locked drive keys** with the security context it already reads (3.5).
+- Watch: `ExtendLife` rewrites the whole device row, so the mark must not be lost to a concurrent token
+  refresh (`ClientRegistrationStorage.ExtendLife`, an upsert of the row) **(V)**.
+
+### 3.5 The contract (pinned 2026-10-27, so chat-kmp can build in parallel)
+Names are proposals until the server PR; the shapes are what the clients build against.
+
+1. **Authorize request:** a new query parameter, `zk_app_key=1`, next to `public_key`. Precedent: an app
+   opts into GCM the same way, with `cipher=aes-gcm` (`YouAuthDefaults.Cipher`) **(V)**. Without it, nothing
+   changes: no `zkAppKey`, no device mark.
+2. **Token response:** a new field, `zkAppKey` (`YouAuthTokenResponse`, next to
+   `base64SharedSecretCipher` and `base64ClientAuthTokenCipher` **(V)**): `ZkSeal` version 1, base64, of the
+   16-byte `AppZkK`, sealed to the authorize request's `public_key`, which is a base64url P-384 JWK
+   (`EccPublicKeyData.FromJwkBase64UrlPublicKey`) **(V)**. The format and vectors are owner-keys.md's
+   `seal`. Absent when not asked for.
+3. **Security context:** the app already reads `GET /api/v2/auth/context` (`V2AuthController.GetSecurityContext`,
+   `WebOdinContext.Redacted()`) **(V)**: chat-kmp fetches it in the background after every connect and at
+   the first foreground open (`AuthConnectionCoordinator.scheduleGrantReconcile`, `SecurityContextProvider`)
+   **(V)**, and reads each drive grant by name, so new fields are ignored by released builds
+   (`parseDriveGrant`) **(V)**. Each drive grant (`RedactedDriveGrant`, today `permissionedDrive` and
+   `hasStorageKey` **(V)**) gains two fields, set only on a zero-knowledge drive the app holds a copy for,
+   null otherwise:
+   - `zkAppKeyEncryptedStorageKey`: `aes(AppZkK, DrvK)`, `zkLock` (base64 of a 12-byte IV, the ciphertext
+     and its 16-byte tag);
+   - `zkStorageKeyEncryptedWriteOnlyPrivateKey`: the drive's `EncWO-PK-Priv_zk`, which `DrvK` opens (the
+     same name as on the drive, `StorageDrive` **(V)**). Chat needs it for deposits; Vault doesn't.
+
+   Any token of the app gets them: they are useless without `AppZkK`, and chat-kmp reads a set
+   `zkAppKeyEncryptedStorageKey` as "this drive is zero knowledge" to show its banner on a device that has no
+   `AppZkK` yet. Conversion refuses unless every app granted reading the drive gets a copy, so the field is set
+   on every converted drive an app reads. A write-only grant gets no copy: it deposits, sealed to the drive's
+   public key (`StorageDrive.PermissionNeedsKey`, as built). Only a marked device counts as a key holder (3.4). A conversion reaches a device at its
+   next connect. Attaching the app registration's locked copies to the redacted grant is server plumbing (I).
+4. **Files:** unchanged from steps 1 and 2. A file on a zero-knowledge drive comes back with its key header
+   as stored (`zkDrive`, or `sealed`), and payload responses carry no packed key header: the client opens
+   payloads with FileKey and the payload's IV (`payloads[].iv`).
+
+**Server, besides the contract** (as built: owner endpoints under `security/zk`):
+- `GET app-keys`: every app with its `EncAppZkK` and every drive it is granted (`isZeroKnowledge`, the drive's
+  `aes(ZKMK, DrvK)` on a zero-knowledge one, `hasAppCopy`), so the browser knows which apps need a copy before it
+  converts a drive; `POST app-keys`: the backfill (refuses replacing an app's key, a drive not granted, a drive
+  not zero knowledge);
+- `GET drives/{driveId}/key-for-conversion` and `POST convert-drive` (3.3).
+
+- consent takes the sealed `AppZkK` from the browser and the `EncAppZkK` it came from (3.4), after any
+  backfill (3.2), and the token exchange carries it and marks the device;
+- the consent page's read: the app's `EncAppZkK`, and its granted zero-knowledge drives with their
+  `aes(ZKMK, DrvK)` and whether a locked copy exists;
+- app registration: `EncAppZkK` and the locked drive keys. A copy lives as long as a grant that reads the drive:
+  every save drops the others (a grant removed or narrowed to writing, a drive deleted); a drive given a new key
+  (Shard Recovery after a reset) drops every app's copy; a reset with today's master key keeps every
+  `EncAppZkK` and copy, since the devices holding the app's key may be the only way left into its drives (as built);
+- owner: get a drive's key to convert it; convert (3.3); read and write `EncAppZkK` for the console;
+- `ZkDriveFiles.CallerHoldsDriveKey` takes the drive (3.4).
+
+### 3.6 Clients
+- **Owner console (odin-js):**
+  - the login page with `redeal=vault-private`, the Vault app's password confirm (3.2);
+  - the consent page, for an app that reads zero-knowledge drives: backfill (`AppZkK` if missing, a locked
+    copy of each granted zero-knowledge drive that has none), then seal `AppZkK` to the app;
+  - the same backfill for every app at a password login;
+  - `makeZkDriveKeys` takes an existing drive key (today it always makes a new one,
+    `ZeroKnowledgeKeys.ts` **(V)**);
+  - after a reset with today's master key every `EncAppZkK` stays, locked by the old ZKMK: the devices that
+    hold an app's key keep opening its drives, but this browser can no longer open the key, so a new device's
+    `zk_app_key=1` sign-in fails at consent and the login backfill skips the app (open item: how the owner gets
+    the key back from a device that holds it).
+- **chat-kmp:**
+  - `zk_app_key=1` in its authorize request, `zkAppKey` in the token response, the two new grant fields
+    (3.5); optionally the banner that signs in again without clearing data;
+  - the Vault screen's opt-in section, which opens the owner console's password confirm (3.2);
+  - a `ZkSeal` port to open `ZkAppKey`: GCM exists (`AesGcm.kt`) and ECDH P-384 too, but its hkdf has no
+    `info` and wants a 16-byte salt (`EccKeyFunctions.kt`, `HashUtil.kt`) **(V)**, so the port needs an
+    hkdf with `info` and no salt; checked against the C#/js vectors;
+  - `AppZkK` in `SecureStorage`; fetch and open the drive keys at start;
+  - the header switch on a zero-knowledge drive: open and lock with DrvK (`ServerFile.asHomebaseFile`,
+    the payload decrypt with FileKey and the payload's IV instead of `sharedsecretencryptedheader64`,
+    `UploadDescriptorBuilder`, the update descriptor), and the outbox stops re-keying to a header the
+    server returns (`DriveOutboxUploader.rekeyedUpdateForExistingServerFile`) **(V)**;
+  - device storage (decided 2026-10-27): `AppZkK` and the drive keys go in `SecureStorage` on every
+    platform, next to the token and shared secret. Two follow-ups after step 3: WASM, whose `SecureStorage`
+    is plain `localStorage` and persists (`SecureStorage.web.kt`) **(V)**, moves to memory-only keys (a
+    reload then signs in again); desktop explores securing tokens and keys properly instead of the PKCS12
+    file with a hardcoded password (an OS keychain, I).
+
+### 3.7 Scope
+- **Vault and Filesync** (Filesync added 2026-10-29, as SelectiveShare: the model it will share folders
+  under, so it isn't converted again when sharing is built; until shares exist it behaves as Private). Only
+  drives that existed before they could be made zero knowledge are upgraded this way: a new drive is created
+  with the model its app asks for, never created and converted.
+- Vault gets its drive through the chat app's registration (a permission extension,
+  `AppConfig.kt`) **(V)**; the built-in "Homebase - Vault" app and the Vault circle also hold ReadWrite
+  grants on it (`SystemAppConstants`, `BuiltinCircles.VaultCircle`) **(V)**, and lose the key with every
+  other grant. `OwnerOnly` doesn't stop the circle's grant (`CircleDefinitionService.cs:609-614`) **(V)**.
+- The conversion takes the drive and its model as parameters, so Chat and others reuse it later; refusing every
+  other drive for now is one check.
+- **No way back.** A Private drive depends on zero-knowledge recovery (Shamir, the phrase), released in
+  v0.1.968.
+
+### 3.8 Later: everyone, at a login
+Once every app that uses a drive reads `zkDrive`, a data upgrade at a password login converts the drives
+still Collaborative with the same endpoint and locks their keys for each granted app's `AppZkK`. Apps
+pick the keys up at their next fetch; a device without `AppZkK` gets it at its next sign-in. Until then
+the opt-in is the only way in, because converting a drive cuts off every app that can't read it.
+
+### 3.9 Open
+- ~~A grant on a zero-knowledge drive made without the browser can't lock the key for the app.~~ Resolved:
+  the backfill at consent and at login (3.2).
+- After step 3: WASM memory-only keys; securing desktop tokens and keys (3.6).
+
+## Step 4: an app asks for the model
+
+Status: built 2026-10-29: odin-core branch `filesync-selective-share` (4.1-4.3, 4.7, 4.8), odin-js branch
+`drive-private-models` (4.4); chat-kmp `drive-sharing-model`, `vault-web-upload` and `email-make-private`, and
+filesync's, add `sm`, Vault on the web and the Email banner. **(V)** = read in code
+on 2026-10-29 (odin-core, odin-js main e3808e2e, chat-kmp main b7e8ebf60, filesync main f1ddbddc);
+**(I)** = inferred. Decided with the user:
+- **The app requesting a drive says which model it wants.** odin-core is an app platform, so it keeps
+  no list of which drive gets which model.
+- **Nothing said means Collaborative**, today's behaviour, so every existing app is unchanged.
+- **A Private or Selective Share drive is created that way in one step**, never created and then
+  converted. Converting is only for upgrading drives that already exist.
+- **Private and Selective Share hold their key the same way**: no master-key copy. They differ only in
+  the shares Selective Share adds later: a table of extra key headers, one per share and file, for people
+  who may read chosen files and never the whole drive (zero-knowledge-drives.md, "Selective Share").
+  Until shares exist, a Selective Share drive behaves as a Private one.
+- **All three repos merge together.**
+
+### 4.1 Upgrading Filesync's existing drive (built)
+- The conversion (3.3) also takes the Filesync drive (`WellKnownAppDrives.FilesyncDrive`, alias
+  `cfceb937-b868-496b-91cb-3402f18320f8`, filesync `app.rs:48`) **(V)**.
+- The request names the model, `SharingModel`: Private or SelectiveShare, and nothing else
+  (`DriveSharingModel.IsZeroKnowledge`). The owner console sends what the app's banner asked for.
+- odin-core still keeps which old drives may be upgraded this way (Vault, Filesync), as a rollout guard.
+- The drive's `created` doesn't move: the upsert never sets it **(V)**, and the test checks it, because
+  Filesync sets its records aside when `created` changes (filesync#319).
+- The banner, in chat-kmp's developer menu, opens
+  `/owner/login?redeal=drive-private&drive=<id>&model=selectiveShare&returnUrl=…` (pinned by a chat-kmp
+  test). Vault's `redeal=vault-private` keeps working, as Private.
+
+### 4.2 A new drive created zero knowledge
+**The request.** One new key in the drive request an app already sends the owner console (`d`/`cd`):
+`"sm"`, one of `"collaborative"`, `"private"`, `"selectiveShare"` (the server's `DriveSharingModel`
+strings, odin-js `DriveTypes.ts:25` **(V)**). Absent means collaborative.
+- **Filesync:** `drive_request` (`app.rs:81`) builds both the sign-in request (`app.rs:141`) and the restore
+  link (`app.rs:157`) **(V)**, so both carry it. Chat's copy (`AppConfig.kt:537-546`) changes with it.
+- **Vault:** `vaultTargetDriveAccessRequest` (`AppConfig.kt:316-325`), encoded in
+  `TargetDriveAccessRequest.kt` next to `n`/`d` and left out when grant-only **(V)**.
+- **`sm` applies only when the drive is created.** A drive that exists keeps its model; upgrading it is 4.1.
+
+**The owner console.** Every app drive is created in `ensureAppOwnedDrives` (`useApp.ts:63`), from both
+the install page (`/owner/appreg`) and the permission extension (`/owner/appupdate`) **(V)**.
+- `drivesParamProblems` (`AppDefinition/util.ts:32`) refuses an unknown `sm`, and a zero-knowledge `sm`
+  together with anonymous reads (`r`), subscriptions (`s`) or a channel-type drive (which the console makes
+  CDN-enabled), so a request is never quietly downgraded.
+- For a new drive with a zero-knowledge `sm`, the console gets the zero-knowledge master key from the
+  session (`getZkMasterKey`, `ZeroKnowledgeProvider.ts:296`) **(V)**, or asks for the password as part of
+  the page.
+- It makes the drive's keys as it does for the Shard Recovery drive (`makeZkDriveKeys`,
+  `ZeroKnowledgeKeys.ts:353`) **(V)**: the drive key, the drive id encrypted with it, the write-only key
+  pair, and the key locked with the zero-knowledge master key. It sends them with the create request.
+- After the app's grant is saved (`RegisterApp` / `UpdatePermissions`), it locks the drive key for the app
+  (the login's `backfillAppKeys`, `ZeroKnowledgeProvider.ts:392`, making the app's key where it has none). If
+  that is cut off, the app's next sign-in or the owner's next login fills it in (3.2, "Backfill") **(V)**.
+
+**odin-core.**
+- `CreateDriveRequest` gets `SharingModel` and the browser's keys (the fields of `ZkConvertDriveRequest`,
+  `ZeroKnowledgeKeys.cs:411` **(V)**).
+- `DriveManager.CreateDriveAsync` (`DriveManager.cs:161-205`) takes a second branch for a zero-knowledge
+  model:
+  - it stores the browser's keys and sets no master-key copy;
+  - it makes no write-only key pair of its own;
+  - it refuses a zero-knowledge model without keys, keys without one, and anonymous reads, the CDN or
+    subscriptions with one (the feed never distributes from a zero-knowledge drive);
+  - the owner's zero-knowledge keys must exist first.
+- The save guard already refuses a zero-knowledge drive with a master-key copy.
+- The server can't check the encrypted drive id, as with the Shard Recovery drive: a wrong one only
+  breaks the browser that sent it.
+
+**What the app sees.** The app drive answer (`GET /api/v2/apps/{app}/drives/{drive}`, `ClientDriveData`)
+gets `sharingModel`. It is already in the cached drive data (`StorageDriveData`), so the cache version
+doesn't change (I: check while building).
+- The model says what the drive is. The app's locked copy can lag behind it (above).
+- An app seeing a zero-knowledge drive with no `zkAppKeyEncryptedStorageKey` in its context should treat
+  that as "sign in again", never as Collaborative. Filesync does (agreed 2026-10-29).
+- An older owner console ignores `sm` and creates a Collaborative drive; the app can see that here.
+
+### 4.3 Warning about devices that will lose the drive
+Before an upgrade, the console names the devices of each app granted the drive that don't hold the app's
+key: such a device gets nothing from the drive until it signs in again (3.4).
+- The device record keeps the id of the app key it was handed (`AppClientRegistration.ZkAppKeyId`) **(V)**.
+- The app's device list (`RegisteredAppClientResponse`, built at `AppRegistrationService.cs:592`) gets
+  `HoldsZkAppKey`: true when that id is the app's current one.
+- A warning, not a refusal: the owner can revoke an old device, or ignore it.
+
+### 4.4 The owner console, in one odin-js PR
+- The generic upgrade link: `redeal=drive-private&drive=<id>&model=<model>`, naming the drive and its model on
+  the password page. It returns by Vault's rule (same origin, a `homebase…://` scheme, or a loopback listener),
+  which doesn't tell one app from another; a per-app rule needs a map of apps to return targets, which doesn't
+  exist. `vault-private` stays, as Private.
+- The conversion sends `sharingModel` (4.1 refuses a request without it).
+- `sm` at creation (4.2), and the device warning (4.3).
+- `DriveDetails.tsx:210` marks Selective Share as zero knowledge too, not only Private **(V)**.
+
+### 4.5 Order and merge
+1. odin-core: 4.1 (built), 4.2 and 4.3, on branch `filesync-selective-share`.
+2. odin-js: 4.4.
+3. Both to local frodo, then bleeding edge: Filesync's upgrade end to end, and a new app drive created
+   Selective Share.
+4. chat-kmp and filesync add `sm` only after it is on bleeding edge. Filesync's 0.10.5 already reads
+   the drive's model from the drive, not from its request.
+5. Merge odin-core and odin-js together.
+
+### 4.6 Not in this step
+- Shares (the Selective Share key header table).
+- Turning on anonymous reads or the CDN later on a zero-knowledge drive (`SetDriveReadModeAsync`,
+  `SetDriveAllowCdnAsync`): creation refuses both, the setters don't check yet. Listed in review, not fixed
+  here: it changes the existing drive-settings flow.
+- Upgrading a drive without rewriting every file's key header label (3.3's relabel); the user accepted
+  the per-file cost for now.
+- An upload already running when its drive is upgraded can save a key header nobody can open; the user
+  accepted this.
+
+### 4.7 A new identity's Vault, created Private
+Vault is a built-in drive: the server created it at setup with its own key (`BuiltinApps.Builtin`,
+`BuiltinProvisioner.EnsureDrivesAsync`) **(V)**, so every new identity started with a Collaborative Vault, and an
+app's `sm` couldn't help: the drive already existed, and the console doesn't create a drive another well-known app
+owns (`ensureAppOwnedDrives`) **(V)**. Decided with the user 2026-10-29: in this round.
+- `BuiltinDrives.VaultDrive` says Private. Setup leaves such a drive out (`BuiltinApps.BrowserMadeDrives`), and holds
+  back its app's registration and circles, whose grants need the drive.
+- Right after first-run setup, and again at each password login, once the zero-knowledge keys are open, the console
+  asks for the missing ones (`GET security/zk/missing-drives`) and creates each with keys it makes
+  (`drive/mgmt/create` with `zkKeys`), then backfills the apps' copies. A drive that fails is left for the next login.
+  Creating one sets up that drive's own app and circles, in the same transaction
+  (`BuiltinProvisioner.EnsureAppOfBrowserMadeDriveAsync`), so the Vault app and circle arrive as before.
+- Until that login a new identity has no Vault. Chat asks for Vault only from its Vault onboarding ("Set up"), never
+  at sign-in (chat-kmp, (V) by its agent); a grant on the missing drive is refused and Chat stays on the onboarding.
+- Identities made before keep their Collaborative Vault and upgrade it (4.1).
+
+### 4.8 The Email drive, Private
+It holds the OpenPGP keyring. Decided with the user 2026-10-29: in this round, upgradable from a banner in Chat's email
+app, and created Private on a new identity as Vault is (4.7).
+- The server makes the keyring (`EmailAppService.GenerateAndPublishKeyAsync`) and writes it with the pointer to it
+  (`EmailKeyMaterialWriter`) **(V)**. Only the public certificate goes to the mail server; nothing on the server
+  reads the keyring back **(V)**.
+- On a private Email drive the server holds no key to lock them with: it seals each file's key to the drive's
+  write-only public key and stores it `sealed`, as a deposit. The owner's devices open it with the write-only
+  private key their grant carries; an upgraded drive's older files are `zkDrive`.
+- The server still makes the key, so it sees it once. Generating it on the device instead is a later step.
+- A device without the drive's key is refused before anything is written (`ZkAppKeyMissing`): it couldn't read the
+  keyring or overwrite the pointer, a sealed file. It signs in again.
+- Accepted, not fixed: a key generated while the drive is being upgraded can be written `aes` after the upgrade's
+  scan, as with any file (3.3); the drive's owner is the one upgrading, so it is unlikely.
+- Release order: a new identity's Email drive is Private, so the Chat release that opens `sealed` and `zkDrive`
+  headers (chat-kmp #2126) must ship before or with the server.
+- chat-kmp opens `sealed` headers, checked against the golden vector (`ClientLockedKeyHeaderVectorTests`).
+
 ## Deferred to Chat: the transform
 
 Designed and reviewed with step 2 (2026-10-27), built with Chat, which reads every incoming message and
@@ -548,9 +971,7 @@ it as it is (read 2026-10-26) **(V)**.
   client-locked. Wider than step 2; touches security-model.md section 9.
 
 ## Not in this work
-- **Vault** (chat-kmp, and consent giving apps DrvK): a separate discussion, including how to
-  change an existing drive such as Vault's. This plan covers the `zkDrive` type (step 1) and
-  client-locked files for Shamir (step 2).
+- **Consent giving apps DrvK** and the upgrade of every drive at a login: after step 3 (3.7).
 - **chat-kmp:** comes with consent. Two small bugs found on the way, both harmless today:
   - `EncryptedKeyHeader.toBase64()` writes the version big-endian, but has no production caller;
   - the `MissingEncryptedHeader` check compares by reference, so it never fires.

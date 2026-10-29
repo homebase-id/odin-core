@@ -7,10 +7,13 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
+using Odin.Hosting.Tests.V2.YouAuth;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -38,6 +41,22 @@ public sealed partial class OwnerAdmin
     /// <summary>A slug for a test app, derived from its id; see <see cref="TestAppSlug"/>.</summary>
     public static OdinSlug SlugFor(Guid appId) => TestAppSlug.For(appId);
 
+    /// <summary>An app's drive by its slug, as the app's own drive answer gives it.</summary>
+    public async Task<ClientDriveData> GetAppDrive(Guid appId, string driveSlug)
+    {
+        var response = await _owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(SlugFor(appId).ToString(), driveSlug);
+        EnsureSuccess(response, nameof(GetAppDrive));
+        return response.Content!;
+    }
+
+    public async Task<bool> IsAppRegistered(Guid appId)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var existing = await RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss)
+            .GetRegisteredApp(new GetAppRequest { AppId = appId });
+        return existing.IsSuccessStatusCode && existing.Content != null;
+    }
+
     /// <summary>
     /// Registers a bare app under an id the caller has already chosen, unless something is registered
     /// there.  For fixtures that name an owning app for a drive or circle: the server requires it to
@@ -45,16 +64,10 @@ public sealed partial class OwnerAdmin
     /// </summary>
     public async Task EnsureAppRegistered(Guid appId)
     {
-        var (client, ss) = _owner.NewAdminHttpClient();
-        var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss);
-
-        var existing = await svc.GetRegisteredApp(new GetAppRequest { AppId = appId });
-        if (existing.IsSuccessStatusCode && existing.Content != null)
+        if (!await IsAppRegistered(appId))
         {
-            return;
+            await RegisterApp(appId, new PermissionSetGrantRequest());
         }
-
-        await RegisterApp(appId, new PermissionSetGrantRequest());
     }
 
     public async Task<ApiResponse<RedactedAppRegistration>> RegisterApp(
@@ -64,10 +77,51 @@ public sealed partial class OwnerAdmin
         PermissionSetGrantRequest? circleMemberGrantRequest = null,
         OdinSlug appSlug = default)
     {
+        var response = await TryRegisterApp(appId, appPermissions, authorizedCircles, circleMemberGrantRequest, appSlug);
+        EnsureSuccess(response, nameof(RegisterApp));
+        return response;
+    }
+
+    /// <summary>
+    /// Gives a registered app exactly these grants, as the owner console's update calls do: for a test that reshapes
+    /// an app it didn't register, a provisioned built-in or a fixture's bare owner.  Registering it again is refused
+    /// (#2039), and would replace its keys.
+    /// </summary>
+    public async Task SetAppGrants(
+        Guid appId,
+        PermissionSetGrantRequest appPermissions,
+        List<Guid>? authorizedCircles = null,
+        PermissionSetGrantRequest? circleMemberGrantRequest = null)
+    {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss);
 
-        var response = await svc.RegisterApp(new AppRegistrationRequest
+        await svc.UpdateAppPermissions(new UpdateAppPermissionsRequest
+        {
+            AppId = appId,
+            PermissionSet = appPermissions.PermissionSet,
+            Drives = appPermissions.Drives?.ToList()
+        });
+        await svc.UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest
+        {
+            AppId = appId,
+            AuthorizedCircles = authorizedCircles ?? new List<Guid>(),
+            CircleMemberPermissionGrant = circleMemberGrantRequest ?? new PermissionSetGrantRequest()
+        });
+    }
+
+    /// <summary>As <see cref="RegisterApp"/>, for a registration that may be refused: the response as it came.</summary>
+    public async Task<ApiResponse<RedactedAppRegistration>> TryRegisterApp(
+        Guid appId,
+        PermissionSetGrantRequest appPermissions,
+        List<Guid>? authorizedCircles = null,
+        PermissionSetGrantRequest? circleMemberGrantRequest = null,
+        OdinSlug appSlug = default)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss);
+
+        return await svc.RegisterApp(new AppRegistrationRequest
         {
             Name = $"Test_{appId}",
             AppId = appId,
@@ -79,8 +133,6 @@ public sealed partial class OwnerAdmin
             AuthorizedCircles = authorizedCircles ?? new List<Guid>(),
             CircleMemberPermissionGrant = circleMemberGrantRequest ?? new PermissionSetGrantRequest()
         });
-        EnsureSuccess(response, nameof(RegisterApp));
-        return response;
     }
 
     /// <summary>
@@ -124,17 +176,6 @@ public sealed partial class OwnerAdmin
                 $"{nameof(RegisterAppClient)}.ExchangeDigestForToken returned 2xx but empty content");
         }
 
-        var token = tokenResp.Content;
-        var sharedSecret = AesCbc.Decrypt(
-            Convert.FromBase64String(token.Base64SharedSecretCipher!),
-            exchangeSecret,
-            Convert.FromBase64String(token.Base64SharedSecretIv!));
-        var authBytes = AesCbc.Decrypt(
-            Convert.FromBase64String(token.Base64ClientAuthTokenCipher!),
-            exchangeSecret,
-            Convert.FromBase64String(token.Base64ClientAuthTokenIv!));
-
-        var authToken = ClientAuthenticationToken.FromPortableBytes(authBytes);
-        return (authToken, sharedSecret);
+        return YouAuthFlow.OpenAppToken(tokenResp.Content, exchangeSecret);
     }
 }

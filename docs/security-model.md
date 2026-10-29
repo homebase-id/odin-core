@@ -102,8 +102,15 @@ Later:
 - **Extend permissions** (owner console `ExtendAppPermissions`) adds drives at runtime, e.g. one per feed channel.
 - **Owned circles at runtime:** an app may create circles, but only granting permission keys and drive access it holds
   itself. On a drive it doesn't own it may grant Read only, and only with the storage key
-  (`CircleMembershipService` → `AssertAppMayGrantDrivesAsync`) **(V)**. No app holds a zero-knowledge drive's key, so
-  Read on one it doesn't own is refused **(V)**.
+  (`CircleMembershipService` → `AssertAppMayGrantDrivesAsync`) **(V)**. An app's grant on a zero-knowledge drive
+  carries no storage key (its devices get the key only from the owner's browser, below), so Read on one it doesn't
+  own is refused **(V)**.
+- **Zero-knowledge app key:** an app that asks for it at sign-in (`zk_app_key=1`) gets its zero-knowledge key sealed by
+  the owner's browser at consent, and its security context carries each zero-knowledge drive's key locked with it, for
+  the drives it is granted reading (`AppRegistrationService.GetZkDriveKeysAsync`) **(V)**. A device counts as holding
+  those keys only while the key it was given is still the app's (`AppClientRegistration.ZkAppKeyId`) **(V)**. A reset
+  with today's master key keeps every app's key and copies: the devices holding them may be the only way left into
+  the drives (`ZeroKnowledgeKeyService.DeleteAsync`) **(V)**. See `zero-knowledge-drive-api-plan.md`, step 3.
 - **Uninstall** can delete the app's drives and circles (`drive-deletion-and-app-uninstall.md`) **(V)**.
 
 ## 3. Drives
@@ -312,7 +319,10 @@ thumbnails are all encrypted with FileKey, each with its own IV **(V)**. Only th
 - **Zero-knowledge drive:** by a client, and the server opens neither kind: by a device holding DrvK
   (`type: zkDrive`), or sealed to the drive's write-only public key by anyone with Write (`type: sealed`,
   a deposit) **(V)**. A key holder may later transform `sealed` into `zkDrive` (designed, built with
-  Chat). One read rule (`IDriveAclAuthorizationService.CallerMayReadAsync`) shows a client-locked file
+  Chat). One exception writes server-side: on a private Email drive the server seals the OpenPGP keyring and its
+  pointer to the drive itself (`EmailKeyMaterialWriter`), skipping the write rules a client's upload passes
+  (`OpenForWrite`, `AssertMayReplace`), so a rotation's sealed pointer replaces a `zkDrive` one on an upgraded drive;
+  it refuses a caller that doesn't hold the drive's key **(V)**. One read rule (`IDriveAclAuthorizationService.CallerMayReadAsync`) shows a client-locked file
   only to a caller that can open it; the model and decisions are in
   [zero-knowledge-drives.md](zero-knowledge-drives.md#how-a-zero-knowledge-drive-holds-files), the work in
   [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
@@ -338,7 +348,8 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
 - A zero-knowledge drive takes only key headers an owner device locked with its key (`zkDrive`), and
   deposits. It refuses one locked with the shared secret by its type, before opening it
   (`ZkDriveFiles.OpenForWrite` → `DriveIsZeroKnowledge`) **(V)**. Reads return a `zkDrive` key header as
-  stored, only to the owner console for now, and a payload or thumbnail read sends no
+  stored, only to a caller holding the drive's key: the owner console, or an app device given the app's
+  zero-knowledge key (`ZkDriveFiles.CallerHoldsDriveKey`) **(V)**; and a payload or thumbnail read sends no
   `SharedSecretEncryptedHeader64`: the client uses the file key and the payload's IV **(V)**.
 - The key header format (`EncryptKeyHeaderAes`) encrypts `IV ‖ key` with AES-CBC under that same IV, so
   the IV cancels out of the first block: the 48 bytes depend only on the locking key and the file key,

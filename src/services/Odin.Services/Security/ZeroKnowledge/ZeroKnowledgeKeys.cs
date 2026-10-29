@@ -381,6 +381,12 @@ public sealed class ZkSessionKeyResponse
     public string SessionKey64 { get; init; }
 }
 
+/// <summary>A drive's key, for the browser to re-lock when it converts the drive (ZkDriveConversionService).</summary>
+public sealed class ZkDriveKeyResponse
+{
+    public string StorageKey64 { get; init; }
+}
+
 /// <summary>
 /// The check value of a recovery phrase: a hash of its 16 bytes, so a phrase typed in later can be
 /// checked without the server seeing it.  The key is random, so the hash can't be reversed.  The

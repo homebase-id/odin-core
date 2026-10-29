@@ -20,6 +20,12 @@ namespace Odin.Services.Authentication.YouAuth
         public const string CipherAesGcm = "aes-gcm";
 
         /// <summary>
+        /// An app asks for its zero-knowledge key with <c>zk_app_key=1</c>; the token response then carries it, sealed
+        /// to the sign-in's public key (docs/zero-knowledge-drive-api-plan.md, 3.5).
+        /// </summary>
+        public const string ZkAppKey = "zk_app_key";
+
+        /// <summary>
         /// Where a relying party publishes what it calls itself and which paths are its callbacks.
         /// See docs/youauth-client-metadata-plan.md.
         /// </summary>

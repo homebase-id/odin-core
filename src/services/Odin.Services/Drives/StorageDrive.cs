@@ -2,8 +2,10 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Security.ZeroKnowledge;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,6 +22,7 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     internal StorageDriveData Data { get; } = data;
 
     public Guid Id => Data.Id;
+    public UnixTimeUtc Created => Data.Created;
     public string Name => Data.Name;
     public TargetDrive TargetDriveInfo => Data.TargetDriveInfo;
     public Guid TempOriginalDriveId => Data.TempOriginalDriveId;
@@ -66,6 +69,10 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     /// </summary>
     public bool IsZeroKnowledge => Data.MasterKeyEncryptedStorageKey == null;
 
+    /// <summary>Whether <paramref name="sealedValue"/> was sealed to this drive's write-only key (<see cref="ZkSeal"/>).</summary>
+    public bool IsSealedToWriteOnlyKey(byte[] sealedValue) =>
+        WriteOnlyKeyPair != null && ZkSeal.IsSealedTo(sealedValue, WriteOnlyKeyPair.PublicKeyJwk());
+
     /// <summary>
     /// Whether this drive takes a deposit: a file whose key header its writer sealed to the drive's
     /// write-only public key (<c>EncryptionType.Sealed</c>).  A zero-knowledge drive does, as its owner's
@@ -81,9 +88,15 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     /// the owner is offline.  Never on a zero-knowledge drive, whose key reaches an app only from the
     /// browser (docs/zero-knowledge-drives.md).
     /// </summary>
-    public bool GrantCarriesStorageKey(DrivePermission permission) =>
-        !IsZeroKnowledge &&
-        (permission.HasFlag(DrivePermission.Read) || permission.HasFlag(DrivePermission.ConditionalTemporalRead));
+    public bool GrantCarriesStorageKey(DrivePermission permission) => !IsZeroKnowledge && PermissionNeedsKey(permission);
+
+    /// <summary>
+    /// Whether a grant with <paramref name="permission"/> needs the drive's key: reading does, and
+    /// ConditionalTemporalRead does too so the grantee can decrypt in-window files while the owner is offline.
+    /// Writing alone doesn't: on a zero-knowledge drive it deposits, sealed to the drive's public key.
+    /// </summary>
+    public static bool PermissionNeedsKey(DrivePermission permission) =>
+        permission.HasFlag(DrivePermission.Read) || permission.HasFlag(DrivePermission.ConditionalTemporalRead);
 
     /// <summary>The browser's locked copy of the drive key.  Opaque to the server.</summary>
     public string ZkMasterKeyEncryptedStorageKey => Data.ZkMasterKeyEncryptedStorageKey;
@@ -236,7 +249,20 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 // This guy needs to be serializable
 public sealed class StorageDriveData
 {
+    /// <summary>
+    /// Part of the drive cache's keys, so an entry cached before a change is never read after it: raise it with any
+    /// field added here.  2, entries before the NOT NULL migration (#1901) may carry a null AppId; 3, they have no
+    /// <see cref="Created"/> (#2038).
+    /// </summary>
+    public const int CacheVersion = 3;
+
     public Guid Id { get; init; }
+
+    /// <summary>
+    /// When the drive was made (the row's <c>created</c>).  A drive deleted and made again keeps its id and slugs,
+    /// so this is how a client tells it from the one before (#2038).
+    /// </summary>
+    public UnixTimeUtc Created { get; init; }
 
     /// <summary>
     /// What <see cref="EncryptedIdValue"/> decrypts to (the StorageKeyCheckValue column).  On drives

@@ -158,6 +158,13 @@ public static class WellKnownAppDrives
         Type = Guid.Parse("70e92f0f94d05f5c7dcd36466094f3a5")
     };
 
+    /// <summary>The Filesync app's drive (filesync <c>app.rs</c>, chat-kmp <c>FilesyncProtocol</c>).</summary>
+    public static readonly TargetDrive FilesyncDrive = new()
+    {
+        Alias = Guid.Parse("cfceb937-b868-496b-91cb-3402f18320f8"),
+        Type = Guid.Parse("5da48122-e946-487a-8b9d-589642f3c91d")
+    };
+
     /// <summary>The Webdrop app's drive (chat-kmp <c>webDropLabeledDrive</c>).</summary>
     public static readonly TargetDrive WebDropDrive = new()
     {

@@ -24,6 +24,15 @@ public interface IYouAuthUnifiedService
         string clientIdOrDomain,
         string permissionRequest,
         string redirectUri,
+        IOdinContext odinContext,
+        string? zkAppKeyPublicKey = null);
+
+    /// <summary>
+    /// Keeps, for the sign-in it belongs to, the app's zero-knowledge key the owner's browser sealed at consent to the
+    /// sign-in's public key (docs/zero-knowledge-drive-api-plan.md, step 3).  The server can't open it; it checks that
+    /// <paramref name="lockedZkAppKey"/>, the copy the browser opened, is still the app's key.
+    /// </summary>
+    Task StoreSealedZkAppKeyAsync(string clientId, string jwkbase64UrlPublicKey, string sealedZkAppKey64, string lockedZkAppKey,
         IOdinContext odinContext);
 
     Task StoreConsentAsync(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
@@ -36,7 +45,8 @@ public interface IYouAuthUnifiedService
         string permissionRequest,
         string jwkbase64UrlPublicKey,
         YouAuthCipher cipher,
-        IOdinContext odinContext);
+        IOdinContext odinContext,
+        bool wantsZkAppKey = false);
 
     Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest);
 }
@@ -50,6 +60,12 @@ public sealed class EncryptedTokenExchange
 
     /// <summary>What sealed the two ciphers; an entry written before the field existed reads back as CBC.</summary>
     public YouAuthCipher Cipher { get; set; }
+
+    /// <summary>
+    /// The app's zero-knowledge key, sealed by the owner's browser to the sign-in's public key (<c>ZkSeal</c>, base64);
+    /// null unless the app asked for it (docs/zero-knowledge-drive-api-plan.md, 3.5).
+    /// </summary>
+    public string? ZkAppKey { get; set; }
 
     public EncryptedTokenExchange(
         byte[] sharedSecretCipher,

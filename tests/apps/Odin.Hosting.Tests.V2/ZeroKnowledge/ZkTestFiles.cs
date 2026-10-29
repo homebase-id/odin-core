@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Net;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -13,6 +14,8 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
+using NUnit.Framework;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -56,5 +59,27 @@ internal static class ZkTestFiles
             Manifest = new UploadManifest { PayloadDescriptors = [] },
             Recipients = recipients
         }, metadata, [], locked);
+    }
+
+    /// <summary>
+    /// <paramref name="sender"/> (Frodo, or an app of his) writes a deposit to his transient drive and sends it to
+    /// Sam's Shard Recovery drive.
+    /// </summary>
+    public static async Task<(KeyHeader FileKey, EncryptedKeyHeader Sealed)> SendDepositAsync(IV2Caller sender,
+        OwnerSession frodo, OwnerSession sam, string publicKeyJwk, Guid uniqueId, string content)
+    {
+        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
+        var metadata = Metadata(uniqueId, content);
+        metadata.AllowDistribution = true;
+        var (upload, _, _, _) = await sender.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias, metadata,
+            new TransitOptions
+            {
+                IsTransient = true,
+                Recipients = [sam.Identity.DomainName],
+                RemoteTargetDrive = Drive
+            }, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        await frodo.Sync.DrainOutboxAsync();
+        return (fileKey, sealedKeyHeader);
     }
 }

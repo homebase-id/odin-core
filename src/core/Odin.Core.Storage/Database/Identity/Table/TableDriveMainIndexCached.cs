@@ -267,6 +267,29 @@ public class TableDriveMainIndexCached : AbstractTableCaching
         return result;
     }
 
+    // For relabelling key headers when a drive goes zero knowledge (ZkDriveConversionService); not cached
+    public Task<List<(Guid FileId, Guid VersionTag, string EncryptedKeyHeader)>> GetKeyHeadersByDriveIdAsync(Guid driveId) =>
+        _table.GetKeyHeadersByDriveIdAsync(driveId);
+
+    // For relabelling key headers when a drive goes zero knowledge (ZkDriveConversionService): sets only the key
+    // header, of each file still at the version tag it was read at, leaving version tag and modified as they are;
+    // returns the files that had moved on.  Invalidates the drive once.
+    public async Task<List<Guid>> UpdateEncryptedKeyHeadersAsync(Guid driveId,
+        IReadOnlyCollection<(Guid FileId, Guid VersionTag, string EncryptedKeyHeader)> headers)
+    {
+        var moved = new List<Guid>();
+        foreach (var (fileId, versionTag, encryptedKeyHeader) in headers)
+        {
+            if (await _table.UpdateEncryptedKeyHeaderAsync(driveId, fileId, versionTag, encryptedKeyHeader) == 0)
+            {
+                moved.Add(fileId);
+            }
+        }
+
+        await InvalidateDriveAsync(driveId);
+        return moved;
+    }
+
     //
 
     // For defragmenter only. Updates the byteCount column in the DB.

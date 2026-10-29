@@ -123,6 +123,7 @@ public enum OdinClientErrorCode
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
     AppRevoked = 6002,
+    AppAlreadyRegistered = 6003,
     DomainNotRegistered = 6050,
     AppHasNoAuthorizedCircles = 6700,
     InvalidAccessRegistrationId = 6800,
@@ -182,4 +183,13 @@ public enum OdinClientErrorCode
     // A zero-knowledge drive's own key headers (docs/zero-knowledge-drive-api-plan.md)
     ZkDriveKeyHeaderNeedsZeroKnowledgeDrive = 9027,
     ZkDriveFileCannotBeSent = 9028,
+
+    // Zero-knowledge keys for apps, and converting a drive that keeps its key (docs/zero-knowledge-drive-api-plan.md, step 3)
+    ZkAppKeyAlreadySet = 9029,
+    ZkAppKeyMissing = 9030,
+    ZkDriveNotGrantedToApp = 9031,
+    DriveCannotBeConverted = 9032,
+
+    // A deposit sealed to a key other than the drive's write-only key (docs/drive-public-keys-plan.md)
+    SealedToUnknownKey = 9033,
 }

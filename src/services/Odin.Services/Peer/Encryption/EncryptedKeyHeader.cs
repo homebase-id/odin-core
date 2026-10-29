@@ -87,6 +87,9 @@ namespace Odin.Services.Peer.Encryption
         /// joins them) sealed to a drive's write-only public key.  The IV is also kept as is, as for an
         /// AES key header.
         /// </summary>
+        public static EncryptedKeyHeader SealedTo(KeyHeader fileKey, string publicKeyJwk) =>
+            Sealed(fileKey.Iv, ZkSeal.Seal(fileKey.Combine().GetKey(), publicKeyJwk));
+
         public static EncryptedKeyHeader Sealed(byte[] iv, byte[] sealedKeyHeader) => new()
         {
             EncryptionVersion = 1,
@@ -108,13 +111,17 @@ namespace Odin.Services.Peer.Encryption
         public bool IsLockedByClient() => IsSealed() || IsZkDrive();
 
         /// <summary>
-        /// Refuses a zero-knowledge drive's key header that isn't one: version 1, a strong IV, and the
+        /// Whether this has the shape of a zero-knowledge drive's key header: version 1, a strong IV, and the
         /// 48 bytes that AES-CBC makes of a 16-byte IV and a 16-byte key.  Nothing more can be checked:
-        /// nobody here can open it.
+        /// nobody here can open it.  The type isn't checked: a drive converted keeping its key relabels its
+        /// <c>aes</c> headers that have this shape.
         /// </summary>
+        public bool HasZkDriveShape() => EncryptionVersion == 1 && ByteArrayUtil.IsStrongKey(Iv) && EncryptedAesKey?.Length == 48;
+
+        /// <summary>Refuses a zero-knowledge drive's key header that isn't one (<see cref="HasZkDriveShape"/>).</summary>
         public void AssertValidZkDrive()
         {
-            if (EncryptionVersion != 1 || !ByteArrayUtil.IsStrongKey(Iv) || EncryptedAesKey?.Length != 48)
+            if (!HasZkDriveShape())
             {
                 throw new OdinClientException("The zero-knowledge drive key header is malformed", OdinClientErrorCode.InvalidKeyHeader);
             }

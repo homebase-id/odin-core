@@ -3214,6 +3214,17 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Takes a drive's storage key off every grant this identity has handed out, keeping the permission: circle and
+        /// app grants (see <see cref="CircleMembershipService.RemoveStorageKeyFromAllGrantsAsync"/>) and deposits.  The
+        /// drive went zero knowledge and kept its key (docs/zero-knowledge-drive-api-plan.md, 3.3).
+        /// </summary>
+        public async Task RemoveStorageKeyFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
+        {
+            await circleMembershipService.RemoveStorageKeyFromAllGrantsAsync(driveId, odinContext);
+            await UpdateAllConnectionsAsync(store => store.RemoveStorageKeyFromDeposits(driveId), odinContext);
+        }
+
+        /// <summary>
         /// Removes an app from every connection, and deletes the circles it owns with their members and every
         /// grant made through them.
         /// </summary>
