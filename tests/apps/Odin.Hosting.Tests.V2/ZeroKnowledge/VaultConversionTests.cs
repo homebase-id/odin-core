@@ -8,6 +8,8 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.YouAuth;
@@ -255,7 +257,7 @@ public class VaultConversionTests : V2Fixture
     }
 
     [Test]
-    public async Task OnlyVaultConvertsThisWayAndOnlyOnce()
+    public async Task OnlyVaultAndFilesyncConvertThisWayAndOnlyOnce()
     {
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
         var client = ZkOwnerSteps.Client(frodo);
@@ -268,6 +270,37 @@ public class VaultConversionTests : V2Fixture
         var again = await client.GetDriveKeyForConversion(VaultId);
         Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "Vault, a second time: the server holds no key to hand over");
         Assert.That(again.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.DriveCannotBeConverted)).IgnoreCase);
+    }
+
+    [Test]
+    public async Task FilesyncConvertsToSelectiveShareAndKeepsItsCreationTime()
+    {
+        // Filesync's own drive, as its app makes it; desktop clients set their records aside when created changes
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var filesync = WellKnownAppDrives.FilesyncDrive;
+        var filesyncId = filesync.Alias.Value;
+        var appId = Guid.NewGuid();
+        await frodo.Admin.EnsureAppRegistered(appId);
+        await frodo.Admin.CreateDrive(filesync, "Filesync", appId: appId, driveSlug: new OdinSlug("filesync"));
+        var fileKey = KeyHeader.NewRandom16();
+        var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(filesyncId, Metadata(Guid.NewGuid(), Content),
+            transitOptions: null!, keyHeader: fileKey);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        var createdBefore = (await AppDriveAsync(frodo, appId, "filesync")).Created;
+        Assert.That(createdBefore, Is.Not.Null);
+
+        var converted = await ConvertDriveAsync(frodo, zkMasterKey, filesyncId);
+
+        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == filesync);
+        Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.SelectiveShare));
+        Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(converted.DriveKey));
+        Assert.That((await AppDriveAsync(frodo, appId, "filesync")).Created, Is.EqualTo(createdBefore));
+
+        var read = await frodo.Drives.Reader.GetFileHeaderAsync(filesyncId, upload.Content!.FileId);
+        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.OK), read.Error?.Content);
+        Assert.That(read.Content!.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
+        Assert.That(ZkBrowser.OpenFileKey(read.Content.SharedSecretEncryptedKeyHeader, converted.DriveKey).AesKey.GetKey(),
+            Is.EqualTo(fileKey.AesKey.GetKey()));
     }
 
     [Test]
@@ -546,6 +579,13 @@ public class VaultConversionTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
         return (frodo, zkMasterKey);
+    }
+
+    private static async Task<ClientDriveData> AppDriveAsync(OwnerSession owner, Guid appId, string driveSlug)
+    {
+        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(OwnerAdmin.SlugFor(appId).ToString(), driveSlug);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        return response.Content!;
     }
 
     private static async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader> HeaderAsync(OwnerSession owner, Guid fileId)

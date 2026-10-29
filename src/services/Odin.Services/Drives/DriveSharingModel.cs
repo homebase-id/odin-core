@@ -4,7 +4,7 @@ namespace Odin.Services.Drives;
 /// Who holds which key to a drive (docs/zero-knowledge-drives.md, "Three sharing models").
 /// </summary>
 /// <remarks>
-/// Every drive starts Collaborative; conversion is what makes one Private, so the label never claims
+/// Every drive starts Collaborative; conversion is what makes one Private or SelectiveShare, so the label never claims
 /// more than <see cref="StorageDrive.IsZeroKnowledge"/>.  Stored as an int in the Drives table; the
 /// values are frozen.
 /// </remarks>
@@ -16,7 +16,10 @@ public enum DriveSharingModel
     /// <summary>Only the owner's devices and apps hold the drive key; others may only deposit.</summary>
     Private = 1,
 
-    /// <summary>Only the owner holds the drive key; each share has its own key.</summary>
+    /// <summary>
+    /// Only the owner holds the drive key; each share has its own key.  Shares aren't built yet, so for now such a
+    /// drive behaves as a Private one (Filesync).
+    /// </summary>
     SelectiveShare = 2,
 
     /// <summary>Not decided yet.  Nothing sets it today.</summary>

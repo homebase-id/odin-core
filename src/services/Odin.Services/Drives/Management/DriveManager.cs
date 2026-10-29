@@ -502,8 +502,8 @@ public class DriveManager : IDriveManager
         byte[] encryptedIdIv, byte[] encryptedIdValue, EccFullKeyData writeOnlyPublicKey,
         string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext)
     {
-        await ApplyZeroKnowledgeKeysAsync(driveId, zkMasterKeyEncryptedStorageKey, (encryptedIdIv, encryptedIdValue),
-            writeOnlyPublicKey, zkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
+        await ApplyZeroKnowledgeKeysAsync(driveId, DriveSharingModel.Private, zkMasterKeyEncryptedStorageKey,
+            (encryptedIdIv, encryptedIdValue), writeOnlyPublicKey, zkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
     }
 
     /// <summary>
@@ -513,13 +513,14 @@ public class DriveManager : IDriveManager
     /// (<see cref="StorageDriveData.TempOriginalDriveId"/>), not <see cref="StorageDrive.Id"/>.  The write-only key pair
     /// is the browser's new one: the server made the old one, so it has seen its private half.
     /// </summary>
-    internal Task ApplyZeroKnowledgeKeysKeepingKeyAsync(Guid driveId, string zkMasterKeyEncryptedStorageKey,
-        EccFullKeyData writeOnlyPublicKey, string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext) =>
-        ApplyZeroKnowledgeKeysAsync(driveId, zkMasterKeyEncryptedStorageKey, newEncryptedId: null, writeOnlyPublicKey,
-            zkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
+    internal Task ApplyZeroKnowledgeKeysKeepingKeyAsync(Guid driveId, DriveSharingModel sharingModel,
+        string zkMasterKeyEncryptedStorageKey, EccFullKeyData writeOnlyPublicKey,
+        string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext) =>
+        ApplyZeroKnowledgeKeysAsync(driveId, sharingModel, zkMasterKeyEncryptedStorageKey, newEncryptedId: null,
+            writeOnlyPublicKey, zkStorageKeyEncryptedWriteOnlyPrivateKey, odinContext);
 
-    private async Task ApplyZeroKnowledgeKeysAsync(Guid driveId, string zkMasterKeyEncryptedStorageKey,
-        (byte[] iv, byte[] value)? newEncryptedId, EccFullKeyData writeOnlyPublicKey,
+    private async Task ApplyZeroKnowledgeKeysAsync(Guid driveId, DriveSharingModel sharingModel,
+        string zkMasterKeyEncryptedStorageKey, (byte[] iv, byte[] value)? newEncryptedId, EccFullKeyData writeOnlyPublicKey,
         string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -531,7 +532,7 @@ public class DriveManager : IDriveManager
         }
 
         storageDrive.MasterKeyEncryptedStorageKey = null;
-        storageDrive.SharingModel = DriveSharingModel.Private; // the only way a drive becomes Private
+        storageDrive.SharingModel = sharingModel; // the only way a drive becomes zero knowledge
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
         if (newEncryptedId is var (iv, value))
         {
@@ -912,10 +913,11 @@ public class DriveManager : IDriveManager
             throw new OdinSystemException($"Drive {storageDrive.Id} has no copy of its key");
         }
 
-        // A Private drive whose key the server can still open would only pose as one.
-        if (storageDrive.SharingModel == DriveSharingModel.Private && storageDrive.MasterKeyEncryptedStorageKey != null)
+        // A zero-knowledge drive whose key the server can still open would only pose as one.
+        if (storageDrive.SharingModel is DriveSharingModel.Private or DriveSharingModel.SelectiveShare
+            && storageDrive.MasterKeyEncryptedStorageKey != null)
         {
-            throw new OdinSystemException($"Drive {storageDrive.Id} is Private but the server holds its key");
+            throw new OdinSystemException($"Drive {storageDrive.Id} is {storageDrive.SharingModel} but the server holds its key");
         }
 
         var details = new StorageDriveDetails
