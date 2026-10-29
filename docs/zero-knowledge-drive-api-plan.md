@@ -41,6 +41,10 @@ Status: step 1 built and merged (#2023, follow-up #2027). Step 2 merged (#2029, 
    console; the drive keeps its key, re-locked with ZKMK; every grant loses its copy; every file is
    relabelled `zkDrive`.
 
+4. **An app asks for the model** ([Step 4](#step-4-an-app-asks-for-the-model)): a new drive is created
+   Private or Selective Share when its app asks, never created and converted; Filesync's existing drive
+   upgrades to Selective Share from Chat's banner.
+
 Each step is its own PR (pair), and each targets main.
 
 ## Decisions (all steps)
@@ -633,6 +637,109 @@ the opt-in is the only way in, because converting a drive cuts off every app tha
 - ~~A grant on a zero-knowledge drive made without the browser can't lock the key for the app.~~ Resolved:
   the backfill at consent and at login (3.2).
 - After step 3: WASM memory-only keys; securing desktop tokens and keys (3.6).
+
+## Step 4: an app asks for the model
+
+Status: plan, 2026-10-29. Odin-core branch `filesync-selective-share` has 4.1 built. **(V)** = read in code
+on 2026-10-29 (odin-core, odin-js main e3808e2e, chat-kmp main b7e8ebf60, filesync main f1ddbddc);
+**(I)** = inferred. Decided with the user:
+- **The app requesting a drive says which model it wants.** odin-core is an app platform, so it keeps
+  no list of which drive gets which model.
+- **Nothing said means Collaborative**, today's behaviour, so every existing app is unchanged.
+- **A Private or Selective Share drive is created that way in one step**, never created and then
+  converted. Converting is only for upgrading drives that already exist.
+- **Private and Selective Share hold their key the same way**: no master-key copy. They differ only in
+  the shares Selective Share adds later: a table of extra key headers, one per share and file, for people
+  who may read chosen files and never the whole drive (zero-knowledge-drives.md, "Selective Share").
+  Until shares exist, a Selective Share drive behaves as a Private one.
+- **All three repos merge together.**
+
+### 4.1 Upgrading Filesync's existing drive (built)
+- The conversion (3.3) also takes the Filesync drive (`WellKnownAppDrives.FilesyncDrive`, alias
+  `cfceb937-b868-496b-91cb-3402f18320f8`, filesync `app.rs:48`) **(V)**.
+- The request names the model, `SharingModel`: Private or SelectiveShare, and nothing else
+  (`DriveSharingModel.IsZeroKnowledge`). The owner console sends what the app's banner asked for.
+- odin-core still keeps which old drives may be upgraded this way (Vault, Filesync), as a rollout guard.
+- The drive's `created` doesn't move: the upsert never sets it **(V)**, and the test checks it, because
+  Filesync sets its records aside when `created` changes (filesync#319).
+- The banner, in chat-kmp's developer menu, opens
+  `/owner/login?redeal=drive-private&drive=<id>&model=selectiveShare&returnUrl=…` (pinned by a chat-kmp
+  test). Vault's `redeal=vault-private` keeps working, as Private.
+
+### 4.2 A new drive created zero knowledge
+**The request.** One new key in the drive request an app already sends the owner console (`d`/`cd`):
+`"sm"`, one of `"collaborative"`, `"private"`, `"selectiveShare"` (the server's `DriveSharingModel`
+strings, odin-js `DriveTypes.ts:25` **(V)**). Absent means collaborative.
+- **Filesync:** `drive_request` (`app.rs:81`) builds both the sign-in request (`app.rs:141`) and the restore
+  link (`app.rs:157`) **(V)**, so both carry it. Chat's copy (`AppConfig.kt:537-546`) changes with it.
+- **Vault:** `vaultTargetDriveAccessRequest` (`AppConfig.kt:316-325`), encoded in
+  `TargetDriveAccessRequest.kt` next to `n`/`d` and left out when grant-only **(V)**.
+- **`sm` applies only when the drive is created.** A drive that exists keeps its model; upgrading it is 4.1.
+
+**The owner console.** Every app drive is created in `ensureAppOwnedDrives` (`useApp.ts:63`), from both
+the install page (`/owner/appreg`) and the permission extension (`/owner/appupdate`) **(V)**.
+- `drivesParamProblems` (`AppDefinition/util.ts:32`) refuses an unknown `sm`, and a zero-knowledge `sm`
+  together with anonymous reads (`r`) or CDN, so a request is never quietly downgraded.
+- For a new drive with a zero-knowledge `sm`, the console gets the zero-knowledge master key from the
+  session (`getZkMasterKey`, `ZeroKnowledgeProvider.ts:296`) **(V)**, or asks for the password as part of
+  the page.
+- It makes the drive's keys as it does for the Shard Recovery drive (`makeZkDriveKeys`,
+  `ZeroKnowledgeKeys.ts:353`) **(V)**: the drive key, the drive id encrypted with it, the write-only key
+  pair, and the key locked with the zero-knowledge master key. It sends them with the create request.
+- After the app's grant is saved (`RegisterApp` / `UpdatePermissions`), it locks the drive key for the app
+  (the login's `backfillAppKeys`, `ZeroKnowledgeProvider.ts:392`, making the app's key where it has none). If
+  that is cut off, the app's next sign-in or the owner's next login fills it in (3.2, "Backfill") **(V)**.
+
+**odin-core.**
+- `CreateDriveRequest` gets `SharingModel` and the browser's keys (the fields of `ZkConvertDriveRequest`,
+  `ZeroKnowledgeKeys.cs:411` **(V)**).
+- `DriveManager.CreateDriveAsync` (`DriveManager.cs:161-205`) takes a second branch for a zero-knowledge
+  model:
+  - it stores the browser's keys and sets no master-key copy;
+  - it makes no write-only key pair of its own;
+  - it refuses a zero-knowledge model without keys, keys without one, and anonymous reads or CDN with one.
+- The save guard already refuses a zero-knowledge drive with a master-key copy.
+- The server can't check the encrypted drive id, as with the Shard Recovery drive: a wrong one only
+  breaks the browser that sent it.
+
+**What the app sees.** The app drive answer (`GET /api/v2/apps/{app}/drives/{drive}`, `ClientDriveData`)
+gets `sharingModel`. It is already in the cached drive data (`StorageDriveData`), so the cache version
+doesn't change (I: check while building).
+- The model says what the drive is. The app's locked copy can lag behind it (above).
+- An app seeing a zero-knowledge drive with no `zkAppKeyEncryptedStorageKey` in its context should treat
+  that as "sign in again", never as Collaborative. Filesync does (agreed 2026-10-29).
+- An older owner console ignores `sm` and creates a Collaborative drive; the app can see that here.
+
+### 4.3 Warning about devices that will lose the drive
+Before an upgrade, the console names the devices of each app granted the drive that don't hold the app's
+key: such a device gets nothing from the drive until it signs in again (3.4).
+- The device record keeps the id of the app key it was handed (`AppClientRegistration.ZkAppKeyId`) **(V)**.
+- The app's device list (`RegisteredAppClientResponse`, built at `AppRegistrationService.cs:592`) gets
+  `HoldsZkAppKey`: true when that id is the app's current one.
+- A warning, not a refusal: the owner can revoke an old device, or ignore it.
+
+### 4.4 The owner console, in one odin-js PR
+- The generic upgrade link: `redeal=drive-private&drive=<id>&model=<model>`, naming the drive on the
+  password page and returning only to the app that owns it. `vault-private` stays, as Private.
+- The conversion sends `sharingModel` (4.1 refuses a request without it).
+- `sm` at creation (4.2), and the device warning (4.3).
+- `DriveDetails.tsx:210` marks Selective Share as zero knowledge too, not only Private **(V)**.
+
+### 4.5 Order and merge
+1. odin-core: 4.1 (built), 4.2 and 4.3, on branch `filesync-selective-share`.
+2. odin-js: 4.4.
+3. Both to local frodo, then bleeding edge: Filesync's upgrade end to end, and a new app drive created
+   Selective Share.
+4. chat-kmp and filesync add `sm` only after it is on bleeding edge. Filesync's 0.10.5 already reads
+   the drive's model from the drive, not from its request.
+5. Merge odin-core and odin-js together.
+
+### 4.6 Not in this step
+- Shares (the Selective Share key header table).
+- Upgrading a drive without rewriting every file's key header label (3.3's relabel); the user accepted
+  the per-file cost for now.
+- An upload already running when its drive is upgraded can save a key header nobody can open; the user
+  accepted this.
 
 ## Deferred to Chat: the transform
 
