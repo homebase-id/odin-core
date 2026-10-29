@@ -499,7 +499,9 @@ granted the drive. In one transaction:
     transfers today; the owner converts from the console, with the apps otherwise idle.
   - An unencrypted file on the drive stays readable by the server. Vault encrypts its uploads (I: check
     chat-kmp).
-- **Refused** if the drive is already zero knowledge, or isn't Vault (3.7).
+- **Refused** if the drive is already zero knowledge, or isn't Vault or Filesync (3.7), or the request's
+  `SharingModel` isn't Private or SelectiveShare. The request names the model: the app that asked for the
+  upgrade decides it, not a list in odin-core.
 - **After commit:** reset `OdinContextCache` (as `ConvertShardRecoveryDriveAsync` does) **(V)**. Open
   websockets keep the context they started with (`DeviceSocket`) (I: check what they can still reach).
 
@@ -608,12 +610,16 @@ Names are proposals until the server PR; the shapes are what the clients build a
     file with a hardcoded password (an OS keychain, I).
 
 ### 3.7 Scope
-- **Vault only.** Vault gets its drive through the chat app's registration (a permission extension,
+- **Vault and Filesync** (Filesync added 2026-10-29, as SelectiveShare: the model it will share folders
+  under, so it isn't converted again when sharing is built; until shares exist it behaves as Private). Only
+  drives that existed before they could be made zero knowledge are upgraded this way: a new drive is created
+  with the model its app asks for, never created and converted.
+- Vault gets its drive through the chat app's registration (a permission extension,
   `AppConfig.kt`) **(V)**; the built-in "Homebase - Vault" app and the Vault circle also hold ReadWrite
   grants on it (`SystemAppConstants`, `BuiltinCircles.VaultCircle`) **(V)**, and lose the key with every
   other grant. `OwnerOnly` doesn't stop the circle's grant (`CircleDefinitionService.cs:609-614`) **(V)**.
-- The conversion takes the drive as a parameter, so Chat and others reuse it later; refusing every drive
-  but Vault for now is one check.
+- The conversion takes the drive and its model as parameters, so Chat and others reuse it later; refusing every
+  other drive for now is one check.
 - **No way back.** A Private drive depends on zero-knowledge recovery (Shamir, the phrase), released in
   v0.1.968.
 

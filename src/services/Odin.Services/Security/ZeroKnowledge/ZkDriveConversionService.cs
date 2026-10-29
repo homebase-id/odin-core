@@ -76,7 +76,7 @@ public class ZkDriveConversionService(
             drive = await GetConvertibleDriveAsync(request.DriveId);
             AssertLockedWithTheDriveKey(request, odinContext.PermissionsContext.GetDriveStorageKey(drive.Id));
 
-            await driveManager.ApplyZeroKnowledgeKeysKeepingKeyAsync(drive.Id, ConvertibleDrives[request.DriveId],
+            await driveManager.ApplyZeroKnowledgeKeysKeepingKeyAsync(drive.Id, request.SharingModel,
                 request.ZkMasterKeyEncryptedStorageKey, writeOnlyPublicKey, request.ZkStorageKeyEncryptedWriteOnlyPrivateKey,
                 odinContext);
 
@@ -168,14 +168,14 @@ public class ZkDriveConversionService(
     }
 
     /// <summary>
-    /// The drives converted this way for now (plan 3.7), and what each becomes.  Filesync is SelectiveShare, the model
-    /// it will share folders under, so it needn't be converted a second time when sharing is built.
+    /// The drives that existed before they could be made zero knowledge and are upgraded this way, for now (plan 3.7).
+    /// A new drive is made zero knowledge when it is created, never converted.
     /// </summary>
-    private static readonly Dictionary<Guid, DriveSharingModel> ConvertibleDrives = new()
-    {
-        [WellKnownAppDrives.VaultDrive.Alias.Value] = DriveSharingModel.Private,
-        [WellKnownAppDrives.FilesyncDrive.Alias.Value] = DriveSharingModel.SelectiveShare
-    };
+    private static readonly HashSet<Guid> ConvertibleDrives =
+    [
+        WellKnownAppDrives.VaultDrive.Alias.Value,
+        WellKnownAppDrives.FilesyncDrive.Alias.Value
+    ];
 
     /// <summary>A drive of <see cref="ConvertibleDrives"/>, not yet zero knowledge.</summary>
     private async Task<StorageDrive> GetConvertibleDriveAsync(Guid driveId)
@@ -187,7 +187,7 @@ public class ZkDriveConversionService(
             throw new OdinClientException($"Drive {driveId} is already zero knowledge", OdinClientErrorCode.DriveCannotBeConverted);
         }
 
-        if (!ConvertibleDrives.ContainsKey(driveId))
+        if (!ConvertibleDrives.Contains(driveId))
         {
             throw new OdinClientException("Only the Vault and Filesync drives convert to zero knowledge for now",
                 OdinClientErrorCode.DriveCannotBeConverted);
@@ -201,6 +201,9 @@ public class ZkDriveConversionService(
 public sealed class ZkConvertDriveKeepingKeyRequest
 {
     public Guid DriveId { get; set; }
+
+    /// <summary>What the drive becomes, as the app that asked for the upgrade wants it: Private or SelectiveShare.</summary>
+    public DriveSharingModel SharingModel { get; set; }
 
     /// <summary>The drive's existing key, locked with the zero-knowledge master key.</summary>
     public string ZkMasterKeyEncryptedStorageKey { get; set; } = "";
@@ -219,6 +222,11 @@ public sealed class ZkConvertDriveKeepingKeyRequest
         if (DriveId == Guid.Empty)
         {
             throw new OdinClientException("A drive id is required", OdinClientErrorCode.ArgumentError);
+        }
+
+        if (!SharingModel.IsZeroKnowledge())
+        {
+            throw new OdinClientException($"{nameof(SharingModel)} is Private or SelectiveShare", OdinClientErrorCode.ArgumentError);
         }
 
         // The limits are the Drives columns'

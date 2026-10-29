@@ -25,3 +25,10 @@ public enum DriveSharingModel
     /// <summary>Not decided yet.  Nothing sets it today.</summary>
     Unclassified = 3
 }
+
+public static class DriveSharingModelExtensions
+{
+    /// <summary>The models whose drives the server holds no key to: Private and SelectiveShare.</summary>
+    public static bool IsZeroKnowledge(this DriveSharingModel model) =>
+        model is DriveSharingModel.Private or DriveSharingModel.SelectiveShare;
+}

@@ -204,7 +204,7 @@ public class DriveManager : IDriveManager
             DriveTypeSlug = driveTypeSlug,
             WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(writeOnlyKeyPair),
 
-            // Every new drive is Collaborative: the server made its key.  Only conversion makes one Private.
+            // Every new drive is Collaborative: the server made its key.  Only conversion makes one zero knowledge.
             SharingModel = (int)DriveSharingModel.Collaborative
         };
 
@@ -524,6 +524,10 @@ public class DriveManager : IDriveManager
         string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
+        if (!sharingModel.IsZeroKnowledge())
+        {
+            throw new OdinSystemException($"A drive without a master-key copy can't be {sharingModel}");
+        }
 
         var storageDrive = await GetDriveInternal(driveId);
         if (storageDrive == null)
@@ -914,8 +918,7 @@ public class DriveManager : IDriveManager
         }
 
         // A zero-knowledge drive whose key the server can still open would only pose as one.
-        if (storageDrive.SharingModel is DriveSharingModel.Private or DriveSharingModel.SelectiveShare
-            && storageDrive.MasterKeyEncryptedStorageKey != null)
+        if (storageDrive.SharingModel.IsZeroKnowledge() && storageDrive.MasterKeyEncryptedStorageKey != null)
         {
             throw new OdinSystemException($"Drive {storageDrive.Id} is {storageDrive.SharingModel} but the server holds its key");
         }

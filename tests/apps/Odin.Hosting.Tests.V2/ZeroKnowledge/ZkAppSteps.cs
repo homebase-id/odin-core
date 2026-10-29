@@ -37,11 +37,13 @@ internal static class ZkAppSteps
 
     /// <summary>The browser converts Vault: its key re-locked with the zero-knowledge master key, a copy for each app.</summary>
     public static Task<Converted> ConvertVaultAsync(OwnerSession owner, byte[] zkMasterKey) =>
-        ConvertDriveAsync(owner, zkMasterKey, VaultId);
+        ConvertDriveAsync(owner, zkMasterKey, VaultId, DriveSharingModel.Private);
 
-    public static async Task<Converted> ConvertDriveAsync(OwnerSession owner, byte[] zkMasterKey, Guid driveId)
+    public static async Task<Converted> ConvertDriveAsync(OwnerSession owner, byte[] zkMasterKey, Guid driveId,
+        DriveSharingModel sharingModel)
     {
         var (request, converted) = await MakeConversionAsync(owner, zkMasterKey, driveId: driveId);
+        request.SharingModel = sharingModel;
         var response = await ZkOwnerSteps.Client(owner).ConvertDrive(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return converted;
@@ -84,6 +86,7 @@ internal static class ZkAppSteps
         var request = new ZkConvertDriveKeepingKeyRequest
         {
             DriveId = id,
+            SharingModel = DriveSharingModel.Private,
             ZkMasterKeyEncryptedStorageKey = ZkBrowser.Lock(driveKey, zkMasterKey),
             WriteOnlyPublicKeyJwk = writeOnly.PublicKeyJwk,
             ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(writeOnly.PrivateKeyPkcs8, driveKey),
