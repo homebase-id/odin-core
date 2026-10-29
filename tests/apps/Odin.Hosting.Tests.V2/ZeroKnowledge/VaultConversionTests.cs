@@ -8,8 +8,6 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
-using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.YouAuth;
@@ -70,7 +68,7 @@ public class VaultConversionTests : V2Fixture
         Assert.That(plainAfter.FileMetadata.AppData.Content, Is.EqualTo("plain"));
 
         // The drive: private, its key only in the browser's copy
-        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == Vault);
+        var drive = await frodo.Admin.GetDrive(Vault);
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Private));
         Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(converted.DriveKey));
 
@@ -251,7 +249,7 @@ public class VaultConversionTests : V2Fixture
         Assert.That(response.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.ZkAppKeyMissing)).IgnoreCase);
 
         // Nothing happened: one transaction
-        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == Vault);
+        var drive = await frodo.Admin.GetDrive(Vault);
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Collaborative));
         Assert.That((await GrantOnAsync(app, Vault)).HasStorageKey, Is.True);
     }
@@ -289,15 +287,15 @@ public class VaultConversionTests : V2Fixture
         var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(filesyncId, Metadata(Guid.NewGuid(), Content),
             transitOptions: null!, keyHeader: fileKey);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
-        var createdBefore = (await AppDriveAsync(frodo, appId, "filesync")).Created;
+        var createdBefore = (await frodo.Admin.GetAppDrive(appId, "filesync")).Created;
         Assert.That(createdBefore, Is.Not.Null);
 
         var converted = await ConvertDriveAsync(frodo, zkMasterKey, filesyncId, DriveSharingModel.SelectiveShare);
 
-        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == filesync);
+        var drive = await frodo.Admin.GetDrive(filesync);
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.SelectiveShare));
         Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(converted.DriveKey));
-        Assert.That((await AppDriveAsync(frodo, appId, "filesync")).Created, Is.EqualTo(createdBefore));
+        Assert.That((await frodo.Admin.GetAppDrive(appId, "filesync")).Created, Is.EqualTo(createdBefore));
 
         // An app granted the drive keeps its permission and gets its own copy of the key, as with Vault
         var grant = await GrantOnAsync(app, filesync);
@@ -510,7 +508,7 @@ public class VaultConversionTests : V2Fixture
         request.ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(converted.WriteOnlyPrivateKey, ByteArrayUtil.GetRndByteArray(16));
         AssertArgumentError(await ZkOwnerSteps.Client(frodo).ConvertDrive(request));
 
-        var drive = (await frodo.Admin.GetDrives()).Single(d => d.TargetDriveInfo == Vault);
+        var drive = await frodo.Admin.GetDrive(Vault);
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Collaborative), "nothing happened");
 
         // Nor a write-only key whose public half isn't the one sent
@@ -591,13 +589,6 @@ public class VaultConversionTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
         return (frodo, zkMasterKey);
-    }
-
-    private static async Task<ClientDriveData> AppDriveAsync(OwnerSession owner, Guid appId, string driveSlug)
-    {
-        var response = await owner.RefitFor<IAppDriveHttpClientApiV2>().GetAppDrive(OwnerAdmin.SlugFor(appId).ToString(), driveSlug);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
-        return response.Content!;
     }
 
     private static async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader> HeaderAsync(OwnerSession owner, Guid fileId)

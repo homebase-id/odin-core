@@ -34,7 +34,7 @@ internal static class ZkOwnerSteps
 
     /// <summary>Where the browser looks to see whether the drive is converted.</summary>
     public static async Task<OwnerClientDriveData> GetShardRecoveryDriveAsync(OwnerSession owner) =>
-        (await owner.Admin.GetDrives()).Single(d => d.TargetDriveInfo == WellKnownAppDrives.ShardRecoveryDrive);
+        await owner.Admin.GetDrive(WellKnownAppDrives.ShardRecoveryDrive);
 
     public static async Task<ZkBrowser.Keys> CreateKeysAsync(OwnerSession owner, string password)
     {

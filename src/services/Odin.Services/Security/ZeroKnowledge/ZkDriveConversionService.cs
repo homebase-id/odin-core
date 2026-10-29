@@ -25,7 +25,7 @@ namespace Odin.Services.Security.ZeroKnowledge;
 /// <summary>
 /// Converts a drive to zero knowledge while it keeps its key (docs/zero-knowledge-drive-api-plan.md, step 3): the owner's
 /// browser re-locks the drive key with the zero-knowledge master key, and the server drops every copy it could open.
-/// No file is re-encrypted.  Vault and Filesync only, for now.
+/// No file is re-encrypted.  Only the drives in <see cref="ConvertibleDrives"/>, for now.
 /// </summary>
 /// <remarks>
 /// The trade, accepted: the server opened the key every time it served the drive before, so a key leaked then still
@@ -189,7 +189,7 @@ public class ZkDriveConversionService(
 
         if (!ConvertibleDrives.Contains(driveId))
         {
-            throw new OdinClientException("Only the Vault and Filesync drives convert to zero knowledge for now",
+            throw new OdinClientException($"Drive {driveId} isn't one that converts to zero knowledge",
                 OdinClientErrorCode.DriveCannotBeConverted);
         }
 

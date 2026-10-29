@@ -110,7 +110,7 @@ public class OwnerZeroKnowledgeController(
         return new ZkDriveKeyResponse { StorageKey64 = await driveConversionService.GetDriveKeyForConversionAsync(driveId, WebOdinContext) };
     }
 
-    /// <summary>Converts a drive to zero knowledge while it keeps its key (Vault, for now).</summary>
+    /// <summary>Converts a drive to zero knowledge while it keeps its key.</summary>
     [HttpPost("convert-drive")]
     public async Task<IActionResult> ConvertDrive([FromBody] ZkConvertDriveKeepingKeyRequest request)
     {

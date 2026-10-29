@@ -42,20 +42,20 @@ internal static class ZkAppSteps
     public static async Task<Converted> ConvertDriveAsync(OwnerSession owner, byte[] zkMasterKey, Guid driveId,
         DriveSharingModel sharingModel)
     {
-        var (request, converted) = await MakeConversionAsync(owner, zkMasterKey, driveId: driveId);
-        request.SharingModel = sharingModel;
+        var (request, converted) = await MakeConversionAsync(owner, zkMasterKey, driveId: driveId, sharingModel: sharingModel);
         var response = await ZkOwnerSteps.Client(owner).ConvertDrive(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return converted;
     }
 
     /// <summary>
-    /// What the browser sends to convert a drive (Vault unless <paramref name="driveId"/> names another): the drive's key, which the server hands over one last time, locked with
+    /// What the browser sends to convert a drive: the drive's key, which the server hands over one last time, locked with
     /// the zero-knowledge master key; a new write-only key pair; and, for every app granted the drive but those
     /// <paramref name="leaveOut"/> names, the key locked with the app's key (made where the app has none).
     /// </summary>
     public static async Task<(ZkConvertDriveKeepingKeyRequest Request, Converted Converted)> MakeConversionAsync(OwnerSession owner,
-        byte[] zkMasterKey, Func<Guid, bool>? leaveOut = null, Guid? driveId = null)
+        byte[] zkMasterKey, Func<Guid, bool>? leaveOut = null, Guid? driveId = null,
+        DriveSharingModel sharingModel = DriveSharingModel.Private)
     {
         var id = driveId ?? VaultId;
         var client = ZkOwnerSteps.Client(owner);
@@ -86,7 +86,7 @@ internal static class ZkAppSteps
         var request = new ZkConvertDriveKeepingKeyRequest
         {
             DriveId = id,
-            SharingModel = DriveSharingModel.Private,
+            SharingModel = sharingModel,
             ZkMasterKeyEncryptedStorageKey = ZkBrowser.Lock(driveKey, zkMasterKey),
             WriteOnlyPublicKeyJwk = writeOnly.PublicKeyJwk,
             ZkStorageKeyEncryptedWriteOnlyPrivateKey = ZkBrowser.Lock(writeOnly.PrivateKeyPkcs8, driveKey),
