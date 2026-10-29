@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -169,6 +171,50 @@ public class ZkDriveCreationTests : V2Fixture
         Assert.That((await frodo.Admin.GetCircleDefinition(BuiltinCircles.VaultCircle.Id)).Id,
             Is.EqualTo(BuiltinCircles.VaultCircle.Id));
         Assert.That((await client.GetMissingDrives()).Content, Is.Empty);
+    }
+
+    [Test]
+    public async Task AnAppThatAsksForNoPermissionKeysStillSeesItsDriveGrants()
+    {
+        // As Filesync registers: drives and no permission keys.  Its security context must still show the grants, the
+        // only place its devices find a private drive's key (they once came back empty for a group with no keys)
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var shared = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(shared, "Shared", allowAnonymousReads: false);
+        var zk = TargetDrive.NewTargetDrive();
+        var keys = ZkBrowser.MakeDriveKeys(zk.Alias, zkMasterKey);
+        await frodo.Admin.CreateDrive(zk, "Synced", allowAnonymousReads: false, sharingModel: DriveSharingModel.SelectiveShare,
+            zkKeys: keys.Request);
+
+        var app = await AppSession.SetupAsync(frodo, new PermissionSetGrantRequest
+        {
+            Drives =
+            [
+                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = shared, Permission = DrivePermission.Read } },
+                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = zk, Permission = DrivePermission.ReadWrite } }
+            ],
+            PermissionSet = null!
+        });
+
+        // A device from before the app had its key: both grants, the private one marked so it signs in again
+        var before = await GrantsAsync(app);
+        Assert.That(before.Select(g => g.PermissionedDrive.Drive), Is.SupersetOf(new[] { shared, zk }));
+        Assert.That(before.Single(g => g.PermissionedDrive.Drive == shared).HasStorageKey, Is.True);
+        var zkBefore = before.Single(g => g.PermissionedDrive.Drive == zk);
+        Assert.That((zkBefore.IsZeroKnowledge, zkBefore.ZkAppKeyEncryptedStorageKey, zkBefore.PermissionedDrive.Permission),
+            Is.EqualTo((true, (string?)null, DrivePermission.ReadWrite)));
+
+        // A device signed in with the app's key opens the private drive's key from its grant
+        var (device, appKey) = await SignInAsync(frodo, app.AppId, zkMasterKey);
+        var zkGrant = (await GrantsAsync(device)).Single(g => g.PermissionedDrive.Drive == zk);
+        Assert.That(ZkBrowser.Open(zkGrant.ZkAppKeyEncryptedStorageKey!, appKey), Is.EqualTo(keys.DriveKey));
+    }
+
+    private static async Task<List<RedactedDriveGrant>> GrantsAsync(AppSession app)
+    {
+        var response = await app.Auth.GetSecurityContext();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        return response.Content!.PermissionContext.PermissionGroups.SelectMany(g => g.DriveGrants).ToList();
     }
 
     private static async Task<RedactedAppRegistration?> BuiltinAppAsync(OwnerSession owner, Guid appId)
