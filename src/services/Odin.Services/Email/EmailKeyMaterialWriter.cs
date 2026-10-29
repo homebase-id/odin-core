@@ -112,6 +112,13 @@ public class EmailKeyMaterialWriter(
         {
             AssertCanResolveStorageKey(odinContext);
         }
+        else if (!ZkDriveFiles.CallerHoldsDriveKey(DriveId, odinContext))
+        {
+            // Before anything is written: such a device couldn't read the keyring, nor overwrite the pointer, a sealed
+            // file, so it would only leave a keyring nothing points at
+            throw new OdinClientException("The Email drive is private and this device holds no key to it; sign in again",
+                OdinClientErrorCode.ZkAppKeyMissing);
+        }
 
         var existing = await FindByUniqueIdAsync(uniqueId);
 

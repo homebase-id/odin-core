@@ -366,28 +366,37 @@ public abstract class V2Fixture
     }
 
     /// <summary>
-    /// The protected built-in drives a new identity has before its owner's first password login: all but the ones the
-    /// browser creates zero knowledge (Vault), which the server leaves out at setup.
+    /// The protected built-in drives a new identity has before its owner's browser has run: all but the ones the
+    /// browser creates zero knowledge (Vault, Email), which the server leaves out at setup.
     /// </summary>
     protected static System.Collections.Generic.List<Odin.Services.Drives.TargetDrive> ProtectedDrivesMadeAtSetup =>
         Odin.Services.Apps.Builtin.BuiltinDrives.Protected
             .Where(d => Odin.Services.Apps.Builtin.BuiltinApps.BrowserMadeDrives.All(b => b.TargetDrive != d)).ToList();
 
+    /// <summary>The seeded circles setup makes: those whose app has no browser-made drive to wait for.</summary>
+    protected static System.Collections.Generic.List<Odin.Services.Membership.Circles.CircleDefinition> CirclesMadeAtSetup =>
+        Odin.Services.Apps.Builtin.BuiltinApps.Builtin
+            .Where(a => !a.Drives.Any(d => Odin.Services.Apps.Builtin.BuiltinApps.BrowserMadeDrives.Contains(d)))
+            .SelectMany(a => a.Circles).ToList();
+
     /// <summary>
-    /// The Vault an identity made before Vault was created private (docs/zero-knowledge-drive-api-plan.md, 4.7) has:
-    /// Collaborative, created by the server at setup, with its built-in app and circle.  What the upgrade tests start
-    /// from; an identity made now has no Vault until the owner's browser creates it.
+    /// The Vault and Email drives an identity made before they were created private (docs/zero-knowledge-drive-api-plan.md,
+    /// 4.7, 4.8) has: Collaborative, created by the server at setup, with their built-in apps and circles.  What the
+    /// upgrade tests start from; an identity made now has neither until the owner's browser creates them.
     /// </summary>
-    protected async Task GiveTheVaultAnOlderIdentityHasAsync(OwnerSession owner)
+    protected async Task GiveTheDrivesAnOlderIdentityHasAsync(OwnerSession owner)
     {
         var (scope, odinContext) = await MigrationContextAsync(owner);
-        var vault = Odin.Services.Apps.Builtin.BuiltinDrives.VaultDrive;
-        await scope.Resolve<Odin.Services.Drives.Management.IDriveManager>().CreateDriveAsync(new Odin.Services.Drives.Management.CreateDriveRequest
+        var driveManager = scope.Resolve<Odin.Services.Drives.Management.IDriveManager>();
+        foreach (var drive in Odin.Services.Apps.Builtin.BuiltinApps.BrowserMadeDrives)
         {
-            Name = vault.Name, TargetDrive = vault.TargetDrive, Metadata = vault.Metadata, AppId = vault.AppId,
-            DriveSlug = vault.DriveSlug, DriveTypeSlug = vault.DriveTypeSlug, AllowAnonymousReads = vault.AllowAnonymousReads,
-            OwnerOnly = vault.OwnerOnly
-        }, odinContext);
+            await driveManager.CreateDriveAsync(new Odin.Services.Drives.Management.CreateDriveRequest
+            {
+                Name = drive.Name, TargetDrive = drive.TargetDrive, Metadata = drive.Metadata, AppId = drive.AppId,
+                DriveSlug = drive.DriveSlug, DriveTypeSlug = drive.DriveTypeSlug, AllowAnonymousReads = drive.AllowAnonymousReads,
+                OwnerOnly = drive.OwnerOnly
+            }, odinContext);
+        }
 
         var provisioner = scope.Resolve<Odin.Services.Apps.Builtin.BuiltinProvisioner>();
         await provisioner.EnsureCirclesAsync(odinContext);

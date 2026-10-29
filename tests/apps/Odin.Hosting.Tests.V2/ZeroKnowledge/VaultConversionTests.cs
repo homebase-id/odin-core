@@ -590,7 +590,7 @@ public class VaultConversionTests : V2Fixture
     private async Task<(OwnerSession Owner, byte[] ZkMasterKey)> OwnerWithZeroKnowledgeKeysAsync()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
-        await GiveTheVaultAnOlderIdentityHasAsync(frodo);
+        await GiveTheDrivesAnOlderIdentityHasAsync(frodo);
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
         return (frodo, zkMasterKey);
     }

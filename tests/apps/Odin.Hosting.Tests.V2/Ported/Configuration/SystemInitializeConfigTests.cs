@@ -168,7 +168,7 @@ public class SystemInitializeConfigTests : V2Fixture
         var circleDefs = getCircleDefinitionsResponse.Content!.ToList();
 
         // Only the built-in apps' circles: the Confirmed and Auto system circles retired (#1809).
-        var seededCircles = BuiltinApps.CirclesMadeAtSetup.Select(c => (Guid)c.Id).Distinct().Count();
+        var seededCircles = CirclesMadeAtSetup.Select(c => (Guid)c.Id).Distinct().Count();
         Assert.That(circleDefs.Count, Is.EqualTo(seededCircles));
         Assert.That(circleDefs.Any(c => (Guid)c.Id == (Guid)GuidId.FromString("we_are_connected")), Is.False,
             "the Confirmed Connections circle is no longer provisioned");

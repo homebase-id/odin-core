@@ -141,8 +141,10 @@ public class DriveManagementArchivalTests : V2Fixture
     [Test]
     public async Task FailToArchiveSystemDrive()
     {
-        // Prepare
+        // Prepare: every protected drive present, the browser-made ones (Vault, Email) as an older identity has them,
+        // so each is refused for being protected rather than for being missing
         var owner = await LoginAsOwner();
+        await GiveTheDrivesAnOlderIdentityHasAsync(owner);
         var driveManagement = owner.RefitFor<IRefitDriveManagement>();
 
         // Act - archive each protected system drive

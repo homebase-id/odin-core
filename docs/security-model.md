@@ -319,7 +319,10 @@ thumbnails are all encrypted with FileKey, each with its own IV **(V)**. Only th
 - **Zero-knowledge drive:** by a client, and the server opens neither kind: by a device holding DrvK
   (`type: zkDrive`), or sealed to the drive's write-only public key by anyone with Write (`type: sealed`,
   a deposit) **(V)**. A key holder may later transform `sealed` into `zkDrive` (designed, built with
-  Chat). One read rule (`IDriveAclAuthorizationService.CallerMayReadAsync`) shows a client-locked file
+  Chat). One exception writes server-side: on a private Email drive the server seals the OpenPGP keyring and its
+  pointer to the drive itself (`EmailKeyMaterialWriter`), skipping the write rules a client's upload passes
+  (`OpenForWrite`, `AssertMayReplace`), so a rotation's sealed pointer replaces a `zkDrive` one on an upgraded drive;
+  it refuses a caller that doesn't hold the drive's key **(V)**. One read rule (`IDriveAclAuthorizationService.CallerMayReadAsync`) shows a client-locked file
   only to a caller that can open it; the model and decisions are in
   [zero-knowledge-drives.md](zero-knowledge-drives.md#how-a-zero-knowledge-drive-holds-files), the work in
   [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).

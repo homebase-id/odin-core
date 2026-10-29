@@ -389,17 +389,19 @@ public class ZeroKnowledgeKeyService(
     public async Task<StorageDrive> CreateZeroKnowledgeDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
         await GetRecordOrFailAsync();
-        var drive = await driveManager.CreateDriveAsync(request, odinContext);
 
-        // A built-in app and its circles wait for their zero-knowledge drive (Vault); this may be the one
-        await builtinProvisioner.EnsureCirclesAsync(odinContext);
-        await builtinProvisioner.EnsureAppsAsync(odinContext);
+        // With the app and circles of a browser-made built-in drive (Vault, Email), which waited for it, in one
+        // transaction: a failure leaves the drive missing, so the next login creates it again
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var drive = await driveManager.CreateDriveAsync(request, odinContext);
+        await builtinProvisioner.EnsureAppOfBrowserMadeDriveAsync(drive.Id, odinContext);
+        tx.Commit();
         return drive;
     }
 
     /// <summary>
-    /// The built-in Private or SelectiveShare drives the identity doesn't have yet (Vault, on an identity made since
-    /// 4.7): the owner's browser creates each with its keys at a password login.
+    /// The built-in Private or SelectiveShare drives the identity doesn't have yet (Vault and Email, on an identity made
+    /// since 4.7): the owner's browser creates each with its keys, at setup or a password login.
     /// </summary>
     public async Task<List<CreateDriveRequest>> GetMissingZeroKnowledgeDrivesAsync(IOdinContext odinContext)
     {

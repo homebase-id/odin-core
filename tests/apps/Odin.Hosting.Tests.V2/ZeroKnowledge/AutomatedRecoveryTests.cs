@@ -276,7 +276,7 @@ public class AutomatedRecoveryTests : ShamirFixture
     {
         var (frodo, _) = Cast();
         await MakeZeroKnowledgeAsync(frodo);
-        await GiveTheVaultAnOlderIdentityHasAsync(frodo);
+        await GiveTheDrivesAnOlderIdentityHasAsync(frodo);
         var app = await AppSession.SetupAsync(frodo, ZkAppSteps.Vault, DrivePermission.Read);
         var converted = await ZkAppSteps.ConvertVaultAsync(frodo, ZkMasterKeyOf(frodo));
         var (device, appKey) = await ZkAppSteps.SignInAsync(frodo, app.AppId, ZkMasterKeyOf(frodo));

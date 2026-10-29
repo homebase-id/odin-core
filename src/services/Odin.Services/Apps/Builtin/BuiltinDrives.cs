@@ -66,7 +66,7 @@ public static class BuiltinDrives
     // --- Email ---
     /// <summary>
     /// Private from the start, as <see cref="VaultDrive"/> is: it holds the OpenPGP keyring (docs/zero-knowledge-drive-api-plan.md,
-    /// 4.8).  An identity made before has a Collaborative Email drive, which it upgrades.
+    /// 4.8).  An identity that already has an Email drive keeps it as it is, Collaborative until the owner upgrades it.
     /// </summary>
     public static readonly CreateDriveRequest EmailDrive = new()
     {
@@ -169,8 +169,8 @@ public static class BuiltinDrives
     //
     /// <summary>
     /// Private from the start (docs/zero-knowledge-drive-api-plan.md, 4.7): the owner's browser creates it with its
-    /// keys at the first password login, so the server never sees its key.  An identity made before that has a
-    /// Collaborative Vault, which it upgrades.
+    /// keys at setup or a password login, so the server never sees its key.  An identity that already has a Vault keeps
+    /// it as it is, Collaborative until the owner upgrades it.
     /// </summary>
     public static readonly CreateDriveRequest VaultDrive = new()
     {

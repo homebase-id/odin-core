@@ -124,7 +124,7 @@ public class ZkDriveCreationTests : V2Fixture
     public async Task TheDeviceListSaysWhichDevicesHoldTheAppsKey()
     {
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
-        await GiveTheVaultAnOlderIdentityHasAsync(frodo);
+        await GiveTheDrivesAnOlderIdentityHasAsync(frodo);
         var olderDevice = await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
         await SignInAsync(frodo, olderDevice.AppId, zkMasterKey);
 
@@ -140,7 +140,7 @@ public class ZkDriveCreationTests : V2Fixture
         // The server can't make a Private drive, so a new identity starts without Vault, its app or its circle
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
         Assert.That((await frodo.Admin.GetDrives()).Any(d => d.TargetDriveInfo == Vault), Is.False);
-        Assert.That(await VaultAppAsync(frodo), Is.Null, "the Vault app waits for its drive");
+        Assert.That(await BuiltinAppAsync(frodo, Odin.Services.Apps.SystemAppConstants.VaultAppId), Is.Null, "the Vault app waits for its drive");
 
         // At a password login the browser creates each missing private drive with its keys: Vault and Email
         var client = ZkOwnerSteps.Client(frodo);
@@ -148,33 +148,39 @@ public class ZkDriveCreationTests : V2Fixture
         Assert.That(missing.StatusCode, Is.EqualTo(HttpStatusCode.OK), missing.Error?.Content);
         Assert.That(missing.Content!.Select(d => d.TargetDrive),
             Is.EquivalentTo(new[] { Vault, WellKnownAppDrives.EmailAppDrive }));
-        var driveKeys = new System.Collections.Generic.Dictionary<Guid, byte[]>();
+        var driveKeys = new System.Collections.Generic.Dictionary<Guid, ZkBrowser.DriveKeys>();
         foreach (var request in missing.Content!)
         {
             Assert.That(request.SharingModel, Is.EqualTo(DriveSharingModel.Private));
             var keys = ZkBrowser.MakeDriveKeys(request.TargetDrive.Alias, zkMasterKey);
             request.ZkKeys = keys.Request;
-            driveKeys[request.TargetDrive.Alias] = keys.DriveKey;
+            driveKeys[request.TargetDrive.Alias] = keys;
             var created = await frodo.RefitFor<IRefitDriveManagement>().CreateDrive(request);
             Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK), created.Error?.Content);
         }
 
         var drive = await frodo.Admin.GetDrive(Vault);
         Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Private));
-        Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(driveKeys[VaultId]));
+        Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(driveKeys[VaultId].DriveKey));
+        Assert.That(drive.WriteOnlyPublicKeyJwk, Is.EqualTo(driveKeys[VaultId].WriteOnlyPublicKeyJwk), "the browser's key pair");
         Assert.That(drive.AppId, Is.EqualTo(Odin.Services.Apps.SystemAppConstants.VaultAppId), "owned by the Vault app, as before");
-        Assert.That((await frodo.Admin.GetDrive(WellKnownAppDrives.EmailAppDrive)).SharingModel, Is.EqualTo(DriveSharingModel.Private));
-        Assert.That((await VaultAppAsync(frodo))?.Grant.DriveGrants.Any(g => g.PermissionedDrive.Drive == Vault), Is.True,
-            "the Vault app is registered with its grant once the drive exists");
+        var email = await frodo.Admin.GetDrive(WellKnownAppDrives.EmailAppDrive);
+        Assert.That(email.SharingModel, Is.EqualTo(DriveSharingModel.Private));
+        Assert.That(email.WriteOnlyPublicKeyJwk, Is.EqualTo(driveKeys[WellKnownAppDrives.EmailAppDrive.Alias].WriteOnlyPublicKeyJwk));
+
+        // Each app is registered with its grant once its drive exists
+        Assert.That((await BuiltinAppAsync(frodo, Odin.Services.Apps.SystemAppConstants.VaultAppId))?.Grant.DriveGrants
+            .Select(g => g.PermissionedDrive.Drive), Does.Contain(Vault));
+        Assert.That((await BuiltinAppAsync(frodo, Odin.Services.Apps.SystemAppConstants.EmailAppId))?.Grant.DriveGrants
+            .Select(g => g.PermissionedDrive.Drive), Does.Contain(WellKnownAppDrives.EmailAppDrive));
         Assert.That((await frodo.Admin.GetCircleDefinition(Odin.Services.Apps.Builtin.BuiltinCircles.VaultCircle.Id)).Id,
             Is.EqualTo(Odin.Services.Apps.Builtin.BuiltinCircles.VaultCircle.Id));
         Assert.That((await client.GetMissingDrives()).Content, Is.Empty);
     }
 
-    private static async Task<Odin.Services.Authorization.Apps.RedactedAppRegistration?> VaultAppAsync(OwnerSession owner)
+    private static async Task<Odin.Services.Authorization.Apps.RedactedAppRegistration?> BuiltinAppAsync(OwnerSession owner, Guid appId)
     {
-        var response = await owner.RefitFor<IRefitAppRegistration>().GetRegisteredApp(new GetAppRequest
-            { AppId = Odin.Services.Apps.SystemAppConstants.VaultAppId });
+        var response = await owner.RefitFor<IRefitAppRegistration>().GetRegisteredApp(new GetAppRequest { AppId = appId });
         return response.IsSuccessStatusCode ? response.Content : null;
     }
 

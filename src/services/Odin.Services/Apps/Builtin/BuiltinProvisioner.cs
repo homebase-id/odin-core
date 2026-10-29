@@ -217,25 +217,52 @@ public class BuiltinProvisioner(
         var waiting = await AppsWaitingForTheirDriveAsync();
         foreach (var app in BuiltinApps.Builtin.Where(a => !waiting.Contains(a.AppId)))
         {
-            if (!Registrations.TryGetValue(app.AppId, out var request))
-            {
-                throw new OdinSystemException(
-                    $"App '{app.Name}' is built-in but has no registration request");
-            }
-
-            if (await appRegistrationService.GetAppRegistration(request.AppId, odinContext) != null)
-            {
-                continue;
-            }
-
-            if (!app.AppSlug.HasValue)
-            {
-                throw new OdinSystemException(
-                    $"App '{app.Name}' has no slug; it cannot be registered");
-            }
-
-            logger.LogDebug("Registering built-in app {app} as {slug}", app.Name, app.AppSlug);
-            await appRegistrationService.RegisterAppAsync(WithSlug(request, app.AppSlug), odinContext);
+            await EnsureAppAsync(app, odinContext);
         }
+    }
+
+    /// <summary>
+    /// The owner's browser just created <paramref name="driveId"/>: if it is a browser-made built-in drive, its app's
+    /// circles and registration, which waited for it, follow once none of that app's browser-made drives is missing.
+    /// Nothing for any other drive.
+    /// </summary>
+    public async Task EnsureAppOfBrowserMadeDriveAsync(Guid driveId, IOdinContext odinContext)
+    {
+        var app = BuiltinApps.Builtin.SingleOrDefault(a =>
+            a.Drives.Any(d => d.SharingModel.IsZeroKnowledge() && d.TargetDrive.Alias.Value == driveId));
+        if (app == null || (await AppsWaitingForTheirDriveAsync()).Contains(app.AppId))
+        {
+            return;
+        }
+
+        foreach (var def in app.Circles)
+        {
+            await circleDefinitionService.EnsureCircleExistsAsync(def);
+        }
+
+        await EnsureAppAsync(app, odinContext);
+    }
+
+    private async Task EnsureAppAsync(WellknownAppDefinition app, IOdinContext odinContext)
+    {
+        if (!Registrations.TryGetValue(app.AppId, out var request))
+        {
+            throw new OdinSystemException(
+                $"App '{app.Name}' is built-in but has no registration request");
+        }
+
+        if (await appRegistrationService.GetAppRegistration(request.AppId, odinContext) != null)
+        {
+            return;
+        }
+
+        if (!app.AppSlug.HasValue)
+        {
+            throw new OdinSystemException(
+                $"App '{app.Name}' has no slug; it cannot be registered");
+        }
+
+        logger.LogDebug("Registering built-in app {app} as {slug}", app.Name, app.AppSlug);
+        await appRegistrationService.RegisterAppAsync(WithSlug(request, app.AppSlug), odinContext);
     }
 }

@@ -330,7 +330,7 @@ public class CircleDefinitionTests : V2Fixture
             // The owner's list is the two circles made here plus every circle the app tree
             // provisions. Counted from the tree rather than written down, so adding an app's
             // circle does not silently break an unrelated assertion.
-            var seeded = BuiltinApps.CirclesMadeAtSetup.Select(c => (Guid)c.Id).Distinct().Count();
+            var seeded = CirclesMadeAtSetup.Select(c => (Guid)c.Id).Distinct().Count();
             Assert.That(definitionList.Count, Is.EqualTo(2 + seeded));
 
             var circle1 = definitionList.Single(x => x.Name == request1.Name);

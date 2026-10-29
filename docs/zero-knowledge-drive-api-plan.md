@@ -640,8 +640,9 @@ the opt-in is the only way in, because converting a drive cuts off every app tha
 
 ## Step 4: an app asks for the model
 
-Status: built 2026-10-29: odin-core branch `filesync-selective-share` (4.1-4.3), odin-js branch
-`drive-private-models` (4.4); chat-kmp `drive-sharing-model` and filesync add `sm`. **(V)** = read in code
+Status: built 2026-10-29: odin-core branch `filesync-selective-share` (4.1-4.3, 4.7, 4.8), odin-js branch
+`drive-private-models` (4.4); chat-kmp `drive-sharing-model`, `vault-web-upload` and `email-make-private`, and
+filesync's, add `sm`, Vault on the web and the Email banner. **(V)** = read in code
 on 2026-10-29 (odin-core, odin-js main e3808e2e, chat-kmp main b7e8ebf60, filesync main f1ddbddc);
 **(I)** = inferred. Decided with the user:
 - **The app requesting a drive says which model it wants.** odin-core is an app platform, so it keeps
@@ -740,6 +741,16 @@ key: such a device gets nothing from the drive until it signs in again (3.4).
    the drive's model from the drive, not from its request.
 5. Merge odin-core and odin-js together.
 
+### 4.6 Not in this step
+- Shares (the Selective Share key header table).
+- Turning on anonymous reads or the CDN later on a zero-knowledge drive (`SetDriveReadModeAsync`,
+  `SetDriveAllowCdnAsync`): creation refuses both, the setters don't check yet. Listed in review, not fixed
+  here: it changes the existing drive-settings flow.
+- Upgrading a drive without rewriting every file's key header label (3.3's relabel); the user accepted
+  the per-file cost for now.
+- An upload already running when its drive is upgraded can save a key header nobody can open; the user
+  accepted this.
+
 ### 4.7 A new identity's Vault, created Private
 Vault is a built-in drive: the server created it at setup with its own key (`BuiltinApps.Builtin`,
 `BuiltinProvisioner.EnsureDrivesAsync`) **(V)**, so every new identity started with a Collaborative Vault, and an
@@ -747,10 +758,11 @@ app's `sm` couldn't help: the drive already existed, and the console doesn't cre
 owns (`ensureAppOwnedDrives`) **(V)**. Decided with the user 2026-10-29: in this round.
 - `BuiltinDrives.VaultDrive` says Private. Setup leaves such a drive out (`BuiltinApps.BrowserMadeDrives`), and holds
   back its app's registration and circles, whose grants need the drive.
-- At each password login, once the zero-knowledge keys are open, the console asks for the missing ones
-  (`GET security/zk/missing-drives`) and creates each with keys it makes (`drive/mgmt/create` with `zkKeys`), before
-  the login's app-key backfill. Creating one runs the provisioner's circles and apps again, so the Vault app and
-  circle arrive, owned and granted as before.
+- Right after first-run setup, and again at each password login, once the zero-knowledge keys are open, the console
+  asks for the missing ones (`GET security/zk/missing-drives`) and creates each with keys it makes
+  (`drive/mgmt/create` with `zkKeys`), then backfills the apps' copies. A drive that fails is left for the next login.
+  Creating one sets up that drive's own app and circles, in the same transaction
+  (`BuiltinProvisioner.EnsureAppOfBrowserMadeDriveAsync`), so the Vault app and circle arrive as before.
 - Until that login a new identity has no Vault. Chat asks for Vault only from its Vault onboarding ("Set up"), never
   at sign-in (chat-kmp, (V) by its agent); a grant on the missing drive is refused and Chat stays on the onboarding.
 - Identities made before keep their Collaborative Vault and upgrade it (4.1).
@@ -765,19 +777,13 @@ app, and created Private on a new identity as Vault is (4.7).
   write-only public key and stores it `sealed`, as a deposit. The owner's devices open it with the write-only
   private key their grant carries; an upgraded drive's older files are `zkDrive`.
 - The server still makes the key, so it sees it once. Generating it on the device instead is a later step.
-- A device without the drive's key can't overwrite the pointer (a sealed file it can't read), so it can't rotate the
-  key until it signs in again.
+- A device without the drive's key is refused before anything is written (`ZkAppKeyMissing`): it couldn't read the
+  keyring or overwrite the pointer, a sealed file. It signs in again.
+- Accepted, not fixed: a key generated while the drive is being upgraded can be written `aes` after the upgrade's
+  scan, as with any file (3.3); the drive's owner is the one upgrading, so it is unlikely.
+- Release order: a new identity's Email drive is Private, so the Chat release that opens `sealed` and `zkDrive`
+  headers (chat-kmp #2126) must ship before or with the server.
 - chat-kmp opens `sealed` headers, checked against the golden vector (`ClientLockedKeyHeaderVectorTests`).
-
-### 4.6 Not in this step
-- Shares (the Selective Share key header table).
-- Turning on anonymous reads or the CDN later on a zero-knowledge drive (`SetDriveReadModeAsync`,
-  `SetDriveAllowCdnAsync`): creation refuses both, the setters don't check yet. Listed in review, not fixed
-  here: it changes the existing drive-settings flow.
-- Upgrading a drive without rewriting every file's key header label (3.3's relabel); the user accepted
-  the per-file cost for now.
-- An upload already running when its drive is upgraded can save a key header nobody can open; the user
-  accepted this.
 
 ## Deferred to Chat: the transform
 
