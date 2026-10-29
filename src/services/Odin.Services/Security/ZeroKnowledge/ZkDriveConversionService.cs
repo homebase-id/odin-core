@@ -174,7 +174,8 @@ public class ZkDriveConversionService(
     private static readonly HashSet<Guid> ConvertibleDrives =
     [
         WellKnownAppDrives.VaultDrive.Alias.Value,
-        WellKnownAppDrives.FilesyncDrive.Alias.Value
+        WellKnownAppDrives.FilesyncDrive.Alias.Value,
+        WellKnownAppDrives.EmailAppDrive.Alias.Value
     ];
 
     /// <summary>A drive of <see cref="ConvertibleDrives"/>, not yet zero knowledge.</summary>

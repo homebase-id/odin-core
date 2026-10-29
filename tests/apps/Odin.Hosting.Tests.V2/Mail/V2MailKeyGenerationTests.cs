@@ -87,6 +87,44 @@ public class V2MailKeyGenerationTests : V2Fixture
     }
 
     /// <summary>
+    /// On a private Email drive the server holds no key to lock the keyring with: it seals the file key to the
+    /// drive's write-only public key, as a deposit is, so only the owner's devices open it (plan 4.8).
+    /// </summary>
+    [Test]
+    public async Task OnAPrivateEmailDriveTheKeyringIsSealedToTheDrive()
+    {
+        var owner = await LoginAsOwner(PrimaryIdentity);
+        var (zkMasterKey, _, _) = await Odin.Hosting.Tests.V2.ZeroKnowledge.ZkOwnerSteps.MakeZeroKnowledgeAsync(owner,
+            Odin.Hosting.Tests.V2.Auth.OwnerLogin.DefaultPassword);
+        var keys = Odin.Hosting.Tests.V2.ZeroKnowledge.ZkBrowser.MakeDriveKeys(WellKnownAppDrives.EmailAppDrive.Alias, zkMasterKey);
+        await owner.Admin.CreateDrive(WellKnownAppDrives.EmailAppDrive, "Email", allowAnonymousReads: false, ownerOnly: true,
+            appId: Odin.Services.Apps.SystemAppConstants.EmailAppId, driveSlug: new OdinSlug("email"),
+            driveTypeSlug: new OdinSlug("email"), sharingModel: DriveSharingModel.Private, zkKeys: keys.Request);
+
+        var (mail, _) = await SetUpMailboxAsync();
+        var generated = await mail.GenerateKeyAsync(Address);
+        Assert.That(generated.StatusCode, Is.EqualTo(HttpStatusCode.OK), generated.Error?.Content);
+
+        var header = await owner.Drives.Reader.GetFileHeaderByUniqueIdAsync(generated.Content!.KeyFileUniqueId,
+            WellKnownAppDrives.EmailAppDrive.Alias);
+        Assert.That(header.StatusCode, Is.EqualTo(HttpStatusCode.OK), header.Error?.Content);
+        var content = Odin.Hosting.Tests.V2.ZeroKnowledge.ZkBrowser.OpenDeposit(header.Content!, keys.WriteOnlyPrivateKey)
+            .ToStringFromUtf8Bytes();
+        Assert.That(content, Does.Contain("-----BEGIN PGP PRIVATE KEY BLOCK-----"));
+
+        // The pointer too.  It moves on rotation, by a caller that holds the drive's key (here the owner): one that
+        // doesn't can't overwrite a sealed file, as it can't read one, and signs in again first
+        var ownerMail = new V2MailClient(owner.Identity, owner.Factory);
+        var second = await ownerMail.GenerateKeyAsync(Address);
+        Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.OK), second.Error?.Content);
+        var pointer = await owner.Drives.Reader.GetFileHeaderByUniqueIdAsync(EmailDriveFileTypes.CurrentKeyPointerUniqueId,
+            WellKnownAppDrives.EmailAppDrive.Alias);
+        Assert.That(pointer.StatusCode, Is.EqualTo(HttpStatusCode.OK), pointer.Error?.Content);
+        Assert.That(Odin.Hosting.Tests.V2.ZeroKnowledge.ZkBrowser.OpenDeposit(pointer.Content!, keys.WriteOnlyPrivateKey)
+            .ToStringFromUtf8Bytes(), Does.Contain(second.Content!.KeyFileUniqueId.ToString()));
+    }
+
+    /// <summary>
     /// Rotation appends. The old keyring stays exactly where it was, because mail received under
     /// it is only readable while it survives; only the pointer moves.
     /// </summary>

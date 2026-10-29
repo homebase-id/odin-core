@@ -64,11 +64,15 @@ public static class BuiltinDrives
     };
 
     // --- Email ---
+    /// <summary>
+    /// Private from the start, as <see cref="VaultDrive"/> is: it holds the OpenPGP keyring (docs/zero-knowledge-drive-api-plan.md,
+    /// 4.8).  An identity made before has a Collaborative Email drive, which it upgrades.
+    /// </summary>
     public static readonly CreateDriveRequest EmailDrive = new()
     {
         Name = "Email", TargetDrive = WellKnownAppDrives.EmailAppDrive, Metadata = "",
         AppId = SystemAppConstants.EmailAppId, DriveSlug = (OdinSlug)"email", DriveTypeSlug = (OdinSlug)"email",
-        AllowAnonymousReads = false, OwnerOnly = true
+        AllowAnonymousReads = false, OwnerOnly = true, SharingModel = DriveSharingModel.Private
     };
 
     // --- Feed ---

@@ -755,6 +755,20 @@ owns (`ensureAppOwnedDrives`) **(V)**. Decided with the user 2026-10-29: in this
   at sign-in (chat-kmp, (V) by its agent); a grant on the missing drive is refused and Chat stays on the onboarding.
 - Identities made before keep their Collaborative Vault and upgrade it (4.1).
 
+### 4.8 The Email drive, Private
+It holds the OpenPGP keyring. Decided with the user 2026-10-29: in this round, upgradable from a banner in Chat's email
+app, and created Private on a new identity as Vault is (4.7).
+- The server makes the keyring (`EmailAppService.GenerateAndPublishKeyAsync`) and writes it with the pointer to it
+  (`EmailKeyMaterialWriter`) **(V)**. Only the public certificate goes to the mail server; nothing on the server
+  reads the keyring back **(V)**.
+- On a private Email drive the server holds no key to lock them with: it seals each file's key to the drive's
+  write-only public key and stores it `sealed`, as a deposit. The owner's devices open it with the write-only
+  private key their grant carries; an upgraded drive's older files are `zkDrive`.
+- The server still makes the key, so it sees it once. Generating it on the device instead is a later step.
+- A device without the drive's key can't overwrite the pointer (a sealed file it can't read), so it can't rotate the
+  key until it signs in again.
+- chat-kmp opens `sealed` headers, checked against the golden vector (`ClientLockedKeyHeaderVectorTests`).
+
 ### 4.6 Not in this step
 - Shares (the Selective Share key header table).
 - Turning on anonymous reads or the CDN later on a zero-knowledge drive (`SetDriveReadModeAsync`,
