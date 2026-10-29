@@ -30,6 +30,9 @@ public interface IFollowerHttpClientApiV2
     [Get(Root + "/follower")]
     Task<ApiResponse<FollowerDefinition>> GetFollower(string odinId);
 
+    [Get(Root + "/follower-configuration")]
+    Task<ApiResponse<FollowerDefinition>> GetFollowerConfiguration();
+
     [Post(Root + "/sync-feed-history")]
     Task<ApiResponse<HttpContent>> SynchronizeFeedHistory([Body] OdinIdRequest request);
 }

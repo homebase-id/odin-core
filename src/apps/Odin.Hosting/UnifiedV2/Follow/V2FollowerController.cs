@@ -14,13 +14,19 @@ namespace Odin.Hosting.UnifiedV2.Follow;
 /// Who the identity follows and who follows it (#1611). <see cref="FollowerService"/> asserts the permissions:
 /// ManageFeed to follow, unfollow and sync; ReadWhoIFollow and ReadMyFollowers to read.
 /// </summary>
+/// <remarks>
+/// Each action names its policy: authorization policies combine, so one on the class would also bind the reads.
+/// Writes are the owner's or an app's. The reads are open to a signed-in visitor (YouAuth) too, as on the v1
+/// guest API, so the public site can use them: a visitor holds ReadWhoIFollow only when the owner's tenant
+/// settings or a circle grant it, and ReadMyFollowers only from a circle.
+/// </remarks>
 [ApiController]
 [Route(UnifiedApiRouteConstants.Followers)]
-[UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2FollowerController(FollowerService followerService) : OdinControllerBase
 {
     [HttpPost("follow")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Follow an identity, or update how it is followed")]
     public async Task<IActionResult> Follow([FromBody] FollowRequest request)
     {
@@ -30,6 +36,7 @@ public class V2FollowerController(FollowerService followerService) : OdinControl
     }
 
     [HttpPost("unfollow")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Unfollow an identity")]
     public async Task<IActionResult> Unfollow([FromBody] OdinIdRequest request)
     {
@@ -39,6 +46,7 @@ public class V2FollowerController(FollowerService followerService) : OdinControl
     }
 
     [HttpPost("sync-feed-history")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Pull the feed history of an identity you follow")]
     public async Task<IActionResult> SynchronizeFeedHistory([FromBody] OdinIdRequest request)
     {
@@ -48,6 +56,7 @@ public class V2FollowerController(FollowerService followerService) : OdinControl
     }
 
     [HttpGet("identities-i-follow")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get list of identities you follow")]
     public async Task<CursoredResult<string>> GetIdentitiesIFollow(int count, string cursor)
     {
@@ -55,6 +64,7 @@ public class V2FollowerController(FollowerService followerService) : OdinControl
     }
 
     [HttpGet("identity-i-follow")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get how you follow an identity")]
     public async Task<FollowerDefinition> GetIdentityIFollow([FromQuery] string odinId)
     {
@@ -63,6 +73,7 @@ public class V2FollowerController(FollowerService followerService) : OdinControl
     }
 
     [HttpGet("following-me")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get list of identities following you")]
     public async Task<CursoredResult<string>> GetFollowingMe(int count, string cursor)
     {
@@ -70,10 +81,25 @@ public class V2FollowerController(FollowerService followerService) : OdinControl
     }
 
     [HttpGet("follower")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get how an identity follows you")]
     public async Task<FollowerDefinition> GetFollower([FromQuery] string odinId)
     {
         AssertIsValidOdinId(odinId, out var id);
         return await followerService.GetFollowerAsync(id, WebOdinContext);
+    }
+
+    /// <summary>
+    /// How the caller follows this identity, or nothing when they don't: the public site's Follow button. A caller
+    /// may always read their own follow, so no permission is needed. For the owner or an app the caller is the
+    /// identity itself, which follows no one as itself.
+    /// </summary>
+    [HttpGet("follower-configuration")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+    [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get how the caller follows you")]
+    public async Task<FollowerDefinition> GetFollowerConfiguration()
+    {
+        var caller = WebOdinContext.Caller.OdinId;
+        return caller == null ? null : await followerService.GetFollowerAsync(caller.Value, WebOdinContext);
     }
 }

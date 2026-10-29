@@ -35,6 +35,9 @@ public class V2FollowerClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<FollowerDefinition>> GetFollowerAsync(OdinId odinId)
         => await Service().GetFollower(odinId.DomainName);
 
+    public async Task<ApiResponse<FollowerDefinition>> GetFollowerConfigurationAsync()
+        => await Service().GetFollowerConfiguration();
+
     public async Task<ApiResponse<HttpContent>> SynchronizeFeedHistoryAsync(OdinIdRequest request)
         => await Service().SynchronizeFeedHistory(request);
 }
