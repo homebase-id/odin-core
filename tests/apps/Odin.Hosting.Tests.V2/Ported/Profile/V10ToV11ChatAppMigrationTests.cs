@@ -35,7 +35,7 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
 
         // A pre-v11 Chat app: Read-only on the ProfileDrive, no ManageProfile, plus an unrelated drive
         // grant and permission key that must survive the migration untouched.
-        await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
+        await owner.Admin.SetAppGrants(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
             {
@@ -95,7 +95,7 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
+        await owner.Admin.SetAppGrants(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
             {
@@ -138,7 +138,7 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
+        await owner.Admin.SetAppGrants(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
             {

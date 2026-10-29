@@ -158,6 +158,13 @@ public class OdinConfiguration
         /// </summary>
         public int? RecoveryKeyWaitingPeriodSeconds { get; init; }
 
+        /// <summary>
+        /// Tests only: server-dealt Shamir locks the recovery phrase, as every deal did before recovery
+        /// in the browser, until the phrase is taken over.  Lets a test recover with such a deal and
+        /// take the phrase over from one.
+        /// </summary>
+        public bool DealsLockThePhrase { get; init; }
+
         public DevelopmentSection()
         {
             // Mockable support
@@ -172,6 +179,7 @@ public class OdinConfiguration
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
                 RecoveryKeyWaitingPeriodSeconds = config.GetOrDefault<int?>("Development:RecoveryKeyWaitingPeriodSeconds", null);
+                DealsLockThePhrase = config.GetOrDefault("Development:DealsLockThePhrase", false);
             }
         }
     }
@@ -345,6 +353,11 @@ public class OdinConfiguration
         /// </summary>
         public TimeSpan OutboxRetryLaterMaxAge { get; init; }
 
+        /// <summary>
+        /// How long this identity caches a peer drive's write-only public key (docs/drive-public-keys-plan.md).
+        /// </summary>
+        public TimeSpan PeerDriveKeyCacheAge { get; init; }
+
         public TimeSpan PeerOperationDelayMs { get; init; }
 
         /// <summary>
@@ -411,6 +424,13 @@ public class OdinConfiguration
             if (OutboxRetryLaterMaxAge <= TimeSpan.Zero)
             {
                 throw new OdinConfigException("Invalid OutboxRetryLaterMaxAgeSeconds");
+            }
+
+            PeerDriveKeyCacheAge =
+                TimeSpan.FromSeconds(config.GetOrDefault("Host:PeerDriveKeyCacheSeconds", 7 * 24 * 60 * 60));
+            if (PeerDriveKeyCacheAge < FusionCacheWrapper.MinL2Duration)
+            {
+                throw new OdinConfigException($"PeerDriveKeyCacheSeconds must be at least {FusionCacheWrapper.MinL2Duration.TotalSeconds}");
             }
 
             ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");

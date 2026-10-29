@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Logging.Redaction;
 
 namespace Odin.Hosting.Middleware.Logging;
 
@@ -85,7 +86,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
             var strings = new List<string>();
             foreach (var (key, value) in headers)
             {
-                strings.Add("\"" + key + ":" + value + "\"");
+                strings.Add("\"" + key + ":" + LogRedaction.HeaderValue(key, value.ToString()) + "\"");
             }
             logger.Log(level, "Request headers: {RequestHeaders}", string.Join(';', strings));
         }

@@ -16,7 +16,7 @@ public static class SystemAppConstants
     /// Owns every drive that ships with an identity, so that no drive has a null <c>AppId</c>.
     /// </summary>
     /// <remarks>
-    /// <c>docs/drive-addressing.md</c> requires <c>AppId</c> and <c>DriveSlug</c> to be set together or
+    /// <c>docs/archive/drive-addressing.md</c> requires <c>AppId</c> and <c>DriveSlug</c> to be set together or
     /// both NULL: NULLs are distinct in a unique index, so a slug on an <c>AppId</c>-less row is not
     /// covered by <c>UNIQUE(identityId, AppId, DriveSlug)</c> and two drives could claim the same one.
     /// Giving the system drives a real owner satisfies that invariant and makes them slug-addressable --

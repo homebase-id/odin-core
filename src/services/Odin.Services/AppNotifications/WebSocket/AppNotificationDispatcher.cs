@@ -104,6 +104,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                 case InboxItemReceivedNotificationMessage notification:
                     await WsPublishAsync(notification);
                     return;
+                case DriveKeysChangedMessage changed:
+                    await CloseSocketsGrantedDriveAsync(changed.DriveId);
+                    return;
                 case null:
                     _logger.LogError("Received null message");
                     return;
@@ -325,6 +328,36 @@ namespace Odin.Services.AppNotifications.WebSocket
         }
 
         //
+        // A drive's keys changed
+        //
+
+        // Src: a drive becoming zero knowledge
+        // Dst: PubSub queue, so every node closes its own sockets
+        public async Task PublishDriveKeysChangedAsync(Guid driveId)
+        {
+            await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(new DriveKeysChangedMessage { DriveId = driveId }));
+        }
+
+        // Src: PubSub queue
+        // Dst: WebSocket
+        // A socket keeps the context it authenticated with, whose grant on the drive predates the change: each one granted
+        // the drive, or yet to subscribe, is closed, but the owner's, and its client reconnects with a context of now
+        private async Task CloseSocketsGrantedDriveAsync(Guid driveId)
+        {
+            var closed = await _deviceSocketCollection.RemoveSocketsAsync(
+                ds => ds.DeviceOdinContext is not { } context || (context.Caller?.HasMasterKey != true &&
+                    context.PermissionsContext is { } permissions &&
+                    (permissions.HasDrivePermission(driveId, DrivePermission.Read) ||
+                     permissions.HasDrivePermission(driveId, DrivePermission.Write))),
+                WebSocketCloseStatus.NormalClosure, "a drive's keys changed; reconnect");
+
+            if (closed > 0)
+            {
+                _logger.LogInformation("Closed {count} sockets: the keys of drive {driveId} changed", closed, driveId);
+            }
+        }
+
+        //
 
         private async Task TryDrainInboxForDriveAsync(Guid driveId)
         {
@@ -514,6 +547,11 @@ namespace Odin.Services.AppNotifications.WebSocket
             public required TargetDrive TargetDrive { get; init; }
             public required FileSystemType FileSystemType { get; init; }
             public required TransferFileType TransferFileType { get; init; }
+        }
+
+        private class DriveKeysChangedMessage
+        {
+            public required Guid DriveId { get; init; }
         }
     }
 }

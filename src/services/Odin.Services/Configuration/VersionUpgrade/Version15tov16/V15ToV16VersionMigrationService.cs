@@ -19,7 +19,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version15tov16
     /// Membership of the Confirmed Connections system circle is what "vetted" meant before this column
     /// existed -- it was only ever reached through the owner's explicit confirm -- so those connections are
     /// exactly the ones that would have carried a review stamp had there been one to carry
-    /// (docs/drive-addressing.md: "The vetted backfill becomes a plain UPDATE").
+    /// (docs/archive/drive-addressing.md: "The vetted backfill becomes a plain UPDATE").
     ///
     /// <para>
     /// The stamp is the migration's own run time, not the connection's creation or modification time.  The

@@ -33,6 +33,7 @@ public class DnsProbeTests
     // (ns1.id.pub) on 2026-10-01 - a name whose delegation we change cannot anchor this test
     [Test]
     [Retry(3)]
+    [Explicit("Live network: real DNS from the root servers for homebase.id")]
     public async Task ItShouldGetTheDomainAuthority()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
@@ -44,6 +45,7 @@ public class DnsProbeTests
     
     [Test]
     [Retry(3)]
+    [Explicit("Live network: real DNS from the root servers for homebase.id")]
     public async Task ItShouldGetTheDomainAuthorityUsingCache()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
@@ -60,6 +62,7 @@ public class DnsProbeTests
     
     [Test]
     [Retry(3)]
+    [Explicit("Live network: real DNS from the root servers for homebase.id")]
     public async Task ItShouldSaySomethingOnLookupDomainAuthorityError()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
@@ -71,6 +74,7 @@ public class DnsProbeTests
 
     [Test]
     [Retry(3)]
+    [Explicit("Live network: real DNS from the root servers for homebase.id")]
     public async Task ItShouldResolveARecordDomainToIpWithCache()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
@@ -89,6 +93,7 @@ public class DnsProbeTests
     // lookup is a cache hit for the same address, not which address it is
     [Test]
     [Retry(3)]
+    [Explicit("Live network: real DNS from the root servers for homebase.id")]
     public async Task ItShouldResolveCnameDomainToIpWithCache()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();

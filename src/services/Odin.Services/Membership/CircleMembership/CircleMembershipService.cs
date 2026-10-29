@@ -106,10 +106,35 @@ public class CircleMembershipService(
             }
         }
 
+        await UpdateMemberAndAppDriveGrantsAsync(grants => grants?.RemoveAll(g => g.DriveId == driveId) > 0);
+
+        tx.Commit();
+    }
+
+    /// <summary>
+    /// Takes a drive's storage key off every circle-member grant (identity or YouAuth domain) and app grant, keeping the
+    /// permission: the drive went zero knowledge and kept its key (docs/zero-knowledge-drive-api-plan.md, 3.3).  Circle
+    /// definitions hold requests, not keys.
+    /// </summary>
+    public async Task RemoveStorageKeyFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+        await UpdateMemberAndAppDriveGrantsAsync(grants => DriveGrant.RemoveStorageKey(grants, driveId));
+        tx.Commit();
+    }
+
+    /// <summary>
+    /// Applies <paramref name="update"/> to the drive grants of every circle-member grant (identity or YouAuth domain)
+    /// and app grant, saving each row it changed.  The caller holds the transaction.
+    /// </summary>
+    private async Task UpdateMemberAndAppDriveGrantsAsync(Func<List<DriveGrant>, bool> update)
+    {
         foreach (var member in await db.CircleMemberCached.GetAllCirclesAsync())
         {
             var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(member.data.ToStringFromUtf8Bytes());
-            if (storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0)
+            if (update(storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants))
             {
                 member.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
                 await db.CircleMemberCached.UpsertAsync(member);
@@ -119,14 +144,12 @@ public class CircleMembershipService(
         foreach (var appGrant in await db.AppGrantsCached.GetAllAsync())
         {
             var grant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
-            if (grant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0)
+            if (update(grant.KeyStoreKeyEncryptedDriveGrants))
             {
                 appGrant.data = OdinSystemSerializer.Serialize(grant).ToUtf8ByteArray();
                 await db.AppGrantsCached.UpsertAsync(appGrant);
             }
         }
-
-        tx.Commit();
     }
 
     public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
@@ -377,8 +400,7 @@ public class CircleMembershipService(
             throw new OdinSecurityException("Only an app can create a circle it owns");
         }
 
-        OdinSlug.AssertValidOrNull(request.Slug, nameof(request.Slug));
-        if (!string.IsNullOrEmpty(request.Slug))
+        if (request.Slug.HasValue)
         {
             var existing = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);
             if (existing != null)
@@ -404,7 +426,7 @@ public class CircleMembershipService(
             await circleDefinitionService.CreateAsync(create);
         }
         catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.CircleSlugTaken &&
-                                            !string.IsNullOrEmpty(request.Slug))
+                                            request.Slug.HasValue)
         {
             // Another device made it between the lookup and here: it is the circle this call asked for.
             var winner = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);

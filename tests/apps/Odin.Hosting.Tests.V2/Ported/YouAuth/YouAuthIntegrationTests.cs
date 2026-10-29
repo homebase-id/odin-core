@@ -11,6 +11,7 @@ using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Test.Helpers;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
@@ -1660,8 +1661,6 @@ public class YouAuthIntegrationTests : V2Fixture
     // identity registered it under, only the slug every installation shares.
     //
 
-    private static string NewSlug() => $"slug-{Guid.NewGuid():N}"[..20];
-
     private async Task<HttpResponseMessage> AuthorizeAppAsync(string hobbit, string clientId, YouAuthAppParameters appParams)
     {
         var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
@@ -1702,8 +1701,8 @@ public class YouAuthIntegrationTests : V2Fixture
         // The second device knows the slug, not the id -- in whatever case it was typed
         var appParams = GetAppParams(Guid.Empty, driveAlias, driveType);
         appParams.AppId = "";
-        appParams.AppSlug = registration.AppSlug;
-        var clientId = uppercase ? registration.AppSlug.ToUpperInvariant() : registration.AppSlug;
+        appParams.AppSlug = registration.AppSlug.Value;
+        var clientId = uppercase ? registration.AppSlug.Value.ToUpperInvariant() : registration.AppSlug.Value;
 
         var response = await AuthorizeAppAsync(hobbit, clientId, appParams);
 
@@ -1723,7 +1722,7 @@ public class YouAuthIntegrationTests : V2Fixture
     {
         const string hobbit = "sam.dotyou.cloud";
         var appParams = GetAppParams(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        appParams.AppSlug = NewSlug();
+        appParams.AppSlug = TestSlug.New();
 
         var response = await AuthorizeAppAsync(hobbit, appParams.AppSlug, appParams);
 
@@ -1738,7 +1737,7 @@ public class YouAuthIntegrationTests : V2Fixture
     {
         const string hobbit = "sam.dotyou.cloud";
         var appParams = GetAppParams(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        appParams.AppSlug = NewSlug();
+        appParams.AppSlug = TestSlug.New();
 
         // Registering would not make this client_id findable, so the browser would come back here forever
         var response = await AuthorizeAppAsync(hobbit, "some-other-slug", appParams);
@@ -1752,7 +1751,7 @@ public class YouAuthIntegrationTests : V2Fixture
         const string hobbit = "sam.dotyou.cloud";
         var appParams = GetAppParams(Guid.Empty, Guid.NewGuid(), Guid.NewGuid());
         appParams.AppId = "";
-        appParams.AppSlug = NewSlug();
+        appParams.AppSlug = TestSlug.New();
 
         // appId is optional only for an app that is already registered
         var response = await AuthorizeAppAsync(hobbit, appParams.AppSlug, appParams);

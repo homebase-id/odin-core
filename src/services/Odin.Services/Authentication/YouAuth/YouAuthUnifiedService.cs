@@ -14,6 +14,7 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.YouAuth;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
 
 namespace Odin.Services.Authentication.YouAuth;
@@ -36,9 +37,20 @@ public sealed class YouAuthUnifiedService(
         string clientIdOrDomain,
         string permissionRequest,
         string redirectUri,
-        IOdinContext odinContext)
+        IOdinContext odinContext,
+        string? zkAppKeyPublicKey = null)
     {
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext);
+
+        // Only the owner's browser can give an app its zero-knowledge key, at the consent page; an app that asked for
+        // it goes there until it has, whatever else would let it skip consent.
+        // Read as the type [070] reads: an untyped probe (ContainsAsync) on a node that doesn't hold it in memory stores
+        // the distributed copy there as a JsonElement, which the typed read then can't cast
+        if (zkAppKeyPublicKey != null &&
+            await level2Cache.GetOrDefaultAsync<SealedZkAppKey?>(SealedZkAppKeyCacheKey(clientIdOrDomain, zkAppKeyPublicKey), null) == null)
+        {
+            return true;
+        }
 
         //TODO: need to talk with Seb about the redirecting loop issue here
         var tempConsent = await level2Cache.GetOrDefaultAsync(TempConsentCacheKey(clientIdOrDomain), false);
@@ -73,6 +85,45 @@ public sealed class YouAuthUnifiedService(
 
         // everything else always require consent
         return true;
+    }
+
+    //
+
+    public async Task StoreSealedZkAppKeyAsync(string clientId, string jwkbase64UrlPublicKey, string sealedZkAppKey64,
+        string lockedZkAppKey, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        // A concurrent first sign-in (or login backfill) may have saved a different key since the browser made this one;
+        // the device would hold a key nothing is locked with
+        var appReg = await GetAppRegistrationByClientIdAsync(clientId, odinContext)
+                     ?? throw new OdinClientException("App is not registered", OdinClientErrorCode.AppNotRegistered);
+        var keyId = AppRegistration.ZkAppKeyId(lockedZkAppKey);
+        if (keyId != await appRegistrationService.GetZkAppKeyIdAsync(appReg.AppId, odinContext))
+        {
+            throw new OdinClientException("The app's zero-knowledge key changed during this sign-in; try again",
+                OdinClientErrorCode.ZkAppKeyAlreadySet);
+        }
+
+        // The browser seals to the key in the sign-in it is consenting to; anything else would never open on the device
+        string publicKeyJwk;
+        try
+        {
+            publicKeyJwk = Base64UrlEncoder.DecodeString(jwkbase64UrlPublicKey);
+        }
+        catch (FormatException)
+        {
+            throw new OdinClientException("The sign-in's public key isn't base64url", OdinClientErrorCode.ArgumentError);
+        }
+
+        if (!ZkSeal.IsSealedTo(ZkBlob.AssertBase64(sealedZkAppKey64, nameof(sealedZkAppKey64)), publicKeyJwk))
+        {
+            throw new OdinClientException("The app's zero-knowledge key must be sealed to the sign-in's public key",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        await level2Cache.SetAsync(SealedZkAppKeyCacheKey(clientId, jwkbase64UrlPublicKey),
+            new SealedZkAppKey { Sealed64 = sealedZkAppKey64, KeyId = keyId! }, TimeSpan.FromMinutes(60));
     }
 
     //
@@ -123,17 +174,19 @@ public sealed class YouAuthUnifiedService(
         string permissionRequest,
         string jwkbase64UrlPublicKey,
         YouAuthCipher cipher,
-        IOdinContext odinContext)
+        IOdinContext odinContext,
+        bool wantsZkAppKey = false)
     {
         odinContext.Caller.AssertHasMasterKey();
 
         ClientAccessToken? token;
+        SealedZkAppKey? sealedZkAppKey = null;
         if (clientType == ClientType.app)
         {
             // An app id goes straight to RegisterClientAsync, which loads the registration itself
             if (!IsAppId(clientId, out var appId))
             {
-                var appReg = await appRegistrationService.GetAppRegistrationBySlugAsync(clientId, odinContext)
+                var appReg = await GetAppRegistrationByClientIdAsync(clientId, odinContext)
                              ?? throw new OdinClientException("App is not registered", OdinClientErrorCode.AppNotRegistered);
                 appId = appReg.AppId;
             }
@@ -141,11 +194,26 @@ public sealed class YouAuthUnifiedService(
             OdinValidationUtils.AssertIsTrue(appId != Guid.Empty, "AppId is invalid");
             OdinValidationUtils.AssertNotNullOrEmpty(clientInfo, nameof(clientInfo));
 
+            if (wantsZkAppKey)
+            {
+                // Sealed by the owner's browser at consent, for this sign-in only
+                var cacheKey = SealedZkAppKeyCacheKey(clientId, jwkbase64UrlPublicKey);
+                sealedZkAppKey = await level2Cache.GetOrDefaultAsync<SealedZkAppKey?>(cacheKey, null)
+                                 ?? throw new OdinClientException("The app's zero-knowledge key wasn't given at consent",
+                                     OdinClientErrorCode.ZkAppKeyMissing);
+                await level2Cache.RemoveAsync(cacheKey);
+            }
+
             //TODO: Need to check if the app is registered, if not need redirect to get consent.
-            (token, _) = await appRegistrationService.RegisterClientAsync(appId, clientInfo, odinContext);
+            (token, _) = await appRegistrationService.RegisterClientAsync(appId, clientInfo, odinContext, sealedZkAppKey?.KeyId);
         }
         else if (clientType == ClientType.domain)
         {
+            if (wantsZkAppKey)
+            {
+                throw new OdinClientException("Only an app gets a zero-knowledge key", OdinClientErrorCode.ArgumentError);
+            }
+
             var domain = new AsciiDomainName(clientId);
 
             var info = await circleNetwork.GetIcrAsync((OdinId)domain, odinContext);
@@ -195,7 +263,10 @@ public sealed class YouAuthUnifiedService(
             sharedSecretIv,
             clientAuthTokenCipher,
             clientAuthTokenIv,
-            cipher);
+            cipher)
+        {
+            ZkAppKey = sealedZkAppKey?.Sealed64
+        };
 
         await level2Cache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
 
@@ -247,7 +318,9 @@ public sealed class YouAuthUnifiedService(
     {
         return IsAppId(clientId, out var appId)
             ? await appRegistrationService.GetAppRegistration(appId, odinContext)
-            : await appRegistrationService.GetAppRegistrationBySlugAsync(clientId, odinContext);
+            : OdinSlug.TryParse(clientId, out var appSlug)
+                ? await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext)
+                : null;
     }
 
     //
@@ -267,6 +340,16 @@ public sealed class YouAuthUnifiedService(
     //
 
     private string TempConsentCacheKey(string clientIdOrDomain) => $"TempConsent:{clientIdOrDomain}";
+
+    /// <summary>The app's key sealed to one sign-in, and the id of the key it is, which the device is marked with.</summary>
+    private sealed class SealedZkAppKey
+    {
+        public string Sealed64 { get; init; } = "";
+        public string KeyId { get; init; } = "";
+    }
+
+    private static string SealedZkAppKeyCacheKey(string clientId, string jwkbase64UrlPublicKey) =>
+        $"SealedZkAppKey:{clientId}:{SHA256.HashData(jwkbase64UrlPublicKey.ToUtf8ByteArray()).ToBase64()}";
     private string EncryptedTokenCacheKey(string exchangeSharedSecretDigest) =>
         $"EncryptedToken:{exchangeSharedSecretDigest}";
 }

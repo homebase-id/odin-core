@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
@@ -31,6 +30,13 @@ public class RecoveryNotifier(
     PushNotificationService pushNotificationService,
     IRecoveryNotificationSink notificationSink)
 {
+    /// <summary>A link's nonce data, without using it up: to check a request before it is used.</summary>
+    public async Task<string> PeekNonceDataOrFail(Guid nonceId)
+    {
+        var record = await nonceTable.PeekAsync(nonceId) ?? throw new OdinClientException("Invalid Nonce");
+        return record.data;
+    }
+
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
     {
         var record = await nonceTable.PopAsync(nonceId);
@@ -51,7 +57,7 @@ public class RecoveryNotifier(
 
         var link = BuildResetUrl($"https://{tenant}{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email-fwd", nonceId, "");
 
-        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.VerifyRecoveryEmail, link, nonceId));
+        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.VerifyRecoveryEmail, link, nonceId, To: email.Address));
 #if DEBUG
         logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
 #endif
@@ -60,30 +66,19 @@ public class RecoveryNotifier(
 
         if (configuration.Mailgun.Enabled)
         {
-            var job = jobManager.NewJob<SendEmailJob>();
-            job.Data = new SendEmailJobData()
+            await EnqueueEmailAsync(new Envelope
             {
-                Envelope = new Envelope
-                {
-                    To = [new NameAndEmailAddress { Name = email.DisplayName, Email = email.Address }],
-                    Subject = "Please verify your new recovery email address!",
-                    TextMessage = RecoveryEmails.VerifyNewRecoveryEmailText(tenant, link),
-                    HtmlMessage = RecoveryEmails.VerifyNewRecoveryEmailHtml(tenant, link)
-                },
-            };
-
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
-            {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                To = [new NameAndEmailAddress { Name = email.DisplayName, Email = email.Address }],
+                Subject = "Please verify your new recovery email address!",
+                TextMessage = RecoveryEmails.VerifyNewRecoveryEmailText(tenant, link),
+                HtmlMessage = RecoveryEmails.VerifyNewRecoveryEmailHtml(tenant, link)
             });
         }
     }
 
-    public async Task EnqueueVerificationEmail(List<ShamiraPlayer> players, RecoveryEmailType emailType)
+    /// <param name="nonceData">Kept with the link's nonce: the recovering browser's public key, for a friend deal.</param>
+    /// <param name="email">The recovery email (<c>PasswordKeyRecoveryService.GetRecoveryEmailAsync</c>).</param>
+    public async Task EnqueueVerificationEmail(string email, List<ShamiraPlayer> players, RecoveryEmailType emailType, string nonceData = "")
     {
         AssertEmailEnabled();
 
@@ -92,9 +87,9 @@ public class RecoveryNotifier(
         job.Data = new SendRecoveryModeVerificationEmailJobData()
         {
             Domain = tenantContext.HostOdinId,
-            Email = tenantContext.Email,
+            Email = email,
             Players = players,
-            NonceId = await MakeNonce(),
+            NonceId = await MakeNonce(nonceData),
             EmailType = emailType,
             Path = emailType == RecoveryEmailType.EnterRecoveryMode ? "verify-enter" : "verify-exit"
         };
@@ -104,7 +99,7 @@ public class RecoveryNotifier(
             emailType == RecoveryEmailType.EnterRecoveryMode
                 ? RecoveryNotificationKind.EnterRecoveryMode
                 : RecoveryNotificationKind.ExitRecoveryMode,
-            link, job.Data.NonceId));
+            link, job.Data.NonceId, To: email));
 #if DEBUG
         if (emailType == RecoveryEmailType.EnterRecoveryMode)
         {
@@ -129,43 +124,55 @@ public class RecoveryNotifier(
         }
     }
 
-    public async Task EnqueueFinalizeRecoveryEmail(FinalRecoveryInfo finalInfo, Guid finalRecoveryKey)
+    /// <summary>
+    /// Enough shards are in: the owner goes back to the browser where recovery started, which rebuilds
+    /// the secret.  The email carries no link and no key (docs/zero-knowledge-recovery-plan.md,
+    /// decision 11).
+    /// </summary>
+    public async Task EnqueueShardsCollectedEmail(string email)
     {
-        var nonceId = await MakeNonce(OdinSystemSerializer.Serialize(finalInfo));
         var tenant = tenantContext.HostOdinId;
-        var link = BuildResetUrl($"https://{tenant}/owner/shamir-account-recovery", nonceId,
-            finalRecoveryKey.ToString());
-
-        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.FinalizeRecovery, link, nonceId,
-            finalRecoveryKey));
-#if DEBUG
-        logger.LogInformation("\n\n\n{link}\n\n\n{finalRecoveryEmailNonceId} with token {finalRecoveryKey}", link, nonceId,
-            finalRecoveryKey);
-#endif
+        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.ShardsCollected, null, Guid.Empty, To: email));
 
         AssertEmailEnabled();
 
-        if (configuration.Mailgun.Enabled) //for #debug state
+        if (configuration.Mailgun.Enabled)
         {
-            var job = jobManager.NewJob<SendEmailJob>();
-            job.Data = new SendEmailJobData()
+            await EnqueueEmailAsync(new Envelope
             {
-                Envelope = new Envelope
-                {
-                    To = [new NameAndEmailAddress { Email = tenantContext.Email }],
-                    Subject = "We have assembled your recovery key!",
-                    TextMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyText(tenant, link),
-                    HtmlMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyHtml(tenant, link)
-                },
-            };
+                To = [new NameAndEmailAddress { Email = email }],
+                Subject = "Your recovery is ready",
+                TextMessage = RecoveryEmails.ShardsCollectedText(tenant),
+                HtmlMessage = RecoveryEmails.ShardsCollectedHtml(tenant)
+            });
+        }
+    }
 
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
+    /// <summary>
+    /// As an automatic holder: emails <paramref name="dealer"/>'s recovery address, which the dealer
+    /// sent and this holder checked against the hash it stored at the deal, a link that releases the
+    /// shard (docs/zero-knowledge-recovery-plan.md, "Building the automated deal").  The link opens the
+    /// dealer's recovery page, on any device.
+    /// </summary>
+    public async Task EnqueueReleaseShardEmail(MailAddress email, OdinId dealer, Guid shardId, string code)
+    {
+        AssertEmailEnabled();
+
+        var holder = tenantContext.HostOdinId;
+        var link = $"https://{dealer}/owner/shamir-account-recovery?fill={shardId:N}&code={Uri.EscapeDataString(code)}";
+        notificationSink.Notify(new RecoveryNotification(dealer, RecoveryNotificationKind.ReleaseShard, link, Guid.Empty, holder, email.Address));
+#if DEBUG
+        logger.LogInformation("\n\n\n{link}\n\n\n{holder} releases shard {shardId}", link, holder, shardId);
+#endif
+
+        if (configuration.Mailgun.Enabled)
+        {
+            await EnqueueEmailAsync(new Envelope
             {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                To = [new NameAndEmailAddress { Email = email.Address }],
+                Subject = $"Your recovery: a piece from {holder}",
+                TextMessage = RecoveryEmails.ReleaseShardText(dealer, holder, link),
+                HtmlMessage = RecoveryEmails.ReleaseShardHtml(dealer, holder, link)
             });
         }
     }
@@ -177,25 +184,12 @@ public class RecoveryNotifier(
         if (configuration.Mailgun.Enabled) //for #debug state
         {
             var email = recoveryInfo.Email;
-            var job = jobManager.NewJob<SendEmailJob>();
-            job.Data = new SendEmailJobData()
+            await EnqueueEmailAsync(new Envelope
             {
-                Envelope = new Envelope
-                {
-                    To = [new NameAndEmailAddress { Email = email }],
-                    Subject = "Your Homebase Account Recovery Risk Report",
-                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention, mailAttention),
-                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention, mailAttention)
-                },
-            };
-
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
-            {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                To = [new NameAndEmailAddress { Email = email }],
+                Subject = "Your Homebase Account Recovery Risk Report",
+                TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention, mailAttention),
+                HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention, mailAttention)
             });
         }
 
@@ -218,6 +212,21 @@ public class RecoveryNotifier(
     }
 
 
+    private async Task EnqueueEmailAsync(Envelope envelope)
+    {
+        var job = jobManager.NewJob<SendEmailJob>();
+        job.Data = new SendEmailJobData { Envelope = envelope };
+
+        await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            RunAt = DateTimeOffset.Now.AddSeconds(1),
+            MaxAttempts = 20,
+            RetryDelay = TimeSpan.FromMinutes(1),
+            OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+            OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+        });
+    }
+
     private async Task<Guid> MakeNonce(string data = "")
     {
         var nonceId = Guid.NewGuid();
@@ -237,7 +246,7 @@ public class RecoveryNotifier(
     /// except on a development host, where the links are read from the log or the
     /// <see cref="IRecoveryNotificationSink"/> instead.
     /// </summary>
-    private void AssertEmailEnabled()
+    public void AssertEmailEnabled()
     {
         if (!configuration.Mailgun.Enabled && !configuration.Development.Enabled)
         {

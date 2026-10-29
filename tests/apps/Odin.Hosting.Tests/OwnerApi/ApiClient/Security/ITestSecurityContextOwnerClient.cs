@@ -40,10 +40,18 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         Task<ApiResponse<RemoteShardVerificationResult>> VerifyShards();
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/initiate-recovery-mode")]
-        Task<ApiResponse<HttpContent>> InitiateRecoveryMode();
+        Task<ApiResponse<HttpContent>> InitiateRecoveryMode([Body] InitiateRecoveryModeRequest request);
 
+        /// <summary>The email link: it only opens the recovery page.</summary>
         [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-enter")]
         Task<ApiResponse<HttpContent>> VerifyEnterRecoveryMode(string id);
+
+        /// <summary>What the recovery page posts from the link, with its throwaway public key.</summary>
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-enter")]
+        Task<ApiResponse<HttpContent>> EnterRecoveryMode([Body] EnterRecoveryModeRequest request);
+
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/recovery-bundle")]
+        Task<ApiResponse<ShamirRecoveryBundleResponse>> GetRecoveryBundle();
         
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/exit-recovery-mode")]
         Task<ApiResponse<HttpContent>> ExitRecoveryMode();
@@ -53,6 +61,12 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/finalize")]
         Task<ApiResponse<HttpContent>> FinalizeRecovery(FinalRecoveryRequest request);
+
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/fill-slot")]
+        Task<ApiResponse<HttpContent>> FillSlot([Body] FillSlotRequest request);
+
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/automated-recovery-players")]
+        Task<ApiResponse<AutomatedRecoveryPlayers>> GetAutomatedRecoveryPlayers();
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/reject-shard-request")]
         Task<ApiResponse<HttpContent>> RejectShardRequest(RejectShardRequest request);
@@ -77,5 +91,20 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-remote-player-shard")]
         Task<ApiResponse<ShardVerificationResult>> VerifyRemotePlayerShard(VerifyRemotePlayerShardRequest request);
+
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-recovery-key")]
+        Task<ApiResponse<HttpContent>> VerifyRecoveryKey([Body] VerifyRecoveryKeyRequest request);
+
+        /// <summary>Starts a recovery email change: the link goes to the new address.</summary>
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/update-recovery-email")]
+        Task<ApiResponse<HttpContent>> UpdateRecoveryEmail([Body] UpdateRecoveryEmailRequest request);
+
+        /// <summary>The new address's link: finishes the change, and redirects.</summary>
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-email")]
+        Task<ApiResponse<HttpContent>> VerifyRecoveryEmail(string id);
+
+        /// <summary>The red dot on the security page.</summary>
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/needs-attention")]
+        Task<ApiResponse<NeedsAttentionResponse>> GetNeedsAttention();
     }
 }

@@ -23,6 +23,10 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
 {
     private const int CollectedShardRequestFileType = 84099;
 
+    /// <summary>Whether <paramref name="header"/> is a dealer's request to release a shard.</summary>
+    public static bool IsReleaseRequest(ServerFileHeader header) =>
+        header.FileMetadata.AppData.FileType == CollectedShardRequestFileType;
+
     /// <summary>
     /// Saves the request for approval
     /// </summary>
@@ -63,27 +67,33 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         return files.Select(ToRequest).ToList();
     }
 
-    
+
+    /// <summary>The request for <paramref name="shardId"/>; null when there is none.</summary>
     public async Task<ShardApprovalRequest> GetRequest(Guid shardId, IOdinContext odinContext)
     {
-        var fileByClientUniqueId = await fileSystem.Query.GetSingleFileByTag(
-            WellKnownAppDrives.ShardRecoveryDrive.Alias,
-            shardId,
-            odinContext);
-
-        return ToRequest(fileByClientUniqueId);
+        return ToRequest(await GetRequestFile(shardId, odinContext));
     }
-    
-    public async Task DeleteRequest(Guid shardId, IOdinContext odinContext)
-    {
-        var fileByClientUniqueId = await fileSystem.Query.GetSingleFileByTag(
-            WellKnownAppDrives.ShardRecoveryDrive.Alias,
-            shardId,
-            odinContext);
 
-        var file = new InternalDriveFileId(WellKnownAppDrives.ShardRecoveryDrive.Alias, fileByClientUniqueId.FileId);
+    /// <summary>
+    /// Deletes <paramref name="handled"/>, the request as read before it was handled.  A dealer that
+    /// started over since asked again in the same file, maybe with the same browser's key: that newer
+    /// request, stamped when it came in, stays.
+    /// </summary>
+    public async Task DeleteRequest(ShardApprovalRequest handled, IOdinContext odinContext)
+    {
+        var header = await GetRequestFile(handled.ShardId, odinContext);
+        var stored = ToRequest(header);
+        if (stored == null || stored.Created != handled.Created || stored.RecoveryPublicKeyJwk != handled.RecoveryPublicKeyJwk)
+        {
+            return;
+        }
+
+        var file = new InternalDriveFileId(WellKnownAppDrives.ShardRecoveryDrive.Alias, header.FileId);
         await fileSystem.Storage.HardDeleteLongTermFile(file, odinContext);
     }
+
+    private async Task<SharedSecretEncryptedFileHeader> GetRequestFile(Guid shardId, IOdinContext odinContext) =>
+        await fileSystem.Query.GetSingleFileByTag(WellKnownAppDrives.ShardRecoveryDrive.Alias, shardId, odinContext);
 
     private async Task<List<SharedSecretEncryptedFileHeader>> GetShardRequestFiles(IOdinContext odinContext)
     {
@@ -158,8 +168,6 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
     }
 
-    private ShardApprovalRequest ToRequest(SharedSecretEncryptedFileHeader header)
-    {
-        return ShardApprovalRequest.Deserialize(header.FileMetadata.AppData.Content);
-    }
+    private static ShardApprovalRequest ToRequest(SharedSecretEncryptedFileHeader header) =>
+        header == null ? null : ShardApprovalRequest.Deserialize(header.FileMetadata.AppData.Content);
 }

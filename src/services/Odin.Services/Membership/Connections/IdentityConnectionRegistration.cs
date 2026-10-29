@@ -92,7 +92,7 @@ namespace Odin.Services.Membership.Connections
         /// <see cref="CircleNetworkStorage"/> maps it into this object on read and back to the column on
         /// write; it is deliberately absent from <c>IcrAccessRecord</c> -- the type that becomes the row's
         /// <c>data</c> blob -- because a second copy in there would let the pagination query (column) and
-        /// the hydrated object disagree.  See docs/drive-addressing.md, "One at-rest copy".
+        /// the hydrated object disagree.  See docs/archive/drive-addressing.md, "One at-rest copy".
         /// </remarks>
         public UnixTimeUtc? ReviewedAt { get; set; }
 

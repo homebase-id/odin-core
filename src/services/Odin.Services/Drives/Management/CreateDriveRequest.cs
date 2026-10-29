@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core;
+using Odin.Core.Exceptions;
+using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Services.Drives.Management;
 
@@ -47,13 +50,61 @@ public class CreateDriveRequest
     /// The drive's portable name, unique per owning app.  Required (#1901): the server never derives
     /// one, and a missing or malformed slug is a 400.
     /// </summary>
-    public string DriveSlug { get; set; }
+    public OdinSlug DriveSlug { get; set; }
 
     /// <summary>
     /// Readable form of the drive's type, e.g. <c>channel</c>.  Required (#1901); a missing or
     /// malformed one is a 400.
     /// </summary>
-    public string DriveTypeSlug { get; set; }
+    public OdinSlug DriveTypeSlug { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
+
+    /// <summary>
+    /// What the app asked the drive to be (docs/zero-knowledge-drive-api-plan.md, step 4): Collaborative when it
+    /// said nothing, or Private or SelectiveShare, made zero knowledge here and never converted later.
+    /// </summary>
+    public DriveSharingModel SharingModel { get; set; }
+
+    /// <summary>With a zero-knowledge <see cref="SharingModel"/>: the drive's keys, made in the owner's browser.</summary>
+    public ZkConvertDriveRequest ZkKeys { get; set; }
+
+    /// <summary>Whether the drive is created zero knowledge; refuses a request whose model and keys disagree.</summary>
+    public bool AssertSharingModel()
+    {
+        if (!SharingModel.IsZeroKnowledge())
+        {
+            if (SharingModel != DriveSharingModel.Collaborative)
+            {
+                throw new OdinClientException($"A drive is created Collaborative, Private or SelectiveShare, not {SharingModel}",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
+            if (ZkKeys != null)
+            {
+                throw new OdinClientException($"{nameof(ZkKeys)} are for a Private or SelectiveShare drive",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
+            return false;
+        }
+
+        if (ZkKeys == null)
+        {
+            throw new OdinClientException($"A {SharingModel} drive needs {nameof(ZkKeys)}, made in the owner's browser",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        ZkKeys.Validate();
+
+        // The server can't open what such a drive holds, so nothing may read it on the server's behalf, and the feed
+        // never distributes from it (FeedDriveDistributionRouter)
+        if (AllowAnonymousReads || AllowCdn || AllowSubscriptions)
+        {
+            throw new OdinClientException($"A {SharingModel} drive allows neither anonymous reads, the CDN nor subscriptions",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        return true;
+    }
 }

@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Services.Base;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -24,6 +25,13 @@ public class AuthV2Client(OdinId identity, IApiClientFactory factory)
         return apiResponse;
     }
     
+    public async Task<ApiResponse<RedactedOdinContext>> GetSecurityContext()
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IAuthHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetSecurityContext();
+    }
+
     public async Task<ApiResponse<string>> Logout()
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

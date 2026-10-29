@@ -111,9 +111,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
             var taken = await CircleDefinitionService.SlugsHeldByAppAsync(db, SystemAppConstants.OwnerConsoleAppId);
             foreach (var definition in legacy)
             {
-                definition.Slug = (await db.CircleCached.GetAsync(definition.Id))?.CircleSlug
-                                  ?? CircleSlugGenerator.FixedSlugFor(definition.Id)
-                                  ?? CircleSlugGenerator.Generate(definition.Name, taken);
+                var stored = (await db.CircleCached.GetAsync(definition.Id))?.CircleSlug
+                             ?? CircleSlugGenerator.FixedSlugFor(definition.Id);
+                definition.Slug = stored != null
+                    ? new OdinSlug(stored)
+                    : CircleSlugGenerator.Generate(definition.Name, taken);
                 taken.Add(definition.Slug);
             }
 
@@ -143,7 +145,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
             return legacy.Select(a =>
             {
                 var reg = a.ToAppRegistration();
-                reg.AppSlug = slugs[a.AppId];
+                reg.AppSlug = new OdinSlug(slugs[a.AppId]);
                 return reg;
             }).ToList();
         }

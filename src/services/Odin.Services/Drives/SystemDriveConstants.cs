@@ -17,6 +17,9 @@ namespace Odin.Services.Drives;
 /// </remarks>
 public static class SystemDriveConstants
 {
+    /// <summary>The transient drive: files staged there only to be sent, never kept.</summary>
+    public static bool IsTransientTempDrive(System.Guid driveId) => driveId == TransientTempDrive.Alias.Value;
+
     //
     // DO NOT CHANGE ANY VALUES
     //

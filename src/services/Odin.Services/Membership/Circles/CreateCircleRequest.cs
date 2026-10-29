@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 
@@ -14,7 +15,7 @@ public class CreateCircleRequest
     /// The circle's address within its owning app (#1939).  Optional: made from <see cref="Name"/> when
     /// absent.  Refused if the app already holds it.  Immutable once written.
     /// </summary>
-    public string Slug { get; set; }
+    public OdinSlug Slug { get; set; }
     
     public string Description { get; set; }
     
