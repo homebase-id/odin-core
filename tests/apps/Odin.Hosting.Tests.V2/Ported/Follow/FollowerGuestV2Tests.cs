@@ -20,6 +20,12 @@ public class FollowerGuestV2Tests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry];
 
+    // A guest's circle must grant something, so these hold a permission the follower routes never check
+    private static PermissionSetGrantRequest NoFollowerPermissions() => new()
+    {
+        PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
+    };
+
     [Test]
     public async Task AGuestHoldingReadWhoIFollow_SeesWhoTheHostFollows()
     {
@@ -43,7 +49,7 @@ public class FollowerGuestV2Tests : V2Fixture
     {
         var sam = await LoginAsOwner(Identities.Sam);
 
-        var guest = await GuestSession.SetupAsync(sam, new PermissionSetGrantRequest());
+        var guest = await GuestSession.SetupAsync(sam, NoFollowerPermissions());
         var followers = new V2FollowerClient(guest.Identity, guest.Factory);
 
         var iFollow = await followers.GetIdentitiesIFollowAsync();
@@ -59,7 +65,7 @@ public class FollowerGuestV2Tests : V2Fixture
         await merry.Followers.FollowAsync(sam.Identity);
 
         // Merry visits Sam's site; no permissions are needed to read her own follow
-        var guest = await GuestSession.SetupAsync(sam, new PermissionSetGrantRequest(),
+        var guest = await GuestSession.SetupAsync(sam, NoFollowerPermissions(),
             new AsciiDomainName(Identities.Merry));
         var followers = new V2FollowerClient(guest.Identity, guest.Factory);
 
@@ -74,7 +80,7 @@ public class FollowerGuestV2Tests : V2Fixture
     {
         var sam = await LoginAsOwner(Identities.Sam);
 
-        var guest = await GuestSession.SetupAsync(sam, new PermissionSetGrantRequest());
+        var guest = await GuestSession.SetupAsync(sam, NoFollowerPermissions());
         var followers = new V2FollowerClient(guest.Identity, guest.Factory);
 
         var config = await followers.GetFollowerConfigurationAsync();
@@ -88,7 +94,7 @@ public class FollowerGuestV2Tests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var frodo = await LoginAsOwner(Identities.Frodo);
 
-        var guest = await GuestSession.SetupAsync(sam, new PermissionSetGrantRequest());
+        var guest = await GuestSession.SetupAsync(sam, NoFollowerPermissions());
         var followers = new V2FollowerClient(guest.Identity, guest.Factory);
 
         var follow = await followers.FollowAsync(new FollowRequest
