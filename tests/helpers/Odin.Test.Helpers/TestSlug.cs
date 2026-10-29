@@ -1,3 +1,5 @@
+using Odin.Core;
+
 namespace Odin.Test.Helpers;
 
 /// <summary>
@@ -7,8 +9,8 @@ namespace Odin.Test.Helpers;
 public static class TestSlug
 {
     /// <summary>The type slug for a test drive that is not testing types.</summary>
-    public const string DriveType = "drive";
+    public static readonly OdinSlug DriveType = new("drive");
 
     /// <summary>A unique, valid drive slug: "t" plus 13 hex digits, inside the 14-character limit.</summary>
-    public static string New() => "t" + Guid.NewGuid().ToString("N")[..13];
+    public static OdinSlug New() => new("t" + Guid.NewGuid().ToString("N")[..13]);
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -26,7 +27,7 @@ namespace Odin.Services.Authorization.Apps
         /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>).  Immutable once written, and unique per identity.
         /// </summary>
         [JsonIgnore]
-        public string AppSlug { get; set; }
+        public OdinSlug AppSlug { get; set; }
 
         [JsonIgnore]
         public string Name { get; set; }
@@ -49,6 +50,28 @@ namespace Odin.Services.Authorization.Apps
 
         [JsonIgnore]
         public string CorsHostName { get; set; }
+
+        /// <summary>
+        /// The app's zero-knowledge key (AppZkK), locked by the browser with the zero-knowledge master key:
+        /// only the owner console opens it.  Null until the browser first makes one
+        /// (docs/zero-knowledge-drive-api-plan.md, step 3).
+        /// </summary>
+        public string ZkMasterKeyEncryptedAppKey { get; set; }
+
+        /// <summary>
+        /// The key of each zero-knowledge drive the app is granted, by drive id, locked by the browser with
+        /// AppZkK: what the app's devices open.  Kept here rather than on the grant, which the server re-mints
+        /// without the browser (<see cref="AppRegistrationService.UpdateAppPermissionsAsync"/>).
+        /// </summary>
+        public Dictionary<Guid, string> ZkAppKeyEncryptedStorageKeys { get; set; }
+
+        /// <summary>
+        /// Names one app key without opening it: a device records the id of the key it was given
+        /// (<see cref="AppClientRegistration.ZkAppKeyId"/>), and holds the app's key only while that is still the
+        /// app's key.  Null for none.
+        /// </summary>
+        public static string ZkAppKeyId(string zkMasterKeyEncryptedAppKey) =>
+            zkMasterKeyEncryptedAppKey == null ? null : SHA256.HashData(zkMasterKeyEncryptedAppKey.ToUtf8ByteArray()).ToBase64();
 
         public RedactedAppRegistration Redacted()
         {

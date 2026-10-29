@@ -57,7 +57,26 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata,
             IOdinContext odinContext)
         {
+            // Refused before anything is staged: a full recipient keeps no half-received file, and the sender defers
+            if (metadata.Payloads?.Count > 0 && !metadata.PayloadsAreRemote)
+            {
+                await quotaGuard.AssertCanAddPayloadBytesAsync();
+            }
+
+            // Before anything is staged: an aes key header for a zero-knowledge drive would be accepted here and
+            // dropped by the inbox, where no storage key can lock it
             var driveId = transferInstructionSet.TargetDrive.Alias;
+            if (IsDeposit(metadata, transferInstructionSet))
+            {
+                Deposits.AssertValid(metadata, transferInstructionSet.SharedSecretEncryptedKeyHeader);
+            }
+
+            if (metadata.IsEncrypted)
+            {
+                var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
+                ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.SharedSecretEncryptedKeyHeader);
+            }
+
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
@@ -70,7 +89,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task AcceptPayload(PayloadDescriptor descriptor, bool isEncrypted, Stream data, IOdinContext odinContext)
         {
             // Refused before any bytes are read, so the sender defers the transfer instead of losing it
-            quotaGuard.AssertCanAddPayloadBytes();
+            await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             _uploadedKeys.TryAdd(descriptor.Key, new List<string>());
 
@@ -83,7 +102,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
             IOdinContext odinContext)
         {
-            quotaGuard.AssertCanAddPayloadBytes();
+            await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
             {
@@ -388,8 +407,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 // Next determine if we can direct write the file
                 var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(stateItem.File.DriveId, out _);
 
-                //S1200
-                if (hasStorageKey)
+                //S1200 - a deposit needs no key: it is stored sealed, as it came
+                if (hasStorageKey || IsDeposit(metadata, stateItem.TransferInstructionSet))
                 {
                     //S1205
                     await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
@@ -413,7 +432,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private KeyHeader DecryptKeyHeaderWithSharedSecret(EncryptedKeyHeader sharedSecretEncryptedKeyHeader, IOdinContext odinContext)
         {
             var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-            var decryptedKeyHeader = sharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            var decryptedKeyHeader = sharedSecretEncryptedKeyHeader.DecryptOrPassSealed(ref sharedSecret);
             return decryptedKeyHeader;
         }
 
@@ -529,6 +548,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 
+        private static bool IsDeposit(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>
+            Deposits.IsDeposit(metadata.IsEncrypted, instructionSet.SharedSecretEncryptedKeyHeader);
+
         private async Task<bool> CanDirectWriteFile(Guid driveId, FileMetadata metadata,
             EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)
         {
@@ -548,6 +570,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //S1100
             if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(driveId, out _))
+            {
+                return true;
+            }
+
+            if (IsDeposit(metadata, transferInstructionSet))
             {
                 return true;
             }

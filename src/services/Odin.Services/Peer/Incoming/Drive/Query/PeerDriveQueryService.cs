@@ -81,7 +81,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 return (null, default, null, null);
             }
 
-            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
+            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload?.ToBase64();
 
             // NOTE: caller takes ownership of ps and is responsible for disposing
             var ps = await fileSystem.Storage.GetPayloadStreamAsync(file, key, chunk, odinContext);
@@ -120,7 +120,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
             var (thumb, _) =
                 await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, width, height, payloadKey, payloadDescriptor.Uid, odinContext);
-            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
+            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload?.ToBase64();
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType,
                 payloadDescriptor.LastModified, thumb);
         }
@@ -141,7 +141,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         /// Not-found and not-permitted return the same null on purpose: distinguishing them would let a
         /// caller enumerate an identity's apps and drives by name.
         /// </remarks>
-        public async Task<PerimeterDriveData> ResolveDriveAddressAsync(string appSlug, string driveSlug,
+        public async Task<PerimeterDriveData> ResolveDriveAddressAsync(OdinSlug appSlug, OdinSlug driveSlug,
             IOdinContext odinContext)
         {
             var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext);
@@ -194,7 +194,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         /// not something the caller can act on.
         /// </para>
         /// </remarks>
-        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKeyAsync(string appSlug, string driveSlug,
+        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKeyAsync(OdinSlug appSlug, OdinSlug driveSlug,
             IOdinContext odinContext)
         {
             var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext);
@@ -224,7 +224,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             return new DrivePublicKeyResponse
             {
                 PublicKeyJwk = drive.WriteOnlyKeyPair.PublicKeyJwk(),
-                PublicKeyCrc32 = drive.WriteOnlyKeyPair.crc32c
+                PublicKeyCrc32 = drive.WriteOnlyKeyPair.crc32c,
+                IsZeroKnowledge = drive.IsZeroKnowledge
             };
         }
 

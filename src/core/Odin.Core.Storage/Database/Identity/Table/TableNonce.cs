@@ -39,6 +39,15 @@ public class TableNonce(
     }
 
     /// <summary>
+    /// A valid (not expired) nonce, left in place: for checking a request against it before it is used.
+    /// </summary>
+    public async Task<NonceRecord> PeekAsync(Guid id)
+    {
+        var r = await base.GetAsync(odinIdentity, id);
+        return r == null || r.expiration < UnixTimeUtc.Now() ? null : r;
+    }
+
+    /// <summary>
     /// Pops a Nonce from the database and returns it if it is valid (not expired) 
     /// </summary>
     /// <param name="id">The Guid representing the nonce</param>

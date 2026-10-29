@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -22,7 +23,7 @@ namespace Odin.Services.Apps.Builtin;
 public sealed record WellknownAppDefinition(
     Guid AppId,
     string Name,
-    string AppSlug,
+    OdinSlug AppSlug,
     IReadOnlyList<CreateDriveRequest> Drives,
     IReadOnlyList<CircleDefinition> Circles,
     PermissionSet Permissions);

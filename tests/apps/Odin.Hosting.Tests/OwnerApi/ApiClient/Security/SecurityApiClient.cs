@@ -111,7 +111,7 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         var client = ownerApi.CreateAnonymousClient(identity.OdinId);
         {
             var svc = RestService.For<ITestSecurityContextOwnerClient>(client);
-            var apiResponse = await svc.InitiateRecoveryMode();
+            var apiResponse = await svc.InitiateRecoveryMode(new InitiateRecoveryModeRequest());
             return apiResponse;
         }
     }

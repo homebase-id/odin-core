@@ -69,8 +69,12 @@ public static class FusionCacheWrapperExtensions
             // SEB:TODO switch to FusionCacheNeueccMessagePackSerializer?
             .WithSerializer(new FusionCacheSystemTextJsonSerializer());
 
+        // A cache's remove count (#1909) is one for every node when they share Redis, this node's otherwise
         if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)
         {
+            services.AddSingleton<IRemovalCounterFactory>(sp =>
+                new RedisRemovalCounterFactory(sp.GetRequiredService<IConnectionMultiplexer>()));
+
             builder
                 .WithDistributedCache(sp =>
                 {
@@ -88,6 +92,10 @@ public static class FusionCacheWrapperExtensions
                         ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer)
                     });
                 });
+        }
+        else
+        {
+            services.AddSingleton<IRemovalCounterFactory, InMemoryRemovalCounterFactory>();
         }
 
         return services;

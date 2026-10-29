@@ -52,6 +52,14 @@ internal class TableDriveMainIndexCacheKeys(TransactionalCache cache)
 
     //
 
+    // Not dropped on drive writes, unlike GetTotalSizeAllDrivesCacheKey: the quota guard reads it per upload
+    internal string GetQuotaTotalSizeAllDrivesCacheKey()
+    {
+        return "quotatotalsizealldrives";
+    }
+
+    //
+
     internal string GetIdentityStorageStatsCacheKey()
     {
         return "identitystoragestats";

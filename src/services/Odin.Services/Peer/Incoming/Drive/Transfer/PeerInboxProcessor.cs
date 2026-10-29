@@ -62,8 +62,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
 
-        public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1)
+        public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext callerContext, int batchSize = 1)
         {
+            // The items are the senders' writes, not the caller's, whichever device's query or socket drained the inbox.
+            // Copied when there is an item to write: most calls find the inbox empty
+            IOdinContext odinContext = null;
+
             int actualBatchSize = batchSize < 1 ? 1 : batchSize;
             var driveId = targetDrive.Alias;
             logger.LogDebug("Processing Inbox -> Getting Pending Items (chatty) for drive {driveId} with requested " +
@@ -88,6 +92,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     return await GetPendingCountAsync(targetDrive, driveId);
                 }
 
+                odinContext ??= OdinContextUpgrades.ForOthersWrites(callerContext);
                 logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
                 logger.LogDebug("Processing Inbox (no call to CUOWA) item with marker/popStamp [{marker}]", inboxItem.Marker);
 
@@ -405,6 +410,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(
                 inboxItem.Data.ToStringFromUtf8Bytes());
 
+            // What a sealed key header may replace is checked where the existing file is known (ZkDriveFiles.AssertMayReplace)
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
                 inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
 
@@ -509,7 +515,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var icr = await circleNetworkService.GetIcrAsync(sender, odinContext, overrideHack: true, tryUpgradeEncryption: true);
             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
-            var decryptedKeyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            var decryptedKeyHeader = encryptedKeyHeader.DecryptOrPassSealed(ref sharedSecret);
             return decryptedKeyHeader;
         }
 

@@ -2,8 +2,10 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Security.ZeroKnowledge;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,6 +22,7 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     internal StorageDriveData Data { get; } = data;
 
     public Guid Id => Data.Id;
+    public UnixTimeUtc Created => Data.Created;
     public string Name => Data.Name;
     public TargetDrive TargetDriveInfo => Data.TargetDriveInfo;
     public Guid TempOriginalDriveId => Data.TempOriginalDriveId;
@@ -54,7 +57,52 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.IsArchived = value;
     }
 
+    /// <summary>Null on a zero-knowledge drive; see <see cref="IsZeroKnowledge"/>.</summary>
     public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey => Data.MasterKeyEncryptedStorageKey;
+
+    public DriveSharingModel SharingModel => Data.SharingModel;
+
+    /// <summary>
+    /// The server holds no copy of the drive key it can open, so it never encrypts or decrypts for
+    /// this drive: the only copy is locked by the owner's zero-knowledge master key, which only the
+    /// browser can open.
+    /// </summary>
+    public bool IsZeroKnowledge => Data.MasterKeyEncryptedStorageKey == null;
+
+    /// <summary>Whether <paramref name="sealedValue"/> was sealed to this drive's write-only key (<see cref="ZkSeal"/>).</summary>
+    public bool IsSealedToWriteOnlyKey(byte[] sealedValue) =>
+        WriteOnlyKeyPair != null && ZkSeal.IsSealedTo(sealedValue, WriteOnlyKeyPair.PublicKeyJwk());
+
+    /// <summary>
+    /// Whether this drive takes a deposit: a file whose key header its writer sealed to the drive's
+    /// write-only public key (<c>EncryptionType.Sealed</c>).  A zero-knowledge drive does, as its owner's
+    /// browser opens it; so does the transient drive, which only passes a deposit on to its recipients.
+    /// Any other drive refuses one: the server could open everything else on it, so a deposit there
+    /// would only hide from the owner what the server can't read.
+    /// </summary>
+    public bool CanHoldDeposits => IsZeroKnowledge || SystemDriveConstants.IsTransientTempDrive(Id);
+
+    /// <summary>
+    /// Whether a grant with <paramref name="permission"/> carries the drive's storage key: reading
+    /// needs it, and ConditionalTemporalRead does too so the grantee can decrypt in-window files while
+    /// the owner is offline.  Never on a zero-knowledge drive, whose key reaches an app only from the
+    /// browser (docs/zero-knowledge-drives.md).
+    /// </summary>
+    public bool GrantCarriesStorageKey(DrivePermission permission) => !IsZeroKnowledge && PermissionNeedsKey(permission);
+
+    /// <summary>
+    /// Whether a grant with <paramref name="permission"/> needs the drive's key: reading does, and
+    /// ConditionalTemporalRead does too so the grantee can decrypt in-window files while the owner is offline.
+    /// Writing alone doesn't: on a zero-knowledge drive it deposits, sealed to the drive's public key.
+    /// </summary>
+    public static bool PermissionNeedsKey(DrivePermission permission) =>
+        permission.HasFlag(DrivePermission.Read) || permission.HasFlag(DrivePermission.ConditionalTemporalRead);
+
+    /// <summary>The browser's locked copy of the drive key.  Opaque to the server.</summary>
+    public string ZkMasterKeyEncryptedStorageKey => Data.ZkMasterKeyEncryptedStorageKey;
+
+    /// <summary>The browser's locked copy of the write-only private key.  Opaque to the server.</summary>
+    public string ZkStorageKeyEncryptedWriteOnlyPrivateKey => Data.ZkStorageKeyEncryptedWriteOnlyPrivateKey;
 
     /// <summary>The drive's write-only keypair; see <see cref="StorageDriveData.WriteOnlyKeyPair"/>.</summary>
     public EccFullKeyData WriteOnlyKeyPair
@@ -87,13 +135,13 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.AppId = value;
     }
 
-    public string DriveSlug
+    public OdinSlug DriveSlug
     {
         get => Data.DriveSlug;
         set => Data.DriveSlug = value;
     }
 
-    public string DriveTypeSlug
+    public OdinSlug DriveTypeSlug
     {
         get => Data.DriveTypeSlug;
         set => Data.DriveTypeSlug = value;
@@ -201,9 +249,27 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 // This guy needs to be serializable
 public sealed class StorageDriveData
 {
+    /// <summary>
+    /// Part of the drive cache's keys, so an entry cached before a change is never read after it: raise it with any
+    /// field added here.  2, entries before the NOT NULL migration (#1901) may carry a null AppId; 3, they have no
+    /// <see cref="Created"/> (#2038).
+    /// </summary>
+    public const int CacheVersion = 3;
+
     public Guid Id { get; init; }
 
-    public Guid TempOriginalDriveId { get; init; }
+    /// <summary>
+    /// When the drive was made (the row's <c>created</c>).  A drive deleted and made again keeps its id and slugs,
+    /// so this is how a client tells it from the one before (#2038).
+    /// </summary>
+    public UnixTimeUtc Created { get; init; }
+
+    /// <summary>
+    /// What <see cref="EncryptedIdValue"/> decrypts to (the StorageKeyCheckValue column).  On drives
+    /// older than the alias migration it is not <see cref="Id"/>; a browser-made key encrypts
+    /// <see cref="Id"/>, so conversion sets it to that.
+    /// </summary>
+    public Guid TempOriginalDriveId { get; set; }
 
     public string Name { get; init; }
 
@@ -225,13 +291,33 @@ public sealed class StorageDriveData
     public bool IsReadonly { get; set; }
 
     /// <summary>
-    /// The encryption key used to encrypt the <see cref="ServerFileHeader.EncryptedKeyHeader"/>
+    /// The encryption key used to encrypt the <see cref="ServerFileHeader.EncryptedKeyHeader"/>.
+    /// Null on a zero-knowledge drive, whose key is in <see cref="ZkMasterKeyEncryptedStorageKey"/>.
     /// </summary>
     public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey { get; set; }
 
-    public byte[] EncryptedIdIv { get; init; }
+    /// <summary>
+    /// The drive id encrypted with the storage key, to check a key is this drive's.  Replaced when
+    /// the browser gives a drive a new key.
+    /// </summary>
+    public byte[] EncryptedIdIv { get; set; }
 
-    public byte[] EncryptedIdValue { get; init; }
+    public byte[] EncryptedIdValue { get; set; }
+
+    /// <summary>A column, like the addressing fields.  See <see cref="DriveSharingModel"/>.</summary>
+    public DriveSharingModel SharingModel { get; set; }
+
+    /// <summary>
+    /// The storage key of a zero-knowledge drive, locked in the browser by the owner's zero-knowledge
+    /// master key.  Opaque to the server.  Null on every other drive.
+    /// </summary>
+    public string ZkMasterKeyEncryptedStorageKey { get; set; }
+
+    /// <summary>
+    /// The write-only private key of a zero-knowledge drive, locked in the browser by the drive's
+    /// storage key.  Opaque to the server; the public half stays in <see cref="WriteOnlyKeyPair"/>.
+    /// </summary>
+    public string ZkStorageKeyEncryptedWriteOnlyPrivateKey { get; set; }
 
     /// <summary>
     /// Specifies if anonymous callers can read this drive.
@@ -262,7 +348,7 @@ public sealed class StorageDriveData
     /// Drives table, not part of <see cref="StorageDriveDetails"/>.  They are deliberately kept out of
     /// detailsJson: <c>UNIQUE(identityId, AppId, DriveSlug)</c> constrains the columns, and a second copy
     /// in the blob could disagree with what the constraint is enforcing.  All three are NOT NULL
-    /// (#1901); see <c>docs/drive-addressing.md</c>.
+    /// (#1901); see <c>docs/security-model.md, Drive addressing</c>.
     /// </remarks>
     public Guid AppId { get; set; }
 
@@ -270,18 +356,18 @@ public sealed class StorageDriveData
     /// The drive's portable name -- the segment a remote caller uses to address it
     /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>).
     /// </summary>
-    public string DriveSlug { get; set; }
+    public OdinSlug DriveSlug { get; set; }
 
     /// <summary>
     /// Readable form of the drive's type, e.g. <c>channel</c>.  A category to filter on, not an address.
     /// </summary>
-    public string DriveTypeSlug { get; set; }
+    public OdinSlug DriveTypeSlug { get; set; }
 
     /// <summary>
     /// The drive's write-only keypair -- an ECC-384 <c>EccFullKeyData</c> holding the public half in
     /// clear and the private half escrowed under this drive's own storage key.  Anyone with the public
     /// half can seal a deposit to the drive; only a holder of the storage key can unseal it, so
-    /// deposit-collection custody is exactly existing read access (docs/drive-addressing.md).
+    /// deposit-collection custody is exactly existing read access (docs/security-model.md, Drive addressing).
     /// </summary>
     /// <remarks>
     /// A column, not part of <see cref="StorageDriveDetails"/>, for the same reason the addressing

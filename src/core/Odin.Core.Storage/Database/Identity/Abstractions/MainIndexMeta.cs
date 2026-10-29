@@ -27,17 +27,31 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
         public readonly TableDriveLocalTagIndex DriveLocalTagIndex = driveLocalTagIndex;
 
-        internal async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
+        /// <summary>
+        /// Deletes the file's rows from every per-file table.  With <paramref name="expectedVersionTag"/>, only while the
+        /// header is still at that tag: otherwise nothing is deleted and 0 is returned.
+        /// </summary>
+        internal async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId, Guid? expectedVersionTag = null)
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
+
+            // The main row first: it is the one the version tag guards, and a miss must leave the other tables alone
+            var n = expectedVersionTag.HasValue
+                ? await driveMainIndex.DeleteIfVersionTagAsync(driveId, fileId, expectedVersionTag.Value)
+                : await driveMainIndex.DeleteAsync(driveId, fileId);
+            if (n == 0 && expectedVersionTag.HasValue)
+            {
+                // Nothing was written; committing (not abandoning) the stacked transaction keeps an outer one usable
+                tx.Commit();
+                return 0;
+            }
 
             await driveAclIndex.DeleteAllRowsAsync(driveId, fileId);
             await driveTagIndex.DeleteAllRowsAsync(driveId, fileId);
             await DriveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
             await driveReactions.DeleteAllForPostAsync(driveId, fileId);
             await driveTransferHistory.DeleteAllRowsAsync(driveId, fileId);
-            var n = await driveMainIndex.DeleteAsync(driveId, fileId);
 
             tx.Commit();
             return n;

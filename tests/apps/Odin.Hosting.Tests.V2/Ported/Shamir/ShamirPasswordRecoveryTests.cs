@@ -20,9 +20,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <list type="bullet">
 /// <item>No caller matrix in the original and none added — an <c>OwnerApi/</c> fixture, plain
 /// <c>[Test]</c>.</item>
-/// <item>The <c>#if !DEBUG [Ignore]</c> guard is carried verbatim. It is load-bearing twice over:
-/// the whole flow depends on <c>RecoveryNotifier</c>'s <c>#if DEBUG</c> nonce logging, and on
-/// <c>AssertEmailEnabled</c> not throwing while <c>Mailgun:Enabled</c> is false.</item>
+/// <item>The original's <c>#if !DEBUG [Ignore]</c> guard is gone (#1866). The flow reads its nonces
+/// from <see cref="ShamirFixture"/>'s recovery sink, and <c>AssertEmailEnabled</c> lets a
+/// development host (a <c>Development</c> config section) recover with <c>Mailgun:Enabled</c>
+/// false.</item>
 /// <item><c>DriveRedux.WaitForEmptyOutbox(TransientTempDrive)</c> becomes
 /// <c>dealer.Sync.DrainOutboxAsync()</c>, inside
 /// <see cref="ShamirFixture.DistributeAndVerifyShardsAsync"/>.</item>
@@ -32,19 +33,12 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// </list>
 /// </para>
 /// <para>
-/// <b>Carried defects in the original, both left alone:</b>
-/// <list type="bullet">
-/// <item><c>DistributeAndVerifyAutomaticShards</c> ended with a call to <c>CleanupConnections</c> —
-/// so the entire recovery-mode flow this test is named for runs against <i>severed</i> connections.
-/// That is not cosmetic and it is not cleanup, so it is carried: the mid-test disconnect stays
-/// exactly where the original put it. It works because <c>request-shard</c> is authorised by the
-/// peer perimeter policy (<c>IsInOdinNetwork</c>) and then by shard-owner identity, not by an
-/// active connection. The sibling delegate fixtures' copy of the same helper has no such call, which
-/// is the strongest sign it was a copy-and-paste slip rather than intent.</item>
-/// <item>Because of the above, the test's own trailing <c>CleanupConnections</c> disconnected
-/// already-disconnected peers and asserted success on it. That one is trailing state restoration,
-/// which <c>V2Fixture</c>'s per-test reset owns, so it is dropped per the README.</item>
-/// </list>
+/// <b>Defects in the original, fixed (#1767):</b> <c>DistributeAndVerifyAutomaticShards</c> ended
+/// with a call to <c>CleanupConnections</c>, so the recovery-mode flow this test is named for ran
+/// against <i>severed</i> connections, and the test's own trailing <c>CleanupConnections</c> then
+/// disconnected already-disconnected peers. The sibling delegate fixtures' copy of the helper has no
+/// such call, so it was a copy-and-paste slip. Both are gone: the flow runs with the dealer and its
+/// players connected, and <c>V2Fixture</c>'s per-test reset owns the cleanup.
 /// </para>
 /// <para>
 /// <b>Known flaky (docs/flakytests.md):</b> in CI on <c>windows/sqlite/debug</c> the V1 original has
@@ -56,9 +50,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 public class ShamirPasswordRecoveryTests : ShamirFixture
 {
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task CanEnterAndExitRecoveryMode()
     {
         var (frodo, players) = Cast();
@@ -66,13 +57,8 @@ public class ShamirPasswordRecoveryTests : ShamirFixture
         //
         // Setup - enter recovery mode
         //
-        await PrepareConnectionsAsync(frodo, players);
-
-        await DistributeAndVerifyShardsAsync(frodo, players, PlayerType.Automatic, minMatchingShards: 3);
-
-        // Carried from the original's DistributeAndVerifyAutomaticShards, which severed every
-        // connection before returning. See the class remarks.
-        await CleanupConnectionsAsync(frodo, players);
+        // Two automatic and two gated friends: the automatic ones alone can never reach the threshold
+        await ArrangeFriendDealAsync(frodo, MixedPlayers(players), minMatchingShards: 3);
 
         // enter recovery mode
         await EnterRecoveryModeAsync(frodo);
@@ -80,22 +66,5 @@ public class ShamirPasswordRecoveryTests : ShamirFixture
         // Act - exit recovery mode
         // Assert
         await ExitRecoveryModeAsync(frodo);
-    }
-
-    /// <summary>
-    /// Severs both sides of the dealer/player connections. Note: no circles.
-    /// </summary>
-    /// <remarks>
-    /// Private to this fixture rather than shared on <see cref="ShamirFixture"/>: this is the only
-    /// test that severs anything, and it does so mid-test as a carried defect (see the class remarks),
-    /// not as cleanup. The four <i>trailing</i> calls the other originals carried were dropped as
-    /// state restoration, which <c>V2Fixture</c>'s per-test reset owns.
-    /// </remarks>
-    private static async Task CleanupConnectionsAsync(OwnerSession dealer, IEnumerable<OwnerSession> players)
-    {
-        foreach (var player in players)
-        {
-            await PeerFlow.DisconnectAsync(dealer, player);
-        }
     }
 }

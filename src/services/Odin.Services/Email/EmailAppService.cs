@@ -215,6 +215,12 @@ public class EmailAppService(
             seed = SHA512.HashData(ByteArrayUtil.Combine(clientEntropy, ByteArrayUtil.GetRndByteArray(64)));
         }
 
+        // The server makes the keyring, so it sees the private key once, here; on a private Email drive it is sealed to
+        // the drive right after and the server can't open it again (EmailKeyMaterialWriter).  Generating it on the
+        // client instead would raise security a little: the private key would never reach the server, which only
+        // needs the public certificate (all that is published to the mail server).  Not done yet: every client
+        // platform would need OpenPGP key generation, and this endpoint would take a certificate to publish once the
+        // client has written the keyring (docs/zero-knowledge-drive-api-plan.md, 4.8).
         var material = OpenPgpKeyManagement.GenerateP384KeyMaterial(primaryEmailAddress, seed);
 
         // Durable first.

@@ -31,6 +31,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly IDnsLookupService _dnsLookupService;
     private readonly IJobManager _jobManager;
+    private readonly InvitationCodeServiceClient _invitationCodes;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -39,7 +40,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         IDnsRestClient dnsRestClient,
         IDynamicHttpClientFactory httpClientFactory,
         IDnsLookupService dnsLookupService,
-        IJobManager jobManager)
+        IJobManager jobManager,
+        InvitationCodeServiceClient invitationCodes)
     {
         _logger = logger;
         _configuration = configuration;
@@ -48,6 +50,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _httpClientFactory = httpClientFactory;
         _dnsLookupService = dnsLookupService;
         _jobManager = jobManager;
+        _invitationCodes = invitationCodes;
     }
 
     //
@@ -704,7 +707,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string planId, string invitationCode)
+    public async Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string invitationCode)
     {
         var identity = await _registry.GetAsync(domain.DomainName);
         if (identity != null)
@@ -712,14 +715,28 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             throw new OdinSystemException($"Identity {domain} already exists");
         }
 
+        // A code from the invitation-code service is used up here, not when it was checked: two signups
+        // racing for its last use must not both get it. Codes from config are not counted.
+        var code = NormalizeInvitationCode(invitationCode);
+        InvitationCodeUse? used = null;
+        if (code != null && IsServiceCode(code))
+        {
+            used = await _invitationCodes.TryUseAsync(code)
+                   ?? throw new OdinClientException("Invalid or expired Invitation Code");
+        }
+
         var request = new IdentityRegistrationRequest()
         {
             Id = null, // Sanity
             OdinId = new OdinId(domain),
             Email = email,
-            PlanId = planId,
+            // Only a code gives a plan, never the signup request. What the plan gives comes with it; without it, the
+            // host's default quota and the public web presence a configured code (or none) gives.
+            PlanId = used?.PlanId,
+            QuotaBytes = used?.QuotaBytes > 0 ? used.QuotaBytes : null,
             IsCertificateManaged = false, //TODO
-            EnablePublicWebPresence = await CodeGrantsPublicWebPresence(invitationCode),
+            EnablePublicWebPresence = used?.PublicWebPresence ?? await CodeGrantsPublicWebPresence(code ?? ""),
+            Invitation = used?.ToRegistrationInvitation() ?? (code != null ? new RegistrationInvitation(code, null, null) : null),
         };
 
         try
@@ -767,6 +784,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
         catch (Exception)
         {
+            if (used != null)
+            {
+                await _invitationCodes.TryUndoUseAsync(used.Code);
+            }
             await _registry.DeleteRegistration(domain.DomainName);
             // The zone may have been created above (or earlier during DNS validation);
             // without a registration nothing else reclaims it (there is no prune sweep)
@@ -779,26 +800,21 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<bool> IsInvitationCodeNeeded()
     {
-        return Task.FromResult(ConfiguredInvitationCodeCount > 0);
+        return Task.FromResult(InvitationCodeRequired);
     }
 
     //
 
     public Task<bool> IsValidInvitationCode(string code)
     {
-        if (ConfiguredInvitationCodeCount == 0)
-        {
-            return Task.FromResult(true);
-        }
+        return CheckInvitationCodeAsync(code, askService: true);
+    }
 
-        if (string.IsNullOrEmpty(code))
-        {
-            return Task.FromResult(false);
-        }
+    //
 
-        var match = MatchesAny(_configuration.Registry.InvitationCodes, code) ||
-                    MatchesAny(_configuration.Registry.InvitationCodesWithoutPublicWebPresence, code);
-        return Task.FromResult(match);
+    public Task<bool> IsInvitationCodeWorthUsing(string code)
+    {
+        return CheckInvitationCodeAsync(code, askService: false);
     }
 
     //
@@ -812,9 +828,51 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    private int ConfiguredInvitationCodeCount =>
-        _configuration.Registry.InvitationCodes.Count +
-        _configuration.Registry.InvitationCodesWithoutPublicWebPresence.Count;
+    // A configured code is accepted as is. A service code is only checked for its shape unless askService:
+    // using it, which CreateIdentityOnDomainAsync does, is the real check.
+    private async Task<bool> CheckInvitationCodeAsync(string input, bool askService)
+    {
+        if (!InvitationCodeRequired)
+        {
+            return true;
+        }
+
+        var code = NormalizeInvitationCode(input);
+        if (code == null)
+        {
+            return false;
+        }
+
+        if (IsConfiguredInvitationCode(code))
+        {
+            return true;
+        }
+
+        if (!_invitationCodes.IsEnabled)
+        {
+            return false;
+        }
+
+        return askService
+            ? await _invitationCodes.IsValidAsync(code)
+            : InvitationCodeServiceClient.LooksLikeCode(code);
+    }
+
+    private bool InvitationCodeRequired =>
+        _configuration.Registry.InvitationCodes.Count > 0 ||
+        _configuration.Registry.InvitationCodesWithoutPublicWebPresence.Count > 0 ||
+        _invitationCodes.IsEnabled;
+
+    // Where a code enters: the same string is then matched against config, sent to the service and stored
+    private static string? NormalizeInvitationCode(string? code) => string.IsNullOrWhiteSpace(code) ? null : code.Trim();
+
+    private bool IsServiceCode(string code) => _invitationCodes.IsEnabled && !IsConfiguredInvitationCode(code);
+
+    private bool IsConfiguredInvitationCode(string code)
+    {
+        return MatchesAny(_configuration.Registry.InvitationCodes, code) ||
+               MatchesAny(_configuration.Registry.InvitationCodesWithoutPublicWebPresence, code);
+    }
 
     private static bool MatchesAny(List<string> codes, string code)
     {

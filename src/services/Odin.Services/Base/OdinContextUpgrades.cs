@@ -12,9 +12,28 @@ namespace Odin.Services.Base;
 
 public static class OdinContextUpgrades
 {
+    /// <summary>
+    /// A copy for writing what others sent or made (inbox items, synced feed posts, reaction summaries): it is
+    /// not the request's own context, so a socket excluding the caller's own writes still gets these. The only
+    /// helper here that drops the mark; every upgrade below keeps it.
+    /// </summary>
+    public static IOdinContext ForOthersWrites(IOdinContext odinContext) => odinContext.Clone();
+
+    // The same request with more permissions: what it writes is still the caller's own
+    private static IOdinContext SameRequestWithMorePermissions(IOdinContext odinContext)
+    {
+        var copy = odinContext.Clone();
+        if (odinContext.OwnWrites != null)
+        {
+            copy.MarkAsRequestContext(odinContext.OwnWrites);
+        }
+
+        return copy;
+    }
+
     public static IOdinContext UpgradeToByPassAclCheck(TargetDrive drive, DrivePermission drivePermission, IOdinContext odinContext)
     {
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
         patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
 
         var driveGrants = new List<DriveGrant>()
@@ -47,7 +66,7 @@ public static class OdinContextUpgrades
 
     public static IOdinContext UpgradeToPeerTransferContext(IOdinContext odinContext)
     {
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
 
         //Note TryAdd because this might have already been added when multiple files are coming in
         patchedContext.PermissionsContext.PermissionGroups.TryAdd("send_notifications_for_peer_transfer",
@@ -81,7 +100,7 @@ public static class OdinContextUpgrades
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey = null,
         SymmetricKeyEncryptedAes encryptedIcrKey = null)
     {
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
 
 
         // Upgrade access briefly to perform functions
@@ -111,14 +130,14 @@ public static class OdinContextUpgrades
 
     public static IOdinContext PatchInSharedSecret(IOdinContext odinContext, SensitiveByteArray sharedSecret)
     {
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
         patchedContext.PermissionsContext.SetSharedSecretKey(sharedSecret);
         return patchedContext;
     }
 
     public static IOdinContext UpgradeToReadFollowersForDistribution(IOdinContext odinContext)
     {
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
 
         //
         // Upgrade access briefly to perform functions
@@ -137,7 +156,7 @@ public static class OdinContextUpgrades
 
     public static IOdinContext UpgradeToNonOwnerFeedDistributor(IOdinContext odinContext)
     {
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
 
 
         patchedContext.PermissionsContext.PermissionGroups.TryAdd(nameof(UpgradeToNonOwnerFeedDistributor),
@@ -155,7 +174,7 @@ public static class OdinContextUpgrades
 
     public static IOdinContext UsePermissions(IOdinContext odinContext, params int[] permissionKeys)
     {
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
 
         patchedContext.PermissionsContext.PermissionGroups.TryAdd($"UsePermissions_{Guid.NewGuid().ToString()}",
             new PermissionGroup(

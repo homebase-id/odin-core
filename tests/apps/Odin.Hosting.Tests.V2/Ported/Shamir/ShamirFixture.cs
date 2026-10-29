@@ -1,19 +1,29 @@
 #nullable enable
 using System;
+using Autofac;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
+using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
+using Odin.Services.Base;
+using Odin.Services.Security;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
+using Odin.Services.Security.ZeroKnowledge;
 using Refit;
 using Serilog.Events;
 
@@ -46,26 +56,25 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// </para>
 /// <para>
 /// Nothing that <i>asserts</i> moves into the baseline with it: <see cref="PrepareConnectionsAsync"/>
-/// and <see cref="DistributeAndVerifyShardsAsync"/> both carry assertions and so stay in the tests,
+/// and <see cref="ArrangeFriendDealAsync"/> both carry assertions and so stay in the tests,
 /// where a failure is a failed test rather than a broken fixture.
 /// </para>
 /// <para>
-/// <b>Recovery nonces come out of the log, as they did in V1.</b> <c>RecoveryNotifier</c> writes the
-/// enter / exit / finalize nonce at <c>Information</c> under a named property — explicitly "for
-/// integration testing", and only under <c>#if DEBUG</c> — because with <c>Mailgun:Enabled</c> false
-/// no mail is ever sent. V1 polled for that property with
-/// <c>WebScaffold.WaitForLogPropertyValue</c> (180 s budget, 100 ms ticks). Here
-/// <see cref="ReadLogPropertyValue"/> reads once and throws if absent: the notifier logs
-/// synchronously inside the request that the test just awaited, so there is nothing to wait for, and
-/// a poll against a store that will never fill is exactly the shape that costs a full timeout. Both
-/// scan newest-first — the resubmit test enters recovery mode twice and must pick up the second
-/// nonce, since <c>GetNonceDataOrFail</c> pops the first.
+/// <b>Recovery links come from a <see cref="CapturingRecoveryNotificationSink"/>.</b> With
+/// <c>Mailgun:Enabled</c> false no mail is ever sent, so the fixture swaps in a sink that records the
+/// enter / exit / finalize links <c>RecoveryNotifier</c> generates. V1 (and this port, until #1866)
+/// scraped the nonces out of a <c>#if DEBUG</c>-only log line instead, which is why none of these
+/// tests could run in a Release build. The notifier calls the sink synchronously inside the request
+/// the test just awaited, so <see cref="CapturingRecoveryNotificationSink.Latest"/> reads once and
+/// throws if absent; it takes the newest link because the resubmit test enters recovery mode twice
+/// and must follow the second, <c>GetNonceDataOrFail</c> having popped the first. The sink is
+/// per host, so unlike the log it cannot pick up a neighbouring fixture's links.
 /// </para>
 /// <para>
 /// <b>Outbox verdict.</b> <c>ConfigureShards</c> writes each player's encrypted shard to the
 /// transient temp drive and sends it peer-wise, then signals the outbox through a post-commit
-/// <c>ProcessOutboxNow</c> — which the fast host's <c>NonNotifyingBackgroundServiceManager</c>
-/// swallows. V1's <c>WaitForEmptyOutbox(TransientTempDrive)</c> becomes
+/// <c>ProcessOutboxNow</c> — which wakes nothing on the fast host, since it never starts the
+/// outbox processor. V1's <c>WaitForEmptyOutbox(TransientTempDrive)</c> becomes
 /// <c>dealer.Sync.DrainOutboxAsync()</c>. Every player is a live tenant in-process, so the file
 /// worker resolves each send permanently and the items are <i>gone</i> after the drain; that is what
 /// lets <c>VerifyShards</c> — which asks each player whether it is holding the shard — come back
@@ -73,19 +82,31 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// which drives the automated half of the same code path. No test here asserts on outbox contents.
 /// </para>
 /// <para>
+/// <b>Friend deals are dealt in the browser</b> (docs/zero-knowledge-recovery-plan.md, "Building the
+/// friends pair"): <see cref="ZkFriends"/> plays the browser.  Every owner in a friend deal first makes
+/// their zero-knowledge keys and converts their Shard Recovery drive, as their first login since plan A
+/// does, so a gated friend's shard can be sealed to them; <see cref="ZkMasterKeyOf"/> keeps each one's
+/// zero-knowledge master key, which their browser would hold.
+/// </para>
+/// <para>
 /// <b>No recipient inbox processing is needed and none is done.</b> The shard transfer is a
 /// transient file addressed at the players' <c>ShardRecoveryDrive</c>; the assertion that it landed
 /// is <c>VerifyShards</c>, a live peer round-trip, and it passes off the drain alone.
 /// </para>
-/// <para>
-/// <b>Carried latent defect:</b> the originals assert the recovery nonce with
-/// <c>Is.Not.Null.Or.Empty</c>, which reads as "not null, or empty" and so accepts the empty string.
-/// Carried verbatim — it is decorative either way, because the lookup throws when the property is
-/// missing (V1 threw <c>TimeoutException</c>; here <see cref="ReadLogPropertyValue"/> throws).
-/// </para>
 /// </remarks>
 public abstract class ShamirFixture : V2Fixture
 {
+    private readonly CapturingRecoveryNotificationSink _recoveryLinks = new();
+
+    protected override void ConfigureRootContainer(ContainerBuilder cb)
+    {
+        cb.RegisterInstance(_recoveryLinks).As<IRecoveryNotificationSink>().SingleInstance();
+    }
+
+    /// <summary>The sink lives as long as the host; each test reads only its own links.</summary>
+    [SetUp]
+    public void ForgetEarlierRecoveryLinks() => _recoveryLinks.Clear();
+
     /// <summary>
     /// The four players, in the order every original listed them. All four are real tenants on the
     /// host: the shards are delivered to them and then verified over a peer call, so a merely-named
@@ -96,7 +117,7 @@ public abstract class ShamirFixture : V2Fixture
 
     /// <summary>
     /// The identities named by <c>AccountRecovery:AutomatedPasswordRecoveryIdentities</c> in
-    /// <c>appsettings.development.json</c> — the players <c>EnableAutoPasswordRecovery</c> deals to.
+    /// <c>appsettings.development.json</c> — the players the automated deal goes to.
     /// </summary>
     internal static readonly string[] AutomatedPlayerIdentities =
         [Identities.TomBombadil, Identities.Collab, Identities.Merry, Identities.Pippin];
@@ -132,24 +153,89 @@ public abstract class ShamirFixture : V2Fixture
     /// <summary>The dealer and the four players, logged in by <see cref="WarmTenantBaselineAsync"/>.</summary>
     protected (OwnerSession Dealer, IReadOnlyList<OwnerSession> Players) Cast() => (_dealer, _players);
 
+    private readonly Dictionary<string, byte[]> _zkMasterKeys = new();
+
+    /// <summary>The recovering browser's throwaway key pair, made when recovery starts.</summary>
+    private protected ZkBrowser.KeyPair? RecoveringBrowser { get; set; }
+
+    /// <summary>The zero-knowledge master key <paramref name="owner"/>'s browser holds.</summary>
+    protected byte[] ZkMasterKeyOf(OwnerSession owner) => _zkMasterKeys[owner.Identity.DomainName];
+
     /// <summary>
-    /// The arrange the five delegate fixtures open with, byte-identical in all six of their tests:
-    /// connect the cast, distribute delegate shards at the minimum allowed count, and read back the
-    /// dealer's published configuration.
+    /// The arrange the delegate fixtures open with: connect the cast, and a friend deal in which every
+    /// player is gated, at the minimum allowed count.
     /// </summary>
     protected async Task<(OwnerSession Dealer, IReadOnlyList<OwnerSession> Players, DealerShardConfig Config)>
         ArrangeDelegateShardsAsync()
     {
         var (dealer, players) = Cast();
-
-        await PrepareConnectionsAsync(dealer, players);
-
-        await DistributeAndVerifyShardsAsync(dealer, players, PlayerType.Delegate,
-            minMatchingShards: ShamirConfigurationService.CalculateMinAllowedShardCount(players.Count));
-
-        var config = await GetDealerShardConfigAsync(dealer);
-
+        var config = await ArrangeFriendDealAsync(dealer, players.Select(p => (p, PlayerType.Delegate)).ToList(),
+            ShamirConfigurationService.CalculateMinAllowedShardCount(players.Count));
         return (dealer, players, config);
+    }
+
+    /// <summary>
+    /// Connects the cast, makes everyone's zero-knowledge keys and converts their Shard Recovery
+    /// drives, deals in the browser, delivers and verifies the shards, and, unless
+    /// <paramref name="writePasswordCopy"/> is false, writes the friends' password copy as the dealer's
+    /// next password login does.
+    /// </summary>
+    protected async Task<DealerShardConfig> ArrangeFriendDealAsync(OwnerSession dealer,
+        IReadOnlyList<(OwnerSession Player, PlayerType Type)> players, int minMatchingShards, bool writePasswordCopy = true)
+    {
+        await PrepareConnectionsAsync(dealer, players.Select(p => p.Player));
+        foreach (var owner in players.Select(p => p.Player).Prepend(dealer))
+        {
+            await MakeZeroKnowledgeAsync(owner);
+        }
+
+        var deal = await ZkFriends.MakeDealAsync(dealer, ZkMasterKeyOf(dealer), players, minMatchingShards);
+        var response = await SecurityOf(dealer).ConfigureShards(deal.Request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        await DrainAndVerifyShardsAsync(dealer, players.Count);
+
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(dealer)).HasShamirPasswordCopy, Is.False,
+            "the browser deals without the password");
+        if (writePasswordCopy)
+        {
+            await WriteFriendsPasswordCopyAsync(dealer, OwnerLogin.DefaultPassword);
+        }
+
+        return await GetDealerShardConfigAsync(dealer);
+    }
+
+    /// <summary>The first half of <paramref name="players"/> automatic, the rest gated.</summary>
+    protected static IReadOnlyList<(OwnerSession Player, PlayerType Type)> MixedPlayers(IReadOnlyList<OwnerSession> players) =>
+        players.Select((p, i) => (p, i < players.Count / 2 ? PlayerType.Automatic : PlayerType.Delegate)).ToList();
+
+    /// <summary>
+    /// What <paramref name="owner"/>'s first login since plan A does: the zero-knowledge keys, and the
+    /// Shard Recovery drive converted.
+    /// </summary>
+    protected async Task MakeZeroKnowledgeAsync(OwnerSession owner)
+    {
+        if (_zkMasterKeys.ContainsKey(owner.Identity.DomainName) &&
+            (await ZkOwnerSteps.GetStatusAsync(owner)).ZkSaltKek64 != null)
+        {
+            return;
+        }
+
+        _zkMasterKeys[owner.Identity.DomainName] =
+            (await ZkOwnerSteps.MakeZeroKnowledgeAsync(owner, OwnerLogin.DefaultPassword)).ZkMasterKey;
+    }
+
+    /// <summary>
+    /// A password login after a friend deal: it seals the password to the friends' public key.
+    /// <paramref name="copy"/> is what gets sealed; anyone with the password can seal junk instead.
+    /// </summary>
+    protected static async Task WriteFriendsPasswordCopyAsync(OwnerSession dealer, string password, string? copy = null)
+    {
+        var status = await ZkOwnerSteps.GetStatusAsync(dealer);
+        Assert.That(status.ShamirPublicKeyJwk, Is.Not.Null, "a friend deal publishes its public key");
+
+        var response = await ZkOwnerSteps.SavePasswordAsync(dealer, password, phraseCopy: null,
+            friendsCopy: ZkBrowser.SealPassword(copy ?? password, status.ShamirPublicKeyJwk!));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
     }
 
     /// <summary>
@@ -167,6 +253,74 @@ public abstract class ShamirFixture : V2Fixture
     protected ITestSecurityContextOwnerClient AnonymousSecurityOf(OwnerSession owner)
         => Host.AnonymousRefitFor<ITestSecurityContextOwnerClient>(owner.Identity.DomainName);
 
+    /// <summary>
+    /// For the owner endpoints exempt from shared-secret encryption (<c>recovery-info</c>,
+    /// <c>needs-attention</c>): they answer in plain JSON that <see cref="SecurityOf"/>'s decrypting
+    /// serializer cannot read.
+    /// </summary>
+    protected static ITestSecurityContextOwnerClient PlainSecurityOf(OwnerSession owner)
+        => RestService.For<ITestSecurityContextOwnerClient>(owner.Factory.CreatePlainHttpClient(owner.Identity));
+
+    /// <summary>The recovery peer API as <paramref name="from"/>'s server calls <paramref name="to"/>'s.</summary>
+    protected async Task<IPeerPasswordRecoveryHttpClient> PeerRecoveryClientAsync(OdinId from, OdinId to) =>
+        await Host.GetTenantScope(from.DomainName).Resolve<IOdinHttpClientFactory>().CreateClientAsync<IPeerPasswordRecoveryHttpClient>(to);
+
+    /// <summary>
+    /// The automated deal as the console deals it, in the browser, to the host's automated identities,
+    /// and the password copy the same login writes.  Note: no connections — production has none either.
+    /// </summary>
+    protected async Task<DealerShardConfig> ArrangeAutomatedDealAsync(OwnerSession dealer)
+    {
+        await MakeZeroKnowledgeAsync(dealer);
+        return await DealAutomatedRecoveryAsync(dealer);
+    }
+
+    /// <summary>The automated deal dealt (again) as a password login deals it, with its password copy.</summary>
+    protected async Task<DealerShardConfig> DealAutomatedRecoveryAsync(OwnerSession dealer)
+    {
+        var players = await SecurityOf(dealer).GetAutomatedRecoveryPlayers();
+        Assert.That(players.StatusCode, Is.EqualTo(HttpStatusCode.OK), players.Error?.Content);
+
+        var deal = await ZkFriends.MakeAutomatedDealAsync(dealer, ZkMasterKeyOf(dealer), players.Content!);
+        var response = await SecurityOf(dealer).ConfigureShards(deal.Request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        await DrainAndVerifyShardsAsync(dealer, players.Content!.Players.Count);
+        await WriteFriendsPasswordCopyAsync(dealer, OwnerLogin.DefaultPassword);
+
+        var config = await GetDealerShardConfigAsync(dealer);
+        Assert.That(config.UsesAutomaticRecovery, Is.True);
+        return config;
+    }
+
+    /// <summary>
+    /// A server-made automated deal, as every one was before the browser dealt them, made in process:
+    /// no route makes one any more.  Note: no connections — production has none either.
+    /// </summary>
+    protected async Task<DealerShardConfig> ArrangeServerMadeAutomatedDealAsync(OwnerSession dealer)
+    {
+        var (scope, context) = await MigrationContextAsync(dealer);
+        await scope.Resolve<ShamirConfigurationService>().DealServerMadeAutomatedDealAsync(context);
+        await dealer.Sync.DrainOutboxAsync();
+
+        var config = await GetDealerShardConfigAsync(dealer);
+        Assert.That(config.UsesAutomaticRecovery, Is.True);
+        return config;
+    }
+
+    /// <summary>
+    /// What an old friend deal looks like, as the server made them before recovery in the browser: a
+    /// server-made deal's package, not automated, with no copies.
+    /// </summary>
+    protected async Task ArrangeOldServerMadeFriendDealAsync(OwnerSession dealer)
+    {
+        await ArrangeServerMadeAutomatedDealAsync(dealer);
+        var (scope, context) = await MigrationContextAsync(dealer);
+        var shamir = scope.Resolve<ShamirConfigurationService>();
+        var package = await shamir.GetDealerShardPackage(context);
+        package.UsesAutomatedRecovery = false;
+        await shamir.SaveDealerPackage(package, context);
+    }
+
     /// <summary>Connection request + accept, dealer to each player. Note: no circles.</summary>
     protected static async Task PrepareConnectionsAsync(OwnerSession dealer, IEnumerable<OwnerSession> players)
     {
@@ -176,40 +330,6 @@ public abstract class ShamirFixture : V2Fixture
         {
             await PeerFlow.ConnectAsync(dealer, player);
         }
-    }
-
-    /// <summary>
-    /// The request <c>configure-shards</c> takes: one <see cref="ShamiraPlayer"/> per session, all of
-    /// <paramref name="type"/>.
-    /// </summary>
-    protected static ConfigureShardsRequest ShardRequest(
-        IReadOnlyList<OwnerSession> players, PlayerType type, int minMatchingShards) => new()
-    {
-        Players = players.Select(p => new ShamiraPlayer
-        {
-            OdinId = p.Identity,
-            Type = type
-        }).ToList(),
-        MinMatchingShards = minMatchingShards
-    };
-
-    /// <summary>
-    /// Configures shards for <paramref name="players"/>, drains the dealer's outbox so they are
-    /// delivered, then asks every player to confirm it is holding its shard.
-    /// </summary>
-    protected static async Task DistributeAndVerifyShardsAsync(
-        OwnerSession dealer,
-        IReadOnlyList<OwnerSession> players,
-        PlayerType playerType,
-        int minMatchingShards)
-    {
-        var security = SecurityOf(dealer);
-
-        var configureShardsResponse =
-            await security.ConfigureShards(ShardRequest(players, playerType, minMatchingShards));
-        Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        await DrainAndVerifyShardsAsync(dealer, players.Count);
     }
 
     /// <summary>
@@ -234,23 +354,35 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
-    /// Requests recovery mode, follows the emailed verify-enter link, and asserts the redirect the
-    /// controller answers with.
+    /// Requests recovery mode from a new recovering browser (<see cref="RecoveringBrowser"/>), follows
+    /// the emailed verify-enter link to the recovery page, and has the page post it back with the
+    /// browser's public key.
     /// </summary>
     protected async Task EnterRecoveryModeAsync(OwnerSession dealer)
     {
         var security = AnonymousSecurityOf(dealer);
+        RecoveringBrowser = ZkBrowser.MakeKeyPair();
 
-        var enterResponse = await security.InitiateRecoveryMode();
-        Assert.That(enterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var enterResponse = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest
+        {
+            RecoveryPublicKeyJwk = RecoveringBrowser.PublicKeyJwk
+        });
+        Assert.That(enterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), enterResponse.Error?.Content);
 
-        // watch for the recovery links
-        var nonceId = ReadLogPropertyValue(RecoveryNotifier.EnterNoncePropertyName);
-        Assert.That(nonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
+        var nonceId = RecoveryLink(dealer, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString();
 
-        var verifyEnterResponse = await security.VerifyEnterRecoveryMode(nonceId);
+        var linkResponse = await security.VerifyEnterRecoveryMode(nonceId);
         // Windows CI has answered 403 here (docs/flakytests.md); the body names the exception behind it
-        Assert.That(verifyEnterResponse.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), verifyEnterResponse.Error?.Content);
+        Assert.That(linkResponse.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), linkResponse.Error?.Content);
+        Assert.That(linkResponse.Headers.Location?.ToString(), Does.Contain($"enter={nonceId}"),
+            "the link only opens the recovery page");
+
+        var verifyEnterResponse = await security.EnterRecoveryMode(new EnterRecoveryModeRequest
+        {
+            Id = nonceId,
+            RecoveryPublicKeyJwk = RecoveringBrowser.PublicKeyJwk
+        });
+        Assert.That(verifyEnterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), verifyEnterResponse.Error?.Content);
     }
 
     /// <summary>
@@ -264,7 +396,7 @@ public abstract class ShamirFixture : V2Fixture
         var exitResponse = await security.ExitRecoveryMode();
         Assert.That(exitResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var exitRecoveryNonceId = ReadLogPropertyValue(RecoveryNotifier.ExitNoncePropertyName);
+        var exitRecoveryNonceId = RecoveryLink(dealer, RecoveryNotificationKind.ExitRecoveryMode).NonceId.ToString();
 
         var verifyExitResponse = await security.VerifyExitRecoveryMode(exitRecoveryNonceId);
         // Windows CI has answered 403 here (docs/flakytests.md); the body names the exception behind it
@@ -309,21 +441,21 @@ public abstract class ShamirFixture : V2Fixture
         return getConfigResponse.Content!;
     }
 
-    /// <summary>
-    /// Whether the owner is told their shards predate the password: the flag behind the console's
-    /// needs-attention indicator and the risk report (#1861).
-    /// </summary>
-    /// <remarks>
-    /// <c>recovery-info</c> is exempt from shared-secret encryption, so it answers in plain JSON that
-    /// <see cref="SecurityOf"/>'s decrypting serializer cannot read; a plain Refit client it is.
-    /// </remarks>
-    protected static async Task<bool> IsRotationPendingAsync(OwnerSession owner)
+    /// <summary>The deal is gone, and the security page's red dot is on.</summary>
+    protected static async Task AssertDealGoneAndFlaggedAsync(OwnerSession owner)
     {
-        var (client, _) = owner.NewAdminHttpClient();
-        var response = await RestService.For<ITestSecurityContextOwnerClient>(client).GetRecoveryInfo();
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await RecoveryInfoAsync(owner)).IsConfigured, Is.False, "the deal is gone");
+        var needsAttention = await PlainSecurityOf(owner).GetNeedsAttention();
+        Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
+        Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
+    }
+
+    protected static async Task<RecoveryInfo> RecoveryInfoAsync(OwnerSession owner)
+    {
+        var response = await PlainSecurityOf(owner).GetRecoveryInfo();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         Assert.That(response.Content, Is.Not.Null);
-        return response.Content!.RotationPending;
+        return response.Content!;
     }
 
     /// <summary>Asserts every player is holding the dealer's release request, and nothing more.</summary>
@@ -337,24 +469,34 @@ public abstract class ShamirFixture : V2Fixture
         }
     }
 
-    /// <summary>Each player finds the dealer's release request in its list and approves it.</summary>
-    protected static async Task ApproveEveryShardRequestAsync(
-        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config)
+    /// <summary>
+    /// Each gated player finds the dealer's release request in its list and approves it: their browser
+    /// opens the shard and seals it again to the recovering browser's key.
+    /// </summary>
+    protected async Task ApproveEveryShardRequestAsync(IReadOnlyList<OwnerSession> players, DealerShardConfig config)
     {
         foreach (var player in players)
         {
             var item = await GetPlayerShardRequestAsync(config, player);
             Assert.That(item, Is.Not.Null, "Release request for shard was not found");
+            Assert.That(item!.RecoveryPublicKeyJwk, Is.EqualTo(RecoveringBrowser!.PublicKeyJwk),
+                "the request carries the recovering browser's key");
 
-            // now release the shard
-            var approveResponse = await SecurityOf(player).ApproveShardRequest(new ApproveShardRequest
-            {
-                OdinId = dealer.Identity,
-                ShardId = item!.ShardId
-            });
-
-            Assert.That(approveResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var approveResponse = await ZkFriends.ApproveAsync(player, ZkMasterKeyOf(player), item);
+            Assert.That(approveResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), approveResponse.Error?.Content);
         }
+    }
+
+    /// <summary>
+    /// The recovering browser, once enough friends approved: fetches the bundle sealed to its key and
+    /// rebuilds the secret, the zero-knowledge master key and the password.
+    /// </summary>
+    private protected async Task<ZkFriends.Recovered> RebuildInTheRecoveringBrowserAsync(OwnerSession dealer)
+    {
+        await AssertRecoveryStateAsync(dealer, ShamirRecoveryState.AwaitingRecoveringBrowser);
+        var bundle = await AnonymousSecurityOf(dealer).GetRecoveryBundle();
+        Assert.That(bundle.StatusCode, Is.EqualTo(HttpStatusCode.OK), bundle.Error?.Content);
+        return ZkFriends.Rebuild(bundle.Content!, RecoveringBrowser!);
     }
 
     /// <summary>
@@ -381,80 +523,134 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
-    /// Newest-first lookup of a named log property — the V2 stand-in for
-    /// <c>WebScaffold.WaitForLogPropertyValue</c>. Throws rather than returning null so a missing
-    /// nonce reads as a broken arrange, exactly as V1's <c>TimeoutException</c> did.
+    /// The newest recovery link of <paramref name="kind"/> generated for <paramref name="dealer"/>.
     /// </summary>
-    /// <remarks>
-    /// Every level is scanned, not just <c>Information</c>. These property names are unique to a
-    /// single <c>RecoveryNotifier</c> call site, so there is nothing to disambiguate by level — while
-    /// pinning the level means a product change from <c>LogInformation</c> to <c>LogDebug</c> would
-    /// turn five tests into a confusing "broken arrange" throw instead of a clean pass.
-    /// </remarks>
-    protected string ReadLogPropertyValue(string propertyName)
-    {
-        // Newest-first: the resubmit test enters recovery mode twice and needs the second nonce.
-        // Each level's list is chronological and GetLogEvents() hands back a copy, so unlike V1's
-        // in-place Reverse() this does not mutate the store's own list.
-        var match = Host.LogStore.GetLogEvents().Values
-            .SelectMany(events => events)
-            .LastOrDefault(e => e.Properties.ContainsKey(propertyName));
+    protected RecoveryNotification RecoveryLink(OwnerSession dealer, RecoveryNotificationKind kind) =>
+        _recoveryLinks.Latest(new OdinId(dealer.Identity.DomainName), kind);
 
-        if (match == null)
-        {
-            throw new InvalidOperationException(
-                $"No log event carried the property '{propertyName}'. " +
-                "These nonces are only logged under #if DEBUG — see RecoveryNotifier.");
-        }
-
-        return match.Properties[propertyName]?.ToString() ?? string.Empty;
-    }
+    /// <summary>Every <paramref name="kind"/> notification the host sent <paramref name="dealer"/> so far, oldest first.</summary>
+    protected IReadOnlyList<RecoveryNotification> RecoveryNotifications(OwnerSession dealer, RecoveryNotificationKind kind) =>
+        _recoveryLinks.All(new OdinId(dealer.Identity.DomainName), kind);
 
     /// <summary>
-    /// Enters recovery mode, has the delegates approve (automated players release unasked), and
-    /// finalizes with <paramref name="newPassword"/>.
+    /// Changes the recovery email as the security page does: with the password, then the link emailed to
+    /// <paramref name="address"/>.  Returns the link's answer, a redirect.
     /// </summary>
-    protected async Task<OwnerSession> RecoverAsync(
-        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config, string newPassword)
+    protected async Task<ApiResponse<HttpContent>> ChangeRecoveryEmailAsync(OwnerSession owner, string address)
+    {
+        // Plain: both endpoints are exempt from shared-secret encryption
+        var security = PlainSecurityOf(owner);
+        var started = await security.UpdateRecoveryEmail(new UpdateRecoveryEmailRequest
+        {
+            Email = address,
+            PasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(Host, owner.Identity.DomainName,
+                OwnerLogin.DefaultPassword)
+        });
+        Assert.That(started.StatusCode, Is.EqualTo(HttpStatusCode.OK), started.Error?.Content);
+
+        var link = RecoveryLink(owner, RecoveryNotificationKind.VerifyRecoveryEmail);
+        Assert.That(link.To, Is.EqualTo(address), "the link goes to the new address");
+        var verified = await security.VerifyRecoveryEmail(link.NonceId.ToString());
+        Assert.That(verified.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), verified.Error?.Content);
+        return verified;
+    }
+
+    /// <summary>Where a redirect sends the browser (the in-process clients don't follow it).</summary>
+    protected static string RedirectOf(IApiResponse response) => response.Headers.Location?.OriginalString ?? "";
+
+    /// <summary>How many <paramref name="kind"/> notifications the host sent <paramref name="dealer"/> so far.</summary>
+    protected int RecoveryNotificationCount(OwnerSession dealer, RecoveryNotificationKind kind) =>
+        _recoveryLinks.Count(new OdinId(dealer.Identity.DomainName), kind);
+
+    /// <summary>
+    /// A server-made deal's recovery: enters recovery mode, clicks every holder's email link, rebuilds
+    /// the secret in the recovering browser, and finalizes with it and <paramref name="newPassword"/>.
+    /// </summary>
+    protected async Task<OwnerSession> RecoverServerMadeDealAsync(OwnerSession dealer, string newPassword)
     {
         await EnterRecoveryModeAsync(dealer);
-
-        if (!config.UsesAutomaticRecovery)
-        {
-            await ApproveEveryShardRequestAsync(dealer, players, config);
-        }
-
-        return await FinalizeRecoveryAndLoginAsync(dealer, newPassword);
+        await FillEverySlotAsync(dealer);
+        var rebuilt = await RebuildInTheRecoveringBrowserAsync(dealer);
+        Assert.That(rebuilt.Bundle.Copies, Is.Null, "a server-made deal has no copies");
+        return await FinalizeRecoveryAndLoginAsync(dealer, rebuilt.Secret, newPassword);
     }
 
     /// <summary>
-    /// Reads the finalize nonce + final recovery key out of the log, posts
-    /// <paramref name="newPassword"/> against them, and logs in with it.
+    /// A browser deal's recovery: enters recovery mode, clicks every automatic holder's email link, has
+    /// <paramref name="approvers"/> approve, and rebuilds in the recovering browser.
     /// </summary>
-    protected async Task<OwnerSession> FinalizeRecoveryAndLoginAsync(OwnerSession dealer, string newPassword)
+    private protected async Task<ZkFriends.Recovered> RecoverInBrowserAsync(OwnerSession dealer,
+        IReadOnlyList<OwnerSession> approvers, DealerShardConfig config)
     {
-        // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
-        await AssertRecoveryStateAsync(dealer, ShamirRecoveryState.AwaitingOwnerFinalization);
+        await EnterRecoveryModeAsync(dealer);
+        await FillEverySlotAsync(dealer);
+        await ApproveEveryShardRequestAsync(approvers, config);
+        return await RebuildInTheRecoveringBrowserAsync(dealer);
+    }
 
-        // scan for the nonceId
-        var finalizeNonceId = ReadLogPropertyValue(RecoveryNotifier.FinalRecoveryNonceIdPropertyName);
-        var finalRecoveryKey = ReadLogPropertyValue(RecoveryNotifier.FinalRecoveryKeyPropertyName);
+    /// <summary>
+    /// The newest link each automatic holder emailed for <paramref name="dealer"/>'s recovery: the shard
+    /// and the code it carries.
+    /// </summary>
+    protected IReadOnlyList<(OdinId Holder, FillSlotRequest Request)> ReleaseLinks(OwnerSession dealer) =>
+        _recoveryLinks.All(new OdinId(dealer.Identity.DomainName), RecoveryNotificationKind.ReleaseShard)
+            .GroupBy(n => n.Holder!.Value)
+            .Select(g => (g.Key, FillSlotFrom(g.Last().Link)))
+            .ToList();
 
-        Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
-        Assert.That(finalRecoveryKey, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
+    /// <summary>What the recovery page posts for a holder's link: <c>?fill=&lt;shard&gt;&amp;code=&lt;code&gt;</c>.</summary>
+    protected static FillSlotRequest FillSlotFrom(string link)
+    {
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(link).Query);
+        return new FillSlotRequest { ShardId = query["fill"], Code = query["code"] };
+    }
 
+    /// <summary>
+    /// Clicks the newest link of every automatic holder whose slot is still empty, as the owner does
+    /// from the emails (on any device: the page needs no key), and asserts each fills its slot.
+    /// </summary>
+    protected async Task FillEverySlotAsync(OwnerSession dealer)
+    {
+        var filled = (await OpenSlotsAsync(dealer)).Where(s => s.Filled).Select(s => s.Player.OdinId).ToHashSet();
+        foreach (var (holder, request) in ReleaseLinks(dealer).Where(l => !filled.Contains(l.Holder)))
+        {
+            var response = await AnonymousSecurityOf(dealer).FillSlot(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"{holder}: {response.Error?.Content}");
+        }
+    }
+
+    /// <summary>The slots, as the recovering browser opens them from the status.</summary>
+    private protected async Task<List<RecoverySlot>> OpenSlotsAsync(OwnerSession dealer)
+    {
+        var status = await AnonymousSecurityOf(dealer).GetShamirRecoverStatus();
+        Assert.That(status.StatusCode, Is.EqualTo(HttpStatusCode.OK), status.Error?.Content);
+        return OpenSlots(status.Content!.SealedSlots64);
+    }
+
+    /// <summary>A status's slot list, opened with the recovering browser's key.</summary>
+    private protected List<RecoverySlot> OpenSlots(string sealedSlots64)
+    {
+        Assert.That(sealedSlots64, Is.Not.Null, "the status seals the slots while shards are collected");
+        var json = ZkBrowser.Unseal(sealedSlots64, RecoveringBrowser!.PrivateKeyPkcs8).ToStringFromUtf8Bytes();
+        return OdinSystemSerializer.DeserializeOrThrow<List<RecoverySlot>>(json);
+    }
+
+    /// <summary>
+    /// Posts the secret the recovering browser rebuilt and <paramref name="newPassword"/>, as the
+    /// recovery page does for a server-made deal, and logs in with it.
+    /// </summary>
+    protected async Task<OwnerSession> FinalizeRecoveryAndLoginAsync(OwnerSession dealer, byte[] secret, string newPassword)
+    {
         var saltyReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(
             Host, dealer.Identity.DomainName, newPassword);
 
-        // here we will call finalize to get the recovery key
         var finalizeRecoveryResponse = await AnonymousSecurityOf(dealer).FinalizeRecovery(new FinalRecoveryRequest
         {
-            Id = finalizeNonceId,
-            FinalKey = finalRecoveryKey,
+            Secret64 = secret.ToBase64(),
             PasswordReply = saltyReply
         });
 
-        Assert.That(finalizeRecoveryResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(finalizeRecoveryResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), finalizeRecoveryResponse.Error?.Content);
 
         var recovered = await OwnerSession.LoginAsync(Host, dealer.Identity.DomainName, newPassword);
         Assert.That(recovered.Token.Id, Is.Not.EqualTo(Guid.Empty));

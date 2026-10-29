@@ -145,7 +145,7 @@ public class SystemInitializeConfigTests : V2Fixture
         Assert.That(createdDrivesResponse.Content, Is.Not.Null);
 
         var createdDrives = createdDrivesResponse.Content!;
-        Assert.That(createdDrives.Results.Count, Is.EqualTo(BuiltinDrives.Protected.Count));
+        Assert.That(createdDrives.Results.Count, Is.EqualTo(ProtectedDrivesMadeAtSetup.Count));
 
         // WalletDrive is deliberately absent: it is no longer seeded for new identities, and only
         // the ones that already had it keep it.
@@ -168,7 +168,7 @@ public class SystemInitializeConfigTests : V2Fixture
         var circleDefs = getCircleDefinitionsResponse.Content!.ToList();
 
         // Only the built-in apps' circles: the Confirmed and Auto system circles retired (#1809).
-        var seededCircles = BuiltinApps.SeededCircles.Select(c => (Guid)c.Id).Distinct().Count();
+        var seededCircles = CirclesMadeAtSetup.Select(c => (Guid)c.Id).Distinct().Count();
         Assert.That(circleDefs.Count, Is.EqualTo(seededCircles));
         Assert.That(circleDefs.Any(c => (Guid)c.Id == (Guid)GuidId.FromString("we_are_connected")), Is.False,
             "the Confirmed Connections circle is no longer provisioned");
@@ -241,7 +241,7 @@ public class SystemInitializeConfigTests : V2Fixture
         Assert.That(initIdentityResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         //check if system drives exist
-        var expectedDrives = BuiltinDrives.Protected.Concat([newDrive.TargetDrive]).ToList();
+        var expectedDrives = ProtectedDrivesMadeAtSetup.Concat([newDrive.TargetDrive]).ToList();
 
         var createdDrivesResponse = await owner.RefitFor<IRefitDriveManagement>()
             .GetDrives(new GetDrivesRequest { PageNumber = 1, PageSize = 100 });

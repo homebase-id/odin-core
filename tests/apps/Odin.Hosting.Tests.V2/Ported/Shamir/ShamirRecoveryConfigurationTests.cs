@@ -1,61 +1,49 @@
+#nullable enable
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Services.Security.PasswordRecovery.Shamir;
-using Odin.Services.Util;
 
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 
 /// <summary>
-/// Port of <c>OwnerApi/Shamir/ShamirRecoveryConfigurationTests</c>. The rules
-/// <c>configure-shards</c> enforces before it will split a recovery key across delegate players:
-/// the happy path, and the refusals.
+/// Port of <c>OwnerApi/Shamir/ShamirRecoveryConfigurationTests</c>. The rules <c>configure-shards</c>
+/// enforces on a deal, which the browser deals (docs/zero-knowledge-recovery-plan.md, "Building
+/// the friends pair"): the happy path, and the refusals.
 /// </summary>
 /// <remarks>
-/// <para>Checked port. Shared arrange lives on <see cref="ShamirFixture"/>; its remarks carry the
-/// outbox verdict and the drain points.</para>
+/// <para>Shared arrange lives on <see cref="ShamirFixture"/>; its remarks carry the outbox verdict and
+/// the drain points.</para>
 /// <para>
-/// Decisions:
-/// <list type="bullet">
-/// <item>No caller matrix in the original and none added.</item>
-/// <item>All three <c>[Ignore]</c>s are carried verbatim, reasons included — including
-/// <c>FailShardDistributionWhenMinMatchingShardsTooLow</c>, whose rule is commented out in
-/// <c>ShamirConfigurationService.ConfigureShardsInternal</c> today ("Removed rule"), and
-/// <c>FailShardDistributionWhenNoRecoveryEmailConfigured</c>, which cannot run while the dev
-/// registration seeds every tenant an email ("work in progress").</item>
-/// <item>The four refusal tests never reach the outbox, so they have no drain; only
-/// <c>CanDistributeShardsToDelegatePeersAndVerify</c> does, via
-/// <see cref="ShamirFixture.DistributeAndVerifyShardsAsync"/>.</item>
-/// <item>Trailing <c>CleanupConnections</c> calls are dropped — pure state restoration, which
-/// <c>V2Fixture</c>'s per-test reset owns. Nothing they asserted is reachable only through them.</item>
-/// </list>
-/// </para>
-/// <para>
-/// <b>Not carried, and worth a reviewer's eye:</b> the ignored
-/// <c>FailToDistributeWhenOneOrMorePeersIsNotConnected</c> registered a per-test
-/// <c>SetAssertLogEventsAction</c> asserting exactly one Error event starting "Failed while creating
-/// outbox item". <c>V2Fixture</c> has no per-test equivalent — only fixture-wide
-/// <c>ToleratedErrorLogSubstrings</c> / <c>AssertLogEvents</c> — and adding a fixture-wide toleration
-/// would blunt the invariant for the four tests that do run, to satisfy one that never does. The
-/// registration is therefore dropped and flagged here instead; whoever un-ignores that test needs to
-/// put the toleration back at the same time. Note the original's assertion was never once executed:
-/// the <c>[Ignore]</c> predates it.
+/// Changed with the friends pair: the server no longer deals friends, so each request here is a deal
+/// <see cref="ZkFriends"/> made.  Of the original's three <c>[Ignore]</c>s, the "Removed rule" one went
+/// with its rule; the unconnected-player one runs now (the deal is refused while the shards are queued,
+/// inside the request); the missing-recovery-email one is still ignored for its original reason.
 /// </para>
 /// </remarks>
 [TestFixture]
 public class ShamirRecoveryConfigurationTests : ShamirFixture
 {
+    protected override System.Collections.Generic.IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+    [
+        // the unconnected player's shard can't be queued
+        "Failed while creating outbox item"
+    ];
+
     [Test]
     public async Task CanDistributeShardsToDelegatePeersAndVerify()
     {
         var (frodo, players) = Cast();
-
-        await PrepareConnectionsAsync(frodo, players);
-
-        await DistributeAndVerifyShardsAsync(frodo, players, PlayerType.Delegate,
+        var config = await ArrangeFriendDealAsync(frodo, players.Select(p => (p, PlayerType.Delegate)).ToList(),
             minMatchingShards: ShamirConfigurationService.MinimumPlayerCount);
+
+        Assert.That(config.UsesAutomaticRecovery, Is.False);
+        Assert.That(config.Envelopes.Select(e => e.Player.OdinId), Is.EquivalentTo(players.Select(p => p.Identity)));
     }
 
     [Test]
@@ -63,16 +51,13 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
     public async Task FailShardDistributionWhenNoRecoveryEmailConfigured()
     {
         var (frodo, players) = Cast();
+        var deal = await ZkFriends.MakeDealAsync(frodo, ByteArrayUtil.GetRndByteArray(16),
+            players.Select(p => (p, PlayerType.Automatic)).ToList(), minMatchingShards: players.Count);
 
-        await PrepareConnectionsAsync(frodo, players);
-
-        var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(
-            ShardRequest(players, PlayerType.Delegate, minMatchingShards: players.Count));
+        var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(deal.Request);
 
         Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-
-        var code = configureShardsResponse.Error.ParseProblemDetails();
-        Assert.That(code, Is.EqualTo(OdinClientErrorCode.InvalidEmail),
+        Assert.That(TestUtils.ParseProblemDetails(configureShardsResponse.Error!), Is.EqualTo(OdinClientErrorCode.InvalidEmail),
             "should have been bad email due to missing recovery email");
     }
 
@@ -80,50 +65,108 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
     public async Task FailShardDistributionWhenPlayerCountTooLow()
     {
         var (frodo, players) = Cast();
-
-        await PrepareConnectionsAsync(frodo, players);
-
         var tooFew = players.Take(ShamirConfigurationService.MinimumPlayerCount - 1).ToList();
-        var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(
-            ShardRequest(tooFew, PlayerType.Delegate,
-                minMatchingShards: ShamirConfigurationService.MinimumPlayerCount - 1));
 
-        Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        // Refused before anything is looked up, so no keys or connections are needed
+        var deal = await ZkFriends.MakeDealAsync(frodo, ByteArrayUtil.GetRndByteArray(16),
+            tooFew.Select(p => (p, PlayerType.Automatic)).ToList(), minMatchingShards: tooFew.Count);
+        var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(deal.Request);
+
+        Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), configureShardsResponse.Error?.Content);
     }
 
+    /// <summary>
+    /// F2: in a friend deal the automatic shards alone must never reach the threshold.  Only the
+    /// automated deal may, to exactly the host's automated identities; these players include one that
+    /// isn't (Sam) and miss one that is (<see cref="AutomatedRecoveryTests"/> deals the real one).
+    /// </summary>
     [Test]
-    [Ignore("Removed rule")]
-    public async Task FailShardDistributionWhenMinMatchingShardsTooLow()
+    public async Task ADealWhoseAutomaticShardsReachTheThresholdIsRefused()
     {
         var (frodo, players) = Cast();
+        var deal = await ZkFriends.MakeDealAsync(frodo, ByteArrayUtil.GetRndByteArray(16),
+            players.Select(p => (p, PlayerType.Automatic)).ToList(), minMatchingShards: 3);
 
+        DriveAsserts.AssertRejected(await SecurityOf(frodo).ConfigureShards(deal.Request),
+            OdinClientErrorCode.AutomaticShardsReachThreshold);
+    }
+
+    /// <summary>Change 6: until a friend's drive is zero knowledge, their server could open their shard.</summary>
+    [Test]
+    public async Task AGatedFriendWhoseDriveIsNotZeroKnowledgeIsRefused()
+    {
+        var (frodo, players) = Cast();
         await PrepareConnectionsAsync(frodo, players);
+        await MakeZeroKnowledgeAsync(frodo);
+        foreach (var player in players.Skip(1))
+        {
+            await MakeZeroKnowledgeAsync(player);
+        }
 
-        var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(
-            ShardRequest(players, PlayerType.Delegate,
-                minMatchingShards: players.Count - (ShamirConfigurationService.MinimumMatchingShardsOffset + 1)));
+        var deal = await ZkFriends.MakeDealAsync(frodo, ZkMasterKeyOf(frodo),
+            players.Select(p => (p, PlayerType.Delegate)).ToList(), minMatchingShards: 3);
 
-        Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        DriveAsserts.AssertRejected(await SecurityOf(frodo).ConfigureShards(deal.Request),
+            OdinClientErrorCode.ShardHolderNotZeroKnowledge);
+        Assert.That((await SecurityOf(frodo).GetShardConfig()).Content, Is.Null, "nothing was dealt");
     }
 
     [Test]
-    [Ignore("dark launched")]
+    public async Task AGatedShardSealedToAnyOtherKeyIsRefused()
+    {
+        var (frodo, players) = Cast();
+        await PrepareConnectionsAsync(frodo, players);
+        foreach (var owner in players.Prepend(frodo))
+        {
+            await MakeZeroKnowledgeAsync(owner);
+        }
+
+        var deal = await ZkFriends.MakeDealAsync(frodo, ZkMasterKeyOf(frodo),
+            players.Select(p => (p, PlayerType.Delegate)).ToList(), minMatchingShards: 3);
+        var first = deal.Request.Shards[0];
+        var (content, keyHeader) = ZkFriends.MakeDeposit(new PlayerEncryptedShard { Id = first.ShardId },
+            ZkBrowser.MakeKeyPair().PublicKeyJwk);
+        deal.Request.Shards[0] = first with { DepositContent = content, DepositKeyHeader = keyHeader };
+
+        DriveAsserts.AssertRejected(await SecurityOf(frodo).ConfigureShards(deal.Request), OdinClientErrorCode.InvalidKeyHeader);
+    }
+
+    [Test]
     public async Task FailToDistributeWhenOneOrMorePeersIsNotConnected()
     {
-        // The original registered a per-test log-event assertion here — exactly one Error event
-        // starting "Failed while creating outbox item". See the class remarks for why it is not
-        // carried and what has to be restored alongside this [Ignore].
-
         var (frodo, players) = Cast();
+        var connected = players.Take(3).ToList();
+        var notConnected = players[3];
+        await PrepareConnectionsAsync(frodo, connected);
+        foreach (var owner in connected.Prepend(frodo))
+        {
+            await MakeZeroKnowledgeAsync(owner);
+        }
 
-        var connectedIdentities = players.Take(3).ToList();
-        await PrepareConnectionsAsync(frodo, connectedIdentities);
+        // the one who isn't connected holds an automatic shard, so no key is fetched from them
+        var deal = await ZkFriends.MakeDealAsync(frodo, ZkMasterKeyOf(frodo),
+            connected.Select(p => (p, PlayerType.Delegate)).Append((notConnected, PlayerType.Automatic)).ToList(),
+            minMatchingShards: 3);
+        var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(deal.Request);
 
-        var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(
-            // the full cast, which adds one who is not connected
-            ShardRequest(players, PlayerType.Delegate, minMatchingShards: players.Count));
+        Assert.That((int)configureShardsResponse.StatusCode, Is.Not.InRange(200, 299), configureShardsResponse.Error?.Content);
+        Assert.That((await SecurityOf(frodo).GetShardConfig()).Content, Is.Null, "the failed deal rolled back");
+    }
 
-        // Exactly !IsSuccessStatusCode, but a failure prints the code it got.
-        Assert.That((int)configureShardsResponse.StatusCode, Is.Not.InRange(200, 299));
+    [Test]
+    public async Task AThresholdOfOneIsRefused()
+    {
+        var (frodo, players) = Cast();
+        var deal = await ZkFriends.MakeDealAsync(frodo, ByteArrayUtil.GetRndByteArray(16),
+            players.Select(p => (p, PlayerType.Automatic)).ToList(), minMatchingShards: 2);
+        var request = new ConfigureShardsRequest
+        {
+            MinMatchingShards = 1,
+            Shards = deal.Request.Shards,
+            ShamirCopies = deal.Request.ShamirCopies
+        };
+
+        var response = await SecurityOf(frodo).ConfigureShards(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
     }
 }

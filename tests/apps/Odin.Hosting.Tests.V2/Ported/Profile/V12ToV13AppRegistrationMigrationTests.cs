@@ -97,7 +97,7 @@ public class V12ToV13AppRegistrationMigrationTests : V2Fixture
         Assert.That(record, Is.Not.Null, "the blob registration must land in the AppRegistrations table");
         Assert.That(record.Name, Is.EqualTo("Acme Receipts"), "the name lives only in the blob JSON");
         Assert.That(record.CorsHostName, Is.EqualTo("acme.example.com"));
-        Assert.That(AppSlugGenerator.IsValid(record.AppSlug), Is.True, $"'{record.AppSlug}' is not a valid slug");
+        Assert.That(OdinSlug.IsValid(record.AppSlug), Is.True, $"'{record.AppSlug}' is not a valid slug");
 
         // Derived from the display name, not the fallback: a null Name would have produced the app id.
         // Fits under the 14-character cap, so "acme-receipts" survives whole.

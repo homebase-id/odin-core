@@ -11,8 +11,8 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
-using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive
@@ -25,7 +25,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         DriveManager driveManager,
         DriveDeletionService driveDeletionService,
         Defragmenter defragmenter,
-        IAppRegistrationService appRegistrationService
+        IAppRegistrationService appRegistrationService,
+        ZeroKnowledgeKeyService zeroKnowledgeKeyService
         ) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
@@ -34,29 +35,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             var drives = await driveManager.GetDrivesAsync(new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
 
-            var clientDriveData = drives.Results.Select(drive =>
-                new OwnerClientDriveData()
-                {
-                    DriveId = drive.Id,
-                    Name = drive.Name,
-                    TargetDriveInfo = drive.TargetDriveInfo,
-                    Metadata = drive.Metadata,
-                    IsReadonly = drive.IsReadonly,
-                    AllowAnonymousReads = drive.AllowAnonymousReads,
-                    AllowSubscriptions = drive.AllowSubscriptions,
-                    AllowCdn = drive.IsCdnEnabled(),
-                    RequirePayloadHashes = drive.RequirePayloadHashes,
-                    OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes,
-                    IsArchived = drive.IsArchived,
-                    IsSystemDrive = BuiltinDrives.IsProtected(drive.Id),
-                    AppId = drive.AppId,
-                    DriveSlug = drive.DriveSlug,
-                    DriveTypeSlug = drive.DriveTypeSlug,
-                    WriteOnlyPublicKeyJwk = drive.WriteOnlyKeyPair?.PublicKeyJwk(),
-                    WriteOnlyPublicKeyCrc32 = drive.WriteOnlyKeyPair?.crc32c
-
-                }).ToList();
+            var clientDriveData = drives.Results.Select(OwnerClientDriveData.From).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
@@ -66,9 +45,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("create")]
         public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
         {
-            //create a drive on the drive service
-            
-            var _ = await driveManager.CreateDriveAsync(request, WebOdinContext);
+            var _ = request.SharingModel.IsZeroKnowledge()
+                ? await zeroKnowledgeKeyService.CreateZeroKnowledgeDriveAsync(request, WebOdinContext)
+                : await driveManager.CreateDriveAsync(request, WebOdinContext);
             return true;
         }
 
@@ -243,27 +222,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             
             var drives = await driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
-            var clientDriveData = drives.Results.Select(drive =>
-                new OwnerClientDriveData()
-                {
-                    Name = drive.Name,
-                    TargetDriveInfo = drive.TargetDriveInfo,
-                    Metadata = drive.Metadata,
-                    IsReadonly = drive.IsReadonly,
-                    AllowAnonymousReads = drive.AllowAnonymousReads,
-                    AllowSubscriptions = drive.AllowSubscriptions,
-                    AllowCdn = drive.IsCdnEnabled(),
-                    RequirePayloadHashes = drive.RequirePayloadHashes,
-                    OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes,
-                    IsArchived = drive.IsArchived,
-                    IsSystemDrive = BuiltinDrives.IsProtected(drive.Id),
-                    AppId = drive.AppId,
-                    DriveSlug = drive.DriveSlug,
-                    DriveTypeSlug = drive.DriveTypeSlug,
-                    WriteOnlyPublicKeyJwk = drive.WriteOnlyKeyPair?.PublicKeyJwk(),
-                    WriteOnlyPublicKeyCrc32 = drive.WriteOnlyKeyPair?.crc32c
-                }).ToList();
+            var clientDriveData = drives.Results.Select(OwnerClientDriveData.From).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
@@ -335,12 +294,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// Required (#1901): missing or malformed is a 400, and one already taken by this app is refused,
         /// not suffixed.
         /// </summary>
-        public string DriveSlug { get; set; }
+        public OdinSlug DriveSlug { get; set; }
 
         /// <summary>
         /// Readable form of the drive's type, e.g. <c>channel</c>.  A category to filter on, not an
         /// address.  Required (#1901): missing or malformed is a 400.
         /// </summary>
-        public string DriveTypeSlug { get; set; }
+        public OdinSlug DriveTypeSlug { get; set; }
     }
 }

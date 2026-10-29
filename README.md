@@ -38,7 +38,7 @@ Their certificates live in `src/apps/Odin.Hosting/https/<domain>/` and are renew
 
 ### Prerequisites
 
-1. **.NET 9 SDK** — verify with `dotnet --version` (9.0.x).
+1. **.NET 10 SDK** — verify with `dotnet --version` (10.0.x).
 
 2. **Hostnames in `/etc/hosts`** — the dev identities and the front-end dev host must resolve to localhost. Add:
 

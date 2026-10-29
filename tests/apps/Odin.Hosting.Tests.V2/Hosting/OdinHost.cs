@@ -21,7 +21,6 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Background;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
@@ -74,7 +73,7 @@ public sealed partial class OdinHost : IAsyncDisposable
 
     /// <summary>
     /// This host's in-memory Serilog sink — the store behind <c>V2Fixture</c>'s no-error-log
-    /// invariant, and the only place the <c>#if DEBUG</c> recovery nonces surface. Saves every
+    /// invariant. Saves every
     /// consumer digging it out of <see cref="Server"/>'s service provider by hand.
     /// </summary>
     public ILogEventMemoryStore LogStore => Server.Services.GetRequiredService<ILogEventMemoryStore>();
@@ -162,12 +161,8 @@ public sealed partial class OdinHost : IAsyncDisposable
                     }
                 });
 
-                // Background services are wired into DI but never StartAsync'd here, so the real
-                // IBackgroundServiceManager.NotifyWorkAvailableAsync spins 30s and then throws
-                // "Background service not found" — which 500s peer-facing paths (e.g. receiving a
-                // connection request enqueues a push notification through the PeerOutbox). The manager
-                // lives in the per-tenant container, so it can't be overridden from the root scope;
-                // wrap the identity registry's tenant-builder delegate to decorate it per tenant.
+                // Per-tenant services live in the per-tenant container, so they can't be overridden from
+                // the root scope; wrap the identity registry's tenant-builder delegate to override them per tenant.
                 services.Replace(ServiceDescriptor.Singleton<IIdentityRegistry>(sp =>
                     new FileSystemIdentityRegistry(
                         sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
@@ -177,7 +172,6 @@ public sealed partial class OdinHost : IAsyncDisposable
                         (cb, registration, cfg) =>
                         {
                             TenantServices.ConfigureTenantServices(cb, registration, cfg);
-                            cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
 
                             // Registered per tenant in ConfigureTenantServices, so overridden per
                             // tenant: the production fetcher over the in-process server.
@@ -193,12 +187,6 @@ public sealed partial class OdinHost : IAsyncDisposable
             .ConfigureContainer<ContainerBuilder>(cb =>
             {
                 cb.RegisterInstance(serverHolder).SingleInstance();
-
-                // Same trade as the tenant decorator above, for the SYSTEM manager — a separate root
-                // singleton from AddSystemBackgroundServices, which the per-tenant registration cannot
-                // reach. JobRunnerBackgroundService hangs off this one, so without it every scheduled
-                // job pays the full 30s poll.
-                cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
 
                 cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>(), c.Resolve<TenantContext>()))
                     .As<IOdinHttpClientFactory>()

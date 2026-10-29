@@ -16,7 +16,6 @@ public class DriveFileDeletedNotification : MediatorNotificationBase, IDriveNoti
 
     public ServerFileHeader ServerFileHeader { get; init; }
 
-    public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
     public ServerFileHeader PreviousServerFileHeader { get; set; }
 
     public bool IgnoreFeedDistribution { get; set; }

@@ -290,7 +290,7 @@ public class ContactService(
     /// </summary>
     public async Task<ContactWriteResult> SetImageAsync(Guid uniqueId, SetContactImageRequest request, IOdinContext odinContext)
     {
-        quotaGuard.AssertCanAddPayloadBytes();
+        await quotaGuard.AssertCanAddPayloadBytesAsync();
 
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
@@ -501,7 +501,7 @@ public class ContactService(
 
         // An app writing its bulk blob is a caller-driven payload write, so it is refused while out of
         // quota - unlike the merge-log bookkeeping, which keeps connection flows working
-        quotaGuard.AssertCanAddPayloadBytes();
+        await quotaGuard.AssertCanAddPayloadBytesAsync();
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
         return await MutateAppExtDataAsync(uniqueId, appId, expectedVersionTag, odinContext,

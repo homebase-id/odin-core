@@ -9,6 +9,8 @@ using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Auth;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
@@ -175,8 +177,9 @@ public class CircleBackfillMigrationTests : V2Fixture
 
         // Tom is connected and reviewed exactly like the others and is handed no shard, so he is the
         // one who proves the pass reads the dealer's roster rather than the connection list.
-        var players = new[] { sam, merry, pippin }.Select(p => p.Identity).ToList();
-        await ConfigureShardsAsync(frodo, players);
+        var holders = new[] { sam, merry, pippin };
+        await ConfigureShardsAsync(frodo, holders);
+        var players = holders.Select(p => p.Identity).ToList();
 
         var enrolled = await RunRecoveryAsync(frodo);
 
@@ -207,8 +210,9 @@ public class CircleBackfillMigrationTests : V2Fixture
             await ConnectAsync(frodo, peer);
         }
 
-        var players = new[] { sam, merry, pippin }.Select(p => p.Identity).ToList();
-        await ConfigureShardsAsync(frodo, players);
+        var holders = new[] { sam, merry, pippin };
+        await ConfigureShardsAsync(frodo, holders);
+        var players = holders.Select(p => p.Identity).ToList();
 
         var (scope, ctx) = await MigrationContextAsync(frodo);
         var db = scope.Resolve<IdentityDatabase>();
@@ -287,16 +291,23 @@ public class CircleBackfillMigrationTests : V2Fixture
             .EnrollShardHoldersInRecoveryAsync(ctx, CancellationToken.None);
     }
 
-    private async Task ConfigureShardsAsync(OwnerSession dealer, IEnumerable<OdinId> players)
+    private async Task ConfigureShardsAsync(OwnerSession dealer, IReadOnlyList<OwnerSession> players)
     {
         // Straight at the service rather than over HTTP: what the pass reads is the dealer's package,
         // and this is the one call that writes it. Distribution to the players goes through the outbox
-        // and is not what is under test -- the package is saved either way.
-        var (scope, ctx) = await MigrationContextAsync(dealer);
-        var shamir = scope.Resolve<ShamirConfigurationService>();
+        // and is not what is under test -- the package is saved either way.  A friend deal is dealt in
+        // the browser, sealed to each friend's zero-knowledge Shard Recovery drive, so they get one first.
+        var dealerKeys = await ZkOwnerSteps.CreateKeysAsync(dealer, OwnerLogin.DefaultPassword);
+        foreach (var player in players)
+        {
+            await ZkOwnerSteps.MakeZeroKnowledgeAsync(player, OwnerLogin.DefaultPassword);
+        }
 
-        var list = players.Select(p => new ShamiraPlayer { OdinId = p, Type = PlayerType.Delegate }).ToList();
-        await shamir.ConfigureShards(list, ShamirConfigurationService.MinimumPlayerCount, ctx);
+        var deal = await ZkFriends.MakeDealAsync(dealer, dealerKeys.MasterKey,
+            players.Select(p => (p, PlayerType.Delegate)).ToList(), ShamirConfigurationService.MinimumPlayerCount);
+
+        var (scope, ctx) = await MigrationContextAsync(dealer);
+        await scope.Resolve<ShamirConfigurationService>().ConfigureShards(deal.Request, ctx);
     }
 
     private static async Task ConnectAsync(OwnerSession owner, OwnerSession peer)

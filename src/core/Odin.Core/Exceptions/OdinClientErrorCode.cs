@@ -123,6 +123,7 @@ public enum OdinClientErrorCode
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
     AppRevoked = 6002,
+    AppAlreadyRegistered = 6003,
     DomainNotRegistered = 6050,
     AppHasNoAuthorizedCircles = 6700,
     InvalidAccessRegistrationId = 6800,
@@ -150,4 +151,45 @@ public enum OdinClientErrorCode
     MissingVerificationHash = 9005,
     PasswordAlreadySet = 9006,
     IntroductoryRequestAlreadySent = 9007,
+
+    // Zero-knowledge keys (docs/zero-knowledge-keys-plan.md)
+    ZeroKnowledgeKeysAlreadySet = 9008,
+    ZeroKnowledgeKeysNotSet = 9009,
+    ZeroKnowledgeKeysRequired = 9010,
+    DriveHasEncryptedFiles = 9011,
+    DriveIsZeroKnowledge = 9012,
+
+    // Recovery in the browser (docs/zero-knowledge-recovery-plan.md)
+    PasswordLoginRequired = 9013,
+    RecoveryPhraseTakenOver = 9014,
+    RecoveryPhraseNotTakenOver = 9015,
+    RecoveryPhraseMismatch = 9016,
+    RecoveryPhraseNeedsReentry = 9017,
+
+    // Deposits on zero-knowledge drives, and recovery with friends (docs/zero-knowledge-recovery-plan.md)
+    DepositNeedsZeroKnowledgeDrive = 9018,
+    /// <summary>A sealed key header replaces only a sealed one (ZkDriveFiles.AssertMayReplace); the name predates that rule.</summary>
+    DepositCannotBeUpdated = 9019,
+    ShardHolderNotZeroKnowledge = 9020,
+    AutomaticShardsReachThreshold = 9021,
+    RecoveryNotReady = 9022,
+    RecoveryUnderWayElsewhere = 9023,
+
+    // The automated deal, and every automatic holder's own email (docs/zero-knowledge-recovery-plan.md)
+    ShardLinkNoLongerValid = 9024,
+    ShardHolderUnreachable = 9025,
+    RecoveryBusy = 9026,
+
+    // A zero-knowledge drive's own key headers (docs/zero-knowledge-drive-api-plan.md)
+    ZkDriveKeyHeaderNeedsZeroKnowledgeDrive = 9027,
+    ZkDriveFileCannotBeSent = 9028,
+
+    // Zero-knowledge keys for apps, and converting a drive that keeps its key (docs/zero-knowledge-drive-api-plan.md, step 3)
+    ZkAppKeyAlreadySet = 9029,
+    ZkAppKeyMissing = 9030,
+    ZkDriveNotGrantedToApp = 9031,
+    DriveCannotBeConverted = 9032,
+
+    // A deposit sealed to a key other than the drive's write-only key (docs/drive-public-keys-plan.md)
+    SealedToUnknownKey = 9033,
 }

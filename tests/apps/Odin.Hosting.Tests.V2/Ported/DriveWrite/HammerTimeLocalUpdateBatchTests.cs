@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -37,10 +38,9 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// nothing is pending across it. Each thread's work is ordinary HTTP against the test server, so every
 /// request gets its own DI scope — the <c>ScopedConnectionFactory</c> single-scope hazard does not arise.
 ///
-/// Both threads mutate the single shared <c>_originalFileMetadata</c> / <c>_originalPayload</c>
-/// instances, exactly as the original did. That is a race, and a benign-looking one: the two threads
-/// write the same constant content and data type, so the values they read back are the values they
-/// assert on either way. Carried as-is rather than fixed inside a port.
+/// Each iteration builds its own metadata and payload (#1767). The original had both threads mutate one
+/// shared instance of each, a race that was only harmless because they wrote the same constant content
+/// and data type. The success and conflict counters are incremented atomically for the same reason.
 /// </remarks>
 [TestFixture]
 public class HammerTimeLocalUpdateBatchTests : V2Fixture
@@ -50,8 +50,6 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
     private Guid _initialVersionTag;
     private ExternalFileIdentifier _targetFile;
 
-    private UploadFileMetadata _originalFileMetadata;
-    private TestPayloadDefinition _originalPayload;
     private int _successCount;
     private int _conflictCount;
 
@@ -65,15 +63,15 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         //
         // Setup - upload a new file with payloads
         //
-        _originalFileMetadata = SampleMetadataData.Create(fileType: 100);
-        _originalPayload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var originalFileMetadata = SampleMetadataData.Create(fileType: 100);
+        var originalPayload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var uploadManifest = new UploadManifest()
         {
-            PayloadDescriptors = [_originalPayload.ToPayloadDescriptor()]
+            PayloadDescriptors = [originalPayload.ToPayloadDescriptor()]
         };
 
         var uploadNewFileResponse = await _owner.V1.Drive.UploadNewFile(targetDrive,
-            _originalFileMetadata, uploadManifest, [_originalPayload]);
+            originalFileMetadata, uploadManifest, [originalPayload]);
 
         Assert.That(uploadNewFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
@@ -103,20 +101,18 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         {
             sw.Restart();
 
-            // change around some data
-            _originalFileMetadata.AppData.Content = "some new content here";
-            _originalFileMetadata.AppData.DataType = 777;
+            // change around some data, on this iteration's own copies
+            var fileMetadata = SampleMetadataData.Create(fileType: 100);
+            fileMetadata.AppData.Content = "some new content here";
+            fileMetadata.AppData.DataType = 777;
 
             var randomPayloadContent = string.Join("", Enumerable.Range(2468, 2468).Select(_ => Guid.NewGuid().ToString("N")));
 
-            _originalPayload.Content = randomPayloadContent.ToUtf8ByteArray();
-            var testPayloads = new List<TestPayloadDefinition>()
-            {
-                _originalPayload
-            };
+            var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+            payload.Content = randomPayloadContent.ToUtf8ByteArray();
 
             var prevTag = newVersionTag;
-            var (status, oce, versionTag) = await UploadAndValidatePayload(newVersionTag, testPayloads);
+            var (status, oce, versionTag) = await UploadAndValidatePayload(newVersionTag, fileMetadata, payload);
 
             if (status == HttpStatusCode.OK)
             {
@@ -126,7 +122,7 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
             }
             else
             {
-                _conflictCount++;
+                Interlocked.Increment(ref _conflictCount);
                 if (oce == OdinClientErrorCode.VersionTagMismatch)
                 {
                     // we must presume there was a version tag mismatch, let's see if we can get back in the race
@@ -148,9 +144,10 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
 
     private async Task<(HttpStatusCode status, OdinClientErrorCode? oce, Guid? versionTag)> UploadAndValidatePayload(
         Guid targetVersionTag,
-        List<TestPayloadDefinition> testPayloads)
+        UploadFileMetadata fileMetadata,
+        TestPayloadDefinition payload)
     {
-        _originalFileMetadata.VersionTag = targetVersionTag;
+        fileMetadata.VersionTag = targetVersionTag;
 
         var updateInstructionSet = new FileUpdateInstructionSet
         {
@@ -161,12 +158,11 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
             Manifest = new UploadManifest
             {
                 // in this test we are just overwriting payloads
-                PayloadDescriptors = testPayloads.Select(tpd => tpd.ToPayloadDescriptor(
-                    PayloadUpdateOperationType.AppendOrOverwrite)).ToList()
+                PayloadDescriptors = [payload.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite)]
             }
         };
 
-        var updateFileResponse = await _owner.V1.Drive.UpdateFile(updateInstructionSet, _originalFileMetadata, [_originalPayload]);
+        var updateFileResponse = await _owner.V1.Drive.UpdateFile(updateInstructionSet, fileMetadata, [payload]);
 
         // bounce if it's a bad request
         if (updateFileResponse.StatusCode == HttpStatusCode.BadRequest)
@@ -175,7 +171,7 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
             return (updateFileResponse.StatusCode, oce, null);
         }
 
-        _successCount++;
+        Interlocked.Increment(ref _successCount);
 
         //
         // Get the updated file and test it
@@ -184,10 +180,10 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var header = getHeaderResponse.Content;
         Assert.That(header, Is.Not.Null);
-        Assert.That(header.FileMetadata.AppData.Content, Is.EqualTo(_originalFileMetadata.AppData.Content));
-        Assert.That(header.FileMetadata.AppData.DataType, Is.EqualTo(_originalFileMetadata.AppData.DataType));
+        Assert.That(header.FileMetadata.AppData.Content, Is.EqualTo(fileMetadata.AppData.Content));
+        Assert.That(header.FileMetadata.AppData.DataType, Is.EqualTo(fileMetadata.AppData.DataType));
         Assert.That(header.FileMetadata.Payloads.Count(), Is.EqualTo(1));
-        Assert.That(header.FileMetadata.Payloads.Select(pd => pd.Key), Does.Contain(_originalPayload.Key), "missing payload");
+        Assert.That(header.FileMetadata.Payloads.Select(pd => pd.Key), Does.Contain(payload.Key), "missing payload");
 
         //
         // Ensure payloadToAdd add is added
@@ -195,7 +191,7 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         // The round succeeded either way; the reads below may find the version already replaced.
         var served = (updateFileResponse.StatusCode, OdinClientErrorCode.NoErrorCode, updateFileResponse.Content!.NewVersionTag);
 
-        var getPayloadToAddResponse = await _owner.V1.Drive.GetPayload(_targetFile, _originalPayload.Key);
+        var getPayloadToAddResponse = await _owner.V1.Drive.GetPayload(_targetFile, payload.Key);
 
         // Two writers and a reader on one file: the other thread can replace this payload between the
         // header read above and this fetch, which leaves the version just resolved genuinely gone. That
@@ -213,13 +209,13 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
             Is.LessThan(DateTimeOffset.Now.AddSeconds(10)));
 
         // var content = (await getPayloadToAddResponse.Content.ReadAsStreamAsync()).ToByteArray();
-        // CollectionAssert.AreEqual(content, _originalPayload.Content);
+        // CollectionAssert.AreEqual(content, payload.Content);
 
         // Check all the thumbnails
-        foreach (var thumbnail in _originalPayload.Thumbnails)
+        foreach (var thumbnail in payload.Thumbnails)
         {
             var getThumbnailResponse = await _owner.V1.Drive.GetThumbnail(_targetFile, thumbnail.PixelWidth,
-                thumbnail.PixelHeight, _originalPayload.Key);
+                thumbnail.PixelHeight, payload.Key);
 
             // Same race, same contract as the payload fetch above -- and once the version has moved its
             // remaining sizes are gone too, so there is no point asking for them.

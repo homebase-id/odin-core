@@ -80,6 +80,7 @@ public class TcpProbeTests
 
     [Test]
     [Retry(3)]
+    [Explicit("Live network: TCP to www.google.com:443")]
     public async Task ItShouldErrorOnUnexpectedResponse()
     {
         var cache = new GenericMemoryCache();

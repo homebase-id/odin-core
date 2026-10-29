@@ -279,6 +279,17 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             return (result, ownerAuthenticationResult.SharedSecret.ToSensitiveByteArray());
         }
 
+        /// <summary>
+        /// A further owner login for <paramref name="identity"/> (default password), with a token of its own, as a
+        /// second device would have
+        /// </summary>
+        public async Task<OwnerAuthTokenContext> LoginAnotherOwnerSessionAsync(OdinId identity)
+        {
+            var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+            var (cat, sharedSecret) = await LoginToOwnerConsole(identity, _defaultOwnerPassword, clientEccFullKey);
+            return new OwnerAuthTokenContext { AuthenticationResult = cat, SharedSecret = sharedSecret };
+        }
+
         public OwnerAuthTokenContext GetOwnerAuthContext(OdinId identity)
         {
             if (_ownerLoginTokens.TryGetValue(identity, out var context))

@@ -139,8 +139,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 Summary = new TransferHistorySummary()
                 {
                     TotalInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
+                    // A recipient out of storage is waiting for room, not failed; past the outbox's retry-later
+                    // limit it becomes SendingServerTooManyAttempts and counts
                     TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatus.Delivered &&
-                                                                 h.LatestTransferStatus != LatestTransferStatus.None),
+                                                                 h.LatestTransferStatus != LatestTransferStatus.None &&
+                                                                 h.LatestTransferStatus != LatestTransferStatus.RecipientIdentityOutOfStorage),
                     TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatus.Delivered),
                     TotalReadByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
                 }
@@ -166,9 +169,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.SaveReactionSummary(drive, fileId, summary);
         }
 
-        public async Task DeleteReactionSummary(StorageDrive drive, Guid fileId)
+        /// <returns>The file's modified time, which clearing the summary moves</returns>
+        public async Task<UnixTimeUtc> DeleteReactionSummary(StorageDrive drive, Guid fileId)
         {
-            await driveQuery.SaveReactionSummary(drive, fileId, null);
+            return await driveQuery.SaveReactionSummary(drive, fileId, null);
         }
 /*
         private void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
@@ -255,13 +259,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index
         /// </summary>
-        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
+        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors,
+            Guid? expectedVersionTag = null)
         {
-            // First delete the DB header
-            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId));
+            // First delete the DB header; a stale expectedVersionTag throws here, before any payload is touched
+            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId), expectedVersionTag);
 
             // If some files fail, they are simply orphaned
-            forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
+            if (descriptors is { Count: > 0 })
+            {
+                forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
+            }
         }
 
         public async Task<bool> PayloadExistsOnDiskAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)

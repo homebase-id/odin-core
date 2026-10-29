@@ -35,7 +35,8 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
     public PermissionGroup(PermissionGroup other)
     {
         _permissionSet = other._permissionSet?.Clone();
-        _driveGrants = other._driveGrants?.Select(dg => dg.Clone());
+        // Copied once: a lazy Select would clone every grant again on each permission check of the copy
+        _driveGrants = other._driveGrants?.Select(dg => dg.Clone()).ToList();
         _keyStoreKey = other._keyStoreKey?.Clone();
         _encryptedIcrKey = other._encryptedIcrKey?.Clone();
     }
@@ -155,9 +156,14 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         return _encryptedIcrKey?.DecryptKeyClone(key);
     }
 
-    public RedactedPermissionGroup Redacted()
+    /// <remarks>
+    /// An app's group shows its drive grants even with no permission keys: an app that asks for none (Filesync) reads
+    /// its drive's grant, and on a zero-knowledge drive its copy of the key, from here.  Any other caller's group with
+    /// no permission keys still shows none, as it always has (#433).
+    /// </remarks>
+    public RedactedPermissionGroup Redacted(OdinClientContext? app = null)
     {
-        if (null == _permissionSet)
+        if (null == _permissionSet && app?.AppId == null)
         {
             return new RedactedPermissionGroup()
             {
@@ -169,7 +175,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         return new RedactedPermissionGroup()
         {
             PermissionSet = _permissionSet == null ? new PermissionSet().Redacted() : _permissionSet.Redacted(),
-            DriveGrants = _driveGrants?.Select(r => r.Redacted()) ?? new List<RedactedDriveGrant>()
+            DriveGrants = _driveGrants?.Select(r => r.Redacted(app)) ?? new List<RedactedDriveGrant>()
         };
     }
 }

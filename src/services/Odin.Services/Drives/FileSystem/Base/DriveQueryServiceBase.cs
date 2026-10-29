@@ -133,16 +133,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 qp,
                 options);
 
-            var (headers, _) = await CreateClientFileHeadersAsync(driveId, fileIdList, options, odinContext, forceIncludeServerMetadata);
-
-            return new QueryBatchResult()
-            {
-                QueryTime = UnixTimeUtc.Now().milliseconds,
-                IncludeMetadataHeader = options.IncludeHeaderContent,
-                Cursor = cursor,
-                SearchResults = headers,
-                HasMoreRows = hasMoreRows
-            };
+            return await CreateBatchResultAsync(driveId, cursor, fileIdList, hasMoreRows, options, odinContext,
+                forceIncludeServerMetadata);
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetSingleFileByTag(Guid driveId, Guid tag, IOdinContext odinContext)
@@ -280,7 +272,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 else
                 {
-                    collection.Results.Add(QueryBatchResponse.FromInvalidDrive(query.Name));
+                    collection.Results.Add(QueryBatchResponse.FromInvalidDrive(query.Name,
+                        query.ResultOptionsRequest?.ResultShape == FileResultShape.Minimal));
                 }
             }
 
@@ -368,7 +361,67 @@ namespace Odin.Services.Drives.FileSystem.Base
                 bool forceIncludeServerMetadata = false,
                 bool logAclFailuresAsErrors = false)
         {
+            var (visible, aclFailures) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
+
             var results = new List<SharedSecretEncryptedFileHeader>();
+            foreach (var serverFileHeader in visible)
+            {
+                var header = DriveFileUtility.CreateClientFileHeader(
+                    serverFileHeader,
+                    odinContext,
+                    forceIncludeServerMetadata);
+
+                if (header?.FileMetadata?.AppData != null)
+                {
+                    if (!options.IncludeHeaderContent)
+                    {
+                        header.FileMetadata.AppData = header.FileMetadata.AppData.WithoutContent();
+                    }
+
+                    if (options.ExcludePreviewThumbnail)
+                    {
+                        header.FileMetadata.AppData.PreviewThumbnail = null;
+                        if (null != header.FileMetadata.Payloads)
+                        {
+                            foreach (var pd in header.FileMetadata.Payloads)
+                            {
+                                pd.PreviewThumbnail = null;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("AppData in File {file} on drive {drive} is null.  FileState: {fs}",
+                        serverFileHeader.FileMetadata.File.FileId, driveId, header?.FileState);
+                }
+
+                if (options.ExcludeServerMetaData && null != header)
+                {
+                    header.ServerMetadata = null;
+                }
+                else if (!options.IncludeTransferHistory && header.ServerMetadata != null)
+                {
+                    header.ServerMetadata.TransferHistory = null;
+                }
+
+                results.Add(header);
+            }
+
+            return (results, aclFailures);
+        }
+
+        /// <summary>
+        /// The rows of <paramref name="recordList"/> the caller may receive, in order, and the ones its ACL denied.
+        /// Every result shape goes through here, so none of them can show a file another would hide.
+        /// </summary>
+        private async Task<(List<ServerFileHeader> visible, List<ServerFileHeader> aclFailures)> FilterVisibleAsync(
+            Guid driveId,
+            List<DriveMainIndexRecord> recordList,
+            IOdinContext odinContext,
+            bool logAclFailuresAsErrors = false)
+        {
+            var visible = new List<ServerFileHeader>();
             var aclFailures = new List<ServerFileHeader>();
 
             foreach (var record in recordList)
@@ -396,10 +449,17 @@ namespace Odin.Services.Drives.FileSystem.Base
                     continue;
                 }
 
-                // TODD - this function ALSO loads the header from disk. It needs to use 'record' instead.
-                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(serverFileHeader, odinContext);
-                if (!hasPermissionToFile)
+                var isClientLocked = ZkDriveFiles.IsClientLocked(serverFileHeader);
+                if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext))
                 {
+                    // A client-locked file (sealed or zkDrive) is left out as missing, not reported as refused: a
+                    // read by unique id or global transit id answers as for no file, and a write's check for a taken
+                    // unique id falls through to the index's
+                    if (isClientLocked)
+                    {
+                        continue;
+                    }
+
                     aclFailures.Add(serverFileHeader);
                     if (logAclFailuresAsErrors)
                     {
@@ -411,8 +471,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     if (serverFileHeader.FileMetadata.FileState == FileState.Deleted)
                     {
-                        _logger.LogDebug("Creating Client File Header for deleted file (File {file} on drive {drive})", file.FileId,
-                            file.DriveId);
+                        // Off: one line per deleted row of every query, so a client paging a feed of tombstones (e.g. filesync
+                        // after a purge) made it 96% of the dev server's log, about 1 GB every 20 minutes, and filled the disk
+                        // _logger.LogDebug("Creating Client File Header for deleted file (File {file} on drive {drive})", file.FileId,
+                        //     file.DriveId);
                         // var header = DriveFileUtility.CreateDeletedClientFileHeader(serverFileHeader, odinContext);
                         // results.Add(header);
                         // continue;
@@ -421,55 +483,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out _);
 
-                    //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
-                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
+                    //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key
+                    // A client-locked file needs no storage key to return: its key header goes back as stored
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted || isClientLocked;
                     if (shouldReceiveFile)
                     {
-                        var header = DriveFileUtility.CreateClientFileHeader(
-                            serverFileHeader,
-                            odinContext,
-                            forceIncludeServerMetadata);
-
-                        if (header?.FileMetadata?.AppData != null)
-                        {
-                            if (!options.IncludeHeaderContent)
-                            {
-                                header.FileMetadata.AppData.Content = string.Empty;
-                            }
-
-
-                            if (options.ExcludePreviewThumbnail)
-                            {
-                                header.FileMetadata.AppData.PreviewThumbnail = null;
-                                if (null != header.FileMetadata.Payloads)
-                                {
-                                    foreach (var pd in header.FileMetadata.Payloads)
-                                    {
-                                        pd.PreviewThumbnail = null;
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogDebug("AppData in File {file} on drive {drive} is null.  FileState: {fs}", file.FileId, file.DriveId,
-                                header?.FileState);
-                        }
-
-                        if (options.ExcludeServerMetaData && null != header)
-                        {
-                            header.ServerMetadata = null;
-                        }
-                        else
-                        {
-                            if (!options.IncludeTransferHistory && header.ServerMetadata != null)
-                            {
-                                // _logger.LogDebug("CreateClientFileHeaders -> setting transfer history to null");
-                                header.ServerMetadata.TransferHistory = null;
-                            }
-                        }
-
-                        results.Add(header);
+                        visible.Add(serverFileHeader);
                     }
                     else
                     {
@@ -496,7 +515,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return (results, aclFailures);
+            return (visible, aclFailures);
         }
 
         /// <summary>
@@ -517,16 +536,36 @@ namespace Odin.Services.Drives.FileSystem.Base
                 options,
                 modifiedAfter);
 
-            var (headers, _) = await CreateClientFileHeadersAsync(driveId, fileIdList, options, odinContext, forceIncludeServerMetadata);
+            return await CreateBatchResultAsync(driveId, cursor, fileIdList, hasMoreRows, options, odinContext,
+                forceIncludeServerMetadata);
+        }
 
-            return new QueryBatchResult()
+        // The cursor and hasMoreRows come from the query, before any row is filtered, so every result shape of the
+        // same query pages identically; only what each visible row carries differs
+        private async Task<QueryBatchResult> CreateBatchResultAsync(Guid driveId, QueryBatchCursor cursor,
+            List<DriveMainIndexRecord> records, bool hasMoreRows, QueryBatchResultOptions options, IOdinContext odinContext,
+            bool forceIncludeServerMetadata)
+        {
+            var result = new QueryBatchResult
             {
                 QueryTime = UnixTimeUtc.Now().milliseconds,
                 IncludeMetadataHeader = options.IncludeHeaderContent,
                 Cursor = cursor,
-                SearchResults = headers,
                 HasMoreRows = hasMoreRows
             };
+
+            if (options.ResultShape == FileResultShape.Minimal)
+            {
+                var (visible, _) = await FilterVisibleAsync(driveId, records, odinContext);
+                result.FileRefs = visible.Select(FileRef.FromHeader).ToList();
+            }
+            else
+            {
+                var (headers, _) = await CreateClientFileHeadersAsync(driveId, records, options, odinContext, forceIncludeServerMetadata);
+                result.SearchResults = headers;
+            }
+
+            return result;
         }
 
         private async Task AssertDriveIsValidAndActive(Guid driveId, IOdinContext odinContext)

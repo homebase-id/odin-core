@@ -98,17 +98,39 @@ public class PeerKeyStore
     /// circle and app grants live in their own tables and are stripped there; this is for a store that keeps its
     /// own copy, as a sent connection request does until it is accepted.
     /// </summary>
-    public bool RemoveDrive(Guid driveId)
+    public bool RemoveDrive(Guid driveId) =>
+        RemoveDriveFromDeposits(driveId) | UpdateOwnDriveGrants(grants => grants?.RemoveAll(g => g.DriveId == driveId) > 0);
+
+    /// <summary>
+    /// Takes a drive's storage key off every grant this store carries, keeping the permission: the drive went zero
+    /// knowledge and kept its key (docs/zero-knowledge-drive-api-plan.md, 3.3).  As <see cref="RemoveDrive"/>, this is
+    /// for a store that keeps its own copy of its circle and app grants.
+    /// </summary>
+    public bool RemoveStorageKey(Guid driveId) =>
+        RemoveStorageKeyFromDeposits(driveId) | UpdateOwnDriveGrants(grants => DriveGrant.RemoveStorageKey(grants, driveId));
+
+    /// <summary>Applies <paramref name="update"/> to the drive grants of each circle and app grant this store carries.</summary>
+    private bool UpdateOwnDriveGrants(Func<List<DriveGrant>, bool> update)
     {
-        var removed = RemoveDriveFromDeposits(driveId);
-        foreach (var circleGrant in CircleGrants.Values)
+        var changed = false;
+        foreach (var grants in CircleGrants.Values.Select(g => g.KeyStoreKeyEncryptedDriveGrants)
+                     .Concat(AppGrants.Values.SelectMany(g => g.Values).Select(g => g.KeyStoreKeyEncryptedDriveGrants)))
         {
-            removed |= circleGrant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
+            changed |= update(grants);
         }
 
-        foreach (var appCircleGrant in AppGrants.Values.SelectMany(g => g.Values))
+        return changed;
+    }
+
+    /// <summary>Takes a drive's sealed storage key off this store's deposits, keeping the permission.</summary>
+    public bool RemoveStorageKeyFromDeposits(Guid driveId)
+    {
+        var removed = false;
+        foreach (var grant in DepositedGrants?.SelectMany(d => d.DriveGrants)
+                                 .Where(g => g.DriveId == driveId && g.SealedStorageKey != null) ?? [])
         {
-            removed |= appCircleGrant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
+            grant.SealedStorageKey = null;
+            removed = true;
         }
 
         return removed;

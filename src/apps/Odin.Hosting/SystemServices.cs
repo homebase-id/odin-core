@@ -30,6 +30,7 @@ using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Controllers.PayloadMove;
+using Odin.Hosting.Controllers.PlanService;
 using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Multitenant;
@@ -53,6 +54,7 @@ using Odin.Services.LastSeen;
 using Odin.Services.Registry;
 using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Registry.Registration;
+using Odin.Services.Security.Email;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
 
@@ -77,7 +79,7 @@ public static class SystemServices
         services.AddSingleton<ILastSeenService, LastSeenService>();
         services.AddSingleton<MemoryDiagnostics>();
 
-        services.AddControllers()
+        services.AddControllers(options => options.ModelBinderProviders.Insert(0, new OdinSlugModelBinderProvider()))
             .AddJsonOptions(options =>
             {
                 foreach (var c in OdinSystemSerializer.JsonSerializerOptions!.Converters)
@@ -199,6 +201,7 @@ public static class SystemServices
         services.AddSingleton<ILookupClient>(new LookupClient());
 
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
+        services.AddSingleton<InvitationCodeServiceClient>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
         services.AddSingleton<IDnssecLookup, DnssecLookup>();
@@ -251,6 +254,9 @@ public static class SystemServices
         }
         services.AddSingleton<IMailRelayFailureStore, MailRelayFailureStore>();
 
+        // Recovery links go out by email only; tests swap this to read them (#1866)
+        services.AddSingleton<IRecoveryNotificationSink, NullRecoveryNotificationSink>();
+
         services.AddSingleton(sp => new AdminApiRestrictedAttribute(
             sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
             config.Admin.ApiEnabled,
@@ -261,6 +267,7 @@ public static class SystemServices
 
         services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
         services.AddSingleton(new PayloadMoveRestrictedAttribute(config.PayloadMove.SourceEnabled, config.Registry.ProvisioningDomain));
+        services.AddSingleton(new PlanServiceRestrictedAttribute(config.Registry.AccountServiceApiKey, config.Registry.ProvisioningDomain));
 
         services.AddTransient<ITenantAdmin, TenantAdmin>();
         services.AddTransient<PayloadMoveSource>();

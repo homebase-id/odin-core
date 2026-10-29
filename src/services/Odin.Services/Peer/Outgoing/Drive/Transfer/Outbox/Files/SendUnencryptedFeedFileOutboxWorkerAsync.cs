@@ -51,6 +51,13 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
 
             return OutboxProcessingResult.Complete();
         }
+        catch (OdinOutboxProcessingException e) when (e.TransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution)
+        {
+            // The ACL refuses this follower (it changed after the router queued them).  A retry re-reads the same
+            // file to the same answer, and a later change to the ACL queues a new item, so drop this one.
+            logger.LogDebug("SendFeedItem -> {recipient} may not read {file}; dropping the item", FileItem.Recipient, FileItem.File);
+            return OutboxProcessingResult.Complete();
+        }
         catch (OdinOutboxProcessingException e)
         {
             try

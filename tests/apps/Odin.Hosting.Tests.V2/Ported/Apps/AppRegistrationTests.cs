@@ -7,10 +7,13 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -46,6 +49,34 @@ public class AppRegistrationTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         await AddSampleAppNoDrive(owner, Guid.NewGuid(), "API Tests Sample App-register", "photos.odin.earth");
+    }
+
+    /// <summary>
+    /// Registering an app again would have given it a new key store key and left its clients holding the old one
+    /// (#2039): it is refused, and a client registered before still reads the app's drive.
+    /// </summary>
+    [Test]
+    public async Task RegisteringAnAppAgainIsRefusedAndItsClientsKeepTheirAccess()
+    {
+        var owner = await LoginAsOwner();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "Registered twice");
+        var app = await AppSession.SetupAsync(owner, drive, DrivePermission.Read);
+        var (upload, _, _, _) = await owner.Drives.Writer.CreateEncryptedFile(drive.Alias,
+            ZkTestFiles.Metadata(Guid.NewGuid(), "still readable"), transitOptions: null!);
+        Assert.That(upload.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK), upload.Error?.Content);
+
+        var again = await owner.Admin.TryRegisterApp(app.AppId, new PermissionSetGrantRequest
+        {
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }]
+        });
+        Assert.That(again.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest), again.Error?.Content);
+        Assert.That(again.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.AppAlreadyRegistered)).IgnoreCase);
+
+        var read = await app.Drives.Reader.GetFileHeaderAsync(drive.Alias, upload.Content!.FileId);
+        Assert.That(read.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK), read.Error?.Content);
+        Assert.That(read.Content!.SharedSecretEncryptedKeyHeader.EncryptedAesKey, Is.Not.Empty,
+            "the client's key store key still opens the drive's key");
     }
 
     [Test]
@@ -310,6 +341,7 @@ public class AppRegistrationTests : V2Fixture
         Assert.That(transientDriveGrant, Is.Null);
     }
 
+    // Raw JSON: an empty or blank slug can't be sent as an OdinSlug at all.
     [Test]
     [TestCase(null)]
     [TestCase("")]
@@ -319,18 +351,17 @@ public class AppRegistrationTests : V2Fixture
         // No exceptions (#1901): a built-in's slug comes from its tree definition, and the caller sends
         // it like any other app.  The server does not fill it in.
         var owner = await LoginAsOwner();
-        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
+        var (client, ss) = owner.NewAdminHttpClient();
 
-        var response = await svc.RegisterApp(new AppRegistrationRequest
+        var response = await RefitCreator.RestServiceFor<IRawSlugRequests>(client, ss).RegisterApp(new Dictionary<string, object>
         {
-            AppId = SystemAppConstants.ChatAppId,
-            AppSlug = appSlug,
-            Name = "Chat without a slug",
-            PermissionSet = null,
-            Drives = null,
+            ["appId"] = SystemAppConstants.ChatAppId,
+            ["appSlug"] = appSlug,
+            ["name"] = "Chat without a slug"
         });
 
-        Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest));
+        Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest), response.Error?.Content);
+        Assert.That(response.Error?.Content, Does.Contain("\"errorCode\":\"argumentError\""));
     }
 
     [Test]
