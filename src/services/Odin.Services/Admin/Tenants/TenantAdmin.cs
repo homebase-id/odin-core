@@ -251,6 +251,7 @@ public class TenantAdmin(
             EnablePublicWebPresence = registration.EnablePublicWebPresence,
             Email = registration.Email,
             PlanId = registration.PlanId,
+            QuotaBytes = config.HostingProvider.QuotaFor(registration.QuotaBytes),
             CreatedAt = registration.Created,
             MarkedForDeletionDate = registration.MarkedForDeletionDate,
             LastActivity = await lastSeenService.GetLastSeenAsync(registration.PrimaryDomainName),
@@ -389,6 +390,23 @@ public class TenantAdmin(
 
     //
 
+    public async Task<PlanSetting?> SetTenantPlanAsync(string domain, string planId, long? quotaBytes, bool? publicWebPresence)
+    {
+        planId = planId.Trim();
+        if (planId == "")
+        {
+            throw new OdinClientException("planId is required");
+        }
+        if (quotaBytes <= 0)
+        {
+            throw new OdinClientException($"quotaBytes must be more than 0: {quotaBytes}");
+        }
+
+        return await identityRegistry.SetPlanAsync(domain, planId, quotaBytes, publicWebPresence);
+    }
+
+    //
+
     public async Task EnablePublicWebPresence(string domain)
     {
         await identityRegistry.SetPublicWebPresenceAsync(domain, true);
@@ -413,6 +431,7 @@ public class TenantAdmin(
             DisabledReason = identityRegistration.DisabledReason,
             StatusChangedAt = identityRegistration.StatusChangedAt,
             EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence,
+            PlanId = identityRegistration.PlanId,
             Created = identityRegistration.Created,
             LastActivity = await lastSeenService.GetLastSeenAsync(identityRegistration.PrimaryDomainName)
         };

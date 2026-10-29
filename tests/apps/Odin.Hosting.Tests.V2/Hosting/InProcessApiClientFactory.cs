@@ -76,13 +76,27 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
     public HttpClient CreateHttpClient(
         OdinId identity,
         out SensitiveByteArray sharedSecret,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard) =>
+        CreateHttpClient(identity, out sharedSecret, fileSystemType, encryptGetQueries: true);
+
+    /// <summary>
+    /// As <see cref="CreateHttpClient(OdinId, out SensitiveByteArray, FileSystemType)"/>, but a GET's query
+    /// goes as is: for the endpoints exempt from shared-secret encryption (an email's links).
+    /// </summary>
+    public HttpClient CreatePlainHttpClient(OdinId identity) =>
+        CreateHttpClient(identity, out _, FileSystemType.Standard, encryptGetQueries: false);
+
+    private HttpClient CreateHttpClient(
+        OdinId identity,
+        out SensitiveByteArray sharedSecret,
+        FileSystemType fileSystemType,
+        bool encryptGetQueries)
     {
         // Reuse the inner TestServer handler; wrap in per-client delegating handlers and use
         // disposeHandler:false so HttpClient.Dispose doesn't tear down the shared inner.
         var innerHandler = _innerHandlerCache.GetValue(_host.Server, s => s.CreateHandler());
         HttpMessageHandler handler = new NonDisposingPassthroughHandler(innerHandler);
-        if (_sharedSecret != null)
+        if (_sharedSecret != null && encryptGetQueries)
         {
             handler = new SharedSecretGetRequestHandler(handler);
         }

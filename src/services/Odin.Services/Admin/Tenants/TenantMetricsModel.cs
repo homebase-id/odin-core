@@ -49,9 +49,15 @@ public class TenantMetricsModel
     // --- registration facts; all null when !Registered ---
 
     public bool? Enabled { get; set; }
+    // What the identity has, set with its plan (docs/hosting-plans.md)
     public bool? EnablePublicWebPresence { get; set; }
     public string? Email { get; set; }
     public string? PlanId { get; set; }
+
+    /// <summary>
+    /// The identity's quota in effect (docs/hosting-plans.md): its own, or the host's default
+    /// </summary>
+    public long? QuotaBytes { get; set; }
     public UnixTimeUtc? CreatedAt { get; set; }
     public UnixTimeUtc? MarkedForDeletionDate { get; set; }
 

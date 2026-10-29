@@ -683,24 +683,31 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(driveId, odinContext);
-            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+            var drive = await this.DriveManager.GetDriveAsync(driveId);
+            if (keyHeader is ClientLockedKeyHeader locked)
+            {
+                // Stored as the client locked it
+                ZkDriveFiles.AssertDriveTakes(drive, locked.Type);
+                return locked.Locked;
+            }
 
-            (await this.DriveManager.GetDriveAsync(driveId)).AssertValidStorageKey(storageKey);
+            ZkDriveFiles.AssertDriveTakes(drive, EncryptionType.Aes);
+
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+            drive.AssertValidStorageKey(storageKey);
 
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;
         }
 
-        public async Task<bool> CallerHasPermissionToFile(ServerFileHeader header, IOdinContext odinContext)
+        /// <summary>
+        /// Whether the caller may see <paramref name="header"/> (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>),
+        /// on a drive that isn't archived
+        /// </summary>
+        public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext)
         {
-            if (null == header)
-            {
-                _logger.LogDebug($"Permission check called on null header");
-                return false;
-            }
-
             await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
-            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
+            return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)
@@ -718,11 +725,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
-        public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext)
+        /// <param name="aclDeniedAsMissing">Answer null, as for a missing file, when the file's ACL denies the caller,
+        /// instead of throwing; the drive-level checks still throw.</param>
+        /// <param name="includeExpired">True for a delete, which must still see a file whose TTL is due but not yet removed</param>
+        public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext,
+            bool aclDeniedAsMissing = false, bool includeExpired = false)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file, odinContext);
+            var header = await GetServerFileHeaderInternal(file, odinContext, includeExpired, aclDeniedAsMissing);
 
             if (header == null)
             {
@@ -830,16 +841,37 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <param name="expectedVersionTag">When set, the delete only goes ahead if the file is still at this
         /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
         /// conditional on the tag read here, which closes the gap between this check and the write.</param>
-        public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
+        /// <returns>The tombstone's modified time, as the change feed shows it; null when the delete failed</returns>
+        public async Task<UnixTimeUtc?> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
-            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
+            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true)
+                                 ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
             AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
-            return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+            var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+            return tombstone == null ? null : UpdatedAfterOwnWrites(file, tombstone.FileMetadata.Updated, odinContext);
+        }
+
+        /// <summary>
+        /// The header-update paths' answer for an existing header they cannot change: 4106 when it does not exist,
+        /// 4002 when it is not active (a tombstone). The archival-status batch reports these codes per file, so keep
+        /// them stable.
+        /// </summary>
+        private static void AssertActiveForUpdate(ServerFileHeader header)
+        {
+            if (null == header)
+            {
+                throw new OdinClientException("Cannot update a file that does not exist", OdinClientErrorCode.FileNotFound);
+            }
+
+            if (header.FileMetadata.FileState != FileState.Active)
+            {
+                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
+            }
         }
 
         public static void AssertVersionTagMatches(ServerFileHeader header, Guid? expectedVersionTag)
@@ -855,15 +887,38 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
-
-            if (fileHeader == null)
+            if (fileHeader != null)
             {
-                return;
+                await HardDeleteHeaderAsync(file, fileHeader, expectedVersionTag: null, odinContext);
             }
+        }
 
-            await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads);
+        /// <summary>
+        /// Hard-deletes the file, active or a tombstone, only while it is still at <paramref name="expectedVersionTag"/>
+        /// (4160 otherwise, checked here and again atomically by the delete itself).  Unlike the unversioned delete, which treats a
+        /// missing file as done, a file that is missing or hidden from the caller by its ACL is FileNotFound: the caller
+        /// named a version of it.
+        /// </summary>
+        public async Task HardDeleteLongTermFile(InternalDriveFileId file, Guid expectedVersionTag, IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+
+            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true, aclDeniedAsMissing: true)
+                             ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
+
+            // Not redundant with the DELETE's own check: the payloads removed and the header published are this read's,
+            // so it must be the version the DELETE removes (a stale cached read would otherwise strand the newer payloads)
+            AssertVersionTagMatches(fileHeader, expectedVersionTag);
+            await HardDeleteHeaderAsync(file, fileHeader, expectedVersionTag, odinContext);
+        }
+
+        private async Task HardDeleteHeaderAsync(InternalDriveFileId file, ServerFileHeader fileHeader, Guid? expectedVersionTag,
+            IOdinContext odinContext)
+        {
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads, expectedVersionTag);
 
             if (await TryShouldRaiseDriveEventAsync(file))
             {
@@ -871,8 +926,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     IsHardDelete = true,
                     File = file,
+                    // As a soft delete does: the header the file had, so clients learn which file went (nothing is left
+                    // of it, hence no ServerFileHeader, which is how handlers tell a hard delete from a soft one)
+                    PreviousServerFileHeader = fileHeader,
                     ServerFileHeader = null,
-                    SharedSecretEncryptedFileHeader = null,
                     OdinContext = odinContext,
                 });
             }
@@ -967,15 +1024,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             List<PayloadDescriptor> payloads = [];
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
-            if (null == existingServerHeader)
-            {
-                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
-            }
+            AssertActiveForUpdate(existingServerHeader);
 
-            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
+            // Once a file exists on a zero-knowledge drive, a sender can't change it: a new sealed version (a new key
+            // header, new content) of an existing sealed or zkDrive file is refused, whoever applies the write (a
+            // direct peer write can't see the file; an inbox drained by the owner console can).  Only a device holding
+            // the drive's key changes it, with a zkDrive key header.  A sender editing what it sent comes with Chat
+            ZkDriveFiles.AssertMayReplace(existingServerHeader, keyHeader);
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
@@ -1000,6 +1055,14 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             payloads = newMetadata.Payloads ?? [];
 
+            // Before any payload is copied, so a refusal leaves nothing behind.  On a normal drive even an
+            // unencrypted overwrite locks a key header, so it needs the drive's storage key: that is what keeps
+            // a caller without it (a guest on a public drive) from overwriting other people's files.  A
+            // zero-knowledge drive has no storage key to ask for, so an unencrypted file there gets none.
+            var encryptedKeyHeader = newMetadata.IsEncrypted || !drive.IsZeroKnowledge
+                ? await EncryptKeyHeader(originFile.DriveId, keyHeader, odinContext)
+                : EncryptedKeyHeader.Empty();
+
             // Snapshot what the committed header points at before anything is copied over it. Both the mid-copy
             // rollback and the post-commit-failure rollback below must leave these objects alone.
             var committedPayloads = existingServerHeader.FileMetadata.Payloads?.ToList() ?? [];
@@ -1014,7 +1077,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var serverHeader = new ServerFileHeader()
             {
-                EncryptedKeyHeader = await EncryptKeyHeader(originFile.DriveId, keyHeader, odinContext),
+                EncryptedKeyHeader = encryptedKeyHeader,
                 FileMetadata = newMetadata,
                 ServerMetadata = serverMetadata
             };
@@ -1098,15 +1161,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
-            if (null == existingServerHeader)
-            {
-                throw new OdinClientException("Invalid target file", OdinClientErrorCode.FileNotFound);
-            }
-
-            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
+            AssertActiveForUpdate(existingServerHeader);
+            Deposits.AssertTakesNoPayloads(existingServerHeader);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
@@ -1166,7 +1222,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             return existingServerHeader.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        public async Task OverwriteMetadata(byte[] newKeyHeaderIv, InternalDriveFileId targetFile, FileMetadata newMetadata,
+        /// <param name="newKeyHeader">
+        /// The new IV, which the stored file key joins; on a zero-knowledge drive, the new key header itself
+        /// (<see cref="ClientLockedKeyHeader"/>), stored as sent
+        /// </param>
+        public async Task OverwriteMetadata(KeyHeader newKeyHeader, InternalDriveFileId targetFile, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
             IOdinContext odinContext)
         {
@@ -1175,7 +1235,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
-            await OverwriteMetadataInternal(newKeyHeaderIv, existingServerHeader, newMetadata, newServerMetadata, odinContext);
+            await OverwriteMetadataInternal(newKeyHeader, existingServerHeader, newMetadata, newServerMetadata, odinContext);
 
             if (await TryShouldRaiseDriveEventAsync(targetFile))
             {
@@ -1219,8 +1279,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = refreshedHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(refreshedHeader, odinContext),
-                    OdinContext = odinContext,
+                    // The summary of everyone's reactions, not the writer's own change
+                    OdinContext = OdinContextUpgrades.ForOthersWrites(odinContext),
                 });
             }
         }
@@ -1359,17 +1419,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
-            if (null == existingHeader)
-            {
-                throw new OdinClientException("Cannot update file that does not exist", OdinClientErrorCode.FileNotFound);
-            }
-
             // Before any payload is copied: a tombstone has no payload list, and OverwriteMetadataInternal's
             // own state check runs only after the copy (#1904)
-            if (existingHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
+            AssertActiveForUpdate(existingHeader);
 
             if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
             {
@@ -1386,7 +1438,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
-                    await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
+                    await OverwriteMetadataInternal(manifest.KeyHeader, header, manifest.FileMetadata,
                         manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
 
                     _logger.LogDebug("{method} -> markComplete {message}",
@@ -1447,6 +1499,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task TryPublishAsync<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
             where TNotification : INotification
         {
+            if (notification is IDriveNotification { ServerFileHeader: not null } driveNotification)
+            {
+                // The write's response answers the time of the request's last own change to the file
+                driveNotification.OdinContext?.OwnWrites?.Record(driveNotification.File,
+                    driveNotification.ServerFileHeader.FileMetadata.Updated);
+            }
+
             try
             {
                 await mediator.Publish(notification, cancellationToken);
@@ -1535,10 +1594,19 @@ namespace Odin.Services.Drives.FileSystem.Base
             //
             // Validations
             //
-            if (existingHeader.FileMetadata.IsEncrypted)
+            if (metadata != null)
             {
-                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
-                var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                AssertSameEncryption(existingHeader, metadata);
+            }
+
+            // Before any payload is copied; a client-locked key header can't be opened to check its AES key
+            ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader);
+            Deposits.AssertTakesNoPayloads(manifest.KeyHeader,
+                manifest.PayloadInstruction?.Any(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite) == true);
+
+            if (!ZkDriveFiles.IsClientLocked(existingHeader) && existingHeader.FileMetadata.IsEncrypted)
+            {
+                var existingKeyHeader = DriveFileUtility.OpenWithStorageKey(existingHeader, odinContext);
 
                 if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
                 {
@@ -1548,11 +1616,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         OdinClientErrorCode.InvalidKeyHeader);
                 }
 
-                if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
-                {
-                    throw new OdinClientException("When updating a file, you must change the Iv",
-                        OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
-                }
+                KeyHeader.AssertIvRotated(manifest.KeyHeader.Iv, existingKeyHeader.Iv);
             }
 
             //
@@ -1589,6 +1653,54 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (existingHeader, copiedPayloads, deletableZombies, committedPayloads);
         }
 
+
+        /// <summary>
+        /// Sets only <see cref="AppFileMetaData.ArchivalStatus"/> and leaves the rest of the header as it is, so the
+        /// caller needs neither the key header nor the content. The write is conditional on
+        /// <paramref name="expectedVersionTag"/> (4160 when stale) and, like any header write, gives the file a new
+        /// version tag and moves its modified time. A file already at that status is left alone. Returns the file's
+        /// version tag and modified time afterwards. A file the caller may not see answers 4106, as a query would
+        /// leave it out.
+        /// </summary>
+        public async Task<(Guid VersionTag, UnixTimeUtc Updated)> UpdateArchivalStatus(InternalDriveFileId file,
+            Guid expectedVersionTag, int archivalStatus, IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+
+            var header = await GetServerFileHeaderForWriting(file, odinContext, aclDeniedAsMissing: true);
+            AssertActiveForUpdate(header);
+
+            // Checked here for a clear answer; the header write repeats the check atomically against the row.
+            AssertVersionTagMatches(header, expectedVersionTag);
+
+            if (header.FileMetadata.AppData.ArchivalStatus == archivalStatus)
+            {
+                // Nothing to change: no new version tag, and modified (a client's "removed at") stays put
+                return (header.FileMetadata.VersionTag.GetValueOrDefault(), header.FileMetadata.Updated);
+            }
+
+            header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
+            await WriteFileHeaderInternal(header, odinContext); // sets the new VersionTag and Updated on the header
+
+            if (await TryShouldRaiseDriveEventAsync(file))
+            {
+                await TryPublishAsync(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = header,
+                    OdinContext = odinContext,
+                });
+            }
+
+            return (header.FileMetadata.VersionTag.GetValueOrDefault(), UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
+        }
+
+        /// <summary>
+        /// The modified time a write's response answers: the later of the time its header write returned and the
+        /// request's own changes since (see <see cref="RequestOwnWrites"/>)
+        /// </summary>
+        public static UnixTimeUtc UpdatedAfterOwnWrites(InternalDriveFileId file, UnixTimeUtc written, IOdinContext odinContext) =>
+            odinContext.OwnWrites?.UpdatedAfter(file, written) ?? written;
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
             Guid targetVersionTag,
@@ -1910,7 +2022,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
 
-            _logger.LogDebug("Calling header.validate on gtid: {file}", header.FileMetadata.GlobalTransitId);
             header.Validate(odinContext);
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
@@ -1936,7 +2047,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private Task<bool> ShouldRaiseDriveEventAsync(InternalDriveFileId file)
         {
-            return Task.FromResult(file.DriveId != SystemDriveConstants.TransientTempDrive.Alias);
+            return Task.FromResult(!SystemDriveConstants.IsTransientTempDrive(file.DriveId));
         }
 
         private async Task<bool> TryShouldRaiseDriveEventAsync(InternalDriveFileId file)
@@ -1952,7 +2063,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task<bool> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
+        /// <returns>The tombstone written; null when the delete failed</returns>
+        private async Task<ServerFileHeader> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
             var file = existingHeader.FileMetadata.File;
@@ -2007,7 +2119,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     await WriteFileHeaderInternal(deletedServerFileHeader, odinContext);
-                    await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+
+                    // Clearing the summary moves modified again; the tombstone, its event and the caller carry that
+                    // final time, as the feed does
+                    var modified = await longTermStorageManager.DeleteReactionSummary(drive, file.FileId);
+                    deletedServerFileHeader.FileMetadata.SetCreatedModifiedWithDatabaseValue(
+                        deletedServerFileHeader.FileMetadata.Created, modified);
                     await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
 
                     _logger.LogDebug("{method} -> markComplete {message}",
@@ -2034,7 +2151,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                         IsHardDelete = false,
                         File = file,
                         ServerFileHeader = deletedServerFileHeader,
-                        SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(deletedServerFileHeader, odinContext),
                         OdinContext = odinContext,
                     });
                 }
@@ -2059,7 +2175,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return success;
+            return success ? deletedServerFileHeader : null;
         }
 
         private async Task<ServerFileHeader> CreateServerHeaderInternal(InternalDriveFileId targetFile, KeyHeader keyHeader,
@@ -2079,7 +2195,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext,
-            bool includeExpired = false)
+            bool includeExpired = false, bool aclDeniedAsMissing = false)
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
@@ -2097,9 +2213,23 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
+            // Left out like a query does, when the caller asks for that
+            if (!await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext))
+            {
+                return aclDeniedAsMissing ? null : throw new OdinSecurityException("No access permitted to the file");
+            }
 
             return header;
+        }
+
+        /// <summary>An update keeps a file encrypted or unencrypted: its payloads were written that way.</summary>
+        private static void AssertSameEncryption(ServerFileHeader existing, FileMetadata newMetadata)
+        {
+            if (existing.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
+            {
+                throw new OdinClientException("Cannot change encryption when updating a file since your payloads might be invalidated",
+                    OdinClientErrorCode.ArgumentError);
+            }
         }
 
         /// <summary>
@@ -2283,30 +2413,18 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
         }
 
-        private async Task OverwriteMetadataInternal(byte[] keyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
+        private async Task OverwriteMetadataInternal(KeyHeader newKeyHeader, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
             IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
-            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(keyHeaderIv))
+            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeader?.Iv))
             {
                 throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
             }
 
-            if (null == existingServerHeader)
-            {
-                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
-            }
+            AssertActiveForUpdate(existingServerHeader);
 
-            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
-
-            if (existingServerHeader.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
-            {
-                throw new OdinClientException($"Cannot change encryption when storage intent is {StorageIntent.MetadataOnly} since your " +
-                                              $"payloads might be invalidated", OdinClientErrorCode.ArgumentError);
-            }
+            AssertSameEncryption(existingServerHeader, newMetadata);
 
             var targetFile = existingServerHeader.FileMetadata.File;
             newMetadata.File = targetFile;
@@ -2327,17 +2445,21 @@ namespace Odin.Services.Drives.FileSystem.Base
             //only change the IV if the file was encrypted
             if (existingServerHeader.FileMetadata.IsEncrypted)
             {
-                // Critical Note: if this new key header's AES key does not match the
-                // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
-                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
-                var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-                var newKeyHeader = new KeyHeader()
-                {
-                    Iv = keyHeaderIv,
-                    AesKey = existingDecryptedKeyHeader.AesKey
-                };
+                ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader);
 
-                existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, newKeyHeader, odinContext);
+                // A client-locked key header is stored as the client sent it (past the drive's check); any other takes
+                // the file's AES key with the new IV.  Critical Note: if the key header's AES key does not match the
+                // payload's encryption, the data is lost forever (for-ev-er, capish?); the server can't check it for a
+                // client-locked one
+                var keyHeader = newKeyHeader is ClientLockedKeyHeader
+                    ? newKeyHeader
+                    : new KeyHeader
+                    {
+                        Iv = newKeyHeader.Iv,
+                        AesKey = DriveFileUtility.OpenWithStorageKey(existingServerHeader, odinContext).AesKey
+                    };
+
+                existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext);
             }
 
             existingServerHeader.FileMetadata = newMetadata;

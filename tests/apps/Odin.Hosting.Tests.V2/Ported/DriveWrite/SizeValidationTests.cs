@@ -32,20 +32,18 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// Drives the <b>V1</b> drive endpoints through the in-process host via
 /// <see cref="UniversalDriveApiClient"/>, reached through <c>caller.V1.Drive</c> / <c>owner.V1.Drive</c>.
 ///
-/// <b>Carried defect — an assertion that has never run.</b> The original declares a fourth case
-/// source, <c>WhenGuestOnlyHasReadAccess()</c>, yielding a read-only guest expecting
-/// <see cref="HttpStatusCode.Forbidden"/>. No <c>[TestCaseSource]</c> anywhere references it, so that
-/// Forbidden path has never executed. It is not carried here: the defect <i>is</i> that nothing
-/// referenced it, and copying an unreferenced source forward preserves no behaviour. Wiring it up is a
-/// behaviour change and belongs in its own change.
+/// The original declared a fourth case source, <c>WhenGuestOnlyHasReadAccess()</c>, a read-only guest
+/// expecting <see cref="HttpStatusCode.Forbidden"/>, that no <c>[TestCaseSource]</c> referenced, so it
+/// never ran (#1767 #8). It is wired up here as <see cref="ReadOnlyGuestOversizedCases"/> and
+/// <see cref="ReadOnlyGuestCases"/>: a caller without write access is refused for that, whatever the
+/// size of what it sends.
 ///
-/// The original's rows also carried an <c>expected</c> status code that no test body read: every row
-/// asserts <c>BadRequest</c> outright, because validation precedes authorization on all of these
-/// endpoints, so the rows differ only in who sends the request. The column is dropped here for the
-/// same reason it was never read; the rows themselves are unchanged.
+/// The original's write rows carried an <c>expected</c> status code that no test body read; every
+/// one asserted <c>BadRequest</c> outright. The column is back, now that the read-only guest rows
+/// expect something else.
 ///
 /// The two oversized-field uploads were one test method each in the original; here they are two rows
-/// of <see cref="FailWithBadRequestWhenAppDataIsTooLarge"/>, which differ only in which field is
+/// of <see cref="FailWhenAppDataIsTooLarge"/>, which differ only in which field is
 /// overlong.
 ///
 /// The peer test's trailing disconnect / unfollow block is dropped: it only restored state, which
@@ -87,13 +85,28 @@ public class SizeValidationTests : V2Fixture
     {
         foreach (var spec in WriteCases())
         {
-            yield return [spec, OversizedField.AppDataContent];
-            yield return [spec, OversizedField.PreviewThumbnail];
+            yield return [spec, OversizedField.AppDataContent, HttpStatusCode.BadRequest];
+            yield return [spec, OversizedField.PreviewThumbnail, HttpStatusCode.BadRequest];
         }
     }
 
-    [Test, TestCaseSource(nameof(OversizedWriteCases))]
-    public async Task FailWithBadRequestWhenAppDataIsTooLarge(CallerSpec spec, OversizedField oversized)
+    /// <summary>A guest with only read access to the drive. It cannot write, so it is refused for that.</summary>
+    public static IEnumerable<CallerSpec> ReadOnlyGuestCases()
+    {
+        yield return CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read);
+    }
+
+    public static IEnumerable<object[]> ReadOnlyGuestOversizedCases()
+    {
+        foreach (var spec in ReadOnlyGuestCases())
+        {
+            yield return [spec, OversizedField.AppDataContent, HttpStatusCode.Forbidden];
+            yield return [spec, OversizedField.PreviewThumbnail, HttpStatusCode.Forbidden];
+        }
+    }
+
+    [Test, TestCaseSource(nameof(OversizedWriteCases)), TestCaseSource(nameof(ReadOnlyGuestOversizedCases))]
+    public async Task FailWhenAppDataIsTooLarge(CallerSpec spec, OversizedField oversized, HttpStatusCode expected)
     {
         // Setup
         var caller = await SetupCaller(spec);
@@ -120,11 +133,24 @@ public class SizeValidationTests : V2Fixture
         var response = await callerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(response.StatusCode, Is.EqualTo(expected));
     }
 
-    [Test, TestCaseSource(nameof(WriteCases))]
-    public async Task CanUpdateEncryptedMetadataWithStorageIntent_MetadataOnly(CallerSpec spec)
+    public static IEnumerable<object[]> MetadataUpdateCases()
+    {
+        foreach (var spec in WriteCases())
+        {
+            yield return [spec, HttpStatusCode.BadRequest];
+        }
+
+        foreach (var spec in ReadOnlyGuestCases())
+        {
+            yield return [spec, HttpStatusCode.Forbidden];
+        }
+    }
+
+    [Test, TestCaseSource(nameof(MetadataUpdateCases))]
+    public async Task CanUpdateEncryptedMetadataWithStorageIntent_MetadataOnly(CallerSpec spec, HttpStatusCode expected)
     {
         // Setup
         var (caller, owner) = await SetupCallerWithOwner(spec);
@@ -161,7 +187,7 @@ public class SizeValidationTests : V2Fixture
         var (updateResponse, _) = await callerDriveClient
             .UpdateExistingEncryptedMetadata(uploadResult.File, newKeyHeader, updatedMetadata);
 
-        Assert.That(updateResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(updateResponse.StatusCode, Is.EqualTo(expected));
     }
 
     [Test]

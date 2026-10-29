@@ -7,6 +7,18 @@ using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Registry
 {
+    /// <summary>
+    /// The invitation code an identity signed up with (#1908)
+    /// </summary>
+    /// <param name="InvitedBy">The code's owner, if it has one; null for a configured code</param>
+    /// <param name="Source">Where the code came from, as the invitation-code service has it</param>
+    public record RegistrationInvitation(string Code, string InvitedBy, string Source);
+
+    /// <summary>
+    /// An identity's plan and what it gives: its quota (null for the host's default) and public web presence
+    /// </summary>
+    public record PlanSetting(string PlanId, long? QuotaBytes, bool EnablePublicWebPresence);
+
     public class IdentityRegistrationRequest
     {
         public Guid? Id { get; init; }
@@ -18,12 +30,23 @@ namespace Odin.Services.Registry
         /// gets stored with the identity   
         /// </summary>
         public string PlanId { get; set; }
+
+        /// <summary>
+        /// The plan's quota; null for the host's default (HostingProvider:DefaultQuotaBytes)
+        /// </summary>
+        public long? QuotaBytes { get; set; }
+
         public bool IsCertificateManaged { get; set; }
 
         /// <summary>
         /// Whether the identity is allowed a public home page
         /// </summary>
         public bool EnablePublicWebPresence { get; set; } = true;
+
+        /// <summary>
+        /// The invitation code the identity signed up with, if any
+        /// </summary>
+        public RegistrationInvitation Invitation { get; set; }
 
         /// <summary>
         /// Optional certificates to match the <see cref="OdinId"/>
@@ -59,7 +82,16 @@ namespace Odin.Services.Registry
         /// </summary>
         public Guid? FirstRunToken { get; set; }
 
+        /// <summary>
+        /// The hosting provider's plan, a label (docs/hosting-plans.md). What it gives is <see cref="QuotaBytes"/>
+        /// and <see cref="EnablePublicWebPresence"/>, set with it.
+        /// </summary>
         public string PlanId { get; set; }
+
+        /// <summary>
+        /// Bytes of payloads the identity may store; null for the host's HostingProvider:DefaultQuotaBytes
+        /// </summary>
+        public long? QuotaBytes { get; set; }
         
         /// <summary>
         /// Operational state of the identity, shared by every node
@@ -85,6 +117,11 @@ namespace Odin.Services.Registry
         /// Whether the identity is allowed a public home page (link previews, SEO/SSR content, etc.)
         /// </summary>
         public bool EnablePublicWebPresence { get; set; } = true;
+
+        /// <summary>
+        /// The invitation code the identity signed up with, if any. Kept in the json column.
+        /// </summary>
+        public RegistrationInvitation Invitation { get; set; }
 
         /// <summary>
         /// The date this account was marked for deletion.

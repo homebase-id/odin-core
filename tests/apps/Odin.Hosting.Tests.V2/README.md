@@ -257,8 +257,10 @@ re-deriving, which is how the first batches ended up with three spellings of the
     where the V1 original slept.
   - *Gone* — an introduction to a blocked recipient resolves permanently, so the worker marks it
     complete and the item is absent after the drain (probed either side in
-    `Ported/Connections/Introductions/AutoAcceptTests`). For that shape "assert a still-queued failed
-    item" is not expressible today; it would need `ITestSync` to surface `maxRetryPasses`.
+    `Ported/Connections/Introductions/AutoAcceptTests`). For that shape the item is gone after the
+    first pass whatever the drain does: `maxRetryPasses` only governs how often *rescheduled* items
+    are brought forward and retried, so surfacing it on `ITestSync` would not keep a resolved item
+    queued (#1767).
 
   So don't assume either outcome: check what the worker for that `OutboxItemType` returns, and record
   the verdict in the fixture's `<remarks>`.

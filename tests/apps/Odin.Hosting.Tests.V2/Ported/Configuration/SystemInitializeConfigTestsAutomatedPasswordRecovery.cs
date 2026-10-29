@@ -6,7 +6,9 @@ using NUnit.Framework;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Ported.Shamir;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Services.Configuration;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -14,8 +16,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 
 /// <summary>
 /// Port of <c>OwnerApi/Configuration/SystemInit/SystemInitializeConfigTestsAutomatedPasswordRecovery</c>.
-/// Once an identity has completed initial setup it can turn on automated password recovery, which
-/// splits the recovery key across the four automated players configured in
+/// Once an identity has completed initial setup the console deals the automated deal in the browser,
+/// which splits a secret across the four automated players configured in
 /// <c>AccountRecovery:AutomatedPasswordRecoveryIdentities</c> and ships each a shard.
 /// </summary>
 /// <remarks>
@@ -38,8 +40,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 /// <c>frodo.Sync.DrainOutboxAsync()</c>. The shard-distribution worker resolves each send
 /// permanently here (every player is reachable in-process), so the items are gone after the drain
 /// and <c>VerifyShards</c> sees four stored shards — which is exactly what the test then asserts.</item>
-/// <item><c>EnableAutoPasswordRecovery</c>, <c>GetDealerShardConfig</c> and <c>VerifyShards</c> are
-/// the system under test, so they go through <see cref="OwnerSession.RefitFor{T}"/>.</item>
+/// <item><c>ConfigureShards</c>, <c>GetDealerShardConfig</c> and <c>VerifyShards</c> are the system
+/// under test, so they go through <see cref="OwnerSession.RefitFor{T}"/>; <see cref="ZkFriends"/> plays
+/// the browser that deals.</item>
 /// </list>
 /// </para>
 /// <para>No caller matrix in the original and none added.</para>
@@ -85,11 +88,15 @@ public class SystemInitializeConfigTestsAutomatedPasswordRecovery : V2Fixture
         Assert.That(getIsIdentityConfiguredResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getIsIdentityConfiguredResponse.Content, Is.True);
 
-        // now that drives are setup, we can enable auto password recovery
-        var enableAutoPasswordRecoveryResponse = await config.EnableAutoPasswordRecovery();
-        Assert.That(enableAutoPasswordRecoveryResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
+        // now that drives are setup, the console deals the automated deal in the browser
         var security = frodo.RefitFor<ITestSecurityContextOwnerClient>();
+        var zkMasterKey = (await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword)).ZkMasterKey;
+        var players = await security.GetAutomatedRecoveryPlayers();
+        Assert.That(players.StatusCode, Is.EqualTo(HttpStatusCode.OK), players.Error?.Content);
+        var deal = await ZkFriends.MakeAutomatedDealAsync(frodo, zkMasterKey, players.Content!);
+        var configured = await security.ConfigureShards(deal.Request);
+        Assert.That(configured.StatusCode, Is.EqualTo(HttpStatusCode.OK), configured.Error?.Content);
+
         var shardConfigResponse = await security.GetShardConfig();
         // should have the automated identities configured
         var shardConfig = shardConfigResponse.Content;

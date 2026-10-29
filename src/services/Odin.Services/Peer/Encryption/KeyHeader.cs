@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 
 namespace Odin.Services.Peer.Encryption
 {
@@ -71,6 +72,16 @@ namespace Odin.Services.Peer.Encryption
             };
         }
 
+        /// <summary>An update of an encrypted file must change its key header's IV.</summary>
+        public static void AssertIvRotated(byte[] newIv, byte[] existingIv)
+        {
+            if (ByteArrayUtil.EquiByteArrayCompare(newIv, existingIv))
+            {
+                throw new OdinClientException("When updating a file, you must change the Iv",
+                    OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
+            }
+        }
+
         public byte[] Decrypt(byte[] encryptedData)
         {
             var aesKey = this.AesKey;
@@ -80,5 +91,30 @@ namespace Odin.Services.Peer.Encryption
                 iv: this.Iv);
             return bytes;
         }
+    }
+
+    /// <summary>
+    /// A key header a client locked with a key the server doesn't hold (<see cref="EncryptedKeyHeader.IsLockedByClient"/>),
+    /// carried through a write unopened: a deposit's, sealed to the drive's write-only public key
+    /// (<see cref="EncryptionType.Sealed"/>), or a zero-knowledge drive's own, locked with the drive's key by
+    /// an owner device (<see cref="EncryptionType.ZkDrive"/>).  Writes store <see cref="Locked"/> as it is.  It
+    /// has no AES key; <see cref="KeyHeader.Iv"/> is the IV it shows.
+    /// </summary>
+    public sealed class ClientLockedKeyHeader : KeyHeader
+    {
+        public ClientLockedKeyHeader(EncryptedKeyHeader locked)
+        {
+            if (!locked.IsLockedByClient())
+            {
+                throw new OdinClientException($"A {locked.Type} key header isn't one a client locked", OdinClientErrorCode.InvalidKeyHeader);
+            }
+
+            Locked = locked;
+            Iv = locked.Iv;
+        }
+
+        public EncryptedKeyHeader Locked { get; }
+
+        public EncryptionType Type => Locked.Type;
     }
 }

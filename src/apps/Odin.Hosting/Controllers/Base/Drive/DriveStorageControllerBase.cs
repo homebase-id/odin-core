@@ -138,9 +138,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            if (header.FileMetadata.IsEncrypted)
+            // None for a zero-knowledge drive's file (nor for the CDN): the client has the file's key header
+            if (header.FileMetadata.IsEncrypted && encryptedKeyHeader != null)
             {
-                HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader?.ToBase64());
+                HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
             }
 
             AddGuestApiCacheHeaderForFile(header.FileMetadata.Ttl, header.FileMetadata.Created);
@@ -194,10 +195,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
 
-            if (header.FileMetadata.IsEncrypted)
+            // None for a zero-knowledge drive's file (nor for the CDN): the client has the file's key header
+            if (header.FileMetadata.IsEncrypted && encryptedKeyHeaderForPayload != null)
             {
                 HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
-                    encryptedKeyHeaderForPayload?.ToBase64());
+                    encryptedKeyHeaderForPayload.ToBase64());
             }
             
             AddGuestApiCacheHeaderForFile(header.FileMetadata.Ttl, header.FileMetadata.Created);
@@ -353,6 +355,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         private async Task<DeleteFileIdBatchResult> PerformDeleteFileIdBatch(DeleteFileIdBatchRequest batchRequest)
         {
+            // Before the first file, so a refusal touches nothing
+            if (batchRequest.Requests.Any(r => r.Recipients?.Count > 0))
+            {
+                PeerOutgoingTransferService.AssertCanTellRecipientsToDelete(GetHttpFileSystemResolver().GetFileSystemType(),
+                    WebOdinContext);
+            }
+
             var results = new List<DeleteFileResult>();
             foreach (var request in batchRequest.Requests)
             {

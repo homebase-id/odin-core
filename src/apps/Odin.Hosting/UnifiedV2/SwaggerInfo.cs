@@ -7,6 +7,8 @@ public static class SwaggerInfo
 
     public const string Health = "Health";
 
+    public const string Plan = "Plan";
+
     // Drive-level status
     public const string DriveMetadata = "Drive Metadata";
     public const string DriveInbox = "Drive Inbox";
@@ -28,6 +30,8 @@ public static class SwaggerInfo
 
     public const string Contacts = "Contact Operations";
 
+    public const string Onboarding = "Onboarding";
+
     public const string Profile = "Profile Attribute Operations";
 
     public const string Links = "Links";
@@ -37,7 +41,7 @@ public static class SwaggerInfo
 
     /// <summary>
     /// Temporary bucket for the slug-addressed routes
-    /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>, docs/drive-addressing.md), so they can be reviewed
+    /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>, docs/security-model.md, Drive addressing), so they can be reviewed
     /// as a group.  Fold them into the tags above once the shape is settled.
     /// </summary>
     public const string NewStuff = "New Stuff (slug addressing)";

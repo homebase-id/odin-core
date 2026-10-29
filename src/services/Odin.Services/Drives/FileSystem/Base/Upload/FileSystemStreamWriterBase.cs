@@ -77,7 +77,10 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         InternalDriveFileId file;
         var overwriteFileId = instructionSet.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
-        // odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+        // Refuse a caller that cannot write before reading any of the upload; otherwise the size
+        // checks at finalize answer 400 to a caller that should get 403. The file system's own
+        // override, so a comment drive applies its rule rather than plain Write.
+        await FileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
         bool isUpdateOperation = false;
 
@@ -102,14 +105,23 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
     }
 
-    public virtual async Task AddMetadata(Stream data)
+    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
     {
-        Package.Metadata = await BoundedRead.ReadAllBytesAsync(data);
+        var encrypted = await BoundedRead.ReadAllBytesAsync(data);
+        var decryptedJsonBytes = AesCbc.Decrypt(encrypted, odinContext.PermissionsContext.SharedSecretKey, Package.InstructionSet.TransferIv);
+        Package.Descriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
+
+        // Before any payload is read, so a resent file is refused at once instead of after its whole body.
+        // FinalizeUploadAsync checks again for a file committed while this one's body arrived.
+        if (!Package.IsUpdateOperation)
+        {
+            await AssertUniqueIdNotInUseAsync(Package.Descriptor?.FileMetadata?.AppData?.UniqueId, odinContext);
+        }
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
-        QuotaGuard.AssertCanAddPayloadBytes();
+        await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -142,7 +154,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
     {
-        QuotaGuard.AssertCanAddPayloadBytes();
+        await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -269,22 +281,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         }
         else
         {
-            // New file with UniqueId must not exist
-            if (metadata.AppData.UniqueId.HasValue)
-            {
-                var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(Package.InternalFile.DriveId, incomingClientUniqueId,
-                    odinContext);
-
-                if (null != existingFile && existingFile.FileState != FileState.Deleted)
-                {
-                    _logger.LogDebug(
-                        $"File already exists with ClientUniqueId: [{incomingClientUniqueId}] Existing fileId:{existingFile.FileId}");
-
-                    throw new OdinClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
-                        OdinClientErrorCode.ExistingFileWithUniqueId);
-                }
-            }
+            await AssertUniqueIdNotInUseAsync(metadata.AppData.UniqueId, odinContext);
 
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
         }
@@ -305,6 +302,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         var uploadResult = new UploadResult
         {
             NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
+            Updated = DriveStorageServiceBase.UpdatedAfterOwnWrites(Package.InternalFile, metadata.Updated, odinContext),
             File = new ExternalFileIdentifier
             {
                 TargetDrive = drive.TargetDriveInfo,
@@ -359,30 +357,43 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     protected abstract Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor,
         IOdinContext odinContext);
 
+    /// <summary>
+    /// A new file's uniqueId must not belong to a file that isn't deleted. The database's unique index is the final
+    /// guard, for two uploads with the same uniqueId at once.
+    /// </summary>
+    private async Task AssertUniqueIdNotInUseAsync(Guid? uniqueId, IOdinContext odinContext)
+    {
+        // An empty uniqueId is refused as malformed by the upload's validation
+        if (!uniqueId.HasValue || uniqueId == Guid.Empty)
+        {
+            return;
+        }
+
+        var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(Package.InternalFile.DriveId, uniqueId.Value,
+            odinContext);
+
+        if (null != existingFile && existingFile.FileState != FileState.Deleted)
+        {
+            _logger.LogDebug(
+                $"File already exists with ClientUniqueId: [{uniqueId}] Existing fileId:{existingFile.FileId}");
+
+            throw new OdinClientException($"File already exists with ClientUniqueId: [{uniqueId}]",
+                OdinClientErrorCode.ExistingFileWithUniqueId);
+        }
+    }
+
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(
         FileUploadPackage package,
         IOdinContext odinContext)
     {
-        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-
-        var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
-        var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
-
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
-            var (iv, metadata, serverMetadata) = await UnpackForMetadataUpdate(package, uploadDescriptor, odinContext);
-            return (keyHeader: new KeyHeader()
-                {
-                    Iv = iv,
-                    AesKey = new SensitiveByteArray(Guid.Empty.ToByteArray())
-                },
-                metadata,
-                serverMetadata);
+            return await UnpackForMetadataUpdate(package, package.Descriptor, odinContext);
         }
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            return await UnpackMetadataForNewFileOrOverwrite(package, uploadDescriptor, odinContext);
+            return await UnpackMetadataForNewFileOrOverwrite(package, package.Descriptor, odinContext);
         }
 
         throw new OdinSystemException("Unhandled storage intent");
@@ -454,9 +465,9 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 OdinClientErrorCode.InvalidKeyHeader);
         }
 
-        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
+            ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
+                odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -474,23 +485,22 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         return (keyHeader, metadata, serverMetadata);
     }
 
-    private async Task<(byte[] iv, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(FileUploadPackage package,
-        UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
+    /// <returns>
+    /// The new IV with an all-zero AES key, which the stored file key joins; or, on a zero-knowledge
+    /// drive, the new key header itself (<see cref="ClientLockedKeyHeader"/>), stored as sent
+    /// </returns>
+    /// <remarks>For an unencrypted file the key header is empty, and never read.</remarks>
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(
+        FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
-        byte[] iv = null;
+        var keyHeader = KeyHeader.Empty();
 
         if (uploadDescriptor.FileMetadata.IsEncrypted)
         {
             var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
-            if (null == transferKeyEncryptedKeyHeader)
-            {
-                throw new OdinClientException("Failure to unpack upload metadata, invalid transfer key header",
-                    OdinClientErrorCode.InvalidKeyHeader);
-            }
-
-            var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-            KeyHeader keyHeader = transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret);
+            keyHeader = await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId,
+                _driveManager, odinContext);
 
             if (!ByteArrayUtil.IsStrongKey(keyHeader.Iv))
             {
@@ -498,14 +508,14 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.MalformedMetadata);
             }
 
-            if (!ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), Guid.Empty.ToByteArray()))
+            // A zero-knowledge drive's key header is stored as sent; any other carries only the new IV
+            if (keyHeader is not ClientLockedKeyHeader &&
+                !ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), Guid.Empty.ToByteArray()))
             {
                 throw new OdinClientException(
                     $"You must specify a 16-byte all-zero Aes Key when file is encrypted and  storage intent is {StorageIntent.MetadataOnly}",
                     OdinClientErrorCode.MalformedMetadata);
             }
-
-            iv = keyHeader.Iv;
         }
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -531,7 +541,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution
         };
 
-        return (iv, metadata, serverMetadata);
+        return (keyHeader, metadata, serverMetadata);
     }
 
     /// <summary>
@@ -540,6 +550,11 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     private async Task ValidateUploadCoreAsync(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata, IOdinContext odinContext)
     {
+        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, true);
+
+        // Before anything is stored, whatever the storage intent
+        ZkDriveFiles.AssertNotSent(drive, package.InstructionSet.TransitOptions?.Recipients);
+
         if (null == serverMetadata.AccessControlList)
         {
             throw new OdinClientException("Access control list must be specified", OdinClientErrorCode.MissingUploadData);
@@ -581,7 +596,6 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             }
         }
 
-        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
@@ -624,7 +638,12 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.MissingPayloadKeys);
             }
             
-            if (metadata.IsEncrypted)
+            if (keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed } sealedKeyHeader)
+            {
+                // Where it may go was checked as it was opened (ZkDriveFiles.OpenForWrite)
+                Deposits.AssertValid(metadata, sealedKeyHeader.Locked);
+            }
+            else if (metadata.IsEncrypted && keyHeader is not ClientLockedKeyHeader) // checked unopened (AssertValidZkDrive)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
                 {

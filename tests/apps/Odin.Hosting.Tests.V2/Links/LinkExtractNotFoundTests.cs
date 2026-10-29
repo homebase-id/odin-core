@@ -28,6 +28,7 @@ public class LinkExtractNotFoundTests : V2Fixture
     protected override string[] HostIdentities => [Identities.Frodo];
 
     [Test]
+    [Explicit("Live network: the link extractor resolves example.com in real DNS")]
     public async Task V1_NothingToPreview_Is404()
     {
         var response = await (await AppClientAsync()).ExtractV1(TooLongUrl);
@@ -35,6 +36,7 @@ public class LinkExtractNotFoundTests : V2Fixture
     }
 
     [Test]
+    [Explicit("Live network: the link extractor resolves example.com in real DNS")]
     public async Task V2_NothingToPreview_Is404()
     {
         var response = await (await AppClientAsync()).ExtractV2(TooLongUrl);

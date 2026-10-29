@@ -46,7 +46,23 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             FileMetadata fileMetadata,
             IOdinContext odinContext)
         {
+            // Refused before anything is staged when the update adds payloads; one that only deletes them goes through
+            var addsPayloads = transferInstructionSet.Request.Manifest?.PayloadDescriptors?
+                .Any(d => d.PayloadUpdateOperationType == PayloadUpdateOperationType.AppendOrOverwrite) ?? false;
+            if (addsPayloads)
+            {
+                await quotaGuard.AssertCanAddPayloadBytesAsync();
+            }
+
             var driveId = transferInstructionSet.Request.File.TargetDrive.Alias;
+
+            // Before anything is staged or the sender is told it was accepted into the inbox
+            if (fileMetadata.IsEncrypted)
+            {
+                var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
+                ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.EncryptedKeyHeader);
+            }
+
             _isDirectWrite = await CanDirectWriteFile(driveId, fileMetadata, transferInstructionSet.FileSystemType, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
@@ -59,7 +75,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         public async Task AcceptPayload(PayloadDescriptor descriptor, bool isEncrypted, Stream data, IOdinContext odinContext)
         {
             // Refused before any bytes are read, so the sender defers the update instead of losing it
-            quotaGuard.AssertCanAddPayloadBytes();
+            await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             _uploadedKeys.TryAdd(descriptor.Key, new List<string>());
 
@@ -70,7 +86,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
             IOdinContext odinContext)
         {
-            quotaGuard.AssertCanAddPayloadBytes();
+            await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
             {

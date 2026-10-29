@@ -25,6 +25,13 @@ public interface ITenantAdmin
     /// <summary>Takes a copy disabled as moved back to paused (rolling a move back); see <see cref="IIdentityRegistry.UnlockMovedAsync"/></summary>
     Task<TenantStatusState?> UnlockMovedAsync(string domain);
 
+    /// <summary>
+    /// Sets the tenant's plan and, when given, its quota and public web presence (docs/hosting-plans.md). Returns what
+    /// it had before, or null if the tenant does not exist. Throws <see cref="Odin.Core.Exceptions.OdinClientException"/>
+    /// for an empty plan Id or a quota that is not more than 0.
+    /// </summary>
+    Task<PlanSetting?> SetTenantPlanAsync(string domain, string planId, long? quotaBytes, bool? publicWebPresence);
+
     Task EnablePublicWebPresence(string domain);
     Task DisablePublicWebPresence(string domain);
 

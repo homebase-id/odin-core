@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -82,6 +83,11 @@ public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDa
     /// </summary>
     public async Task<long> DeleteRowsForIdentityAsync(Guid identityId)
     {
+        if (identityId == Guid.Empty)
+        {
+            throw new OdinSystemException("I just stopped you in wiping every identity's rows (missing id)");
+        }
+
         await using var cn = await CreateScopedConnectionAsync();
         long total = 0;
         foreach (var name in ExportableTables)

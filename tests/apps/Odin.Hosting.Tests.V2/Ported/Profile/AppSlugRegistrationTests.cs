@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Apps;
@@ -36,7 +37,7 @@ public class AppSlugRegistrationTests : V2Fixture
         {
             AppId = appId,
             Name = "Acme Receipts",
-            AppSlug = "receipts",
+            AppSlug = new OdinSlug("receipts"),
             PermissionSet = new PermissionSet()
         }, ctx);
 
@@ -85,7 +86,7 @@ public class AppSlugRegistrationTests : V2Fixture
             {
                 AppId = Guid.NewGuid(),
                 Name = "Not Chat",
-                AppSlug = "chat",
+                AppSlug = new OdinSlug("chat"),
                 PermissionSet = new PermissionSet()
             }, ctx));
 
@@ -93,24 +94,25 @@ public class AppSlugRegistrationTests : V2Fixture
     }
 
     [Test]
-    public async Task AMalformedSlugIsRejectedRatherThanCoerced()
+    public async Task AnUpperCaseSlugIsStoredLowerCase()
     {
         var owner = await LoginAsOwner(Identities.Merry);
         var scope = Host.GetTenantScope(owner.Identity.DomainName);
         var ctx = await BuildOwnerContextAsync(scope, owner);
         var apps = scope.Resolve<AppRegistrationService>();
 
-        // Lowercasing this would hand the caller an address it did not ask for.
-        var ex = Assert.ThrowsAsync<OdinClientException>(async () =>
-            await apps.RegisterAppAsync(new AppRegistrationRequest
-            {
-                AppId = Guid.NewGuid(),
-                Name = "Shouty",
-                AppSlug = "Receipts",
-                PermissionSet = new PermissionSet()
-            }, ctx));
+        // A slug is always lower case (OdinSlug), so "Receipts" and "receipts" are one address.  Anything
+        // else malformed can't be made into a slug at all (OdinSlugTests, OdinSlugHttpTests).
+        var appId = Guid.NewGuid();
+        await apps.RegisterAppAsync(new AppRegistrationRequest
+        {
+            AppId = appId,
+            Name = "Shouty",
+            AppSlug = new OdinSlug("Receipts"),
+            PermissionSet = new PermissionSet()
+        }, ctx);
 
-        Assert.That(ex!.ErrorCode, Is.EqualTo(OdinClientErrorCode.ArgumentError));
+        Assert.That((await apps.GetAppRegistration(appId, ctx))!.AppSlug.Value, Is.EqualTo("receipts"));
     }
 
     [Test]
@@ -125,7 +127,7 @@ public class AppSlugRegistrationTests : V2Fixture
         {
             AppId = Guid.NewGuid(),
             Name = "First",
-            AppSlug = "ledger",
+            AppSlug = new OdinSlug("ledger"),
             PermissionSet = new PermissionSet()
         }, ctx);
 
@@ -136,7 +138,7 @@ public class AppSlugRegistrationTests : V2Fixture
             {
                 AppId = Guid.NewGuid(),
                 Name = "Second",
-                AppSlug = "ledger",
+                AppSlug = new OdinSlug("ledger"),
                 PermissionSet = new PermissionSet()
             }, ctx));
 

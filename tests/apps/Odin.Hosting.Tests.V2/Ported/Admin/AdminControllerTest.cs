@@ -17,6 +17,7 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Authorization.Acl;
@@ -127,13 +128,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 /// <c>AppData.Content</c> was left empty. Nothing asserts on content, so the behaviour is unchanged
 /// here and the argument is simply gone.</item>
 ///
-/// <item><b>Two assertions in the original that cannot fail, carried verbatim:</b>
+/// <item><b>Assertions in the original that could not fail, fixed (#1767):</b>
 /// <c>TenantModel.Id</c> is a <c>string</c> that defaults to <c>""</c>, so
-/// <c>Assert.That(tenant.Id, Is.Not.Null)</c> and <c>Is.Not.EqualTo(Guid.Empty)</c> are both
-/// vacuously true — the second compares a boxed string against a boxed <c>Guid</c> and never reaches
-/// an equality operator, the same trap the README records for <c>GuidId</c> vs <c>Guid</c>. Tightening
-/// them would be a coverage change, so they stay as they are; the id is checked for real one test
-/// over, in <see cref="ItShouldGetTenantMetrics"/>, which parses it.</item>
+/// <c>Assert.That(tenant.Id, Is.Not.Null)</c> and <c>Is.Not.EqualTo(Guid.Empty)</c> were both
+/// vacuously true — the second compared a boxed string against a boxed <c>Guid</c>. Both tests that
+/// had them now parse the id as a UUID and compare the parsed value with <see cref="Guid.Empty"/>.</item>
 ///
 /// <item>The log-event invariant is on and needs no tolerations: nothing this fixture does — including
 /// reading metrics for the five registered-but-never-materialised tenants, which opens a scope per
@@ -157,10 +156,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 [TestFixture]
 public class AdminControllerTest : V2Fixture
 {
-    private const string AdminDomain = "admin.dotyou.cloud";
-    private const int AdminPort = 4444;
-    private const string AdminApiKey = "your-secret-api-key-here";
-    private const string AdminApiKeyHeaderName = "Odin-Admin-Api-Key";
+    private const string AdminDomain = TestAdminApi.Domain;
+    private const int AdminPort = TestAdminApi.Port;
 
     private readonly string _exportTargetPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("n"));
 
@@ -171,13 +168,8 @@ public class AdminControllerTest : V2Fixture
     private TargetDrive _payloadDrive = null!;
 
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
-        new Dictionary<string, string?>
+        new Dictionary<string, string?>(TestAdminApi.Config())
         {
-            ["Admin:ApiEnabled"] = "true",
-            ["Admin:ApiKey"] = AdminApiKey,
-            ["Admin:ApiKeyHttpHeaderName"] = AdminApiKeyHeaderName,
-            ["Admin:ApiPort"] = AdminPort.ToString(),
-            ["Admin:Domain"] = AdminDomain,
             ["Admin:ExportTargetPath"] = _exportTargetPath,
         };
 
@@ -233,17 +225,7 @@ public class AdminControllerTest : V2Fixture
 
     private string TenantDataRootPath => Config.Host.TenantDataRootPath;
 
-    /// <summary>
-    /// A client onto the admin branch of the pipeline. <c>BaseAddress</c> names the admin domain so
-    /// <c>Startup</c>'s <c>MapWhen</c> takes it, and the handler stamps
-    /// <see cref="ConnectionInfo.LocalPort"/> because <c>AdminApiRestrictedAttribute</c> checks it
-    /// and TestServer leaves it at 0 — see the fixture remarks.
-    /// </summary>
-    private HttpClient CreateAdminClient() =>
-        new(Host.Server.CreateHandler(context => context.Connection.LocalPort = AdminPort))
-        {
-            BaseAddress = new Uri($"https://{AdminDomain}:{AdminPort}/")
-        };
+    private HttpClient CreateAdminClient() => TestAdminApi.CreateClient(Host);
 
     /// <summary>
     /// Relative on purpose: <see cref="CreateAdminClient"/> already carries the admin origin as its
@@ -257,7 +239,7 @@ public class AdminControllerTest : V2Fixture
     {
         return new HttpRequestMessage(method, uri)
         {
-            Headers = { { AdminApiKeyHeaderName, AdminApiKey } }
+            Headers = { { TestAdminApi.ApiKeyHeaderName, TestAdminApi.ApiKey } }
         };
     }
 
@@ -391,6 +373,7 @@ public class AdminControllerTest : V2Fixture
         Assert.That(frodoMetrics.Domain, Is.EqualTo(tenant.Domain));
         Assert.That(frodoMetrics.Enabled, Is.EqualTo(tenant.Enabled));
         Assert.That(frodoMetrics.EnablePublicWebPresence, Is.EqualTo(tenant.EnablePublicWebPresence));
+        Assert.That(tenant.PlanId, Is.Not.Null.And.EqualTo(frodoMetrics.PlanId));
         Assert.That(frodoMetrics.RegistrationPath, Is.EqualTo(tenant.RegistrationPath));
         Assert.That(frodoMetrics.RegistrationSize, Is.EqualTo(tenant.RegistrationSize));
         Assert.That(frodoMetrics.PayloadPath, Is.EqualTo(tenant.PayloadPath));
@@ -467,8 +450,8 @@ public class AdminControllerTest : V2Fixture
     {
         using var apiClient = CreateAdminClient();
         var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}?include-payload=true");
-        Assert.That(tenant.Id, Is.Not.Null);
-        Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(Guid.TryParse(tenant.Id, out var tenantId), Is.True, $"not a canonical UUID: {tenant.Id}");
+        Assert.That(tenantId, Is.Not.EqualTo(Guid.Empty));
 
         Assert.That(tenant.Domain, Is.EqualTo(Identities.Frodo));
         Assert.That(tenant.RegistrationPath, Does.StartWith(TenantDataRootPath));
@@ -498,8 +481,8 @@ public class AdminControllerTest : V2Fixture
         using var apiClient = CreateAdminClient();
         var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}?include-payload=true");
 
-        Assert.That(tenant.Id, Is.Not.Null);
-        Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(Guid.TryParse(tenant.Id, out var tenantId), Is.True, $"not a canonical UUID: {tenant.Id}");
+        Assert.That(tenantId, Is.Not.EqualTo(Guid.Empty));
 
         Assert.That(tenant.Domain, Is.EqualTo(Identities.Frodo));
         Assert.That(tenant.RegistrationPath, Does.StartWith(TenantDataRootPath));

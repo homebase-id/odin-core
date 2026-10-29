@@ -45,16 +45,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// the file on upload, so they share <see cref="RunRemoteUpsertEncrypted"/>: the first names no
 /// recipient on the upload (nobody holds the file), the second names half of them.
 ///
-/// <b>Carried defects</b>, left alone because a port is a move:
+/// Fixed since (#1767), in
+/// <see cref="CanUpdateBatchAndDistributeToRecipientsWith1PayloadsAnd1ThumbnailsWhenTargetFileDoesNotExistOnRemoteServer_Encrypted"/>:
 /// <list type="bullet">
-/// <item>In <see cref="CanUpdateBatchAndDistributeToRecipientsWith1PayloadsAnd1ThumbnailsWhenTargetFileDoesNotExistOnRemoteServer_Encrypted"/>
-/// the two payload assertions inside the per-recipient loop read the <i>sender's</i> local header,
-/// already asserted just above, instead of the recipient's. The recipient's payload set is therefore
-/// never checked; the assertions restate the local claim once per recipient. That is why
-/// <see cref="AssertEncryptedUpdateLandedEverywhere"/>'s per-recipient hook is handed both headers.</item>
-/// <item>The same test's <c>PreviewThumbnail = default</c> / empty <c>Thumbnails</c> on the added
-/// payload descriptor mean the "1Thumbnails" half of its name applies only to the payload being
-/// deleted.</item>
+/// <item>The per-recipient payload assertions read the <i>sender's</i> local header, so the
+/// recipients' payload sets were never checked; they now read each recipient's.</item>
+/// <item>The added payload had no thumbnails (<c>PreviewThumbnail = default</c>, empty
+/// <c>Thumbnails</c>), so the "1Thumbnails" half of its name applied only to the payload being
+/// deleted. It now adds <c>GetPayloadDefinitionWithThumbnail2()</c> with its thumbnail, and the sender's
+/// and every recipient's copy are checked for it.</item>
 /// </list>
 /// </remarks>
 [TestFixture]
@@ -268,21 +267,13 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
         updatedFileMetadata.AppData.DataType = 991;
         updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
 
-        var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
+        payloadToAdd.Iv = ByteArrayUtil.GetRndByteArray(16);
         var updateInstructionSet = BuildUpdateInstructionSet(
             targetFile,
             recipients.Select(x => x.Identity).ToList(),
             [
-                new UploadManifestPayloadDescriptor
-                {
-                    PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
-                    Iv = ByteArrayUtil.GetRndByteArray(16),
-                    PayloadKey = payloadToAdd.Key,
-                    DescriptorContent = null,
-                    ContentType = payloadToAdd.ContentType,
-                    PreviewThumbnail = default,
-                    Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
-                },
+                payloadToAdd.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite),
                 new UploadManifestPayloadDescriptor()
                 {
                     PayloadUpdateOperationType = PayloadUpdateOperationType.DeletePayload,
@@ -302,9 +293,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
             keyHeader, updatedEncryptedContent64, UpdatedContentToBeDistributed,
             updatedFileMetadata.AppData.DataType, updateFileResponse.Content!.NewVersionTag, updateInstructionSet,
             assertSenderPayloads: AssertPayloadSwap,
-            // NOTE: the original asserts on the *sender's* local header inside the recipient loop,
-            // not on the recipient's copy — carried verbatim; see the class remarks.
-            assertRecipientPayloads: (localHeader, _) => AssertPayloadSwap(localHeader));
+            assertRecipientPayloads: AssertPayloadSwap);
 
         return;
 
@@ -312,6 +301,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
         {
             Assert.That(h.FileMetadata.Payloads.Select(pd => pd.Key), Does.Contain(payloadToAdd.Key),
                 "payloadToAdd should have been, well, added :)");
+            Assert.That(h.FileMetadata.Payloads.Single(pd => pd.Key == payloadToAdd.Key).Thumbnails.Count(),
+                Is.EqualTo(payloadToAdd.Thumbnails.Count), "payloadToAdd's thumbnail should have come with it");
             Assert.That(h.FileMetadata.Payloads.Select(pd => pd.Key), Does.Not.Contain(payloadToBeDeleted.Key),
                 "payload 1 should have been removed:)");
         }
@@ -384,9 +375,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
     /// </summary>
     /// <param name="assertSenderPayloads">Defaults to "no payloads left on the sender".</param>
     /// <param name="assertRecipientPayloads">
-    /// Called per recipient with (sender's local header, recipient's header). Defaults to "no
-    /// payloads left on the recipient"; the payload case passes the original's variant, which reads
-    /// the local header — see the class remarks.
+    /// Called with each recipient's header. Defaults to "no payloads left on the recipient".
     /// </param>
     private static async Task AssertEncryptedUpdateLandedEverywhere(
         OwnerSession sender,
@@ -401,10 +390,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
         Guid expectedVersionTag,
         FileUpdateInstructionSet updateInstructionSet,
         Action<SharedSecretEncryptedFileHeader> assertSenderPayloads = null,
-        Action<SharedSecretEncryptedFileHeader, SharedSecretEncryptedFileHeader> assertRecipientPayloads = null)
+        Action<SharedSecretEncryptedFileHeader> assertRecipientPayloads = null)
     {
         assertSenderPayloads ??= h => Assert.That(h.FileMetadata.Payloads, Is.Empty);
-        assertRecipientPayloads ??= (_, remote) => Assert.That(remote.FileMetadata.Payloads, Is.Empty);
+        assertRecipientPayloads ??= h => Assert.That(h.FileMetadata.Payloads, Is.Empty);
 
         await PeerFlow.DistributeAsync(sender, recipients, drive);
 
@@ -436,7 +425,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
             Assert.That(remoteFileHeader.FileMetadata.AppData.Content, Is.EqualTo(updatedEncryptedContent64)); //latest update
             Assert.That(remoteFileHeader.FileMetadata.AppData.DataType, Is.EqualTo(expectedDataType));
             Assert.That(remoteFileHeader.FileMetadata.VersionTag, Is.EqualTo(expectedVersionTag));
-            assertRecipientPayloads(header, remoteFileHeader);
+            assertRecipientPayloads(remoteFileHeader);
 
             // validate we can decrypt it on the recipient
 

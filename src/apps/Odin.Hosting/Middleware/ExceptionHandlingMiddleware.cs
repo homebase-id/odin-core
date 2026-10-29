@@ -113,6 +113,13 @@ namespace Odin.Hosting.Middleware
                 problemDetails.Status = (int)rl.StatusCode;
                 problemDetails.Title = rl.Message;
             }
+            else if (exception is BadHttpRequestException bhr)
+            {
+                // Kestrel refusing the request itself (e.g. a body arriving slower than MinRequestBodyDataRate
+                // is 408): the client's fault, so its own status, and logged at Warning below.
+                problemDetails.Status = bhr.StatusCode;
+                problemDetails.Title = bhr.Message;
+            }
             else if (exception is ApiException ae)
             {
                 problemDetails.Status = (int)ae.HttpStatusCode;
@@ -138,6 +145,12 @@ namespace Odin.Hosting.Middleware
             {
                 case not null when exception is OdinRetryLaterException:
                     logger.LogDebug(exception, "Refused {method} {path} until later: {message}",
+                        context.Request.Method,
+                        context.Request.Path,
+                        exception.Message);
+                    break;
+                case not null when exception is BadHttpRequestException:
+                    logger.LogWarning("Bad request {method} {path}: {message}",
                         context.Request.Method,
                         context.Request.Path,
                         exception.Message);

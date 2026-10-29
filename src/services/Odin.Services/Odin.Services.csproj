@@ -3,25 +3,24 @@
   <Import Project="$(ProjectDir)../../../common-project.props" />
   
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Certes" Version="3.0.4" />
+    <PackageReference Include="Certes" Version="4.1.0" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.72" />
     <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="MediatR" Version="12.4.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="9.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="10.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.5" />
-    <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.13" />
     <!-- Pinned above what MailKit/MimeKit 4.17 pull in (8.0.1): GHSA-846f-f764-76mx / CVE-2026-84008,
          .NET DoS, patched in 8.0.2. Drop this once MailKit's own dependency is past the advisory. -->
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageReference Include="WebPush" Version="1.0.12" />
   </ItemGroup>
 
@@ -46,7 +45,7 @@
          a test makes fail once to prove it is retried, and the outbox drain hook, because an item
          deferred by a retry-later answer sits for minutes, which no test can wait out. -->
     <InternalsVisibleTo Include="Odin.Hosting.Tests" />
-    <!-- ShardRotationGate's clock, so its cooldown is unit-tested in Release CI. -->
+    <!-- Internal test seams in Odin.Services, unit-tested in Release CI too (e.g. ShamirDealGate). -->
     <InternalsVisibleTo Include="Odin.Services.Tests" />
   </ItemGroup>
 

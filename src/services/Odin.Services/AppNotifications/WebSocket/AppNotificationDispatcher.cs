@@ -14,6 +14,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.PubSub;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -102,6 +103,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                     return;
                 case InboxItemReceivedNotificationMessage notification:
                     await WsPublishAsync(notification);
+                    return;
+                case DriveKeysChangedMessage changed:
+                    await CloseSocketsGrantedDriveAsync(changed.DriveId);
                     return;
                 case null:
                     _logger.LogError("Received null message");
@@ -199,7 +203,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                 File = notification.File,
                 IsDeleteNotification = notification is DriveFileDeletedNotification,
                 ServerFileHeader = notification.ServerFileHeader,
-                PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader
+                PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader,
+                OriginTokenId = notification.OdinContext?.RequestTokenId
             };
 
             await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(message));
@@ -213,6 +218,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             var sockets = _deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId))
+                .Where(ds => ds.ExcludedWriterTokenId == null || ds.ExcludedWriterTokenId != notification.OriginTokenId)
                 .ToList();
 
             if (sockets.Count == 0)
@@ -226,32 +232,46 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            var driveManager =  scope.Resolve<IDriveManager>();
-            var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
+            StorageDrive? drive;
+            try
+            {
+                var driveManager = scope.Resolve<IDriveManager>();
+                drive = await driveManager.GetDriveAsync(notification.File.DriveId);
+            }
+            catch (Exception e)
+            {
+                // Every socket on the drive misses the event, so every one reconnects and catches up (#1966)
+                _logger.LogError(e, "Drive event for drive {driveId}: {error}", notification.File.DriveId, e.Message);
+                foreach (var deviceSocket in sockets)
+                {
+                    deviceSocket.Abort(_logger, "drive event could not be prepared", e);
+                }
 
+                return;
+            }
+
+            var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
+                notification.ServerFileHeader, notification.PreviousServerFileHeader);
+            var aclService = scope.Resolve<IDriveAclAuthorizationService>();
             foreach (var deviceSocket in sockets)
             {
-                var deviceOdinContext = deviceSocket.DeviceOdinContext;
-                var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
-
-                var o = new ClientDriveNotification
+                string json;
+                try
                 {
-                    TargetDrive = drive?.TargetDriveInfo,
-                    Header = hasSharedSecret
-                        ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
-                        : null,
-                    PreviousServerFileHeader = hasSharedSecret
-                        ? notification.IsDeleteNotification
-                            ? DriveFileUtility.CreateClientFileHeader(notification.PreviousServerFileHeader, deviceOdinContext!)
-                            : null
-                        : null
-                };
+                    if (!await driveEvent.VisibleToAsync(deviceSocket, aclService))
+                    {
+                        continue;
+                    }
 
-                var json = OdinSystemSerializer.Serialize(new
+                    json = driveEvent.JsonFor(deviceSocket);
+                }
+                catch (Exception e)
                 {
-                    notification.NotificationType,
-                    Data = OdinSystemSerializer.Serialize(o)
-                });
+                    // This socket misses the event; the others still get it (#1966)
+                    _logger.LogError(e, "Drive event for socket {key}: {error}", deviceSocket.Key, e.Message);
+                    deviceSocket.Abort(_logger, "drive event could not be prepared", e);
+                    continue;
+                }
 
                 await SendMessageAsync(deviceSocket, json, encrypt: true);
             }
@@ -305,6 +325,36 @@ namespace Odin.Services.AppNotifications.WebSocket
                 }));
 
             await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, false);
+        }
+
+        //
+        // A drive's keys changed
+        //
+
+        // Src: a drive becoming zero knowledge
+        // Dst: PubSub queue, so every node closes its own sockets
+        public async Task PublishDriveKeysChangedAsync(Guid driveId)
+        {
+            await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(new DriveKeysChangedMessage { DriveId = driveId }));
+        }
+
+        // Src: PubSub queue
+        // Dst: WebSocket
+        // A socket keeps the context it authenticated with, whose grant on the drive predates the change: each one granted
+        // the drive, or yet to subscribe, is closed, but the owner's, and its client reconnects with a context of now
+        private async Task CloseSocketsGrantedDriveAsync(Guid driveId)
+        {
+            var closed = await _deviceSocketCollection.RemoveSocketsAsync(
+                ds => ds.DeviceOdinContext is not { } context || (context.Caller?.HasMasterKey != true &&
+                    context.PermissionsContext is { } permissions &&
+                    (permissions.HasDrivePermission(driveId, DrivePermission.Read) ||
+                     permissions.HasDrivePermission(driveId, DrivePermission.Write))),
+                WebSocketCloseStatus.NormalClosure, "a drive's keys changed; reconnect");
+
+            if (closed > 0)
+            {
+                _logger.LogInformation("Closed {count} sockets: the keys of drive {driveId} changed", closed, driveId);
+            }
         }
 
         //
@@ -399,7 +449,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             await SendMessageAsync(
                 deviceSocket,
                 json,
-                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                deviceSocket.HasSharedSecret,
                 cancellationToken);
         }
 
@@ -447,7 +497,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 };
 
                 var json = OdinSystemSerializer.Serialize(payload);
-                await deviceSocket.FireAndForgetAsync(json, cancellationToken);
+                await deviceSocket.FireAndForgetAsync(json, _logger, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -461,6 +511,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 //HACK: need to find out what is trying to write when the response is complete
                 _logger.LogError(e, "SendMessageAsync: {error}", e.Message);
+                deviceSocket.Abort(_logger, "message could not be prepared", e);
             }
         }
 
@@ -482,6 +533,12 @@ namespace Odin.Services.AppNotifications.WebSocket
             public required bool IsDeleteNotification { get; init; }
             public required ServerFileHeader ServerFileHeader { get; init; }
             public required ServerFileHeader? PreviousServerFileHeader { get; init; }
+
+            /// <summary>
+            /// The token of the request that made the write, for sockets that exclude their own writes; null for
+            /// a write not made by a request of its own (job, inbox, system work)
+            /// </summary>
+            public Guid? OriginTokenId { get; init; }
         }
 
         private class InboxItemReceivedNotificationMessage
@@ -490,6 +547,11 @@ namespace Odin.Services.AppNotifications.WebSocket
             public required TargetDrive TargetDrive { get; init; }
             public required FileSystemType FileSystemType { get; init; }
             public required TransferFileType TransferFileType { get; init; }
+        }
+
+        private class DriveKeysChangedMessage
+        {
+            public required Guid DriveId { get; init; }
         }
     }
 }

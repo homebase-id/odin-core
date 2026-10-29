@@ -5,7 +5,9 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Controllers.OwnerToken.Security;
+using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
@@ -15,20 +17,13 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// recovery: the dealer refuses it. So it must not count as usable, and approving its release must
 /// fail visibly rather than report success (#1885).
 /// </summary>
-/// <remarks>
-/// Its own fixture because the recovery test ends in a shard rotation that cannot reach the
-/// disconnected delegate, which trips the tenant's <see cref="ShardRotationGate"/>; see
-/// <see cref="FailedShardRotationTests"/>.
-/// </remarks>
 [TestFixture]
 public class DisconnectedDelegateTests : ShamirFixture
 {
     protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
     [
-        // the rotation after recovery cannot send to the disconnected delegate
-        "Cannot resolve client access token; not connected",
-        "Failed to enqueue shards",
-        "Failed to start shard rotation shards"
+        // the disconnected delegate's approval reaches a dealer that no longer knows it
+        "Cannot resolve client access token; not connected"
     ];
 
     [Test]
@@ -71,9 +66,6 @@ public class DisconnectedDelegateTests : ShamirFixture
     }
 
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task DisconnectedDelegateApprovalFailsAndKeepsTheRequest()
     {
         var (frodo, players, config) = await ArrangeDelegateShardsAsync();
@@ -85,17 +77,14 @@ public class DisconnectedDelegateTests : ShamirFixture
         var request = await GetPlayerShardRequestAsync(config, gone);
         Assert.That(request, Is.Not.Null, "the release request still reaches a disconnected delegate");
 
-        var approveResponse = await SecurityOf(gone).ApproveShardRequest(new ApproveShardRequest
-        {
-            OdinId = frodo.Identity,
-            ShardId = request!.ShardId
-        });
+        var approveResponse = await ZkFriends.ApproveAsync(gone, ZkMasterKeyOf(gone), request!);
         Assert.That(approveResponse.IsSuccessStatusCode, Is.False, "approval reported success though the shard was refused");
         Assert.That(await GetPlayerShardRequestAsync(config, gone), Is.Not.Null, "a failed approval must keep the request");
 
         // the three still connected are enough
         Assert.That(players.Count - 1, Is.GreaterThanOrEqualTo(config.MinMatchingShards));
-        await ApproveEveryShardRequestAsync(frodo, players.Skip(1).ToList(), config);
-        await FinalizeRecoveryAndLoginAsync(frodo, NewPassword);
+        await ApproveEveryShardRequestAsync(players.Skip(1).ToList(), config);
+        var rebuilt = await RebuildInTheRecoveringBrowserAsync(frodo);
+        Assert.That(rebuilt.Password, Is.EqualTo(OwnerLogin.DefaultPassword));
     }
 }

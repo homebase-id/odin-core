@@ -52,6 +52,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 GlobalTransitId = v1Result.GlobalTransitId,
                 RecipientStatus = v1Result.RecipientStatus,
                 NewVersionTag = v1Result.NewVersionTag,
+                Updated = v1Result.Updated,
                 Payloads = v1Result.Payloads
             };
         }
@@ -87,6 +88,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 GlobalTransitId = v1Result.GlobalTransitId,
                 RecipientStatus = v1Result.RecipientStatus,
                 NewVersionTag = v1Result.NewVersionTag,
+                Updated = v1Result.Updated,
                 Payloads = v1Result.Payloads
             };
         }

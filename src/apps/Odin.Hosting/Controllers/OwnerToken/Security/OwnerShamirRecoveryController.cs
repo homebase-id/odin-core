@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -31,23 +33,65 @@ public class OwnerShamirRecoveryController : OdinControllerBase
         return status;
     }
 
+    /// <summary>
+    /// Starts recovery.  The browser sends its throwaway public key, and must finish recovery itself:
+    /// every holder seals its shard to that key.
+    /// </summary>
     [HttpPost("initiate-recovery-mode")]
-    public async Task<IActionResult> InitiateRecoveryMode()
+    public async Task<IActionResult> InitiateRecoveryMode(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] InitiateRecoveryModeRequest request)
     {
-        await _recoveryService.InitiateRecoveryModeEntry(WebOdinContext);
+        await _recoveryService.InitiateRecoveryModeEntry(request?.RecoveryPublicKeyJwk, WebOdinContext);
         return Ok();
     }
 
+    /// <summary>
+    /// The email's link.  It only opens the recovery page, which posts the nonce back with its throwaway
+    /// public key (<see cref="EnterRecoveryMode"/>): entering recovery must come from the browser that
+    /// started it.
+    /// </summary>
     [HttpGet("verify-enter")]
-    public async Task<IActionResult> VerifyEnterRecoveryMode([FromQuery] string id, [FromQuery] string token)
+    public IActionResult VerifyEnterRecoveryMode([FromQuery] string id)
     {
         OdinValidationUtils.AssertNotNullOrEmpty(id, nameof(id));
-        // OdinValidationUtils.AssertNotNullOrEmpty(redirect, nameof(redirect));
+        return Redirect($"/owner/shamir-account-recovery?enter={Uri.EscapeDataString(id)}");
+    }
 
-        await _recoveryService.EnterRecoveryMode(Guid.Parse(id), token, WebOdinContext);
+    [HttpPost("verify-enter")]
+    public async Task<IActionResult> EnterRecoveryMode([FromBody] EnterRecoveryModeRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.Id, nameof(request.Id));
+        await _recoveryService.EnterRecoveryMode(Guid.Parse(request.Id), request.RecoveryPublicKeyJwk, WebOdinContext);
+        return Ok();
+    }
 
-        const string redirect = "/owner/shamir-account-recovery?fv=1";
-        return Redirect(redirect);
+    /// <summary>
+    /// An automatic holder's email link, clicked on any device: the page posts its shard and code here,
+    /// and the holder releases the shard sealed to the recovering browser's key.
+    /// </summary>
+    [HttpPost("fill-slot")]
+    public async Task<IActionResult> FillSlot([FromBody] FillSlotRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        // A link a mail client wrapped or cut: say it no longer works, as for any other bad link
+        if (!Guid.TryParse(request.ShardId, out var shardId))
+        {
+            throw new OdinClientException("This link no longer works", OdinClientErrorCode.ShardLinkNoLongerValid);
+        }
+
+        await _recoveryService.FillSlotAsync(shardId, request.Code, WebOdinContext);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Once enough shards are in: the shards, the dealer's keys and the deal's copies, sealed to the
+    /// throwaway key of the browser that started recovery.
+    /// </summary>
+    [HttpGet("recovery-bundle")]
+    public async Task<ShamirRecoveryBundleResponse> GetRecoveryBundle()
+    {
+        return await _recoveryService.GetRecoveryBundleAsync(WebOdinContext);
     }
 
     [HttpPost("exit-recovery-mode")]
@@ -67,15 +111,18 @@ public class OwnerShamirRecoveryController : OdinControllerBase
         return Redirect(redirect);
     }
 
+    /// <summary>
+    /// A server-made deal's recovery: the secret the recovering browser rebuilt, and a new password.
+    /// </summary>
     [HttpPost("finalize")]
     public async Task<IActionResult> FinalizeRecovery([FromBody] FinalRecoveryRequest request)
     {
-        OdinValidationUtils.AssertNotNullOrEmpty(request.Id, nameof(request.Id));
-        await _recoveryService.FinalizeRecovery(
-            Guid.Parse(request.Id),
-            Guid.Parse(request.FinalKey), 
-            request.PasswordReply,
-            WebOdinContext);
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.Secret64, nameof(request.Secret64));
+        var secret = new byte[ShamirConfigurationService.DistributionKeyLength];
+        OdinValidationUtils.AssertIsTrue(Convert.TryFromBase64String(request.Secret64, secret, out var length) && length == secret.Length,
+            $"The secret is {secret.Length} bytes, base64");
+        await _recoveryService.FinalizeServerMadeDealAsync(secret, request.PasswordReply, WebOdinContext);
         return Ok();
     }
     

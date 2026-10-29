@@ -50,6 +50,9 @@ app.Configure(config =>
         c.AddCommand<SetTenantStatusCommand>("set-status")
             .WithExample("tenant", "set-status", "frodo.dotyou.cloud", "disabled", "--reason", "moved", "-I",
                 "admin.dotyou.cloud:4444", "-K", "your-secret-api-key-here");
+        c.AddCommand<SetTenantPlanCommand>("set-plan")
+            .WithExample("tenant", "set-plan", "frodo.dotyou.cloud", "pro-100gb", "-I", "admin.dotyou.cloud:4444", "-K",
+                "your-secret-api-key-here");
         c.AddCommand<EnablePublicWebPresenceCommand>("enable-public-web-presence")
             .WithExample("tenant", "enable-public-web-presence", "frodo.dotyou.cloud", "-I", "admin.dotyou.cloud:4444", "-K",
                 "your-secret-api-key-here");

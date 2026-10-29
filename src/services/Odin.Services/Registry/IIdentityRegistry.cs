@@ -133,6 +133,13 @@ namespace Odin.Services.Registry
         Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled);
 
         /// <summary>
+        /// Sets the identity's plan and, when given, its quota and public web presence, in one change
+        /// (docs/hosting-plans.md). A value left null keeps the identity's current one.
+        /// </summary>
+        /// <returns>What it had before, or null if not found</returns>
+        Task<PlanSetting> SetPlanAsync(string domain, string planId, long? quotaBytes, bool? publicWebPresence);
+
+        /// <summary>
         /// Marks an account for deletion as of now(); returns the date on which it will be deleted based on registry config
         /// </summary>
         Task<UnixTimeUtc> MarkForDeletionAsync(string domain);

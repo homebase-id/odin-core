@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
+using Odin.Services.Registry;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
@@ -49,6 +50,7 @@ public class OdinConfiguration
     public S3StorageSection S3Storage { get; init; } = new();
     public S3PayloadSection S3Payload { get; init; } = new();
     public PayloadMoveSection PayloadMove { get; init; } = new();
+    public HostingProviderSection HostingProvider { get; init; } = new();
 
     /// <summary>
     /// The provisioning domain is served (and needs its certificate) when this host provisions, and when it
@@ -89,6 +91,7 @@ public class OdinConfiguration
         S3Storage = new S3StorageSection(config);
         S3Payload = new S3PayloadSection(config);
         PayloadMove = new PayloadMoveSection(config);
+        HostingProvider = new HostingProviderSection(config);
         Cdn = new CdnSection(config);
         OpenObserve = new OpenObserveSection(config);
         Stun = new StunSection(config);
@@ -149,6 +152,19 @@ public class OdinConfiguration
         public string SslSourcePath { get; init; } = "";
         public bool VersionUpgradeTestModeEnabled { get; init; }
 
+        /// <summary>
+        /// Shortens the recovery-key waiting period (14 days otherwise) so it can be exercised
+        /// locally and in tests. Null leaves the production period.
+        /// </summary>
+        public int? RecoveryKeyWaitingPeriodSeconds { get; init; }
+
+        /// <summary>
+        /// Tests only: server-dealt Shamir locks the recovery phrase, as every deal did before recovery
+        /// in the browser, until the phrase is taken over.  Lets a test recover with such a deal and
+        /// take the phrase over from one.
+        /// </summary>
+        public bool DealsLockThePhrase { get; init; }
+
         public DevelopmentSection()
         {
             // Mockable support
@@ -162,6 +178,8 @@ public class OdinConfiguration
                 PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
+                RecoveryKeyWaitingPeriodSeconds = config.GetOrDefault<int?>("Development:RecoveryKeyWaitingPeriodSeconds", null);
+                DealsLockThePhrase = config.GetOrDefault("Development:DealsLockThePhrase", false);
             }
         }
     }
@@ -180,6 +198,17 @@ public class OdinConfiguration
         /// </summary>
         public List<string> InvitationCodesWithoutPublicWebPresence { get; init; } = [];
 
+        /// <summary>
+        /// The invitation-code service (#1908), homebase-id/raven-hosting. Off when empty. Must be https,
+        /// except on loopback.
+        /// </summary>
+        public string InvitationCodeServiceUrl { get; init; } = "";
+
+        /// <summary>
+        /// The service's signup key. Homebase-run hosts only, never self-hosted ones.
+        /// </summary>
+        public string InvitationCodeServiceApiKey { get; init; } = "";
+
         public string PowerDnsHostAddress { get; init; } = "";
         public string PowerDnsApiKey { get; set; } = "";
 
@@ -187,6 +216,12 @@ public class OdinConfiguration
         public bool ProvisioningEnabled { get; init; }
 
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
+
+        /// <summary>
+        /// The key the hosting company's account service (raven-hosting) sends to manage identities here: today
+        /// reading and setting an identity's plan at /api/plans/v1 on the provisioning domain. Empty: that API is off.
+        /// </summary>
+        public string AccountServiceApiKey { get; init; } = "";
 
         /// <summary>
         /// Whether the post-startup DNS infrastructure check runs (<see cref="Odin.Services.Dns.Health.DnsInfraVerifier"/>).
@@ -236,8 +271,13 @@ public class OdinConfiguration
             InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
+            // Not Required: a host with the URL but no key runs with invitation codes off and logs why
+            // (InvitationCodeServiceClient), rather than failing to start
+            InvitationCodeServiceUrl = config.GetOrDefault("Registry:InvitationCodeService:Url", "").Trim().TrimEnd('/');
+            InvitationCodeServiceApiKey = config.GetOrDefault("Registry:InvitationCodeService:ApiKey", "").Trim();
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
+            AccountServiceApiKey = config.GetOrDefault("Registry:AccountService:ApiKey", "").Trim();
 
             var ambiguousCodes = InvitationCodes
                 .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)
@@ -313,6 +353,11 @@ public class OdinConfiguration
         /// </summary>
         public TimeSpan OutboxRetryLaterMaxAge { get; init; }
 
+        /// <summary>
+        /// How long this identity caches a peer drive's write-only public key (docs/drive-public-keys-plan.md).
+        /// </summary>
+        public TimeSpan PeerDriveKeyCacheAge { get; init; }
+
         public TimeSpan PeerOperationDelayMs { get; init; }
 
         /// <summary>
@@ -379,6 +424,13 @@ public class OdinConfiguration
             if (OutboxRetryLaterMaxAge <= TimeSpan.Zero)
             {
                 throw new OdinConfigException("Invalid OutboxRetryLaterMaxAgeSeconds");
+            }
+
+            PeerDriveKeyCacheAge =
+                TimeSpan.FromSeconds(config.GetOrDefault("Host:PeerDriveKeyCacheSeconds", 7 * 24 * 60 * 60));
+            if (PeerDriveKeyCacheAge < FusionCacheWrapper.MinL2Duration)
+            {
+                throw new OdinConfigException($"PeerDriveKeyCacheSeconds must be at least {FusionCacheWrapper.MinL2Duration.TotalSeconds}");
             }
 
             ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
@@ -1047,6 +1099,104 @@ public class OdinConfiguration
     }
 
     //
+
+    /// <summary>
+    /// Who runs this host for its owners, and what they give them (docs/hosting-plans.md). An identity's plan, quota
+    /// and public web presence are on its registration; the plans themselves belong to the hosting provider.
+    /// </summary>
+    public class HostingProviderSection
+    {
+        public const long SixtyGigabytes = 60L * 1024 * 1024 * 1024;
+
+        /// <summary>
+        /// The provider's name, shown to owners ("We'll send you to ... to upgrade your plan"). Empty: no hosting
+        /// provider, and owners are told to contact whoever runs the server.
+        /// </summary>
+        public string DisplayName { get; init; } = "";
+
+        /// <summary>
+        /// The provider's page for a bigger plan. An owner's browser is sent there with ?id=&lt;identity&gt;&amp;host=,
+        /// and the page signs them in with YouAuth. Empty: none.
+        /// </summary>
+        public string UpgradeUrl { get; init; } = "";
+
+        /// <summary>
+        /// The provider's own domains: a YouAuth domain sign-in from one of these needs no consent screen. Exact,
+        /// lower-case names, no wildcards; never apps.
+        /// </summary>
+        public IReadOnlySet<string> AutoConsentDomains { get; init; } = new HashSet<string>();
+
+        /// <summary>
+        /// The quota of an identity that has none on its registration: every identity from before quotas were
+        /// stored there. There is no unlimited.
+        /// </summary>
+        public long DefaultQuotaBytes { get; init; } = SixtyGigabytes;
+
+        public HostingProviderSection()
+        {
+            // Mockable support
+        }
+
+        public HostingProviderSection(IConfiguration config)
+        {
+            DisplayName = config.GetOrDefault("HostingProvider:DisplayName", "").Trim();
+            UpgradeUrl = config.GetOrDefault("HostingProvider:UpgradeUrl", "").Trim();
+            // Validated and lower-cased as every YouAuth domain is (AsciiDomainName), so a sign-in compares like for like
+            AutoConsentDomains = config.GetOrDefault("HostingProvider:AutoConsentDomains", new List<string>())
+                .Where(d => d.Trim() != "")
+                .Select(d => new AsciiDomainName(d.Trim()).DomainName)
+                .ToHashSet();
+            DefaultQuotaBytes = config.GetOrDefault("HostingProvider:DefaultQuotaBytes", SixtyGigabytes);
+
+            AssertValidUpgradeUrl(UpgradeUrl);
+            if (DefaultQuotaBytes <= 0)
+            {
+                throw new OdinSystemException($"HostingProvider:DefaultQuotaBytes must be more than 0: {DefaultQuotaBytes}");
+            }
+        }
+
+        /// <summary>
+        /// The quota of an identity: its own, or the default when it has none
+        /// </summary>
+        public long QuotaFor(long? quotaBytes) => quotaBytes ?? DefaultQuotaBytes;
+
+        /// <summary>
+        /// The upgrade page for this identity: <see cref="UpgradeUrl"/> with ?id=&lt;identity&gt;&amp;host=&lt;this
+        /// host's provisioning domain&gt; added. Null when there is none. Both are hints anyone can edit: the page
+        /// takes the identity from YouAuth, and uses host only to pick one of the hosts it already knows.
+        /// </summary>
+        /// <summary>
+        /// What an owner is told about the hosting provider: null when there is none (no display name)
+        /// </summary>
+        public HostingProviderInfo? InfoFor(string identity, string provisioningDomain) =>
+            DisplayName == "" ? null : new HostingProviderInfo(DisplayName, UpgradeUrlFor(identity, provisioningDomain));
+
+        public string? UpgradeUrlFor(string identity, string provisioningDomain)
+        {
+            if (UpgradeUrl == "")
+            {
+                return null;
+            }
+
+            var separator = UpgradeUrl.Contains('?') ? "&" : "?";
+            return $"{UpgradeUrl}{separator}id={Uri.EscapeDataString(identity)}&host={Uri.EscapeDataString(provisioningDomain)}";
+        }
+
+        // An owner's browser is sent there, so only an absolute https address; a fragment would swallow the ?id=
+        private static void AssertValidUpgradeUrl(string upgradeUrl)
+        {
+            if (upgradeUrl == "")
+            {
+                return;
+            }
+
+            if (!Uri.TryCreate(upgradeUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || uri.Fragment != "")
+            {
+                throw new OdinSystemException(
+                    $"HostingProvider:UpgradeUrl must be an absolute https address without a #fragment: '{upgradeUrl}'");
+            }
+        }
+    }
 
     /// <summary>
     /// Moving an identity's payloads to another host: this host serving them as the source, and pulling

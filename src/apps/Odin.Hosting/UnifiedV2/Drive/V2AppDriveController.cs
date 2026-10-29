@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
@@ -16,7 +17,7 @@ namespace Odin.Hosting.UnifiedV2.Drive;
 
 /// <summary>
 /// Addressing drives by slug: <c>/api/v2/apps/{appSlug}/drives/{driveSlug}</c>
-/// (docs/drive-addressing.md).  The guid-addressed routes under <c>/api/v2/drives/{driveId}</c> are
+/// (docs/security-model.md, Drive addressing).  The guid-addressed routes under <c>/api/v2/drives/{driveId}</c> are
 /// unchanged and remain the canonical form; this is a second way to name the same drive.
 /// </summary>
 /// <remarks>
@@ -53,24 +54,25 @@ public class V2AppDriveController(
     /// </remarks>
     /// <param name="appSlug">The app's slug, e.g. <c>feed</c> or <c>chat</c>. Case-insensitive.</param>
     /// <param name="type">Optional drive type slug to filter on, e.g. <c>channel</c> or <c>profile</c>.
-    /// Matched against <c>driveTypeSlug</c>, ignoring case; an unknown value simply returns nothing.</param>
+    /// Matched against <c>driveTypeSlug</c>, ignoring case; an unknown value simply returns nothing, a
+    /// malformed one is a 400.</param>
     [HttpGet]
     [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
     public async Task<List<ClientDriveData>> GetAppDrives(
-        [FromRoute] string appSlug,
-        [FromQuery] string type = null)
+        [FromRoute] OdinSlug appSlug,
+        [FromQuery] OdinSlug type = default)
     {
         var appId = await ResolveAppIdAsync(appSlug);
         var drives = await driveManager.GetDrivesByAppIdAsync(appId, WebOdinContext);
 
         // Filtered here rather than in a second lookup: an app owns a handful of drives, and the
         // list above is already in hand.
-        if (!string.IsNullOrWhiteSpace(type))
+        if (type.HasValue)
         {
-            drives = drives.Where(d => OdinSlug.Matches(d.DriveTypeSlug, type)).ToList();
+            drives = drives.Where(d => d.DriveTypeSlug == type).ToList();
         }
 
-        return drives.Select(ToClientDriveData).ToList();
+        return drives.Select(ClientDriveData.From).ToList();
     }
 
     /// <summary>
@@ -88,7 +90,7 @@ public class V2AppDriveController(
     /// <c>feed/news</c> and <c>chat/news</c> are different drives.</param>
     [HttpGet("{driveSlug}")]
     [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
-    public async Task<ClientDriveData> GetAppDrive([FromRoute] string appSlug, [FromRoute] string driveSlug)
+    public async Task<ClientDriveData> GetAppDrive([FromRoute] OdinSlug appSlug, [FromRoute] OdinSlug driveSlug)
     {
         var appId = await ResolveAppIdAsync(appSlug);
         var drive = await driveManager.GetDriveBySlugAsync(appId, driveSlug, WebOdinContext);
@@ -99,10 +101,10 @@ public class V2AppDriveController(
                 OdinClientErrorCode.InvalidDrive);
         }
 
-        return ToClientDriveData(drive);
+        return ClientDriveData.From(drive);
     }
 
-    private async Task<Guid> ResolveAppIdAsync(string appSlug)
+    private async Task<Guid> ResolveAppIdAsync(OdinSlug appSlug)
     {
         var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, WebOdinContext);
 
@@ -115,14 +117,4 @@ public class V2AppDriveController(
 
         return app.AppId;
     }
-
-    private static ClientDriveData ToClientDriveData(Odin.Services.Drives.StorageDrive drive) => new()
-    {
-        TargetDrive = drive.TargetDriveInfo,
-        Name = drive.Name,
-        Attributes = drive.Attributes,
-        AppId = drive.AppId,
-        DriveSlug = drive.DriveSlug,
-        DriveTypeSlug = drive.DriveTypeSlug
-    };
 }

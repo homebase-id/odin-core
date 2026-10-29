@@ -29,7 +29,7 @@ namespace Odin.Services.Authorization.Apps
         /// The app addressed as <c>{appSlug}</c>; see
         /// <see cref="AppRegistrationService.GetAppRegistrationBySlugAsync"/>.
         /// </summary>
-        Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(string appSlug, IOdinContext odinContext);
+        Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(OdinSlug appSlug, IOdinContext odinContext);
 
         /// <summary>
         /// Resolves the appId of the app client making the current call (via its access-registration id),
@@ -53,11 +53,7 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Gives an app the slug the app tree names, if it has a different one.  Migration only.
         /// </summary>
-        Task<bool> ApplyTreeSlugAsync(Guid appId, string appSlug, IOdinContext odinContext);
-
-        Task<(bool isValid, ServerHalfOfClientKey? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
-            ClientAuthenticationToken authToken,
-            IOdinContext odinContext);
+        Task<bool> ApplyTreeSlugAsync(Guid appId, OdinSlug appSlug, IOdinContext odinContext);
 
         /// <summary>
         /// Gets all registered apps
@@ -92,8 +88,31 @@ namespace Odin.Services.Authorization.Apps
         /// <param name="appId"></param>
         /// <param name="friendlyName"></param>
         /// <param name="odinContext"></param>
+        /// <param name="zkAppKeyId">The id of the app's zero-knowledge key the device is being handed with this token</param>
         /// <returns></returns>
-        Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName, IOdinContext odinContext);
+        Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName, IOdinContext odinContext,
+            string? zkAppKeyId = null);
+
+        /// <summary>The id of the app's zero-knowledge key (<see cref="AppRegistration.ZkAppKeyId"/>); null when it has none.</summary>
+        Task<string?> GetZkAppKeyIdAsync(GuidId appId, IOdinContext odinContext);
+
+        /// <summary>
+        /// Every app's zero-knowledge keys, for the owner console to hand an app's key to a device and to backfill what
+        /// is missing (docs/zero-knowledge-drive-api-plan.md, step 3).
+        /// </summary>
+        Task<List<ZkAppKeysResponse>> GetZkAppKeysAsync(IOdinContext odinContext);
+
+        /// <summary>Saves what the browser locked for an app: its zero-knowledge key if it had none, and drive keys.</summary>
+        Task SaveZkAppKeysAsync(ZkAppKeysRequest request, IOdinContext odinContext);
+
+        /// <summary>
+        /// Converting a drive that keeps its key: every app reading it gets its locked copy of the drive's key, and every
+        /// app's grant on it loses the copy the server could open.
+        /// </summary>
+        Task SetZkAppKeysForConversionAsync(Guid driveId, IReadOnlyCollection<ZkAppKeysRequest> requests, IOdinContext odinContext);
+
+        /// <summary>A zero-knowledge drive's key changed: every app's copy of the old one goes.</summary>
+        Task RemoveZkDriveCopiesAsync(Guid driveId, IOdinContext odinContext);
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext);
 

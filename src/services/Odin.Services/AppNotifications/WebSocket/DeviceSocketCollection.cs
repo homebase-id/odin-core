@@ -39,9 +39,15 @@ public class DeviceSocketCollection(ILogger<DeviceSocketCollection> logger, Time
     /// <summary>
     /// Closes and removes every socket; returns how many there were
     /// </summary>
-    public async Task<int> RemoveAllSocketsAsync(WebSocketCloseStatus status, string message)
+    public Task<int> RemoveAllSocketsAsync(WebSocketCloseStatus status, string message) =>
+        RemoveSocketsAsync(_ => true, status, message);
+
+    /// <summary>
+    /// Closes and removes every socket <paramref name="which"/> picks, all at once; returns how many it picked
+    /// </summary>
+    public async Task<int> RemoveSocketsAsync(Func<DeviceSocket, bool> which, WebSocketCloseStatus status, string message)
     {
-        var keys = _sockets.Keys.ToList();
+        var keys = _sockets.Values.Where(which).Select(socket => socket.Key).ToList();
         await Task.WhenAll(keys.Select(key => RemoveSocket(key, status, message)));
         return keys.Count;
     }

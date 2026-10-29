@@ -154,6 +154,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             isPreconfigured,
             idReg.MarkedForDeletionDate,
             idReg.Email,
+            // Set with the plan; changing it re-creates this (CacheIdentityAsync)
             idReg.EnablePublicWebPresence);
 
         return tc;
@@ -181,9 +182,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             Id = request.Id ?? Guid.NewGuid(),
             Email = request.Email,
             PlanId = request.PlanId,
+            QuotaBytes = request.QuotaBytes,
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
             EnablePublicWebPresence = request.EnablePublicWebPresence,
+            Invitation = request.Invitation,
             FirstRunToken = Guid.NewGuid()
         };
 
@@ -255,6 +258,23 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     throw new OdinClientException(
                         $"{domain} was exported and its payloads have not all reached the target yet; " +
                         "it can be deleted once the target reports the transfer complete");
+                }
+            }
+
+            // PostgreSQL keeps every identity's rows in one shared database, so deleting the tenant folder below does
+            // not remove them (#1792). Purged first, while the registration exists: if it fails, the delete fails
+            // and can be retried, instead of leaving rows behind that nothing knows the id of.
+            if (_config.Database.Type == DatabaseType.Postgres)
+            {
+                await using var tenantScope = GetOrCreateMultiTenantScope(registration)
+                    .BeginLifetimeScope($"PurgeIdentity:{registration.PrimaryDomainName}");
+                var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
+                await identityDatabase.DeleteRowsForIdentityAsync(registration.Id);
+                var remaining = await identityDatabase.CountRowsForIdentityAsync(registration.Id);
+                if (remaining > 0)
+                {
+                    throw new OdinSystemException(
+                        $"Deleting identity {registration.Id} left {remaining} rows in the identity database");
                 }
             }
 
@@ -485,7 +505,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var state = new TenantStatusState(TenantStatus.Paused, null, UnixTimeUtc.Now());
         // Superseded by the status in json; written as a mirror for nodes on older versions
         record.disabled = state.Status == TenantStatus.Disabled;
-        record.json = RegistrationJsonMapper.ToJson(state);
+        record.json = RegistrationJsonMapper.WithStatus(record.json, state);
         await systemDatabase.Registrations.UpdateAsync(record);
         await systemDatabase.Settings.BumpMonotonicAsync(RegistryVersionKey);
     }
@@ -505,7 +525,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // Superseded by the status in json; written as a mirror for nodes on older versions
             disabled = registration.Status == TenantStatus.Disabled,
             markedForDeletionDate = registration.MarkedForDeletionDate,
-            planId = registration.PlanId ?? "free",
+            // Null for no plan. What a plan gives is QuotaBytes (in json) and EnablePublicWebPresence.
+            planId = registration.PlanId,
             enablePublicWebPresence = registration.EnablePublicWebPresence,
             json = RegistrationJsonMapper.ToJson(registration)
         };
@@ -639,7 +660,35 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
     {
-        bool? result = null;
+        var (found, previous) = await SetRegistrationFieldAsync(domain,
+            reg => reg.EnablePublicWebPresence, (reg, value) => reg.EnablePublicWebPresence = value, _ => enabled);
+        return found ? previous : null;
+    }
+
+    public async Task<PlanSetting> SetPlanAsync(string domain, string planId, long? quotaBytes, bool? publicWebPresence)
+    {
+        // The quota guard and the public web presence read the in-memory registration, so other nodes apply the
+        // new plan as soon as they have applied the announcement
+        var (found, previous) = await SetRegistrationFieldAsync(domain,
+            reg => new PlanSetting(reg.PlanId, reg.QuotaBytes, reg.EnablePublicWebPresence),
+            (reg, value) =>
+            {
+                reg.PlanId = value.PlanId;
+                reg.QuotaBytes = value.QuotaBytes;
+                reg.EnablePublicWebPresence = value.EnablePublicWebPresence;
+            },
+            reg => new PlanSetting(planId, quotaBytes ?? reg.QuotaBytes, publicWebPresence ?? reg.EnablePublicWebPresence));
+        return found ? previous : null;
+    }
+
+    // Sets a field of a registration (the value may depend on the registration as it is), saving and announcing only
+    // if it changed. Found is false for an unknown domain.
+    private async Task<(bool Found, T Previous)> SetRegistrationFieldAsync<T>(
+        string domain, Func<IdentityRegistration, T> get, Action<IdentityRegistration, T> set,
+        Func<IdentityRegistration, T> valueFor)
+    {
+        var found = false;
+        T previous = default;
         long? version = null;
         await _registryLock.WaitAsync();
         try
@@ -647,10 +696,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var reg = _trie.LookupExactName(domain);
             if (reg != null)
             {
-                result = reg.EnablePublicWebPresence;
-                if (reg.EnablePublicWebPresence != enabled)
+                found = true;
+                previous = get(reg);
+                var value = valueFor(reg);
+                if (!EqualityComparer<T>.Default.Equals(previous, value))
                 {
-                    reg.EnablePublicWebPresence = enabled;
+                    set(reg, value);
                     version = await SaveRegistrationInternal(reg);
                 }
             }
@@ -661,7 +712,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         await AnnounceAsync(version, domain);
-        return result;
+        return (found, previous);
     }
 
     public async Task<UnixTimeUtc> MarkForDeletionAsync(string domain)

@@ -199,12 +199,11 @@ returns. It catches everything, so nothing escapes to Kestrel as an unhandled co
 fault, and it logs a warning if the selector takes more than 5 seconds — a line that
 should never appear on a healthy host.
 
-`RequestIssuanceAsync` itself does not await the pulse it sends.
-`BackgroundServiceManager.NotifyWorkAvailableAsync` waits up to **30 seconds** for the
-background service to appear and then throws if it never does, which is exactly what
-happens when `SystemBackgroundServicesEnabled` is false. Awaiting it would put a
-30-second stall straight back onto the handshake path. The pulse is dispatched, its
-failures are logged at warning level rather than swallowed quietly.
+`RequestIssuanceAsync` itself does not await the pulse it sends. The pulse is dispatched,
+its failures are logged at warning level rather than swallowed quietly.
+`BackgroundServiceManager.NotifyWorkAvailableAsync` no longer waits for a service that is not
+running (#1910): it records the wake-up for when the service is created and returns, so even
+with `SystemBackgroundServicesEnabled` false the pulse costs the handshake nothing.
 
 **There is no backstop.** The background issuer is the only thing that orders certificates
 now, so a host that terminates TLS with `SystemBackgroundServicesEnabled` false will never

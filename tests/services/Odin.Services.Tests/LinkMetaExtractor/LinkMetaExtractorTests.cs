@@ -131,6 +131,7 @@ public class LinkMetaExtractorTests
 
 #if !CI_GITHUB
     [Test]
+    [Explicit("Live network: fetches a real website")]
     public async Task TestGoogleMeet()
     {
         var logStore = new LogEventMemoryStore();
@@ -143,6 +144,7 @@ public class LinkMetaExtractorTests
 
 #if !CI_GITHUB
     [Test]
+    [Explicit("Live network: fetches a real website")]
     public async Task TestInstagramStoryUrl()
     {
         var logStore = new LogEventMemoryStore();
@@ -157,6 +159,7 @@ public class LinkMetaExtractorTests
     
 #if !CI_GITHUB
     [Test]
+    [Explicit("Live network: fetches a real website")]
     public async Task TestFacebookUrl()
     {
         var logStore = new LogEventMemoryStore();
@@ -192,6 +195,7 @@ public class LinkMetaExtractorTests
     
 #if !CI_GITHUB
     [Test]
+    [Explicit("Live network: fetches a real website")]
     public async Task TestLinkedInUrl()
     {
         var logStore = new LogEventMemoryStore();
@@ -208,6 +212,7 @@ public class LinkMetaExtractorTests
     // !CI_GITHUB because it sometimes instagram blocks the request and does not send a static website
     // The main cause are user-agent headers, but sometimes it does not send an SSR page
     [Test]
+    [Explicit("Live network: fetches a real website")]
     public async Task TestInstagramUrl()
     {
         var logStore = new LogEventMemoryStore();
@@ -224,6 +229,7 @@ public class LinkMetaExtractorTests
     // !CI_GITHUB because it sometimes instagram blocks the request and does not send a static website
     // The main cause are user-agent headers, but sometimes it does not send an SSR page
     [Test]
+    [Explicit("Live network: fetches a real website")]
     public async Task TestInstagramOtherUrl()
     {
         var logStore = new LogEventMemoryStore();
@@ -239,6 +245,7 @@ public class LinkMetaExtractorTests
     
 
     [Test]
+    [Explicit("Live network: fetches a real website")]
     public async Task TestHtmlUrl()
     {
         var logStore = new LogEventMemoryStore();
@@ -275,6 +282,7 @@ public class LinkMetaExtractorTests
     }
 
     [Test]
+    [Explicit("Live network: IsUrlSafe resolves example.com in real DNS")]
     public async Task TestUrlLengthValidation_ReturnsNullForLongUrls()
     {
         // Arrange
@@ -844,6 +852,7 @@ public class LinkMetaExtractorTests
     }
 
     [Test]
+    [Explicit("Live network: IsUrlSafe resolves example.com in real DNS")]
     public void GetImageUrl_ShouldHandleUrlsAndEmbeddedImages()
     {
         // Arrange
@@ -919,6 +928,7 @@ public class LinkMetaExtractorTests
 
 #if !CI_GITHUB
     [Test]
+    [Explicit("Live network: fetches a real website")]
     public async Task TestBrokenImagePreviews()
     {
         var logStore = new LogEventMemoryStore();

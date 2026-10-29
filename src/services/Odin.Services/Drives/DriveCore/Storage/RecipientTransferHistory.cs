@@ -93,6 +93,12 @@ public enum LatestTransferStatus
     RecipientIdentityReturnedServerError = 80,
 
     /// <summary>
+    /// The recipient is out of storage (http 507) and asked to retry later. The item stays in the outbox and is
+    /// delivered once the recipient has room; this is waiting, not failure (docs/hosting-plans.md).
+    /// </summary>
+    RecipientIdentityOutOfStorage = 85,
+
+    /// <summary>
     /// Indicates the recipient server detected a bad request from the sending server
     /// </summary>
     RecipientIdentityReturnedBadRequest = 90,

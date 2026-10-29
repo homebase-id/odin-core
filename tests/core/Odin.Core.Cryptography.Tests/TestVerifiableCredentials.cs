@@ -33,6 +33,7 @@ namespace Odin.Core.Cryptography.Tests
 
 
         [Test]
+        [Explicit("Live network: fetches the JSON-LD context from www.w3.org")]
         public async Task CreateAndSignIdentityVc_ShouldProduceURDNA2015CompliantVc()
         {
             // Arrange
@@ -91,6 +92,7 @@ namespace Odin.Core.Cryptography.Tests
         }
 
         [Test]
+        [Explicit("Live network: fetches the JSON-LD context from www.w3.org")]
         public async Task CreateAndSignSshKeyVc_ShouldProduceURDNA2015CompliantVc()
         {
             // Arrange
@@ -149,6 +151,7 @@ namespace Odin.Core.Cryptography.Tests
         }
 
         [Test]
+        [Explicit("Live network: fetches the JSON-LD context from www.w3.org")]
         public async Task CreateAndSignPublicKeyVc_ShouldProduceURDNA2015CompliantVc()
         {
             // Arrange

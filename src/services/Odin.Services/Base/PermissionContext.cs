@@ -6,7 +6,9 @@ using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
+using Odin.Services.Peer;
 using Serilog;
 
 namespace Odin.Services.Base
@@ -159,6 +161,20 @@ namespace Odin.Services.Base
             return false;
         }
 
+        /// <summary>
+        /// The one definition of what an ordinary file operation on a peer needs; see <see cref="PeerAccess"/>
+        /// </summary>
+        public void AssertCanUsePeer(PeerAccess access)
+        {
+            var key = access == PeerAccess.Write ? PermissionKeys.UseTransitWrite : PermissionKeys.UseTransitRead;
+            if (!HasPermission(key))
+            {
+                throw new OdinSecurityException(access == PeerAccess.Write
+                    ? "Sending, updating or deleting files on a peer requires UseTransitWrite"
+                    : "Reading or querying a peer's files requires UseTransitRead");
+            }
+        }
+
         public void AssertHasAtLeastOnePermission(params int[] permissionKeys)
         {
             if (!HasAtLeastOnePermission(permissionKeys))
@@ -293,11 +309,12 @@ namespace Odin.Services.Base
             return false;
         }
 
-        public RedactedPermissionContext Redacted()
+        /// <param name="app">An app caller's zero-knowledge drives and its locked keys to them, shown on their grants</param>
+        public RedactedPermissionContext Redacted(OdinClientContext app = null)
         {
             return new RedactedPermissionContext()
             {
-                PermissionGroups = PermissionGroups.Values.Select(pg => pg.Redacted()),
+                PermissionGroups = PermissionGroups.Values.Select(pg => pg.Redacted(app)),
             };
         }
     }

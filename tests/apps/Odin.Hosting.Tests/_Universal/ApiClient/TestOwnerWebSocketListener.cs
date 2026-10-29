@@ -87,10 +87,12 @@ public sealed class TestOwnerWebSocketListener
         var array = receiveBuffer.Array;
         Array.Resize(ref array, receiveResult.Count);
 
-        var response = DecryptClientNotificationPayload<EstablishConnectionResponse>(array);
+        // Read as a generic notification: EstablishConnectionResponse.NotificationType is fixed to
+        // DeviceHandshakeSuccess, so checking it would pass any first frame, an error included
+        var response = DecryptClientNotificationPayload<TestClientNotification>(array);
         if (response.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
         {
-            throw new Exception("Did not receive a valid handshake");
+            throw new Exception($"Did not receive a valid handshake: {response.NotificationType} {response.Data}");
         }
 
         if (startReceiving)

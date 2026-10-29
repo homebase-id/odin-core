@@ -433,7 +433,8 @@ namespace Bitcoin.BIP39
 
 				if (!wordlist.WordExists(s, out idx))
 				{
-					throw new BIP39Exception("Word " + s + " is not in the wordlist for language " + langName + " cannot continue to rebuild entropy from wordlist");
+					// Not the word itself: it is part of someone's recovery phrase, and exception messages end up in logs
+					throw new BIP39Exception("A word is not in the wordlist for language " + langName + " cannot continue to rebuild entropy from wordlist");
 				}
 
 				wordIndexList.Add(idx);

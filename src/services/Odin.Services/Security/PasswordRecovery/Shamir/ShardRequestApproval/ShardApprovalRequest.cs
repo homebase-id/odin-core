@@ -15,6 +15,12 @@ public class ShardApprovalRequest
     public OdinId Dealer { get; init; }
     public UnixTimeUtc Created { get; init; }
 
+    /// <summary>
+    /// The recovering browser's throwaway public key: approving seals the shard to it, so only that
+    /// browser opens it.
+    /// </summary>
+    public string RecoveryPublicKeyJwk { get; init; }
+
     public static string Serialize(ShardApprovalRequest shard)
     {
         return OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray().ToBase64();

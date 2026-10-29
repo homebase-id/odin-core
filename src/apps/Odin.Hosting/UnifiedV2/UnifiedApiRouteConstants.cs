@@ -8,6 +8,7 @@ public static class UnifiedApiRouteConstants
     public const string Followers = BasePath + "/followers";
     public const string Contacts = BasePath + "/contacts";
     public const string Profile = BasePath + "/profile";
+    public const string Onboarding = BasePath + "/onboarding";
     public const string Health = BasePath + "/health";
     public const string DrivesRoot = BasePath + "/drives";
     public const string ByDriveId = DrivesRoot + "/{driveId:guid}";
@@ -23,9 +24,10 @@ public static class UnifiedApiRouteConstants
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
     public const string Links = BasePath + "/links";
     public const string Mail = BasePath + "/mail";
+    public const string Plan = BasePath + "/plan";
     public const string Capi = BasePath + "/capi";
 
-    // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/drive-addressing.md). Rooted at
+    // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/security-model.md, Drive addressing). Rooted at
     // /apps rather than nested under /drives, because /drives/feed would read as "the drive named
     // feed" rather than "the feed app's drives".
     public const string AppsRoot = BasePath + "/apps";

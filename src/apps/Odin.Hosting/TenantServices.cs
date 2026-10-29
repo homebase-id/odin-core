@@ -96,6 +96,7 @@ using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Tenant.Container;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.ObjectStorage;
@@ -212,7 +213,7 @@ public static class TenantServices
         cb.RegisterType<BuiltinProvisioner>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
-        cb.RegisterType<TenantQuotaGuard>().AsSelf().SingleInstance();
+        cb.RegisterType<TenantQuotaGuard>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
@@ -249,12 +250,15 @@ public static class TenantServices
 
         cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
-        cb.RegisterType<ShardRotationGate>().SingleInstance();
+        cb.RegisterType<ShamirDealGate>().SingleInstance();
         cb.RegisterType<ShamirReadinessCheckerService>().InstancePerLifetimeScope();
         
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();
+        cb.RegisterType<ZeroKnowledgeKeyService>().InstancePerLifetimeScope();
+        cb.RegisterType<ZkDriveConversionService>().InstancePerLifetimeScope();
+        cb.RegisterType<ZeroKnowledgeRecoveryService>().InstancePerLifetimeScope();
 
         cb.RegisterType<OwnerAuthenticationService>()
             .AsSelf()

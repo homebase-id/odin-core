@@ -36,7 +36,7 @@ public class PeerDriveQueryService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration,
-    ITenantLevel2Cache<PeerDriveQueryService> addressCache)
+    ITenantLevel2Cache<PeerDriveQueryService> cache)
 {
     private static readonly TimeSpan AddressCacheTtl = TimeSpan.FromMinutes(30);
 
@@ -52,7 +52,7 @@ public class PeerDriveQueryService(
     /// cache.  Only successes are cached: a miss can become a hit as soon as the remote creates the
     /// drive, and caching that would strand the caller for the TTL.
     /// </remarks>
-    public async Task<TargetDrive> ResolveRemoteDriveAsync(OdinId odinId, string appSlug, string driveSlug,
+    public async Task<TargetDrive> ResolveRemoteDriveAsync(OdinId odinId, OdinSlug appSlug, OdinSlug driveSlug,
         IOdinContext odinContext)
     {
         // Either transit permission, not Read alone: resolution serves the write routes too, and a
@@ -65,11 +65,11 @@ public class PeerDriveQueryService(
                 $"{nameof(PermissionKeys.UseTransitWrite)}");
         }
 
-        OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
-        OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));
+        OdinSlug.Required(appSlug, nameof(appSlug));
+        OdinSlug.Required(driveSlug, nameof(driveSlug));
 
         var cacheKey = $"peer-drive-address:{odinId}:{appSlug}:{driveSlug}";
-        var cached = await addressCache.TryGetAsync<TargetDrive>(cacheKey);
+        var cached = await cache.TryGetAsync<TargetDrive>(cacheKey);
         if (cached.HasValue && cached.Value != null)
         {
             return cached.Value;
@@ -114,22 +114,22 @@ public class PeerDriveQueryService(
                 OdinClientErrorCode.InvalidDrive);
         }
 
-        await addressCache.SetAsync(cacheKey, targetDrive, AddressCacheTtl);
+        await cache.SetAsync(cacheKey, targetDrive, AddressCacheTtl);
         return targetDrive;
     }
 
     /// <summary>
-    /// Fetches the write-only public key of <paramref name="odinId"/>'s
-    /// <c>/apps/{appSlug}/drives/{driveSlug}</c>, so this identity can seal a deposit to a drive it
-    /// may write but never read.
+    /// The write-only public key of <paramref name="odinId"/>'s <c>/apps/{appSlug}/drives/{driveSlug}</c>, so this
+    /// identity can seal a deposit to a drive it may write but never read.
     /// </summary>
     /// <remarks>
-    /// Deliberately not cached, unlike the address.  A slug is immutable, but a keypair is not: it can
-    /// be rotated, and a cached public half would keep this identity sealing to a key the remote has
-    /// stopped holding -- deposits nobody could open, with nothing to say so.
+    /// Cached for <c>Host:PeerDriveKeyCacheSeconds</c> (docs/drive-public-keys-plan.md), and only for a
+    /// zero-knowledge drive: one that isn't yet takes no deposits, and becomes one at its owner's next login.  A
+    /// drive whose key changed refuses a deposit sealed to the old one (<c>SealedToUnknownKey</c>), and the outbox
+    /// then forgets the copy (<see cref="ForgetDriveKeysAsync"/>).
     /// </remarks>
-    public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, string appSlug,
-        string driveSlug, IOdinContext odinContext)
+    public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, OdinSlug appSlug,
+        OdinSlug driveSlug, IOdinContext odinContext)
     {
         // Write, not read: this key exists to put data on someone else's drive.
         if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.UseTransitWrite))
@@ -138,9 +138,26 @@ public class PeerDriveQueryService(
                 $"Fetching a peer drive public key requires {nameof(PermissionKeys.UseTransitWrite)}");
         }
 
-        OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
-        OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));
+        OdinSlug.Required(appSlug, nameof(appSlug));
+        OdinSlug.Required(driveSlug, nameof(driveSlug));
 
+        return await cache.GetOrSetAsync($"peer-drive-key:{odinId}:{appSlug}:{driveSlug}",
+            _ => FetchRemoteDriveWriteOnlyPublicKeyAsync(odinId, appSlug, driveSlug, odinContext),
+            odinConfiguration.Host.PeerDriveKeyCacheAge, _ => EntrySize.Small, tags: [DriveKeysTag(odinId)],
+            storeIf: key => key.IsZeroKnowledge);
+    }
+
+    /// <summary>
+    /// Forgets this identity's copies of <paramref name="odinId"/>'s drive public keys: one of its drives refused a
+    /// deposit sealed to a key it doesn't hold, or a check must not go by a copy.
+    /// </summary>
+    public async Task ForgetDriveKeysAsync(OdinId odinId) => await cache.RemoveByTagAsync(DriveKeysTag(odinId));
+
+    private static string DriveKeysTag(OdinId odinId) => $"peer-drive-keys:{odinId}";
+
+    private async Task<DrivePublicKeyResponse> FetchRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, OdinSlug appSlug,
+        OdinSlug driveSlug, IOdinContext odinContext)
+    {
         var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
 
         var request = new ResolveDriveAddressRequest
@@ -186,7 +203,7 @@ public class PeerDriveQueryService(
     public async Task<QueryModifiedResult> GetModifiedAsync(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         try
         {
@@ -228,7 +245,7 @@ public class PeerDriveQueryService(
         FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -259,7 +276,7 @@ public class PeerDriveQueryService(
     public async Task<QueryBatchResult> GetBatchAsync(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -278,14 +295,7 @@ public class PeerDriveQueryService(
             await Benchmark.MillisecondsAsync(logger, "HandleInvalidResponseAsync",
                 async () => { await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext); });
 
-            var batch = queryBatchResponse.Content;
-            return new QueryBatchResult
-            {
-                QueryTime = batch.QueryTime,
-                SearchResults = TransformSharedSecret(batch.SearchResults, icr, odinContext),
-                Cursor = new QueryBatchCursor(batch.CursorState),
-                IncludeMetadataHeader = batch.IncludeMetadataHeader
-            };
+            return ToCallerResult(queryBatchResponse.Content, icr, odinContext);
         }
         catch (TryRetryException t)
         {
@@ -302,7 +312,7 @@ public class PeerDriveQueryService(
         FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
@@ -336,7 +346,7 @@ public class PeerDriveQueryService(
         ExternalFileIdentifier file, string key, FileChunk chunk, FileSystemType fileSystemType, IOdinContext odinContext)
     {
         var permissionContext = odinContext.PermissionsContext;
-        permissionContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        permissionContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -368,7 +378,7 @@ public class PeerDriveQueryService(
         FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -405,7 +415,7 @@ public class PeerDriveQueryService(
     public async Task<TemporalAccessStatus> VerifyTemporalAccessAsync(OdinId odinId, TargetDrive targetDrive,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -429,7 +439,7 @@ public class PeerDriveQueryService(
     public async Task<QueryBatchResult> GetTemporalBatchAsync(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -443,14 +453,7 @@ public class PeerDriveQueryService(
 
             await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
 
-            var batch = queryBatchResponse.Content;
-            return new QueryBatchResult
-            {
-                QueryTime = batch.QueryTime,
-                SearchResults = TransformSharedSecret(batch.SearchResults, icr, odinContext),
-                Cursor = new QueryBatchCursor(batch.CursorState),
-                IncludeMetadataHeader = batch.IncludeMetadataHeader
-            };
+            return ToCallerResult(queryBatchResponse.Content, icr, odinContext);
         }
         catch (TryRetryException t)
         {
@@ -462,7 +465,7 @@ public class PeerDriveQueryService(
     public async Task<SharedSecretEncryptedFileHeader> GetTemporalFileHeaderAsync(OdinId odinId, ExternalFileIdentifier file,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -492,7 +495,7 @@ public class PeerDriveQueryService(
         GetTemporalPayloadStreamAsync(OdinId odinId, ExternalFileIdentifier file, string key, FileChunk chunk,
             FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -523,7 +526,7 @@ public class PeerDriveQueryService(
         Stream thumbnail)> GetTemporalThumbnailAsync(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -555,7 +558,7 @@ public class PeerDriveQueryService(
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByTypeAsync(OdinId odinId, Guid driveType, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
@@ -592,7 +595,7 @@ public class PeerDriveQueryService(
         GlobalTransitIdFileIdentifier file,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
@@ -624,7 +627,7 @@ public class PeerDriveQueryService(
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdAsync(OdinId odinId, GetPayloadByUniqueIdRequest file,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
@@ -658,7 +661,7 @@ public class PeerDriveQueryService(
             GlobalTransitIdFileIdentifier file, string key,
             FileChunk chunk, FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -695,7 +698,7 @@ public class PeerDriveQueryService(
         GetThumbnailByGlobalTransitIdAsync(OdinId odinId, GlobalTransitIdFileIdentifier file, string payloadKey,
             int width, int height, bool directMatchOnly, FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -727,7 +730,7 @@ public class PeerDriveQueryService(
 
     public async Task<RedactedOdinContext> GetRemoteDotYouContextAsync(OdinId odinId, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         try
         {
             var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
@@ -752,7 +755,7 @@ public class PeerDriveQueryService(
     public async Task<FileExistsOnPeerResponse> FileExistsOnRemoteByUniqueId(OdinId odinId, Guid driveId, Guid uniqueId,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         try
         {
             var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
@@ -782,7 +785,7 @@ public class PeerDriveQueryService(
     public async Task<FileExistsOnPeerResponse> FileExistsOnRemoteByGlobalTransitId(OdinId odinId, Guid driveId, Guid globalTransitId,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         try
         {
             var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
@@ -833,6 +836,23 @@ public class PeerDriveQueryService(
         return (icr, httpClient);
     }
 
+    /// <summary>
+    /// The remote's query-batch answer as this caller's result: headers get their key headers re-encrypted for the
+    /// caller; file refs carry no key material and pass through as they are
+    /// </summary>
+    private QueryBatchResult ToCallerResult(QueryBatchResponse batch, IdentityConnectionRegistration icr, IOdinContext odinContext)
+    {
+        return new QueryBatchResult
+        {
+            QueryTime = batch.QueryTime,
+            SearchResults = batch.SearchResults == null ? null : TransformSharedSecret(batch.SearchResults, icr, odinContext),
+            FileRefs = batch.FileRefs,
+            Cursor = new QueryBatchCursor(batch.CursorState),
+            IncludeMetadataHeader = batch.IncludeMetadataHeader,
+            HasMoreRows = batch.HasMoreRows
+        };
+    }
+
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,
         IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
@@ -876,6 +896,14 @@ public class PeerDriveQueryService(
 
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
+        if (encryptedKeyHeader.IsLockedByClient())
+        {
+            // A client-locked key header comes from the peer as stored: only a device holding that drive's keys
+            // opens it.  A peer shows one only to a caller its read rule admits; passed on rather than failing
+            // the whole read
+            return encryptedKeyHeader;
+        }
+
         var newKey = odinContext.PermissionsContext.SharedSecretKey;
         var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
 

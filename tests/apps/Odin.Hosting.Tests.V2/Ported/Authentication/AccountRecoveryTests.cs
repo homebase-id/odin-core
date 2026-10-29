@@ -1,4 +1,6 @@
+#nullable enable
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -19,20 +21,16 @@ namespace Odin.Hosting.Tests.V2.Ported.Authentication;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Four of the five tests carry <c>#if !DEBUG [Ignore]</c> verbatim. The waiting period is
-/// <c>TimeSpan.FromDays(14)</c> unless <c>DEBUG</c> is defined, where
-/// <c>PasswordKeyRecoveryService.GetWaitingPeriod</c> drops it to
-/// <see cref="PasswordKeyRecoveryService.RecoveryKeyWaitingPeriodSecondsForTesting"/> — so a Release
-/// run cannot exercise them at all. That is a compile-time condition on the product, not on the test
-/// framework, so it moves unchanged.
+/// The waiting period is <c>TimeSpan.FromDays(14)</c> unless
+/// <c>Development:RecoveryKeyWaitingPeriodSeconds</c> shortens it, which this fixture does through
+/// <see cref="ConfigOverrides"/>. Until #1866 the short period was compiled in under <c>#if DEBUG</c>,
+/// so four of these tests carried <c>#if !DEBUG [Ignore]</c> and never ran in CI's Release build.
 /// </para>
 /// <para>
 /// <b>This fixture sleeps, and it is not the framework's fault.</b> Four of the five tests wait out
-/// <see cref="PasswordKeyRecoveryService.RecoveryKeyWaitingPeriodSecondsForTesting"/> — a real
-/// five-second product timer before a requested recovery key becomes viewable — so the fixture costs
-/// roughly twenty seconds of wall clock no matter how fast the host boots. There is nothing to
-/// convert: the constant is a <c>const</c> on the service, not a setting, so a test cannot shorten
-/// it, and the waiting period is the behaviour under test. Do not "optimize" the delays away.
+/// <see cref="WaitingPeriodSeconds"/> — a real product timer before a requested recovery key becomes
+/// viewable — so the fixture costs roughly twenty seconds of wall clock no matter how fast the host
+/// boots. The waiting period is the behaviour under test. Do not "optimize" the delays away.
 /// </para>
 /// <para>
 /// Deviations, all checked:
@@ -57,10 +55,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Authentication;
 [TestFixture]
 public class AccountRecoverySectionTests : V2Fixture
 {
+    private const int WaitingPeriodSeconds = 5;
+
+    protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
+        new Dictionary<string, string?>
+        {
+            ["Development:RecoveryKeyWaitingPeriodSeconds"] = WaitingPeriodSeconds.ToString()
+        };
+
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task CanGetAccountRecoveryKey()
     {
         await RequestAndViewRecoveryKeyAsync();
@@ -70,9 +73,6 @@ public class AccountRecoverySectionTests : V2Fixture
     }
 
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task CanToGetAccountRecoveryKeyWhenViewedAfterTimeWindow()
     {
         var security = await RequestAndViewRecoveryKeyAsync();
@@ -117,9 +117,6 @@ public class AccountRecoverySectionTests : V2Fixture
     }
 
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task FailToGetAccountRecoveryKeyWhenViewedBeforeTimeWindow()
     {
         var owner = await LoginAsOwner();
@@ -134,11 +131,11 @@ public class AccountRecoverySectionTests : V2Fixture
         var result = requestRecoveryKeyResponse.Content;
         Assert.That(result, Is.Not.Null);
 
-        await Task.Delay(1000 * PasswordKeyRecoveryService.RecoveryKeyWaitingPeriodSecondsForTesting + 1);
+        await WaitUntil(result!.NextViewableDate);
 
         var response = await security.GetAccountRecoveryKey();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content!.Key, Is.Not.Null.Or.Empty, "should have the recovery key");
+        Assert.That(response.Content!.Key, Is.Not.Null.And.Not.Empty, "should have the recovery key");
 
         // now make a second request
         var requestRecoveryKeyResponse2 = await security.RequestRecoveryKey();
@@ -150,9 +147,6 @@ public class AccountRecoverySectionTests : V2Fixture
     }
 
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task CanResetPasswordUsingAccountRecoveryKey()
     {
         const string password = OwnerLogin.DefaultPassword;
