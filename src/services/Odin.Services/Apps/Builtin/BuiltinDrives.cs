@@ -163,11 +163,16 @@ public static class BuiltinDrives
     // Drives the mapping names that do not exist yet, so have no counterpart in SystemDriveConstants.
     // Settings are placeholders -- nothing seeds these, since none of their apps is built-in.
     //
+    /// <summary>
+    /// Private from the start (docs/zero-knowledge-drive-api-plan.md, 4.7): the owner's browser creates it with its
+    /// keys at the first password login, so the server never sees its key.  An identity made before that has a
+    /// Collaborative Vault, which it upgrades.
+    /// </summary>
     public static readonly CreateDriveRequest VaultDrive = new()
     {
         Name = "Vault", TargetDrive = WellKnownAppDrives.VaultDrive, Metadata = "",
         AppId = SystemAppConstants.VaultAppId, DriveSlug = (OdinSlug)"vault", DriveTypeSlug = (OdinSlug)"vault",
-        AllowAnonymousReads = false, OwnerOnly = true
+        AllowAnonymousReads = false, OwnerOnly = true, SharingModel = DriveSharingModel.Private
     };
 
     public static readonly CreateDriveRequest CommunityDrive = new()

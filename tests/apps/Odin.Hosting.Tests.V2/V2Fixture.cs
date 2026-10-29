@@ -366,6 +366,35 @@ public abstract class V2Fixture
     }
 
     /// <summary>
+    /// The protected built-in drives a new identity has before its owner's first password login: all but the ones the
+    /// browser creates zero knowledge (Vault), which the server leaves out at setup.
+    /// </summary>
+    protected static System.Collections.Generic.List<Odin.Services.Drives.TargetDrive> ProtectedDrivesMadeAtSetup =>
+        Odin.Services.Apps.Builtin.BuiltinDrives.Protected
+            .Where(d => Odin.Services.Apps.Builtin.BuiltinApps.BrowserMadeDrives.All(b => b.TargetDrive != d)).ToList();
+
+    /// <summary>
+    /// The Vault an identity made before Vault was created private (docs/zero-knowledge-drive-api-plan.md, 4.7) has:
+    /// Collaborative, created by the server at setup, with its built-in app and circle.  What the upgrade tests start
+    /// from; an identity made now has no Vault until the owner's browser creates it.
+    /// </summary>
+    protected async Task GiveTheVaultAnOlderIdentityHasAsync(OwnerSession owner)
+    {
+        var (scope, odinContext) = await MigrationContextAsync(owner);
+        var vault = Odin.Services.Apps.Builtin.BuiltinDrives.VaultDrive;
+        await scope.Resolve<Odin.Services.Drives.Management.IDriveManager>().CreateDriveAsync(new Odin.Services.Drives.Management.CreateDriveRequest
+        {
+            Name = vault.Name, TargetDrive = vault.TargetDrive, Metadata = vault.Metadata, AppId = vault.AppId,
+            DriveSlug = vault.DriveSlug, DriveTypeSlug = vault.DriveTypeSlug, AllowAnonymousReads = vault.AllowAnonymousReads,
+            OwnerOnly = vault.OwnerOnly
+        }, odinContext);
+
+        var provisioner = scope.Resolve<Odin.Services.Apps.Builtin.BuiltinProvisioner>();
+        await provisioner.EnsureCirclesAsync(odinContext);
+        await provisioner.EnsureAppsAsync(odinContext);
+    }
+
+    /// <summary>
     /// An owner context carrying the master key, built from a logged-in owner session.
     /// </summary>
     protected static async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)

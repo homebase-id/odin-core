@@ -188,6 +188,19 @@ public static class BuiltinApps
     /// <summary>Circles a new identity is configured with.</summary>
     public static IEnumerable<CircleDefinition> SeededCircles => Builtin.SelectMany(a => a.Circles);
 
+    /// <summary>
+    /// The seeded drives defined Private or SelectiveShare (Vault): setup never creates one, since the server would make
+    /// its key; the owner's browser creates it at a password login (docs/zero-knowledge-drive-api-plan.md, 4.7).
+    /// </summary>
+    public static IEnumerable<CreateDriveRequest> BrowserMadeDrives => SeededDrives.Where(d => d.SharingModel.IsZeroKnowledge());
+
+    /// <summary>What a new identity has before its owner's first password login: everything seeded but those drives.</summary>
+    public static IEnumerable<CreateDriveRequest> DrivesMadeAtSetup => SeededDrives.Where(d => !d.SharingModel.IsZeroKnowledge());
+
+    /// <summary>The seeded circles whose app has no browser-made drive to wait for.</summary>
+    public static IEnumerable<CircleDefinition> CirclesMadeAtSetup =>
+        Builtin.Where(a => !a.Drives.Any(d => d.SharingModel.IsZeroKnowledge())).SelectMany(a => a.Circles);
+
     public static IEnumerable<Guid> BuiltinAppIds => Builtin.Select(a => a.AppId);
 
     /// <summary>Every drive any app owns, whether or not it is seeded.</summary>

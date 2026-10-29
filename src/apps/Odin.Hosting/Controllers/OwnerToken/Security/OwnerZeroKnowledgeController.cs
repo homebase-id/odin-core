@@ -7,6 +7,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Drives.Management;
 using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
@@ -116,6 +117,16 @@ public class OwnerZeroKnowledgeController(
     {
         await driveConversionService.ConvertDriveKeepingKeyAsync(request, WebOdinContext);
         return Ok();
+    }
+
+    /// <summary>
+    /// The built-in Private or SelectiveShare drives the identity doesn't have yet, for the browser to create at a
+    /// password login with its own keys (POST drive/mgmt/create, with each request's model and the keys).
+    /// </summary>
+    [HttpGet("missing-drives")]
+    public async Task<List<CreateDriveRequest>> GetMissingDrives()
+    {
+        return await zeroKnowledgeKeyService.GetMissingZeroKnowledgeDrivesAsync(WebOdinContext);
     }
 
     /// <summary>Gives the Shard Recovery drive new keys made in the browser.</summary>

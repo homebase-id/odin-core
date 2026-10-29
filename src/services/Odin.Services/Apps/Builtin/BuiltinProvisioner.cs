@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 
@@ -95,13 +96,43 @@ public class BuiltinProvisioner(
         await EnsureAppsAsync(odinContext);
     }
 
+    /// <summary>The built-in zero-knowledge drives the identity doesn't have yet, for the owner's browser to create.</summary>
+    public async Task<List<CreateDriveRequest>> GetMissingZeroKnowledgeDrivesAsync()
+    {
+        var missing = new List<CreateDriveRequest>();
+        foreach (var drive in BuiltinApps.BrowserMadeDrives)
+        {
+            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null)
+            {
+                missing.Add(drive);
+            }
+        }
+
+        return missing;
+    }
+
+    /// <summary>
+    /// The built-in apps whose zero-knowledge drive the browser hasn't created yet: their circles and registration wait
+    /// for it, since a grant can't be issued for a drive that isn't there.
+    /// </summary>
+    private async Task<HashSet<Guid>> AppsWaitingForTheirDriveAsync()
+    {
+        var missing = (await GetMissingZeroKnowledgeDrivesAsync()).Select(d => d.TargetDrive.Alias.Value).ToHashSet();
+        return BuiltinApps.Builtin
+            .Where(app => app.Drives.Any(d => missing.Contains(d.TargetDrive.Alias.Value)))
+            .Select(app => app.AppId)
+            .ToHashSet();
+    }
+
     /// <summary>
     /// Creates the drives of every built-in app, plus the carry-overs.  Idempotent.
     /// </summary>
     public async Task EnsureDrivesAsync(IOdinContext odinContext)
     {
         // Non-anonymous first -- see EnsureAllAsync for why.
-        var drives = BuiltinApps.SeededDrives
+        // A browser-made drive is created by the owner's browser (GetMissingZeroKnowledgeDrivesAsync), and its app
+        // and circles follow
+        var drives = BuiltinApps.DrivesMadeAtSetup
             .Concat(CarryOverDrives)
             .DistinctBy(d => d.TargetDrive.Alias.Value)
             .OrderBy(d => d.AllowAnonymousReads)
@@ -131,7 +162,8 @@ public class BuiltinProvisioner(
     /// </summary>
     public async Task EnsureCirclesAsync(IOdinContext odinContext)
     {
-        foreach (var def in BuiltinApps.SeededCircles)
+        var waiting = await AppsWaitingForTheirDriveAsync();
+        foreach (var def in BuiltinApps.SeededCircles.Where(c => c.AppId is not { } appId || !waiting.Contains(appId)))
         {
             await circleDefinitionService.EnsureCircleExistsAsync(def);
         }
@@ -182,7 +214,8 @@ public class BuiltinProvisioner(
     /// </summary>
     public async Task EnsureAppsAsync(IOdinContext odinContext)
     {
-        foreach (var app in BuiltinApps.Builtin)
+        var waiting = await AppsWaitingForTheirDriveAsync();
+        foreach (var app in BuiltinApps.Builtin.Where(a => !waiting.Contains(a.AppId)))
         {
             if (!Registrations.TryGetValue(app.AppId, out var request))
             {

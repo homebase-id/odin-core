@@ -124,6 +124,7 @@ public class ZkDriveCreationTests : V2Fixture
     public async Task TheDeviceListSaysWhichDevicesHoldTheAppsKey()
     {
         var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        await GiveTheVaultAnOlderIdentityHasAsync(frodo);
         var olderDevice = await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
         await SignInAsync(frodo, olderDevice.AppId, zkMasterKey);
 
@@ -131,6 +132,44 @@ public class ZkDriveCreationTests : V2Fixture
         Assert.That(clients.StatusCode, Is.EqualTo(HttpStatusCode.OK), clients.Error?.Content);
         Assert.That(clients.Content!.Select(c => c.HoldsZkAppKey).OrderBy(h => h), Is.EqualTo(new[] { false, true }),
             "the device that signed in with the app's key, and the one from before");
+    }
+
+    [Test]
+    public async Task ANewIdentitysVaultIsCreatedPrivateByTheOwnersBrowserAndItsAppAndCircleFollow()
+    {
+        // The server can't make a Private drive, so a new identity starts without Vault, its app or its circle
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        Assert.That((await frodo.Admin.GetDrives()).Any(d => d.TargetDriveInfo == Vault), Is.False);
+        Assert.That(await VaultAppAsync(frodo), Is.Null, "the Vault app waits for its drive");
+
+        // At a password login the browser creates each missing private drive with its keys
+        var client = ZkOwnerSteps.Client(frodo);
+        var missing = await client.GetMissingDrives();
+        Assert.That(missing.StatusCode, Is.EqualTo(HttpStatusCode.OK), missing.Error?.Content);
+        var vault = missing.Content!.Single();
+        Assert.That(vault.TargetDrive, Is.EqualTo(Vault));
+        Assert.That(vault.SharingModel, Is.EqualTo(DriveSharingModel.Private));
+        var keys = ZkBrowser.MakeDriveKeys(Vault.Alias, zkMasterKey);
+        vault.ZkKeys = keys.Request;
+        var created = await frodo.RefitFor<IRefitDriveManagement>().CreateDrive(vault);
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK), created.Error?.Content);
+
+        var drive = await frodo.Admin.GetDrive(Vault);
+        Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Private));
+        Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(keys.DriveKey));
+        Assert.That(drive.AppId, Is.EqualTo(Odin.Services.Apps.SystemAppConstants.VaultAppId), "owned by the Vault app, as before");
+        Assert.That((await VaultAppAsync(frodo))?.Grant.DriveGrants.Any(g => g.PermissionedDrive.Drive == Vault), Is.True,
+            "the Vault app is registered with its grant once the drive exists");
+        Assert.That((await frodo.Admin.GetCircleDefinition(Odin.Services.Apps.Builtin.BuiltinCircles.VaultCircle.Id)).Id,
+            Is.EqualTo(Odin.Services.Apps.Builtin.BuiltinCircles.VaultCircle.Id));
+        Assert.That((await client.GetMissingDrives()).Content, Is.Empty);
+    }
+
+    private static async Task<Odin.Services.Authorization.Apps.RedactedAppRegistration?> VaultAppAsync(OwnerSession owner)
+    {
+        var response = await owner.RefitFor<IRefitAppRegistration>().GetRegisteredApp(new GetAppRequest
+            { AppId = Odin.Services.Apps.SystemAppConstants.VaultAppId });
+        return response.IsSuccessStatusCode ? response.Content : null;
     }
 
     private static async Task AssertRefusedAsync(OwnerSession owner, DriveSharingModel model, bool withKeys, byte[] zkMasterKey,

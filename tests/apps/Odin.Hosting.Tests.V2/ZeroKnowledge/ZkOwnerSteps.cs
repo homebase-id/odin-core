@@ -119,6 +119,9 @@ public interface IZeroKnowledgeOwnerClient
     [Get(OwnerApiPathConstants.SecurityV1 + "/zk")]
     Task<ApiResponse<ZkStatusResponse>> GetStatus();
 
+    [Get(OwnerApiPathConstants.SecurityV1 + "/zk/missing-drives")]
+    Task<ApiResponse<System.Collections.Generic.List<Odin.Services.Drives.Management.CreateDriveRequest>>> GetMissingDrives();
+
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/keys")]
     Task<ApiResponse<HttpContent>> CreateKeys([Body] ZkKeysRequest request);
 

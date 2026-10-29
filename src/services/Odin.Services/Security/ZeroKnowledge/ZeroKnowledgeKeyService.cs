@@ -14,6 +14,7 @@ using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
@@ -38,6 +39,7 @@ public class ZeroKnowledgeKeyService(
     OdinContextCache contextCache,
     StandardFileSystem fileSystem,
     IAppRegistrationService appRegistrationService,
+    BuiltinProvisioner builtinProvisioner,
     IdentityDatabase db)
 {
     private static readonly Guid ZkKeyStorageId = Guid.Parse("4f1c2b8e-7d3a-4c6b-9e5f-1a2b3c4d5e6f");
@@ -387,7 +389,22 @@ public class ZeroKnowledgeKeyService(
     public async Task<StorageDrive> CreateZeroKnowledgeDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
         await GetRecordOrFailAsync();
-        return await driveManager.CreateDriveAsync(request, odinContext);
+        var drive = await driveManager.CreateDriveAsync(request, odinContext);
+
+        // A built-in app and its circles wait for their zero-knowledge drive (Vault); this may be the one
+        await builtinProvisioner.EnsureCirclesAsync(odinContext);
+        await builtinProvisioner.EnsureAppsAsync(odinContext);
+        return drive;
+    }
+
+    /// <summary>
+    /// The built-in Private or SelectiveShare drives the identity doesn't have yet (Vault, on an identity made since
+    /// 4.7): the owner's browser creates each with its keys at a password login.
+    /// </summary>
+    public async Task<List<CreateDriveRequest>> GetMissingZeroKnowledgeDrivesAsync(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        return await builtinProvisioner.GetMissingZeroKnowledgeDrivesAsync();
     }
 
     private async Task<ZkKeyRecord> GetRecordOrFailAsync()
