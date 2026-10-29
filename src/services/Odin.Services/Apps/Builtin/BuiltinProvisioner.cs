@@ -230,9 +230,17 @@ public class BuiltinProvisioner(
     {
         var app = BuiltinApps.Builtin.SingleOrDefault(a =>
             a.Drives.Any(d => d.SharingModel.IsZeroKnowledge() && d.TargetDrive.Alias.Value == driveId));
-        if (app == null || (await AppsWaitingForTheirDriveAsync()).Contains(app.AppId))
+        if (app == null)
         {
             return;
+        }
+
+        foreach (var drive in app.Drives.Where(d => d.SharingModel.IsZeroKnowledge()))
+        {
+            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null)
+            {
+                return; // another of its drives is still to come
+            }
         }
 
         foreach (var def in app.Circles)

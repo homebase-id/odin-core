@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Auth;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
 using Odin.Services.Email;
@@ -94,19 +98,16 @@ public class V2MailKeyGenerationTests : V2Fixture
     [Test]
     public async Task OnAPrivateEmailDriveTheKeyringIsSealedToTheDrive()
     {
+        // A new identity's Email drive, as the owner's browser creates it
         var owner = await LoginAsOwner(PrimaryIdentity);
-        var (zkMasterKey, _, _) = await Odin.Hosting.Tests.V2.ZeroKnowledge.ZkOwnerSteps.MakeZeroKnowledgeAsync(owner,
-            Odin.Hosting.Tests.V2.Auth.OwnerLogin.DefaultPassword);
-        var keys = Odin.Hosting.Tests.V2.ZeroKnowledge.ZkBrowser.MakeDriveKeys(WellKnownAppDrives.EmailAppDrive.Alias, zkMasterKey);
-        await owner.Admin.CreateDrive(WellKnownAppDrives.EmailAppDrive, "Email", allowAnonymousReads: false, ownerOnly: true,
-            appId: Odin.Services.Apps.SystemAppConstants.EmailAppId, driveSlug: new OdinSlug("email"),
-            driveTypeSlug: new OdinSlug("email"), sharingModel: DriveSharingModel.Private, zkKeys: keys.Request);
+        var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(owner, OwnerLogin.DefaultPassword);
+        var keys = (await ZkOwnerSteps.CreateMissingDrivesAsync(owner, zkMasterKey))[WellKnownAppDrives.EmailAppDrive.Alias];
 
         // An app device that holds no key to the drive: refused, and nothing written
         var (keyless, _) = await SetUpMailboxAsync();
         var refused = await keyless.GenerateKeyAsync(Address);
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), refused.Error?.Content);
-        Assert.That(refused.Error!.Content, Does.Contain(nameof(Odin.Core.Exceptions.OdinClientErrorCode.ZkAppKeyMissing)).IgnoreCase);
+        Assert.That(refused.Error!.Content, Does.Contain(nameof(OdinClientErrorCode.ZkAppKeyMissing)).IgnoreCase);
         var nothing = await owner.Drives.Reader.GetFileHeaderByUniqueIdAsync(EmailDriveFileTypes.CurrentKeyPointerUniqueId,
             WellKnownAppDrives.EmailAppDrive.Alias);
         Assert.That(nothing.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "no keyring, no pointer");
@@ -136,16 +137,16 @@ public class V2MailKeyGenerationTests : V2Fixture
         Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.OK), first.Error?.Content);
 
         var owner = await LoginAsOwner(PrimaryIdentity);
-        var (zkMasterKey, _, _) = await Odin.Hosting.Tests.V2.ZeroKnowledge.ZkOwnerSteps.MakeZeroKnowledgeAsync(owner,
-            Odin.Hosting.Tests.V2.Auth.OwnerLogin.DefaultPassword);
-        var converted = await Odin.Hosting.Tests.V2.ZeroKnowledge.ZkAppSteps.ConvertDriveAsync(owner, zkMasterKey,
+        var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(owner,
+            OwnerLogin.DefaultPassword);
+        var converted = await ZkAppSteps.ConvertDriveAsync(owner, zkMasterKey,
             WellKnownAppDrives.EmailAppDrive.Alias, DriveSharingModel.Private);
 
         var old = await owner.Drives.Reader.GetFileHeaderByUniqueIdAsync(first.Content!.KeyFileUniqueId,
             WellKnownAppDrives.EmailAppDrive.Alias);
         Assert.That(old.StatusCode, Is.EqualTo(HttpStatusCode.OK), old.Error?.Content);
-        Assert.That(old.Content!.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(Odin.Services.Peer.Encryption.EncryptionType.ZkDrive));
-        Assert.That(Odin.Hosting.Tests.V2.ZeroKnowledge.ZkBrowser.OpenFileKey(old.Content.SharedSecretEncryptedKeyHeader, converted.DriveKey)
+        Assert.That(old.Content!.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
+        Assert.That(ZkBrowser.OpenFileKey(old.Content.SharedSecretEncryptedKeyHeader, converted.DriveKey)
             .Decrypt(old.Content.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes(),
             Does.Contain("-----BEGIN PGP PRIVATE KEY BLOCK-----"), "the keyring from before opens with the drive's key");
 
@@ -159,7 +160,7 @@ public class V2MailKeyGenerationTests : V2Fixture
     {
         var header = await owner.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, WellKnownAppDrives.EmailAppDrive.Alias);
         Assert.That(header.StatusCode, Is.EqualTo(HttpStatusCode.OK), header.Error?.Content);
-        return Odin.Hosting.Tests.V2.ZeroKnowledge.ZkBrowser.OpenDeposit(header.Content!, writeOnlyPrivateKey).ToStringFromUtf8Bytes();
+        return ZkBrowser.OpenDeposit(header.Content!, writeOnlyPrivateKey).ToStringFromUtf8Bytes();
     }
 
     /// <summary>

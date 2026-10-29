@@ -193,7 +193,7 @@ internal static class ZkBrowser
     public static (KeyHeader FileKey, EncryptedKeyHeader Sealed) SealNewFileKey(string publicKeyJwk)
     {
         var fileKey = KeyHeader.NewRandom16();
-        return (fileKey, EncryptedKeyHeader.Sealed(fileKey.Iv, ZkSeal.Seal(fileKey.Combine().GetKey(), publicKeyJwk)));
+        return (fileKey, EncryptedKeyHeader.SealedTo(fileKey, publicKeyJwk));
     }
 
     /// <summary>

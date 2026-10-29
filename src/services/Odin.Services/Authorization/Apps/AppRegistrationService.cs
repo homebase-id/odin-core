@@ -345,12 +345,10 @@ namespace Odin.Services.Authorization.Apps
         private async Task<(IReadOnlyDictionary<Guid, ZkAppDriveKey>? Keys, IReadOnlySet<Guid>? DriveIds)> GetZkDrivesAsync(
             AppRegistration appReg)
         {
-            var copies = appReg.ZkAppKeyEncryptedStorageKeys ?? new Dictionary<Guid, string>();
-            var granted = appReg.AppKeyStore?.DriveGrants?.Select(g => g.DriveId) ?? [];
-
+            // A copy goes with the grant that reads its drive (SaveAsync), so the grants cover every copy
             var keys = new Dictionary<Guid, ZkAppDriveKey>();
             var ids = new HashSet<Guid>();
-            foreach (var driveId in granted.Concat(copies.Keys).Distinct())
+            foreach (var driveId in appReg.AppKeyStore?.DriveGrants?.Select(g => g.DriveId).Distinct() ?? [])
             {
                 if (await driveManager.GetDriveAsync(driveId) is not { IsZeroKnowledge: true } drive)
                 {
@@ -358,7 +356,7 @@ namespace Odin.Services.Authorization.Apps
                 }
 
                 ids.Add(driveId);
-                if (copies.TryGetValue(driveId, out var locked))
+                if (appReg.ZkAppKeyEncryptedStorageKeys?.TryGetValue(driveId, out var locked) == true)
                 {
                     keys[driveId] = new ZkAppDriveKey(locked, drive.ZkStorageKeyEncryptedWriteOnlyPrivateKey);
                 }

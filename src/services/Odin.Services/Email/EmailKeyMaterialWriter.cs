@@ -7,7 +7,6 @@ using Odin.Core.Cryptography.Pgp;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -44,8 +43,7 @@ namespace Odin.Services.Email;
 public class EmailKeyMaterialWriter(
     ILogger<EmailKeyMaterialWriter> logger,
     StandardFileSystem fileSystem,
-    IDriveManager driveManager,
-    TableDriveMainIndexCached driveMainIndex)
+    IDriveManager driveManager)
 {
     // The client will not be allowed to rewrite anything larger than its own 7000-byte header
     // budget, so hold to the tighter of the two limits rather than the server's 10KB.
@@ -62,7 +60,6 @@ public class EmailKeyMaterialWriter(
         string userId,
         IOdinContext odinContext)
     {
-
         var uniqueId = Guid.NewGuid();
         var content = new EmailKeyMaterialContent
         {
@@ -108,7 +105,7 @@ public class EmailKeyMaterialWriter(
     private async Task WriteFileAsync<T>(int fileType, Guid uniqueId, T content, IOdinContext odinContext)
     {
         var drive = await driveManager.GetDriveAsync(DriveId, failIfInvalid: true);
-        if (!drive!.IsZeroKnowledge)
+        if (!drive.IsZeroKnowledge)
         {
             AssertCanResolveStorageKey(odinContext);
         }
@@ -120,7 +117,8 @@ public class EmailKeyMaterialWriter(
                 OdinClientErrorCode.ZkAppKeyMissing);
         }
 
-        var existing = await FindByUniqueIdAsync(uniqueId);
+        // Skipping the file's ACL: a pointer the server wrote is found whoever asks; the write still runs as the caller
+        var existing = await fileSystem.Query.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(DriveId, uniqueId, odinContext);
 
         var file = existing?.FileMetadata.File
                    ?? await fileSystem.Storage.CreateInternalFileId(DriveId, odinContext);
@@ -131,8 +129,7 @@ public class EmailKeyMaterialWriter(
 
         // Stored as sealed on a zero-knowledge drive, which takes only keys a client could have locked
         var keyHeader = drive.IsZeroKnowledge
-            ? new ClientLockedKeyHeader(EncryptedKeyHeader.Sealed(fileKey.Iv,
-                ZkSeal.Seal(fileKey.Combine().GetKey(), drive.WriteOnlyKeyPair.PublicKeyJwk())))
+            ? new ClientLockedKeyHeader(EncryptedKeyHeader.SealedTo(fileKey, drive.WriteOnlyKeyPair.PublicKeyJwk()))
             : fileKey;
 
         if (storedContent.ToUtf8ByteArray().Length > MaxHeaderContentBytes)
@@ -174,17 +171,6 @@ public class EmailKeyMaterialWriter(
         {
             await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
         }
-    }
-
-    /// <summary>
-    /// The file already under <paramref name="uniqueId"/>, read from the index rather than through the caller: on a
-    /// zero-knowledge drive a caller without the drive's key sees no sealed file, and would write the pointer a second
-    /// time.  Only where to write; the write itself runs as the caller.
-    /// </summary>
-    private async Task<ServerFileHeader?> FindByUniqueIdAsync(Guid uniqueId)
-    {
-        var record = await driveMainIndex.GetByUniqueIdAsync(DriveId, uniqueId);
-        return record == null ? null : ServerFileHeader.FromDriveMainIndexRecord(record);
     }
 
     /// <summary>
