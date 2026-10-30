@@ -1089,6 +1089,24 @@ node's service provider, and StackExchange.Redis throws while closing the connec
 **Cause, a hypothesis:** a race inside the Redis client while a multiplexer is disposed with its own connect or
 background tasks still settling. Undiagnosed; the failed job was re-run.
 
+## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
+
+- `Disconnect_PushesConnectionChanged`
+
+**Where:** CI, `ubuntu/sqlite/release`, PR #1626 (`add-v2-followers-controller`) commit `bf0ca80ed`, run
+40947890910, 2026-10-29. `ubuntu/postgres/release` (run 40947891126) and `windows/sqlite/debug` (run 40947890992)
+passed it on the same commit.
+
+**Symptom:** `OperationCanceledException: Aborted`, inner `ObjectDisposedException` on
+`System.Net.WebSockets.WebSocket`, from `TestOwnerWebSocketListener.StartReceiving` awaited by its
+`DisconnectAsync`: the receive loop was still reading when the test's listener closed the socket.
+
+**Not caused by the PR:** #1626 adds the v2 follower controller and its tests; it changes nothing in
+connections, notifications, WebSockets or this V1 fixture. Recent `main` runs were not checked.
+
+**Cause, a hypothesis:** the listener's teardown disposes the socket under its own pending `ReceiveAsync`, and the
+resulting abort escapes `DisconnectAsync` instead of being treated as the expected end of the stream.
+
 ---
 
 ## Seen once, not chased (2026-09-05 to 10-20)

@@ -20,6 +20,10 @@ public class TableFollowsMe(
     internal const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
+    /// <summary>When each of [identities] started following; see <see cref="FollowTableDates"/>.</summary>
+    internal Task<Dictionary<string, Odin.Core.Time.UnixTimeUtc>> GetFollowedAtAsync(IReadOnlyCollection<string> identities) =>
+        FollowTableDates.SelectFirstCreatedAsync(_scopedConnectionFactory, "followsme", odinIdentity, identities);
+
     /// <summary>Everyone following one drive (a channel); for when the drive is deleted.</summary>
     internal async Task<int> DeleteByDriveAsync(Guid driveId)
     {
