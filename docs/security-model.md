@@ -45,11 +45,14 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 | Owner | password → master key | master key unwraps everything |
 | App (owner using an app) | client token | token half ⊕ server half → App Client Key → **App Key** → its drive storage keys (+ ICR key if it asked for a transit key) |
 | Guest / YouAuth domain | client token | its own grant (`AppGrants`) |
+| Guest / home-site visitor | client token (`BuiltInBrowserApp`, `XT32` cookie) | no grant of its own: what its connection (or follow) already allows (`HomeAuthenticatorService`) |
 | Peer (another identity) | TLS client cert + CAT | CAT → **Peer Key** → that connection's circle grants |
 | Anonymous | nothing | drives with `AllowAnonymousReads` only |
 
 - The App Key and Peer Key are hub keys: each grant beneath them is wrapped once, individually (plan doc) **(V)**.
 - An app gets the ICR key only when it requests a transit permission; guests have none **(V)**, from the #1977 work.
+- Both kinds of guest pass the same checks: V1 gives them the same claims (`YouAuthAuthenticationHandler`), and V2's
+  guest policies take both token types (`UnifiedPolicies.GuestTokenTypes`) **(V)**.
 
 ### Permission keys (`CirclePermissionFlags.cs`, class `PermissionKeys`) **(V)**
 
