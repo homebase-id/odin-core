@@ -43,7 +43,8 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
                    +"aclMemberId BYTEA NOT NULL, "
-                   +"expiresAt BIGINT  "
+                   +"expiresAt BIGINT , "
+                   +"permissions BIGINT NOT NULL DEFAULT 1 "
                    +", UNIQUE(identityId,driveId,fileId,aclMemberId)"
                    +$"){wori};"
                    ;
@@ -59,6 +60,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             sl.Add("fileId");
             sl.Add("aclMemberId");
             sl.Add("expiresAt");
+            sl.Add("permissions");
             return sl;
         }
 
@@ -68,8 +70,9 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await CheckSqlTableVersion(cn, "DriveAclIndex", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
-                // expiresAt is new in this version and is omitted from both lists: every existing row lands
-                // as NULL, which never expires (docs/selective-share-plan.md).
+                // expiresAt and permissions are new in this version and are omitted from both lists: every
+                // existing row lands as NULL, which never expires, and as 1, read, which is what every row
+                // meant before (docs/selective-share-plan.md).
                 copyCommand.CommandText = "INSERT INTO DriveAclIndexMigrationsV202610301200 (rowId,identityId,driveId,fileId,aclMemberId) " +
                $"SELECT rowId,identityId,driveId,fileId,aclMemberId "+
                $"FROM DriveAclIndex;";

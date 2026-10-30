@@ -17,7 +17,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Migrations;
 /// <see cref="TableCircleMigrationV202610301200"/>, <see cref="TableCircleMemberMigrationV202610301200"/> and
 /// <see cref="TableDriveAclIndexMigrationV202610301200"/> add the Selective Share columns
 /// (docs/selective-share-plan.md).  Every existing row is carried over with them NULL: no circle has a key, no
-/// member a sealed copy, and no share expires.
+/// member a sealed copy, no share expires, and every ACL index row means read.
 /// </summary>
 public class ShareKeyColumnsMigrationTests : IocTestBase
 {
@@ -65,6 +65,7 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         Assert.That(circles[0].appKeyLockedShareKey, Is.Null, "no circle has a key until its app first shares");
         Assert.That(members[0].sealedShareKey, Is.Null, "no member has a sealed copy until the app seals one");
         Assert.That(aclRows[0].expiresAt, Is.Null, "no existing share expires");
+        Assert.That(aclRows[0].permissions, Is.EqualTo(1), "every existing row means read, as it did before");
 
         // The new columns hold what is written and read back through the generated records.
         var lockedKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();

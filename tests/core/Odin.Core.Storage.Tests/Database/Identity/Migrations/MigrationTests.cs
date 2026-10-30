@@ -303,7 +303,7 @@ public class DatabaseMigrationTests : IocTestBase
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
 #endif
-    public async Task DriveAclIndexMigration_CopiesExistingRow_AndLeavesExpiresAtNull(DatabaseType databaseType)
+    public async Task DriveAclIndexMigration_CopiesExistingRow_AsReadWithNoExpiry(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
         await using var scope = Services.BeginLifetimeScope();
@@ -320,7 +320,7 @@ public class DatabaseMigrationTests : IocTestBase
                 cmd.AddParameter("@fileId", DbType.Binary, Guid.NewGuid().ToByteArray());
                 cmd.AddParameter("@aclMemberId", DbType.Binary, aclMemberId.ToByteArray());
             },
-            "SELECT COUNT(*) FROM DriveAclIndex WHERE expiresAt IS NULL");
+            "SELECT COUNT(*) FROM DriveAclIndex WHERE expiresAt IS NULL AND permissions = 1");
     }
 
     [Test]

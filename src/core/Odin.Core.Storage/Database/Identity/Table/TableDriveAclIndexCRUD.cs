@@ -27,6 +27,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public Guid fileId { get; set; }
         public Guid aclMemberId { get; set; }
         public UnixTimeUtc? expiresAt { get; set; }
+        public Int32 permissions { get; set; }
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
@@ -73,7 +74,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
                    +"aclMemberId BYTEA NOT NULL, "
-                   +"expiresAt BIGINT  "
+                   +"expiresAt BIGINT , "
+                   +"permissions BIGINT NOT NULL DEFAULT 1 "
                    +", UNIQUE(identityId,driveId,fileId,aclMemberId)"
                    +$"){wori};"
                    ;
@@ -87,14 +89,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId,expiresAt) " +
-                                           $"VALUES (@identityId,@driveId,@fileId,@aclMemberId,@expiresAt)"+
+                insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId,expiresAt,permissions) " +
+                                           $"VALUES (@identityId,@driveId,@fileId,@aclMemberId,@expiresAt,@permissions)"+
                                             "RETURNING -1,-1,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
                 insertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
                 insertCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 insertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt?.milliseconds);
+                insertCommand.AddParameter("@permissions", DbType.Int32, item.permissions);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -111,8 +114,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId,expiresAt) " +
-                                            $"VALUES (@identityId,@driveId,@fileId,@aclMemberId,@expiresAt) " +
+                insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId,expiresAt,permissions) " +
+                                            $"VALUES (@identityId,@driveId,@fileId,@aclMemberId,@expiresAt,@permissions) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -120,6 +123,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
                 insertCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 insertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt?.milliseconds);
+                insertCommand.AddParameter("@permissions", DbType.Int32, item.permissions);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -136,16 +140,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId,expiresAt) " +
-                                            $"VALUES (@identityId,@driveId,@fileId,@aclMemberId,@expiresAt)"+
+                upsertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId,expiresAt,permissions) " +
+                                            $"VALUES (@identityId,@driveId,@fileId,@aclMemberId,@expiresAt,@permissions)"+
                                             "ON CONFLICT (identityId,driveId,fileId,aclMemberId) DO UPDATE "+
-                                            $"SET expiresAt = @expiresAt "+
+                                            $"SET expiresAt = @expiresAt,permissions = @permissions "+
                                             "RETURNING -1,-1,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
                 upsertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
                 upsertCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 upsertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt?.milliseconds);
+                upsertCommand.AddParameter("@permissions", DbType.Int32, item.permissions);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -163,7 +168,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE DriveAclIndex " +
-                                            $"SET expiresAt = @expiresAt "+
+                                            $"SET expiresAt = @expiresAt,permissions = @permissions "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId) "+
                                             "RETURNING -1,-1,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -171,6 +176,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
                 updateCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 updateCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt?.milliseconds);
+                updateCommand.AddParameter("@permissions", DbType.Int32, item.permissions);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -205,6 +211,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("fileId");
             sl.Add("aclMemberId");
             sl.Add("expiresAt");
+            sl.Add("permissions");
             return sl;
         }
 
@@ -224,7 +231,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        // SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt
+        // SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt,permissions
         protected DriveAclIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveAclIndexRecord>();
@@ -239,6 +246,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.aclMemberId = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
             item.expiresAt = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
+            item.permissions = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
             return item;
        }
 
@@ -247,7 +255,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var exportCommand = cn.CreateCommand();
             {
-                exportCommand.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt FROM DriveAclIndex " +
+                exportCommand.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt,permissions FROM DriveAclIndex " +
                                             "WHERE identityId = @identityId ORDER BY rowId ASC;";
                 exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
@@ -263,13 +271,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var importCommand = cn.CreateCommand();
             {
-                importCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId,expiresAt) " +
-                                            "VALUES (@identityId,@driveId,@fileId,@aclMemberId,@expiresAt);";
+                importCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId,expiresAt,permissions) " +
+                                            "VALUES (@identityId,@driveId,@fileId,@aclMemberId,@expiresAt,@permissions);";
                 importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 importCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
                 importCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
                 importCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 importCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt?.milliseconds);
+                importCommand.AddParameter("@permissions", DbType.Int32, item.permissions);
                 return await importCommand.ExecuteNonQueryAsync();
             }
         }
@@ -314,7 +323,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 deleteCommand.CommandText = "DELETE FROM DriveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId " + 
-                                             "RETURNING rowId,expiresAt";
+                                             "RETURNING rowId,expiresAt,permissions";
 
                 deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 deleteCommand.AddParameter("@driveId", DbType.Binary, driveId);
@@ -348,6 +357,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.aclMemberId = aclMemberId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.expiresAt = (rdr[1] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[1]);
+            item.permissions = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             return item;
        }
 
@@ -356,7 +366,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,expiresAt FROM DriveAclIndex " +
+                get0Command.CommandText = "SELECT rowId,expiresAt,permissions FROM DriveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId LIMIT 1 "+
                                              ";";
 
@@ -434,7 +444,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt FROM DriveAclIndex " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt,permissions FROM DriveAclIndex " +
                                             "WHERE (identityId = @identityId) AND rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
 
                 getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);

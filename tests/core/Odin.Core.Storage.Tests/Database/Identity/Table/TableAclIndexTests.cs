@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
@@ -46,6 +48,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
                 Assert.Fail();
+
+            // A file's ACL grants read; nothing narrower is written until Selective Share.
+            var (rows, _) = await tblDriveAclIndex.PagingByRowIdAsync(10, null);
+            Assert.That(rows.Select(r => (r.aclMemberId, r.permissions, r.expiresAt)),
+                Is.EqualTo(new[] { (a1[0], 1, (UnixTimeUtc?)null) }));
         }
 
         [Test]
