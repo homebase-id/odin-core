@@ -804,8 +804,12 @@ namespace Odin.Services.DataSubscription.Follower
             return result;
         }
 
-        // One identity has a row per channel it follows; the earliest is when the follow was made
-        private static UnixTimeUtc? FirstCreated(IEnumerable<UnixTimeUtc> created) =>
-            created.Select(c => (UnixTimeUtc?)c).Min();
+        // One identity has a row per channel it follows; the earliest is when the follow was made. By milliseconds:
+        // UnixTimeUtc is not IComparable, so Min over it throws once there are two rows to compare
+        private static UnixTimeUtc? FirstCreated(IEnumerable<UnixTimeUtc> created)
+        {
+            var ms = created.Select(c => c.milliseconds).ToList();
+            return ms.Count == 0 ? null : new UnixTimeUtc(ms.Min());
+        }
     }
 }
