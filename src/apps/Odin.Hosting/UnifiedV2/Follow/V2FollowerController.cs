@@ -58,10 +58,10 @@ public class V2FollowerController(FollowerService followerService, FollowerSugge
 
     [HttpGet("identities-i-follow")]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
-    [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get list of identities you follow")]
-    public async Task<CursoredResult<string>> GetIdentitiesIFollow(int count, string cursor)
+    [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get list of identities you follow, and when you followed each")]
+    public async Task<CursoredResult<FollowEntry>> GetIdentitiesIFollow(int count, string cursor)
     {
-        return await followerService.GetIdentitiesIFollowAsync(count, cursor, WebOdinContext);
+        return await followerService.GetIdentitiesIFollowWithDatesAsync(count, cursor, WebOdinContext);
     }
 
     [HttpGet("identity-i-follow")]
@@ -75,10 +75,10 @@ public class V2FollowerController(FollowerService followerService, FollowerSugge
 
     [HttpGet("following-me")]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
-    [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get list of identities following you")]
-    public async Task<CursoredResult<string>> GetFollowingMe(int count, string cursor)
+    [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get list of identities following you, and when each followed")]
+    public async Task<CursoredResult<FollowEntry>> GetFollowingMe(int count, string cursor)
     {
-        return await followerService.GetAllFollowersAsync(count, cursor, WebOdinContext);
+        return await followerService.GetAllFollowersWithDatesAsync(count, cursor, WebOdinContext);
     }
 
     [HttpGet("follower")]

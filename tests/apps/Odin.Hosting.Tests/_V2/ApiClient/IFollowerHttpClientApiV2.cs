@@ -19,10 +19,10 @@ public interface IFollowerHttpClientApiV2
     Task<ApiResponse<HttpContent>> Unfollow([Body] OdinIdRequest request);
 
     [Get(Root + "/identities-i-follow")]
-    Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollow(int count, string cursor);
+    Task<ApiResponse<CursoredResult<FollowEntry>>> GetIdentitiesIFollow(int count, string cursor);
 
     [Get(Root + "/following-me")]
-    Task<ApiResponse<CursoredResult<string>>> GetFollowingMe(int count, string cursor);
+    Task<ApiResponse<CursoredResult<FollowEntry>>> GetFollowingMe(int count, string cursor);
 
     [Get(Root + "/identity-i-follow")]
     Task<ApiResponse<FollowerDefinition>> GetIdentityIFollow(string odinId);

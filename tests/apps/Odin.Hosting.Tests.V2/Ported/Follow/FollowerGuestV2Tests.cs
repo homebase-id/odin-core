@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -41,7 +42,7 @@ public class FollowerGuestV2Tests : V2Fixture
 
         var iFollow = await followers.GetIdentitiesIFollowAsync();
         Assert.That(iFollow.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(iFollow.Content!.Results, Does.Contain(frodo.Identity.DomainName));
+        Assert.That(iFollow.Content!.Results.Select(f => f.OdinId), Does.Contain(frodo.Identity.DomainName));
     }
 
     [Test]

@@ -23,10 +23,10 @@ public class V2FollowerClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<HttpContent>> UnfollowAsync(OdinIdRequest request)
         => await Service().Unfollow(request);
 
-    public async Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollowAsync(int count = 100, string cursor = "")
+    public async Task<ApiResponse<CursoredResult<FollowEntry>>> GetIdentitiesIFollowAsync(int count = 100, string cursor = "")
         => await Service().GetIdentitiesIFollow(count, cursor);
 
-    public async Task<ApiResponse<CursoredResult<string>>> GetFollowingMeAsync(int count = 100, string cursor = "")
+    public async Task<ApiResponse<CursoredResult<FollowEntry>>> GetFollowingMeAsync(int count = 100, string cursor = "")
         => await Service().GetFollowingMe(count, cursor);
 
     public async Task<ApiResponse<FollowerDefinition>> GetIdentityIFollowAsync(OdinId odinId)

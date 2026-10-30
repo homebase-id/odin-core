@@ -39,11 +39,11 @@ public sealed class FollowersHandle
         => _v2Followers.UnfollowAsync(new OdinIdRequest { OdinId = identity });
 
     /// <summary>GET /api/v2/followers/identities-i-follow</summary>
-    public Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollowAsync(int count = 100, string cursor = "")
+    public Task<ApiResponse<CursoredResult<FollowEntry>>> GetIdentitiesIFollowAsync(int count = 100, string cursor = "")
         => _v2Followers.GetIdentitiesIFollowAsync(count, cursor);
 
     /// <summary>GET /api/v2/followers/following-me</summary>
-    public Task<ApiResponse<CursoredResult<string>>> GetFollowingMeAsync(int count = 100, string cursor = "")
+    public Task<ApiResponse<CursoredResult<FollowEntry>>> GetFollowingMeAsync(int count = 100, string cursor = "")
         => _v2Followers.GetFollowingMeAsync(count, cursor);
 
     /// <summary>GET /api/v2/followers/identity-i-follow</summary>

@@ -1,3 +1,4 @@
+using Odin.Core.Time;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -31,7 +32,32 @@ public class FollowerV2Tests : V2Fixture
 
         var iFollow = await frodo.Followers.GetIdentitiesIFollowAsync();
         Assert.That(iFollow.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(iFollow.Content!.Results, Does.Contain(sam.Identity.DomainName));
+        Assert.That(iFollow.Content!.Results.Select(f => f.OdinId), Does.Contain(sam.Identity.DomainName));
+    }
+
+    [Test]
+    public async Task Follow_RecordsWhen_OnBothListsAndBothDefinitions()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var before = UnixTimeUtc.Now().AddSeconds(-60);
+
+        await frodo.Followers.FollowAsync(sam.Identity);
+        var after = UnixTimeUtc.Now().AddSeconds(60);
+
+        var iFollow = (await frodo.Followers.GetIdentitiesIFollowAsync()).Content!.Results
+            .Single(f => f.OdinId == sam.Identity.DomainName);
+        Assert.That(iFollow.FollowedAt?.milliseconds, Is.InRange(before.milliseconds, after.milliseconds), "identities-i-follow says when");
+
+        var followingSam = (await sam.Followers.GetFollowingMeAsync()).Content!.Results
+            .Single(f => f.OdinId == frodo.Identity.DomainName);
+        Assert.That(followingSam.FollowedAt?.milliseconds, Is.InRange(before.milliseconds, after.milliseconds), "following-me says when");
+
+        var definition = (await frodo.Followers.GetIdentityIFollowAsync(sam.Identity)).Content!;
+        Assert.That(definition.FollowedAt, Is.EqualTo(iFollow.FollowedAt), "identity-i-follow agrees with the list");
+
+        var follower = (await sam.Followers.GetFollowerAsync(frodo.Identity)).Content!;
+        Assert.That(follower.FollowedAt, Is.EqualTo(followingSam.FollowedAt), "follower agrees with the list");
     }
 
     [Test]
@@ -45,7 +71,7 @@ public class FollowerV2Tests : V2Fixture
         // The follow is delivered to Sam over the perimeter, so Sam is the one who can see it.
         var followingSam = await sam.Followers.GetFollowingMeAsync();
         Assert.That(followingSam.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(followingSam.Content!.Results, Does.Contain(frodo.Identity.DomainName));
+        Assert.That(followingSam.Content!.Results.Select(f => f.OdinId), Does.Contain(frodo.Identity.DomainName));
     }
 
     [Test]
@@ -86,10 +112,10 @@ public class FollowerV2Tests : V2Fixture
         Assert.That(unfollow.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var iFollow = await frodo.Followers.GetIdentitiesIFollowAsync();
-        Assert.That(iFollow.Content!.Results, Does.Not.Contain(sam.Identity.DomainName));
+        Assert.That(iFollow.Content!.Results.Select(f => f.OdinId), Does.Not.Contain(sam.Identity.DomainName));
 
         var followingSam = await sam.Followers.GetFollowingMeAsync();
-        Assert.That(followingSam.Content!.Results, Does.Not.Contain(frodo.Identity.DomainName));
+        Assert.That(followingSam.Content!.Results.Select(f => f.OdinId), Does.Not.Contain(frodo.Identity.DomainName));
     }
 
     [Test]
