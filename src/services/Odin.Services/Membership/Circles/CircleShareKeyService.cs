@@ -71,7 +71,7 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
         var rows = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
         return rows
             .Where(r => r.sealedShareKey == null)
-            .Select(StorageData)
+            .Select(CircleMemberStorageData.From)
             .Where(d => d.DomainType == DomainType.Identity)
             .Select(d => new OdinId(d.DomainName))
             .ToList();
@@ -111,7 +111,7 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
         foreach (var (memberId, odinId, sealedKey) in members)
         {
             var row = await db.CircleMemberCached.GetAsync(circleId, memberId);
-            if (row == null || StorageData(row).DomainType != DomainType.Identity ||
+            if (row == null || CircleMemberStorageData.From(row).DomainType != DomainType.Identity ||
                 await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey) == 0)
             {
                 throw new OdinClientException($"{odinId} is not a member of circle {circleId}",
@@ -151,19 +151,15 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
     {
         var circle = await db.CircleCached.GetAsync(circleId)
                      ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
-        CircleMembershipService.AssertCallerMayManageCircle(circleId, circle.AppId, action, odinContext);
-
-        // The app check refuses owner circles already; the owner console skips it, so it is made here too
         if (SystemAppConstants.IsOwnerConsole(circle.AppId))
         {
             throw new OdinSecurityException($"Cannot {action} circle {circleId}: an owner circle has no share key");
         }
 
+        CircleMembershipService.AssertCallerMayManageCircle(circleId, circle.AppId, action, odinContext);
+
         return circle;
     }
-
-    private static CircleMemberStorageData StorageData(CircleMemberRecord row) =>
-        OdinSystemSerializer.Deserialize<CircleMemberStorageData>(row.data.ToStringFromUtf8Bytes());
 
     /// <summary>Checks what the server can check of a blob it can't open: its size, and the format it knows.</summary>
     private static void AssertFormat(byte[] blob, int maxLength, string name)

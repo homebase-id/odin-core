@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -58,7 +56,6 @@ public class CircleNetworkStorage
         return await MapFromStorageAsync(record);
     }
 
-    [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
     public async Task UpsertAsync(IdentityConnectionRegistration icr)
     {
         var icrAccessRecord = MapToStorageIcrAccessRecord(icr);

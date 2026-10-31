@@ -46,7 +46,7 @@ public class CircleMembershipService(
         var allCircleMembers = await db.CircleMemberCached.GetAllCirclesAsync();
         foreach (var cmr in allCircleMembers)
         {
-            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(cmr.data.ToStringFromUtf8Bytes());
+            var storageData = CircleMemberStorageData.From(cmr);
 
             //convert the driveId to the alias
             var updatedDriveIdList = storageData.CircleGrant.KeyStoreKeyEncryptedDriveGrants.Select(g => new DriveGrant
@@ -133,7 +133,7 @@ public class CircleMembershipService(
     {
         foreach (var member in await db.CircleMemberCached.GetAllCirclesAsync())
         {
-            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(member.data.ToStringFromUtf8Bytes());
+            var storageData = CircleMemberStorageData.From(member);
             if (update(storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants))
             {
                 member.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
@@ -152,26 +152,12 @@ public class CircleMembershipService(
         }
     }
 
-    public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
-    {
-        //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
-        var memberId = OdinId.ToHashId(domainName);
-
-        await using var tx = await db.BeginStackedTransactionAsync();
-        var circleMemberRecords = await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId);
-
-        foreach (var circleMemberRecord in circleMemberRecords)
-        {
-            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data
-                .ToStringFromUtf8Bytes());
-            if (sd.DomainType == domainType)
-            {
-                await db.CircleMemberCached.DeleteAsync(sd.CircleGrant.CircleId, memberId);
-            }
-        }
-
-        tx.Commit();
-    }
+    /// <summary>
+    /// Deletes a domain's membership rows of one type only, so signing in through YouAuth doesn't delete the
+    /// identity's circles: <see cref="ReconcileMemberCirclesAsync"/> with no grants.
+    /// </summary>
+    public Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType) =>
+        ReconcileMemberCirclesAsync(domainName, domainType, new Dictionary<Guid, CircleGrant>());
 
     /// <summary>
     /// Makes a domain's membership rows of one type match its circle grants: rows of circles no longer granted
@@ -188,7 +174,7 @@ public class CircleMembershipService(
         var heldByOtherType = new HashSet<Guid>();
         foreach (var row in await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId))
         {
-            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(row.data.ToStringFromUtf8Bytes());
+            var sd = CircleMemberStorageData.From(row);
             if (sd.DomainType != domainType)
             {
                 heldByOtherType.Add(row.circleId);
@@ -228,7 +214,7 @@ public class CircleMembershipService(
         var records =
             await db.CircleMemberCached.GetMemberCirclesAndDataAsync(OdinId.ToHashId(domainName));
         var circleMemberRecords = records.Select(d =>
-            OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
+            CircleMemberStorageData.From(d)
         );
         return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
@@ -246,7 +232,7 @@ public class CircleMembershipService(
         var memberBytesList = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
         var result = memberBytesList.Select(item =>
         {
-            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
+            var data = CircleMemberStorageData.From(item);
             return new CircleDomainResult()
             {
                 DomainType = data.DomainType,

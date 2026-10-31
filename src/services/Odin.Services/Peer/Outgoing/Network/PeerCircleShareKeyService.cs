@@ -26,9 +26,8 @@ public class PeerCircleShareKeyService(
     public async Task<byte[]> GetMySealedShareKeyAsync(OdinId odinId, GuidId circleId, IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
-        var token = await ResolveClientAccessTokenAsync(odinId, odinContext, PeerAccess.Read);
-        var client = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerCircleShareKeyHttpClient>(
-            odinId, token.ToAuthenticationToken());
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
+        var (_, client) = await CreateHttpClientAsync<IPeerCircleShareKeyHttpClient>(odinId, odinContext);
 
         var result = await ExecuteRequestAsync(() => client.GetMySealedShareKey(circleId.Value, cancellationToken),
             cancellationToken);
