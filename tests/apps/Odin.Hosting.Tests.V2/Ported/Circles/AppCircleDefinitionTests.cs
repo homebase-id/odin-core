@@ -111,6 +111,33 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
+    /// <summary>
+    /// An app may always see who is in its own circles; another app's need ReadCircleMembership.  Both member lists:
+    /// the circle membership one and the V2 connections one.
+    /// </summary>
+    [Test]
+    public async Task AppWithoutTheKeyGetsTheMembersOfItsOwnCircleOnly()
+    {
+        var owner = await LoginAsOwner();
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
+        var v2 = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
+        Assert.That((await v2.GrantCircle(new AddCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam })).StatusCode,
+            Is.EqualTo(HttpStatusCode.OK));
+
+        var list = await GetDomainsInCircle(app, circleId);
+        Assert.That(list.StatusCode, Is.EqualTo(HttpStatusCode.OK), list.Error?.Content);
+        Assert.That(list.Content!.Select(m => m.Domain.DomainName), Is.EqualTo(new[] { Identities.Sam }));
+
+        var members = await v2.GetCircleMembers(circleId);
+        Assert.That(members.StatusCode, Is.EqualTo(HttpStatusCode.OK), members.Error?.Content);
+        Assert.That(members.Content!.Select(m => m.DomainName), Is.EqualTo(new[] { Identities.Sam }));
+
+        var (other, _, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
+        Assert.That((await GetDomainsInCircle(other, circleId)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That((await other.RefitFor<IConnectionNetworkHttpClientApiV2>().GetCircleMembers(circleId)).StatusCode,
+            Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
     [Test]
     public async Task AppCanGetCircleDefinition()
     {

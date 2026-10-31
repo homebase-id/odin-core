@@ -207,6 +207,9 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
 - A connected caller's rights are the union of their enabled circles' grants. A disabled circle grants nothing **(V)**.
 - `AppId` on a circle is the owning app; null = owner circle. An app may change only its own circles and can't enrol
   anyone into an owner circle **(V)**.
+- **Who may see a circle's members** (and who is pending in it): the owner; the app that owns the circle, always; any
+  other app only with `ReadCircleMembership` (`CircleMembershipService.AssertCallerMayReadMembersAsync`) **(V)**.
+  Listing every circle with its members still needs the key.
 - **Read grants need the Peer Key** (the drive's storage key is wrapped for the member). Write/react grants, and every
   grant on a zero-knowledge drive, carry no key material (`CircleNetworkService.RequiresPeerKeyAsync`, which asks
   `StorageDrive.GrantCarriesStorageKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
@@ -220,9 +223,8 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   locked with the owning app's zero-knowledge key, and each member's copy, sealed to their matching drive. The server
   opens neither, and checks only their size and format version (`CircleShareKeyService`) **(V)**.
   - Only the owning app or the owner console may read or set the key, list members without a copy, or store copies
-    (`CircleMembershipService.AssertCallerMayManageCircle`); never on an owner circle. No permission key: an app may
-    always see who is in its own circles, as the owner may in any; `ReadCircleMembership` is for an app reading
-    other circles **(V)**.
+    (`CircleMembershipService.AssertCallerMayManageCircle`); never on an owner circle. No permission key: owning the
+    circle is the authority, as for enabling or disabling it **(V)**.
   - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only when the circle
     has its key **(V)**.
   - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles; the row

@@ -225,8 +225,7 @@ public class CircleMembershipService(
         //coming from EstablishConnection (i.e. we need some form of pre-authorized token)
         if (!overrideHack)
         {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-
+            await AssertCallerMayReadMembersAsync(circleId, odinContext);
         }
 
         var memberBytesList = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
@@ -242,6 +241,18 @@ public class CircleMembershipService(
         }).ToList();
 
         return result;
+    }
+
+    /// <summary>
+    /// Who may see who is in a circle: an app holding <c>ReadCircleMembership</c>, any circle; otherwise the owner,
+    /// or the app that owns the circle, which may always see who is in its own circles.
+    /// </summary>
+    public async Task AssertCallerMayReadMembersAsync(GuidId circleId, IOdinContext odinContext)
+    {
+        if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadCircleMembership))
+        {
+            await AssertCallerMayManageCircleAsync(circleId, "list the members of", odinContext);
+        }
     }
 
     public async Task AddCircleMemberAsync(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)

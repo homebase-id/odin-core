@@ -599,8 +599,8 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<IEnumerable<OdinId>> GetCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
         {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-            //added override:true because PermissionKeys.ReadCircleMembership is present
+            await circleMembershipService.AssertCallerMayReadMembersAsync(circleId, odinContext);
+            //added override:true because the caller may read the members (checked above)
             var result = (await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true))
                 .Where(d => d.DomainType == DomainType.Identity)
                 .Select(m => new OdinId(m.Domain));
@@ -684,7 +684,8 @@ namespace Odin.Services.Membership.Connections
         /// </remarks>
         public async Task<List<PendingCircleMember>> GetPendingCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
         {
-            var all = await GetAllPendingCircleMembersAsync(odinContext);
+            await circleMembershipService.AssertCallerMayReadMembersAsync(circleId, odinContext);
+            var all = await CollectPendingCircleMembersAsync(odinContext);
             return all.TryGetValue(circleId.Value, out var members) ? members : [];
         }
 
@@ -695,7 +696,11 @@ namespace Odin.Services.Membership.Connections
         public async Task<Dictionary<Guid, List<PendingCircleMember>>> GetAllPendingCircleMembersAsync(IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
+            return await CollectPendingCircleMembersAsync(odinContext);
+        }
 
+        private async Task<Dictionary<Guid, List<PendingCircleMember>>> CollectPendingCircleMembersAsync(IOdinContext odinContext)
+        {
             var pending = new Dictionary<Guid, List<PendingCircleMember>>();
 
             string cursor = null;
