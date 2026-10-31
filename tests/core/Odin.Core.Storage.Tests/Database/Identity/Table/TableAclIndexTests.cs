@@ -52,7 +52,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // A file's ACL grants read; nothing narrower is written until Selective Share.
             var (rows, _) = await tblDriveAclIndex.PagingByRowIdAsync(10, null);
             Assert.That(rows.Select(r => (r.aclMemberId, r.permissions, r.expiresAt)),
-                Is.EqualTo(new[] { (a1[0], 1, (UnixTimeUtc?)null) }));
+                Is.EqualTo(new[] { (a1[0], TableDriveAclIndex.ReadPermission, (UnixTimeUtc?)null) }));
         }
 
         [Test]

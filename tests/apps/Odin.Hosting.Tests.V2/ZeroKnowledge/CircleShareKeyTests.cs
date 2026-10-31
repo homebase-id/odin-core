@@ -133,7 +133,7 @@ public class CircleShareKeyTests : V2Fixture
         var pippin = await LoginAsOwner(Identities.Pippin);
         var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
-        await AddAsync(app, circleId, Identities.Sam);
+        await AppCircles.AddMemberAsync(app, circleId, Identities.Sam);
 
         Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.EqualTo(new[] { Identities.Sam }));
         var beforeSealing = await FetchCopyAsync(sam, owner, circleId);
@@ -178,12 +178,8 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
-        var keys = app.RefitFor<ICircleShareKeyHttpClient>();
+        var (app, circleId, keys) = await CircleWithSamsCopyAsync(owner);
         var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
-        await AddAsync(app, circleId, Identities.Sam);
-        await keys.SetShareKey(circleId, Key(Blob(61, 1)));
-        await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7)));
 
         // Fetched once, so Sam's peer context, with the circle in it, is cached on Frodo's server
         Assert.That((await FetchCopyAsync(sam, owner, circleId)).Content?.SealedKey, Is.EqualTo(Copy(7)));
@@ -207,11 +203,7 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
-        var keys = app.RefitFor<ICircleShareKeyHttpClient>();
-        await AddAsync(app, circleId, Identities.Sam);
-        await keys.SetShareKey(circleId, Key(Blob(61, 1)));
-        await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7)));
+        var (_, circleId, _) = await CircleWithSamsCopyAsync(owner);
 
         var tenant = Host.GetTenantScope(owner.Identity.DomainName);
         await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(sam.Identity, ConnectionStatus.Connected, null);
@@ -236,14 +228,9 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
-        var keys = app.RefitFor<ICircleShareKeyHttpClient>();
+        var (app, circleId, keys) = await CircleWithSamsCopyAsync(owner);
         var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
-        await AddAsync(app, circleId, Identities.Sam);
-
         var key = Blob(61, 1);
-        await keys.SetShareKey(circleId, Key(key));
-        await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7)));
 
         var ownerNetwork = owner.RefitFor<IConnectionNetworkHttpClientApiV2>();
         Assert.That((await ownerNetwork.Block(new OdinIdRequest { OdinId = Identities.Sam })).StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -261,18 +248,25 @@ public class CircleShareKeyTests : V2Fixture
         Assert.That((await FetchCopyAsync(sam, owner, circleId))
             .StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
 
-        await AddAsync(app, circleId, Identities.Sam);
+        await AppCircles.AddMemberAsync(app, circleId, Identities.Sam);
         Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.EqualTo(new[] { Identities.Sam }));
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key));
     }
 
     // -------------------------------------------------------------------------------------------
 
-    private static async Task AddAsync(AppSession app, Guid circleId, string identity)
+    /// <summary>An app's circle with Sam in it, its key <c>Blob(61, 1)</c>, and Sam's copy <c>Copy(7)</c> stored.</summary>
+    private static async Task<(AppSession App, Guid CircleId, ICircleShareKeyHttpClient Keys)> CircleWithSamsCopyAsync(
+        OwnerSession owner)
     {
-        var add = await app.RefitFor<IConnectionNetworkHttpClientApiV2>()
-            .GrantCircle(new AddCircleMembershipRequest { CircleId = circleId, OdinId = identity });
-        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.OK), add.Error?.Content);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
+        var keys = app.RefitFor<ICircleShareKeyHttpClient>();
+        await AppCircles.AddMemberAsync(app, circleId, Identities.Sam);
+        var key = await keys.SetShareKey(circleId, Key(Blob(61, 1)));
+        Assert.That(key.StatusCode, Is.EqualTo(HttpStatusCode.OK), key.Error?.Content);
+        var copy = await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7)));
+        Assert.That(copy.StatusCode, Is.EqualTo(HttpStatusCode.OK), copy.Error?.Content);
+        return (app, circleId, keys);
     }
 
     /// <summary>The circle's stored key; a missing one fails with the status it got.</summary>

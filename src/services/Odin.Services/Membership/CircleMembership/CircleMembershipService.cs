@@ -172,15 +172,13 @@ public class CircleMembershipService(
         var memberId = OdinId.ToHashId(domainName);
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        var heldByOtherType = new HashSet<Guid>();
+        // Each row of this name: its own type's to keep or delete, the other type's to leave alone
+        var existing = new Dictionary<Guid, (bool OwnType, byte[] Data)>();
         foreach (var row in await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId))
         {
-            var sd = CircleMemberStorageData.From(row);
-            if (sd.DomainType != domainType)
-            {
-                heldByOtherType.Add(row.circleId);
-            }
-            else if (!circleGrants.ContainsKey(row.circleId))
+            var ownType = CircleMemberStorageData.From(row).DomainType == domainType;
+            existing[row.circleId] = (ownType, row.data);
+            if (ownType && !circleGrants.ContainsKey(row.circleId))
             {
                 await db.CircleMemberCached.DeleteAsync(row.circleId, memberId);
             }
@@ -188,10 +186,15 @@ public class CircleMembershipService(
 
         foreach (var (circleId, circleGrant) in circleGrants)
         {
-            if (!heldByOtherType.Contains(circleId))
+            var record = ToMemberRecord(circleId, domainName, circleGrant, domainType);
+
+            // Most saves change nothing here, since the grants were read from these same rows
+            if (existing.TryGetValue(circleId, out var row) && (!row.OwnType || row.Data.SequenceEqual(record.data)))
             {
-                await AddCircleMemberAsync(circleId, domainName, circleGrant, domainType);
+                continue;
             }
+
+            await db.CircleMemberCached.UpsertAsync(record);
         }
 
         tx.Commit();
@@ -250,7 +253,7 @@ public class CircleMembershipService(
     /// </summary>
     /// <remarks>
     /// An app without the key is refused (403) for a circle that doesn't exist too, as it always was, so the answer
-    /// doesn't tell it which circle ids exist.
+    /// doesn't tell it which circle ids exist (<see cref="GetCircleCallerMayManageAsync"/>).
     /// </remarks>
     public async Task AssertCallerMayReadMembersAsync(GuidId circleId, IOdinContext odinContext)
     {
@@ -259,30 +262,26 @@ public class CircleMembershipService(
             return;
         }
 
-        OdinValidationUtils.AssertNotNull(circleId, nameof(circleId));
-        var circle = await circleDefinitionService.GetCircleAsync(circleId)
-                     ?? throw new OdinSecurityException($"Caller cannot list the members of circle {circleId}");
-        AssertCallerMayManageCircle(circleId, circle.AppId, "list the members of", odinContext);
+        await GetCircleCallerMayManageAsync(circleId, "list the members of", odinContext);
     }
 
     public async Task AddCircleMemberAsync(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
     {
-        var circleMemberRecord = new CircleMemberRecord()
-        {
-            circleId = circleId,
-            memberId = OdinId.ToHashId(domainName),
-            data = OdinSystemSerializer.Serialize(new CircleMemberStorageData
-            {
-                DomainType = domainType,
-                DomainName = domainName,
-                CircleGrant = circleGrant
-            }).ToUtf8ByteArray()
-        };
-
-        // db.CircleMember.Insert(circleMemberRecord);
-        await db.CircleMemberCached.UpsertAsync(circleMemberRecord);
-        // db.CircleMember.UpsertCircleMembers([circleMemberRecord]);
+        await db.CircleMemberCached.UpsertAsync(ToMemberRecord(circleId, domainName, circleGrant, domainType));
     }
+
+    private static CircleMemberRecord ToMemberRecord(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant,
+        DomainType domainType) => new()
+    {
+        circleId = circleId,
+        memberId = OdinId.ToHashId(domainName),
+        data = OdinSystemSerializer.Serialize(new CircleMemberStorageData
+        {
+            DomainType = domainType,
+            DomainName = domainName,
+            CircleGrant = circleGrant
+        }).ToUtf8ByteArray()
+    };
 
     // Grants
 
@@ -641,16 +640,30 @@ public class CircleMembershipService(
     }
 
     /// <summary>
-    /// <see cref="AssertCallerMayManageCircleAsync"/> for a caller that has already read the circle's owning app.
+    /// <see cref="AssertCallerMayManageCircleAsync"/>'s rule, returning the circle, for the newer paths (member
+    /// lists, Selective Share's keys) that don't tell an app which circle ids exist.
     /// </summary>
-    internal static void AssertCallerMayManageCircle(GuidId circleId, Guid? circleAppId, string action, IOdinContext odinContext)
+    /// <remarks>
+    /// An app gets the same 403 for a circle that doesn't exist as for one it doesn't own; only the owner console
+    /// is told a circle doesn't exist.
+    /// </remarks>
+    internal async Task<CircleRecord> GetCircleCallerMayManageAsync(GuidId circleId, string action, IOdinContext odinContext)
     {
+        OdinValidationUtils.AssertNotNull(circleId, nameof(circleId));
+        var circle = await db.CircleCached.GetAsync(circleId);
         if (odinContext.Caller.HasMasterKey)
         {
-            return;
+            return circle ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
         }
 
-        AssertCircleIsTheApps(circleId, circleAppId, CallingAppId(circleId, action, odinContext), action);
+        var callerAppId = CallingAppId(circleId, action, odinContext);
+        if (circle == null)
+        {
+            throw new OdinSecurityException($"App {callerAppId} cannot {action} circle {circleId}");
+        }
+
+        AssertCircleIsTheApps(circleId, circle.AppId, callerAppId, action);
+        return circle;
     }
 
     private static Guid CallingAppId(GuidId circleId, string action, IOdinContext odinContext)

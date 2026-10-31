@@ -16,8 +16,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Migrations;
 /// <summary>
 /// <see cref="TableCircleMigrationV202610301200"/>, <see cref="TableCircleMemberMigrationV202610301200"/> and
 /// <see cref="TableDriveAclIndexMigrationV202610301200"/> add the Selective Share columns
-/// (docs/selective-share-plan.md).  Every existing row is carried over with them NULL: no circle has a key, no
-/// member a sealed copy, no share expires, and every ACL index row means read.
+/// (docs/selective-share-plan.md), run as the whole migrator from the version before.  Every existing row is
+/// carried over: no circle has a key, no member a sealed copy, no share expires, and every ACL index row means
+/// read.  That upserts keep the keys is <c>TableCircleTests</c>' and <c>TableCircleMemberTests</c>' to check.
 /// </summary>
 public class ShareKeyColumnsMigrationTests : IocTestBase
 {
@@ -65,7 +66,7 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         Assert.That(circles[0].appKeyLockedShareKey, Is.Null, "no circle has a key until its app first shares");
         Assert.That(members[0].sealedShareKey, Is.Null, "no member has a sealed copy until the app seals one");
         Assert.That(aclRows[0].expiresAt, Is.Null, "no existing share expires");
-        Assert.That(aclRows[0].permissions, Is.EqualTo(1), "every existing row means read, as it did before");
+        Assert.That(aclRows[0].permissions, Is.EqualTo(TableDriveAclIndex.ReadPermission), "every existing row means read, as it did before");
 
         // The new columns hold what is written and read back through the generated records.
         var lockedKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
@@ -85,19 +86,6 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         Assert.That((await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1[0].expiresAt,
             Is.EqualTo(expiresAt));
 
-        // Writing the circle or the membership again keeps both keys: the generated upsert leaves them out of its SET
-        var circle = circles[0];
-        circle.circleName = "Family renamed";
-        circle.appKeyLockedShareKey = null;
-        await scope.Resolve<TableCircle>().UpsertAsync(circle);
-        var member = members[0];
-        member.sealedShareKey = null;
-        await scope.Resolve<TableCircleMember>().UpsertAsync(member);
-
-        var rewritten = (await scope.Resolve<TableCircle>().PagingByRowIdAsync(10, null)).Item1[0];
-        Assert.That((rewritten.circleName, rewritten.appKeyLockedShareKey), Is.EqualTo(("Family renamed", lockedKey)));
-        Assert.That((await scope.Resolve<TableCircleMember>().PagingByRowIdAsync(10, null)).Item1[0].sealedShareKey,
-            Is.EqualTo(sealedKey));
     }
 
     private async Task ExecuteAsync(ScopedIdentityConnectionFactory connectionFactory, string sql,

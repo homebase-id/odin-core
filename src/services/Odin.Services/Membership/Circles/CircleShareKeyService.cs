@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
@@ -29,7 +28,7 @@ namespace Odin.Services.Membership.Circles;
 /// their own copy, through the Peer API, while the circle grants them access.
 /// </remarks>
 public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService circleDefinitionService,
-    TenantContext tenantContext)
+    CircleMembershipService circleMembershipService, TenantContext tenantContext)
 {
     /// <summary>
     /// The first byte of every share key blob: key header version 2 (#2024), AES-GCM from the start.
@@ -77,10 +76,13 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
         return rows
             .Where(r => r.sealedShareKey == null)
             .Select(CircleMemberStorageData.From)
-            .Where(d => d.DomainType == DomainType.Identity)
+            .Where(IsIdentityMember)
             .Select(d => new OdinId(d.DomainName))
             .ToList();
     }
+
+    /// <summary>Who may hold a copy: a connected identity's row, never a YouAuth domain's.</summary>
+    private static bool IsIdentityMember(CircleMemberStorageData member) => member.DomainType == DomainType.Identity;
 
     /// <summary>
     /// Stores members' sealed copies of the circle key, all or none.  Each must be an identity member (as
@@ -117,7 +119,7 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
         var rows = (await db.CircleMemberCached.GetCircleMembersAsync(circleId)).ToDictionary(r => r.memberId);
         foreach (var (memberId, odinId, sealedKey) in members)
         {
-            if (!rows.TryGetValue(memberId, out var row) || CircleMemberStorageData.From(row).DomainType != DomainType.Identity ||
+            if (!rows.TryGetValue(memberId, out var row) || !IsIdentityMember(CircleMemberStorageData.From(row)) ||
                 await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey) == 0)
             {
                 throw new OdinClientException($"{odinId} is not a member of circle {circleId}",
@@ -159,26 +161,13 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
 
     /// <summary>
     /// The circle, when the caller is its owning app (or the owner console) and it is an app circle; never an
-    /// owner circle, which has no app key to lock the circle key with (plan, decision 2).
+    /// owner circle, which has no app key to lock the circle key with (plan, decision 2).  An app is told nothing
+    /// about circles it doesn't own (<see cref="CircleMembershipService.GetCircleCallerMayManageAsync"/>).
     /// </summary>
-    /// <remarks>
-    /// The caller is checked before anything about the circle is said: an app gets the same 403 for a circle
-    /// that doesn't exist, an owner circle and another app's circle, as it does for member lists.  Only the
-    /// owner console is told a circle doesn't exist.
-    /// </remarks>
     private async Task<CircleRecord> GetCircleCallerMayHandleShareKeysOfAsync(GuidId circleId, string action,
         IOdinContext odinContext)
     {
-        var circle = await db.CircleCached.GetAsync(circleId);
-        if (circle == null)
-        {
-            throw odinContext.Caller.HasMasterKey
-                ? new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound)
-                : new OdinSecurityException($"Caller cannot {action} circle {circleId}");
-        }
-
-        CircleMembershipService.AssertCallerMayManageCircle(circleId, circle.AppId, action, odinContext);
-
+        var circle = await circleMembershipService.GetCircleCallerMayManageAsync(circleId, action, odinContext);
         if (SystemAppConstants.IsOwnerConsole(circle.AppId))
         {
             throw new OdinSecurityException($"Cannot {action} circle {circleId}: an owner circle has no share key");

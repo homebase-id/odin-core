@@ -106,7 +106,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
-        // The hand-written GrantOn query reads every column through the generated reader, so it must select them all.
+        // The GrantOn lookup the enrollment pass uses returns whole records, the share key with them.
         public async Task GetByGrantOnReadsEveryColumn(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

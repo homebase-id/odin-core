@@ -1,5 +1,9 @@
 using System;
+using System.Net;
 using System.Threading.Tasks;
+using NUnit.Framework;
+using Odin.Hosting.Controllers.Base.Membership.Connections;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -20,6 +24,14 @@ public static class AppCircles
         var circleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(circleId, "the app's circle", new PermissionSetGrantRequest { Drives = [WriteOn(drive)] }, appId);
         return (app, circleId, drive);
+    }
+
+    /// <summary>The app adds <paramref name="identity"/> to its circle.</summary>
+    public static async Task AddMemberAsync(AppSession app, Guid circleId, string identity)
+    {
+        var add = await app.RefitFor<IConnectionNetworkHttpClientApiV2>()
+            .GrantCircle(new AddCircleMembershipRequest { CircleId = circleId, OdinId = identity });
+        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"adding {identity} to circle {circleId}: {add.Error?.Content}");
     }
 
     public static DriveGrantRequest WriteOn(TargetDrive drive) =>

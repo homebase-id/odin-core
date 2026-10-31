@@ -120,15 +120,13 @@ public class AppCircleDefinitionTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
-        var v2 = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
-        Assert.That((await v2.GrantCircle(new AddCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam })).StatusCode,
-            Is.EqualTo(HttpStatusCode.OK));
+        await AppCircles.AddMemberAsync(app, circleId, Identities.Sam);
 
         var list = await GetDomainsInCircle(app, circleId);
         Assert.That(list.StatusCode, Is.EqualTo(HttpStatusCode.OK), list.Error?.Content);
         Assert.That(list.Content!.Select(m => m.Domain.DomainName), Is.EqualTo(new[] { Identities.Sam }));
 
-        var members = await v2.GetCircleMembers(circleId);
+        var members = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().GetCircleMembers(circleId);
         Assert.That(members.StatusCode, Is.EqualTo(HttpStatusCode.OK), members.Error?.Content);
         Assert.That(members.Content!.Select(m => m.DomainName), Is.EqualTo(new[] { Identities.Sam }));
 

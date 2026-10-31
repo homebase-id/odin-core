@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -34,7 +35,6 @@ public class PeerCircleShareKeyService(
 
         return result.IssueType switch
         {
-            // An empty answer is "none yet"; a 404 would be a server that doesn't serve the route
             PeerRequestIssueType.None => result.Response.Content?.SealedKey,
             PeerRequestIssueType.Forbidden => throw new OdinSecurityException($"{odinId}: not a member of circle {circleId}"),
             PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr => throw new OdinSecurityException(
@@ -46,7 +46,7 @@ public class PeerCircleShareKeyService(
                 or PeerRequestIssueType.OperationCancelled =>
                 throw new OdinClientException($"{odinId} is unavailable", OdinClientErrorCode.RemoteServerReturnedUnavailable),
             // No copy is an empty answer, so a 404 is a server that doesn't serve the route (an older one)
-            _ when result.Response?.StatusCode == System.Net.HttpStatusCode.NotFound =>
+            _ when result.Response?.StatusCode == HttpStatusCode.NotFound =>
                 throw new OdinClientException($"{odinId} doesn't serve circle share keys", OdinClientErrorCode.RemoteServerReturnedNotFound),
             _ => throw new OdinClientException(
                 $"{odinId} answered {(int?)result.Response?.StatusCode} ({result.IssueType}) for circle {circleId}",
