@@ -47,16 +47,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
         static QueryBatch()
         {
-            // Initialize selectOutputFields statically
+            // Initialize selectOutputFields statically. Every column names its table: the ACL join brings in
+            // driveAclIndex, which has a fileId, rowId, created and modified of its own
             SelectOutputFields = string.Join(",",
                 TableDriveMainIndex.GetColumnNames()
                     .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
                                 && !name.Equals("driveId", StringComparison.OrdinalIgnoreCase))
-                    .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.fileId" :
-                                    name.Equals("rowId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.rowId" :
-                                    name));
-
-            
+                    .Select(name => "driveMainIndex." + name));
         }
 
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
@@ -282,9 +279,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await using var cmd = cn.CreateCommand();
 
             if ((sortField == QueryBatchSortField.CreatedDate) || (sortField == QueryBatchSortField.FileId))
-                timeField = "created";
+                timeField = "driveMainIndex.created";
             else if (sortField == QueryBatchSortField.UserDate)
-                timeField = "userDate";
+                timeField = "driveMainIndex.userDate";
             else if (sortField == QueryBatchSortField.AnyChangeDate || sortField == QueryBatchSortField.OnlyModifiedDate)
             {
                 // IMPORTANT: When querying by modified and getting a cursor back, it is important we do not
@@ -304,20 +301,20 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 if (sortOrder == QueryBatchSortOrder.OldestFirst)
                 {
                     trimAtNow = true;
-                    listWhereAnd.Add($"modified < {cmd.SqlNow()} + {HoldBackWindowMs}");
+                    listWhereAnd.Add($"driveMainIndex.modified < {cmd.SqlNow()} + {HoldBackWindowMs}");
                 }
                 else
                 {
-                    listWhereAnd.Add($"modified < {cmd.SqlNow()}");
+                    listWhereAnd.Add($"driveMainIndex.modified < {cmd.SqlNow()}");
                 }
 
                 if (sortField == QueryBatchSortField.OnlyModifiedDate)
                 {
                     // When modified != created, it means it's an item that has been modified, not newly created
-                    listWhereAnd.Add($"modified != created");
+                    listWhereAnd.Add($"driveMainIndex.modified != driveMainIndex.created");
                 }
 
-                timeField = "modified";
+                timeField = "driveMainIndex.modified";
             }
             else
                 throw new Exception("Invalid sorting value");
@@ -357,7 +354,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             {
                 // Server-enforced lower bound on the (server-set) modified timestamp. Used by the temporal
                 // read API to clamp results to a recent window. Inclusive boundary.
-                listWhereAnd.Add($"(modified >= {modifiedAfter.Value.milliseconds})");
+                listWhereAnd.Add($"(driveMainIndex.modified >= {modifiedAfter.Value.milliseconds})");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,

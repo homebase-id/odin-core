@@ -17,7 +17,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Migrations;
 /// <see cref="TableCircleMigrationV202610301200"/>, <see cref="TableCircleMemberMigrationV202610301200"/> and
 /// <see cref="TableDriveAclIndexMigrationV202610301200"/> add the Selective Share columns
 /// (docs/selective-share-plan.md).  Every existing row is carried over with them NULL: no circle has a key, no
-/// member a sealed copy, no share expires, and every ACL index row means read.
+/// member a sealed copy, no share expires or holds a locked key header, and every ACL index row means read.
 /// </summary>
 public class ShareKeyColumnsMigrationTests : IocTestBase
 {
@@ -50,6 +50,7 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
             "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) VALUES (@identityId,@driveId,@fileId,@circleId);",
             ("@driveId", driveId), ("@fileId", fileId), ("@circleId", circleId));
 
+        var beforeMigration = UnixTimeUtc.Now();
         await migrator.MigrateAsync();
 
         Assert.That(await migrator.GetCurrentVersionAsync(), Is.GreaterThanOrEqualTo(202610301200));
@@ -66,6 +67,11 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         Assert.That(members[0].sealedShareKey, Is.Null, "no member has a sealed copy until the app seals one");
         Assert.That(aclRows[0].expiresAt, Is.Null, "no existing share expires");
         Assert.That(aclRows[0].permissions, Is.EqualTo(1), "every existing row means read, as it did before");
+        Assert.That(aclRows[0].lockedKeyHeader, Is.Null, "no existing row is a share yet");
+        Assert.That(aclRows[0].modified, Is.EqualTo(aclRows[0].created), "created and modified both get the migration's time");
+        // The database's clock, not .NET's: SQLite's julianday can land a millisecond either side
+        Assert.That(aclRows[0].created.milliseconds,
+            Is.InRange(beforeMigration.milliseconds - 1000, UnixTimeUtc.Now().milliseconds + 1000), "created is the migration's time");
 
         // The new columns hold what is written and read back through the generated records.
         var lockedKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
@@ -77,13 +83,15 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
             ("@value", sealedKey));
         await ExecuteAsync(connectionFactory, "UPDATE DriveAclIndex SET expiresAt=@value WHERE identityId=@identityId;",
             ("@value", expiresAt.milliseconds));
+        await ExecuteAsync(connectionFactory, "UPDATE DriveAclIndex SET lockedKeyHeader=@value WHERE identityId=@identityId;",
+            ("@value", lockedKey));
 
         Assert.That((await scope.Resolve<TableCircle>().PagingByRowIdAsync(10, null)).Item1[0].appKeyLockedShareKey,
             Is.EqualTo(lockedKey));
         Assert.That((await scope.Resolve<TableCircleMember>().PagingByRowIdAsync(10, null)).Item1[0].sealedShareKey,
             Is.EqualTo(sealedKey));
-        Assert.That((await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1[0].expiresAt,
-            Is.EqualTo(expiresAt));
+        var aclRow = (await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1[0];
+        Assert.That((aclRow.expiresAt, aclRow.lockedKeyHeader), Is.EqualTo((expiresAt, lockedKey)));
 
         // Writing the circle or the membership again keeps both keys: the generated upsert leaves them out of its SET
         var circle = circles[0];

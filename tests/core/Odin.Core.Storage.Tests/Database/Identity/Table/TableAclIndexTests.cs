@@ -82,6 +82,35 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
+        // Selective Share: the row is the share, so it holds the file's key header locked with the circle key,
+        // and keeps its own created and modified apart from the file's
+        public async Task ARowHoldsItsLockedKeyHeaderAndItsOwnTimes(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var circleId = Guid.NewGuid();
+            var lockedKeyHeader = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
+            var before = UnixTimeUtc.Now();
+            await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord
+                { driveId = driveId, fileId = fileId, aclMemberId = circleId, lockedKeyHeader = lockedKeyHeader });
+
+            var row = await tblDriveAclIndex.GetAsync(driveId, fileId, circleId);
+            Assert.That(row?.lockedKeyHeader, Is.EqualTo(lockedKeyHeader));
+            Assert.That(row.modified, Is.EqualTo(row.created), "a new share was modified when it was created");
+            // The database's clock, not .NET's: SQLite's julianday can land a millisecond either side
+            Assert.That(row.created.milliseconds, Is.InRange(before.milliseconds - 1000, UnixTimeUtc.Now().milliseconds + 1000),
+                "created is the insert's time");
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert and read two aclmembers
         public async Task InsertDoubleRowTest(DatabaseType databaseType)
         {
