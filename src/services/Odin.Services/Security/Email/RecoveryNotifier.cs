@@ -64,7 +64,7 @@ public class RecoveryNotifier(
 
         AssertEmailEnabled();
 
-        if (configuration.Mailgun.Enabled)
+        if (configuration.Email.Relay.SendsSystemMail)
         {
             await EnqueueEmailAsync(new Envelope
             {
@@ -111,7 +111,7 @@ public class RecoveryNotifier(
         }
 #endif
 
-        if (configuration.Mailgun.Enabled)
+        if (configuration.Email.Relay.SendsSystemMail)
         {
             await jobManager.ScheduleJobAsync(job, new JobSchedule
             {
@@ -136,7 +136,7 @@ public class RecoveryNotifier(
 
         AssertEmailEnabled();
 
-        if (configuration.Mailgun.Enabled)
+        if (configuration.Email.Relay.SendsSystemMail)
         {
             await EnqueueEmailAsync(new Envelope
             {
@@ -165,7 +165,7 @@ public class RecoveryNotifier(
         logger.LogInformation("\n\n\n{link}\n\n\n{holder} releases shard {shardId}", link, holder, shardId);
 #endif
 
-        if (configuration.Mailgun.Enabled)
+        if (configuration.Email.Relay.SendsSystemMail)
         {
             await EnqueueEmailAsync(new Envelope
             {
@@ -181,7 +181,7 @@ public class RecoveryNotifier(
         DnssecHealthResult dnssecAttention = null,
         IReadOnlyCollection<string> mailAttention = null)
     {
-        if (configuration.Mailgun.Enabled) //for #debug state
+        if (configuration.Email.Relay.SendsSystemMail)
         {
             var email = recoveryInfo.Email;
             await EnqueueEmailAsync(new Envelope
@@ -242,13 +242,14 @@ public class RecoveryNotifier(
     }
 
     /// <summary>
-    /// Recovery links only reach the owner by email, so without Mailgun recovery is refused --
+    /// Recovery links only reach the owner by email, so a host that sends no mail of its own
+    /// (Email:Relay:SystemFromEmail unset) refuses recovery --
     /// except on a development host, where the links are read from the log or the
     /// <see cref="IRecoveryNotificationSink"/> instead.
     /// </summary>
     public void AssertEmailEnabled()
     {
-        if (!configuration.Mailgun.Enabled && !configuration.Development.Enabled)
+        if (!configuration.Email.Relay.SendsSystemMail && !configuration.Development.Enabled)
         {
             throw new OdinSystemException("Cannot enter into recovery mode when email is disabled");
         }

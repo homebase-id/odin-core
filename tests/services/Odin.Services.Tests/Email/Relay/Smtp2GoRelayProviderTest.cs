@@ -113,21 +113,22 @@ public class Smtp2GoRelayProviderTest
             .Setup(x => x.CreateClient(It.IsAny<string>(), It.IsAny<Action<ClientHandlerConfig>?>()))
             .Returns(() => new HttpClient(new ScriptedHandler(responder)));
 
-        return new Smtp2GoRelayProvider(
-            new Mock<ILogger<Smtp2GoRelayProvider>>().Object,
-            new OdinConfiguration
+        var configuration = new OdinConfiguration
+        {
+            Email = new OdinConfiguration.EmailSection
             {
-                Email = new OdinConfiguration.EmailSection
+                Relay = new OdinConfiguration.RelaySection
                 {
-                    Relay = new OdinConfiguration.RelaySection
-                    {
-                        Provider = OdinConfiguration.RelayProvider.Smtp2Go,
-                        ApiKey = "test-key",
-                        ApiBaseUrl = "https://relay.test/v3",
-                    },
+                    Provider = OdinConfiguration.RelayProvider.Smtp2Go,
+                    ApiKey = "test-key",
+                    ApiBaseUrl = "https://relay.test/v3",
                 },
             },
-            httpClientFactory.Object);
+        };
+
+        return new Smtp2GoRelayProvider(
+            new Mock<ILogger<Smtp2GoRelayProvider>>().Object,
+            new Smtp2GoApi(configuration, httpClientFactory.Object));
     }
 
     private class ScriptedHandler(Func<string, (HttpStatusCode status, string body)> responder) : HttpMessageHandler

@@ -32,14 +32,11 @@ namespace Odin.Services.Email.Relay;
 /// </summary>
 public class Smtp2GoRelayProvider(
     ILogger<Smtp2GoRelayProvider> logger,
-    OdinConfiguration configuration,
-    IDynamicHttpClientFactory httpClientFactory) : IMailRelayProvider
+    Smtp2GoApi api) : IMailRelayProvider
 {
     private const string DkimSuffix = "_domainkey";
 
-    private OdinConfiguration.RelaySection Relay => configuration.Email.Relay;
-
-    public bool IsConfigured => Relay.Provider == OdinConfiguration.RelayProvider.Smtp2Go;
+    public bool IsConfigured => api.IsConfigured;
 
     public async Task<MailRelayDomainState?> GetDomainAsync(
         AsciiDomainName domain, CancellationToken cancellationToken = default)
@@ -247,44 +244,6 @@ public class Smtp2GoRelayProvider(
         }
     }
 
-    private async Task<Smtp2GoDomainResponse> PostAsync(string path, object body, CancellationToken cancellationToken)
-    {
-        if (!IsConfigured)
-        {
-            throw new OdinSystemException("Relay: Email:Relay:Provider is not Smtp2Go");
-        }
-
-        var httpClient = httpClientFactory.CreateClient($"{nameof(Smtp2GoRelayProvider)}");
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{Relay.ApiBaseUrl}{path}");
-        request.Headers.Add("X-Smtp2go-Api-Key", Relay.ApiKey);
-        request.Content = new StringContent(OdinSystemSerializer.Serialize(body), Encoding.UTF8, "application/json");
-
-        var response = await httpClient.SendAsync(request, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            // Their errors arrive as a 4xx with the detail in data.error. Surface that rather
-            // than the status code alone, which on its own says nothing useful.
-            var detail = TryReadError(content) ?? content;
-            throw new MailRelayException(
-                $"Relay: POST {path} returned {(int)response.StatusCode}: {detail}", (int)response.StatusCode);
-        }
-
-        return OdinSystemSerializer.Deserialize<Smtp2GoDomainResponse>(content)
-               ?? throw new OdinSystemException($"Relay: POST {path} returned unparseable content");
-    }
-
-    private static string? TryReadError(string content)
-    {
-        try
-        {
-            return OdinSystemSerializer.Deserialize<Smtp2GoDomainResponse>(content)?.Data.Error;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
+    private Task<Smtp2GoDomainResponse> PostAsync(string path, object body, CancellationToken cancellationToken)
+        => api.PostAsync<Smtp2GoDomainResponse>(path, body, cancellationToken);
 }
