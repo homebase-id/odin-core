@@ -109,9 +109,9 @@ Naming notes:
 - **Members:** each member gets the share key, locked to the public key of their matching drive.
   That's one row per member.
 - **Files:** each shared file gets one extra header per share, locked with the share key. It's
-  stored in the file's `DriveAclIndex` row for that circle **(V)**, with the share's expiry, what it may do
-  and its own `modified`, and only there, not in the ACL in the file's header (decided 2026-10-31). A share
-  changes without the file changing.
+  to be stored in the file's `DriveAclIndex` row for that circle, with the share's expiry, what it may do
+  and its own `modified`, and only there, not in the ACL in the file's header (decided 2026-10-31; the columns
+  exist, `TableDriveAclIndexCRUD` **(V)**, nothing writes them yet). A share changes without the file changing.
 - **Cost:** sharing new files is free, because the header rides in the upload. Sharing many
   existing files is a client bulk job.
 - **Links (to consider):** sharing with someone not on Homebase by a link that carries the key. It fits

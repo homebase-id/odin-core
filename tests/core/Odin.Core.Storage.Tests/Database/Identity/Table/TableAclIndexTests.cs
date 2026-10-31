@@ -6,6 +6,7 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
@@ -32,23 +33,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            var md = await tblDriveAclIndex.GetAsync(driveId, k1);
-
-            if (md.Count != 0)
-                Assert.Fail();
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.Empty, "before the write");
 
             await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
 
-            md = await tblDriveAclIndex.GetAsync(driveId, k1);
-
-            if (md.Count == 0)
-                Assert.Fail();
-
-            if (md.Count != 1)
-                Assert.Fail();
-
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EqualTo(a1), "after the write");
 
             // A file's ACL grants read; nothing narrower is written until Selective Share.
             var (rows, _) = await tblDriveAclIndex.PagingByRowIdAsync(10, null);
@@ -128,27 +117,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
 
-            var md = await tblDriveAclIndex.GetAsync(driveId, k1);
-
-            if (md == null)
-                Assert.Fail();
-
-            if (md.Count != 2)
-                Assert.Fail();
-
-            // We don't know what order it comes back in :o) Quick hack.
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-            {
-                if (ByteArrayUtil.muidcmp(md[0], a1[1]) != 0)
-                    Assert.Fail();
-                if (ByteArrayUtil.muidcmp(md[1], a1[0]) != 0)
-                    Assert.Fail();
-            }
-            else
-            {
-                if (ByteArrayUtil.muidcmp(md[1], a1[1]) != 0)
-                    Assert.Fail();
-            }
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EquivalentTo(a1));
         }
 
         [Test]
@@ -195,14 +164,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
             await tblDriveAclIndex.ReconcileRowsAsync(driveId, k2, a1);
 
-            var md = await tblDriveAclIndex.GetAsync(driveId, k1);
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
-
-            md = await tblDriveAclIndex.GetAsync(driveId, k2);
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
-
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EqualTo(a1), "first file");
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k2), Is.EqualTo(a1), "second file");
         }
 
         [Test]
@@ -225,19 +188,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // The table holds one row per file and member: a second insert of the same row is refused
             await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = k1, aclMemberId = a1[0] });
-            bool ok = false;
-            try
-            {
-                await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = k1, aclMemberId = a1[0] });
-                ok = false;
-            }
-            catch
-            {
-                ok = true;
-            }
-
-            if (!ok)
-                Assert.Fail();
+            var ex = Assert.ThrowsAsync<OdinDatabaseException>(() =>
+                tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = k1, aclMemberId = a1[0] }));
+            Assert.That(ex!.IsUniqueConstraintViolation, Is.True, ex.ToString());
 
             // Writing the same ACL again keeps the one row
             await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
@@ -273,21 +226,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Take all aclmembers off the first key
             await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, []);
 
-            // Check that k1 is now gone
-            var md = await tblDriveAclIndex.GetAsync(driveId, k1);
-            if (md.Count != 0)
-                Assert.Fail();
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.Empty, "the first key's members");
 
             // Take v2 off the second key, and make sure we have the other one
             await tblDriveAclIndex.ReconcileRowsAsync(driveId, k2, [v1]);
-
-            // Check that we have one left
-            md = await tblDriveAclIndex.GetAsync(driveId, k2);
-            if (md.Count != 1)
-                Assert.Fail();
-
-            if (ByteArrayUtil.muidcmp(md[0].ToByteArray(), v1.ToByteArray()) != 0)
-                Assert.Fail();
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k2), Is.EqualTo(new[] { v1 }), "the second key's members");
         }
 
         [Test]

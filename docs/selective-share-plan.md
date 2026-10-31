@@ -134,6 +134,12 @@ leave the rows alone entirely (PR 3).
 **Before any row is written without Read** (PR 3, e.g. an upload-only folder), every query that reads through
 `DriveAclIndex` must check the Read bit, or a write-only row would let its circle list the files.
 
+**Who owns a row's bits and expiry depends on the drive** (PR 3). The reconcile leaves a staying row's
+`permissions` and `expiresAt` alone. On a Selective Share drive that is the point: the row is the share. On any
+other drive the header's ACL is the record, and the delete-and-insert used to reset both on every header write; so
+if anything ever narrows a row there, the header write must reset it, or the header and the index disagree.
+Nothing writes them yet **(V)**.
+
 ## Blob formats: key header version 2 from the start
 
 The share rows' key headers are new, so they use key header version 2 (#2024) for the locking from day one; there is no
@@ -240,6 +246,19 @@ content with it and leaves the key headers alone. Two things are needed:
    key header, and on which drives (see "A member adds a file").
 6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31):** no; a share is its `DriveAclIndex` row,
    with times of its own (see "Changing a share").
+7. **A share row's IV after the file changes (open, found in review 2026-11-01).** The row locks `IV ‖ FileKey`
+   and a member must use that IV (Blob formats). But every update of an encrypted file must carry a new IV: a
+   metadata-only update is refused without one (`FileSystemStreamWriterBase`, "You must specify a new IV") **(V)**,
+   and on a zero-knowledge drive the client-locked key header is stored as sent **(V)**. So after the file's next
+   update every share row holds the old IV, and members decrypt the new content with it (inferred: nothing writes
+   the rows yet). Options:
+   - **Re-lock every share row in the update.** The owning app's devices can (they open every circle key through
+     `AppZkK`); a member writer can only re-lock their own circles' rows, so the others go stale until a device of
+     the owning app catches up, the same job as "A member adds a file".
+   - **Lock only the file key in the row**, and take the IV from somewhere every reader can see and trust: today the
+     visible `Iv` is not authenticated, the very gap version 2 closes (#2024).
+   - **Keep the IV with the content** rather than the key: an IV per version of the content, authenticated with it,
+     which is the content half of #2024.
 
 ## Out of scope
 
