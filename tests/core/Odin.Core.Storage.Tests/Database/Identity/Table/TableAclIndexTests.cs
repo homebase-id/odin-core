@@ -60,6 +60,28 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
+        // The generated insert sends every column, so the column's DEFAULT 1 reaches a row only through the
+        // record's own default: a record nobody filled in still means read, never "nothing allowed"
+        public async Task ARecordLeftUnsetMeansRead(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var member = Guid.NewGuid();
+            await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = member });
+
+            var row = await tblDriveAclIndex.GetAsync(driveId, fileId, member);
+            Assert.That(row?.permissions, Is.EqualTo(1), $"a row read back as {row?.permissions}");
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert and read two aclmembers
         public async Task InsertDoubleRowTest(DatabaseType databaseType)
         {
