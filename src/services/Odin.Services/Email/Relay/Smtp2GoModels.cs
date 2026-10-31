@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 namespace Odin.Services.Email.Relay;
 
 /// <summary>
-/// Wire models for SMTP2GO's /domain/* endpoints. Field names are theirs (snake_case) and are
+/// Wire models for SMTP2GO's /domain/* and /email/send endpoints. Field names are theirs (snake_case) and are
 /// mapped explicitly rather than by a naming policy, so a rename on their side surfaces as a
 /// null here and fails the mapping test rather than silently emptying a DNS record.
 ///
@@ -87,4 +87,39 @@ public class Smtp2GoTracker
     /// and reports it unverified, so a disabled tracker must never be read as a failure.
     /// </summary>
     [JsonPropertyName("enabled")] public bool Enabled { get; init; }
+}
+
+/// <summary>
+/// /email/send: the host's own mail (<see cref="Smtp2GoEmailSender"/>). Unlike the /domain/*
+/// shapes above, taken from their API documentation (developers.smtp2go.com, send-standard-email);
+/// not yet captured from a live response.
+/// </summary>
+public class Smtp2GoSendRequest
+{
+    [JsonPropertyName("sender")] public string Sender { get; init; } = "";
+    [JsonPropertyName("to")] public List<string> To { get; init; } = [];
+
+    [JsonPropertyName("cc")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? Cc { get; init; }
+
+    [JsonPropertyName("bcc")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? Bcc { get; init; }
+
+    [JsonPropertyName("subject")] public string Subject { get; init; } = "";
+    [JsonPropertyName("text_body")] public string TextBody { get; init; } = "";
+    [JsonPropertyName("html_body")] public string HtmlBody { get; init; } = "";
+}
+
+public class Smtp2GoSendResponse
+{
+    [JsonPropertyName("request_id")] public string RequestId { get; init; } = "";
+    [JsonPropertyName("data")] public Smtp2GoSendData Data { get; init; } = new();
+}
+
+public class Smtp2GoSendData
+{
+    [JsonPropertyName("succeeded")] public int Succeeded { get; init; }
+    [JsonPropertyName("failed")] public int Failed { get; init; }
 }

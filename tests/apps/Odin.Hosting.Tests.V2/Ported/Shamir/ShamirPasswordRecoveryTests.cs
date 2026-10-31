@@ -22,8 +22,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <c>[Test]</c>.</item>
 /// <item>The original's <c>#if !DEBUG [Ignore]</c> guard is gone (#1866). The flow reads its nonces
 /// from <see cref="ShamirFixture"/>'s recovery sink, and <c>AssertEmailEnabled</c> lets a
-/// development host (a <c>Development</c> config section) recover with <c>Mailgun:Enabled</c>
-/// false.</item>
+/// development host (a <c>Development</c> config section) recover without
+/// <c>Email:Relay:SystemFromEmail</c>.</item>
 /// <item><c>DriveRedux.WaitForEmptyOutbox(TransientTempDrive)</c> becomes
 /// <c>dealer.Sync.DrainOutboxAsync()</c>, inside
 /// <see cref="ShamirFixture.DistributeAndVerifyShardsAsync"/>.</item>
