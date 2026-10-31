@@ -20,11 +20,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership;
 [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCapiAuthScheme)]
 public class PeerCircleShareKeyController(CircleShareKeyService shareKeys) : OdinControllerBase
 {
-    /// <summary>404 while the circle's app has sealed no copy for the caller.</summary>
+    /// <summary>
+    /// Empty while the circle's app has sealed no copy for the caller: a 404 means this server doesn't serve the
+    /// route, never "no copy yet".
+    /// </summary>
     [HttpGet("{circleId:guid}/my-share-key")]
-    public async Task<ActionResult<SealedShareKeyResponse>> GetMySealedShareKey([FromRoute] Guid circleId)
+    public async Task<SealedShareKeyResponse> GetMySealedShareKey([FromRoute] Guid circleId)
     {
-        var key = await shareKeys.GetCallersSealedShareKeyAsync(new GuidId(circleId), WebOdinContext);
-        return key == null ? NotFound() : new SealedShareKeyResponse { SealedKey = key };
+        return new SealedShareKeyResponse
+            { SealedKey = await shareKeys.GetCallersSealedShareKeyAsync(new GuidId(circleId), WebOdinContext) };
     }
 }

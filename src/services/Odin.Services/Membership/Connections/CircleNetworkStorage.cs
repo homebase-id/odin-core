@@ -59,7 +59,7 @@ public class CircleNetworkStorage
     }
 
     [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
-    public async Task UpsertAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
+    public async Task UpsertAsync(IdentityConnectionRegistration icr)
     {
         var icrAccessRecord = MapToStorageIcrAccessRecord(icr);
         var odinHashId = icr.OdinId.ToHashId();

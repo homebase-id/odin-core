@@ -27,13 +27,12 @@ namespace Odin.Hosting.UnifiedV2.Circles;
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2CircleShareKeyController(CircleShareKeyService shareKeys) : OdinControllerBase
 {
-    /// <summary>The circle's key, locked with the owning app's key.  404 until the app sets one.</summary>
+    /// <summary>The circle's key, locked with the owning app's key; empty until the app sets one.</summary>
     [HttpGet]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Get a circle's share key")]
-    public async Task<ActionResult<CircleShareKeyData>> GetShareKey([FromRoute] Guid circleId)
+    public async Task<CircleShareKeyData> GetShareKey([FromRoute] Guid circleId)
     {
-        var key = await shareKeys.GetShareKeyAsync(new GuidId(circleId), WebOdinContext);
-        return key == null ? NotFound() : new CircleShareKeyData { AppKeyLockedShareKey = key };
+        return new CircleShareKeyData { AppKeyLockedShareKey = await shareKeys.GetShareKeyAsync(new GuidId(circleId), WebOdinContext) };
     }
 
     /// <summary>Sets the circle's key, once; refused (CircleShareKeyAlreadySet) when it has one.</summary>
@@ -76,17 +75,19 @@ public class V2CircleShareKeyController(CircleShareKeyService shareKeys) : OdinC
 public class V2PeerCircleShareKeyController(PeerCircleShareKeyService peerShareKeys) : OdinControllerBase
 {
     /// <summary>
-    /// Your sealed copy of <paramref name="odinId"/>'s circle key.  404 while they have sealed none for you; 403
-    /// when the circle doesn't grant you access.
+    /// Your sealed copy of <paramref name="odinId"/>'s circle key; empty while they have sealed none for you.
+    /// 403 when the circle doesn't grant you access.
     /// </summary>
     [HttpGet]
     [SwaggerOperation(Tags = [SwaggerInfo.NewStuff], Summary = "Get your sealed copy of a peer's circle key")]
-    public async Task<ActionResult<SealedShareKeyResponse>> GetMySealedShareKey([FromRoute] string odinId,
-        [FromRoute] Guid circleId)
+    public async Task<SealedShareKeyResponse> GetMySealedShareKey([FromRoute] string odinId, [FromRoute] Guid circleId)
     {
         OdinValidationUtils.AssertIsValidOdinId(odinId, out var id);
-        var key = await peerShareKeys.GetMySealedShareKeyAsync(id, new GuidId(circleId), WebOdinContext);
-        return key == null ? NotFound() : new SealedShareKeyResponse { SealedKey = key };
+        return new SealedShareKeyResponse
+        {
+            SealedKey = await peerShareKeys.GetMySealedShareKeyAsync(id, new GuidId(circleId), WebOdinContext,
+                HttpContext.RequestAborted)
+        };
     }
 }
 

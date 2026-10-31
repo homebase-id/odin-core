@@ -3297,7 +3297,7 @@ namespace Odin.Services.Membership.Connections
                 }
                 else
                 {
-                    await circleNetworkStorage.UpsertAsync(icr, odinContext);
+                    await circleNetworkStorage.UpsertAsync(icr);
                 }
             }
         }

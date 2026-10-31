@@ -1,4 +1,4 @@
-using System.Net;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -23,27 +23,28 @@ public class PeerCircleShareKeyService(
     : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
     /// <summary>Null when they have sealed no copy for this identity yet.</summary>
-    public async Task<byte[]> GetMySealedShareKeyAsync(OdinId odinId, GuidId circleId, IOdinContext odinContext)
+    public async Task<byte[]> GetMySealedShareKeyAsync(OdinId odinId, GuidId circleId, IOdinContext odinContext,
+        CancellationToken cancellationToken)
     {
         var token = await ResolveClientAccessTokenAsync(odinId, odinContext, PeerAccess.Read);
         var client = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerCircleShareKeyHttpClient>(
             odinId, token.ToAuthenticationToken());
 
-        var result = await ExecuteRequestAsync(() => client.GetMySealedShareKey(circleId.Value), CancellationToken.None);
-        if (result.Response?.StatusCode == HttpStatusCode.NotFound)
-        {
-            return null;
-        }
+        var result = await ExecuteRequestAsync(() => client.GetMySealedShareKey(circleId.Value, cancellationToken),
+            cancellationToken);
 
         return result.IssueType switch
         {
-            PeerRequestIssueType.None when result.Response.Content?.SealedKey != null => result.Response.Content.SealedKey,
+            // An empty answer is "none yet"; a 404 would be a server that doesn't serve the route
+            PeerRequestIssueType.None => result.Response.Content?.SealedKey,
             PeerRequestIssueType.Forbidden => throw new OdinSecurityException($"{odinId}: not a member of circle {circleId}"),
             PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr => throw new OdinSecurityException(
                 $"{odinId} no longer recognises this connection"),
             PeerRequestIssueType.ServiceUnavailable or PeerRequestIssueType.SocketError or PeerRequestIssueType.HttpRequestFailed =>
                 throw new OdinClientException($"{odinId} is unavailable", OdinClientErrorCode.RemoteServerReturnedUnavailable),
-            _ => throw new OdinClientException($"{odinId} answered {result.IssueType} for circle {circleId}",
+            PeerRequestIssueType.OperationCancelled => throw new OperationCanceledException(cancellationToken),
+            _ => throw new OdinClientException(
+                $"{odinId} answered {(int?)result.Response?.StatusCode} ({result.IssueType}) for circle {circleId}",
                 OdinClientErrorCode.RemoteServerReturnedInternalServerError)
         };
     }

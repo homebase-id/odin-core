@@ -1,6 +1,6 @@
 # Selective Share: sharing files on a zero-knowledge drive
 
-**Status:** plan, nothing built. The design is in
+**Status:** PR 1 (columns) and PR 2 (circle keys) built and in review; PR 3 onwards planned. The design is in
 [zero-knowledge-drives.md](zero-knowledge-drives.md#selective-share); this plan says how to build it.
 Markers follow [security-model.md](security-model.md): **(V)** verified in the code (file named), **(I)**
 inferred.
@@ -142,8 +142,11 @@ version 1 to stay compatible with.
      (the key, set once), `GET .../share-key/unsealed-members`, `PUT .../share-key/members` (sealed copies, all or
      none). A member: `GET /api/v2/peer/{odinId}/circles/{circleId}/share-key`, which asks the circle owner's server
      (`PeerCircleShareKeyController`, `GET /api/peer/v1/host/circles/{circleId}/my-share-key`).
-   - **Rules:** only the owning app or the owner console, never an owner circle; a copy only for a member and only
-     once the circle has its key; a member reads only their own copy, while the circle is enabled for them.
+   - **Rules:** only the owning app or the owner console, never an owner circle; a copy only for an identity
+     member and only once the circle has its key; a member reads only their own copy, while the circle grants
+     them and is enabled (asked at the time: a peer's cached context doesn't see a disable).
+   - **No copy yet is an empty answer** (`200` with no key), so a `404` always means a server that doesn't serve
+     the route.
    - **The keys survive other writes:** the generator's `keepOnUpsert` leaves both columns out of the generated
      upsert's and update's SET, and saving a connection reconciles the member's rows
      (`ReconcileMemberCirclesAsync`) instead of deleting and re-inserting them. Only the set-once update writes

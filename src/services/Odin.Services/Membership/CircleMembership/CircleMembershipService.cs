@@ -615,20 +615,14 @@ public class CircleMembershipService(
     /// authority over it.  An owner-console circle (no AppId, or the owner console's) is never an
     /// app's.
     /// </remarks>
-    internal async Task AssertCallerMayManageCircleAsync(GuidId circleId, string action, IOdinContext odinContext)
+    private async Task AssertCallerMayManageCircleAsync(GuidId circleId, string action, IOdinContext odinContext)
     {
         if (odinContext.Caller.HasMasterKey)
         {
             return;
         }
 
-        odinContext.Caller.AssertCallerIsOwner();
-
-        var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
-        if (callerAppId == null)
-        {
-            throw new OdinSecurityException($"Caller cannot {action} circle {circleId}; it is not an app");
-        }
+        var callerAppId = CallingAppId(circleId, action, odinContext);
 
         var circle = await circleDefinitionService.GetCircleAsync(circleId);
         if (null == circle)
@@ -636,14 +630,40 @@ public class CircleMembershipService(
             throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
         }
 
+        AssertCircleIsTheApps(circleId, circle.AppId, callerAppId, action);
+    }
+
+    /// <summary>
+    /// <see cref="AssertCallerMayManageCircleAsync"/> for a caller that has already read the circle's owning app.
+    /// </summary>
+    internal static void AssertCallerMayManageCircle(GuidId circleId, Guid? circleAppId, string action, IOdinContext odinContext)
+    {
+        if (odinContext.Caller.HasMasterKey)
+        {
+            return;
+        }
+
+        AssertCircleIsTheApps(circleId, circleAppId, CallingAppId(circleId, action, odinContext), action);
+    }
+
+    private static Guid CallingAppId(GuidId circleId, string action, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsOwner();
+
+        return odinContext.Caller.OdinClientContext?.AppId?.Value
+               ?? throw new OdinSecurityException($"Caller cannot {action} circle {circleId}; it is not an app");
+    }
+
+    private static void AssertCircleIsTheApps(GuidId circleId, Guid? circleAppId, Guid callerAppId, string action)
+    {
         // Both tests are about the circle; the caller is already known to be an app (no master key).
         // A circle the owner owns is never an app's.  That is not implied by the AppId comparison:
         // owner-owned circles are tagged SystemAppId, and System is a registered app a client token can
         // be minted for, so its token would match every owner-owned circle.
-        if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != callerAppId)
+        if (SystemAppConstants.IsOwnerConsole(circleAppId) || circleAppId != callerAppId)
         {
             throw new OdinSecurityException(
-                $"App {callerAppId} cannot {action} circle {circleId}; it belongs to {circle.AppId?.ToString() ?? "the owner"}");
+                $"App {callerAppId} cannot {action} circle {circleId}; it belongs to {circleAppId?.ToString() ?? "the owner"}");
         }
     }
 

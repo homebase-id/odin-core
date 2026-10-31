@@ -27,7 +27,7 @@ namespace Odin.Services.Membership.Circles;
 /// and never on an owner circle, which has no app key to lock with (plan, decision 2).  A member reads only
 /// their own copy, through the Peer API, while the circle grants them access.
 /// </remarks>
-public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService circleMembershipService)
+public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService circleDefinitionService)
 {
     /// <summary>
     /// The first byte of every share key blob: key header version 2 (#2024), AES-GCM from the start.
@@ -53,8 +53,10 @@ public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService 
 
         if (await db.CircleCached.SetShareKeyAsync(circleId, appKeyLockedShareKey) == 0)
         {
-            throw new OdinClientException($"Circle {circleId} already has a share key",
-                OdinClientErrorCode.CircleShareKeyAlreadySet);
+            // Nothing written: another device set the key first, or the circle was deleted meanwhile
+            throw await db.CircleCached.GetAsync(circleId) == null
+                ? new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound)
+                : new OdinClientException($"Circle {circleId} already has a share key", OdinClientErrorCode.CircleShareKeyAlreadySet);
         }
     }
 
@@ -69,15 +71,16 @@ public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService 
         var rows = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
         return rows
             .Where(r => r.sealedShareKey == null)
-            .Select(r => OdinSystemSerializer.Deserialize<CircleMemberStorageData>(r.data.ToStringFromUtf8Bytes()))
+            .Select(StorageData)
             .Where(d => d.DomainType == DomainType.Identity)
             .Select(d => new OdinId(d.DomainName))
             .ToList();
     }
 
     /// <summary>
-    /// Stores members' sealed copies of the circle key, all or none.  Each must be a member, and the circle must
-    /// have its key: a copy of a key the circle doesn't have can't be right.  A copy replaces an earlier one, as
+    /// Stores members' sealed copies of the circle key, all or none.  Each must be an identity member (as
+    /// <see cref="GetMembersWithoutSealedShareKeyAsync"/> lists them), and the circle must have its key: a copy
+    /// of a key the circle doesn't have can't be right.  A copy replaces an earlier one, as
     /// when the app re-seals to a member's new drive key.
     /// </summary>
     public async Task SetSealedShareKeysAsync(GuidId circleId, IReadOnlyCollection<SealedShareKey> sealedKeys,
@@ -107,7 +110,9 @@ public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService 
         await using var tx = await db.BeginStackedTransactionAsync();
         foreach (var (memberId, odinId, sealedKey) in members)
         {
-            if (await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey) == 0)
+            var row = await db.CircleMemberCached.GetAsync(circleId, memberId);
+            if (row == null || StorageData(row).DomainType != DomainType.Identity ||
+                await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey) == 0)
             {
                 throw new OdinClientException($"{odinId} is not a member of circle {circleId}",
                     OdinClientErrorCode.NotACircleMember);
@@ -119,14 +124,16 @@ public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService 
 
     /// <summary>
     /// The calling peer's own sealed copy of a circle's key; null when they have none yet.  Served only to a
-    /// connected caller the circle currently grants (its enabled circles), and never anyone else's copy: the
-    /// row is looked up by the caller's identity, not by anything they send.
+    /// connected caller the circle currently grants, and never anyone else's copy: the row is looked up by the
+    /// caller's identity, not by anything they send.
     /// </summary>
     public async Task<byte[]> GetCallersSealedShareKeyAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsConnected();
 
-        if (odinContext.Caller.Circles?.Contains(circleId) != true)
+        // The caller's circles come from a peer context cached for up to an hour, which disabling a circle doesn't
+        // clear, so whether it is enabled is asked now
+        if (odinContext.Caller.Circles?.Contains(circleId) != true || !await circleDefinitionService.IsEnabledAsync(circleId))
         {
             throw new OdinSecurityException($"Caller is not a member of circle {circleId}");
         }
@@ -142,11 +149,11 @@ public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService 
     private async Task<CircleRecord> GetCircleCallerMayHandleShareKeysOfAsync(GuidId circleId, string action,
         IOdinContext odinContext)
     {
-        await circleMembershipService.AssertCallerMayManageCircleAsync(circleId, action, odinContext);
-
-        // The app check above refuses owner circles already; the owner console skips it, so it is made here too
         var circle = await db.CircleCached.GetAsync(circleId)
                      ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
+        CircleMembershipService.AssertCallerMayManageCircle(circleId, circle.AppId, action, odinContext);
+
+        // The app check refuses owner circles already; the owner console skips it, so it is made here too
         if (SystemAppConstants.IsOwnerConsole(circle.AppId))
         {
             throw new OdinSecurityException($"Cannot {action} circle {circleId}: an owner circle has no share key");
@@ -154,6 +161,9 @@ public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService 
 
         return circle;
     }
+
+    private static CircleMemberStorageData StorageData(CircleMemberRecord row) =>
+        OdinSystemSerializer.Deserialize<CircleMemberStorageData>(row.data.ToStringFromUtf8Bytes());
 
     /// <summary>Checks what the server can check of a blob it can't open: its size, and the format it knows.</summary>
     private static void AssertFormat(byte[] blob, int maxLength, string name)

@@ -60,8 +60,7 @@ public class CircleShareKeyTests : V2Fixture
         var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
 
-        Assert.That((await keys.GetShareKey(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
-            "a new circle has no key");
+        Assert.That(await StoredKeyAsync(keys, circleId), Is.Null, "a new circle has no key");
 
         var key = Blob(61, 1);
         Assert.That((await keys.SetShareKey(circleId, Key(key))).StatusCode,
@@ -116,7 +115,7 @@ public class CircleShareKeyTests : V2Fixture
             OdinClientErrorCode.InvalidShareKey);
         DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key([])),
             OdinClientErrorCode.InvalidShareKey);
-        Assert.That((await keys.GetShareKey(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "nothing was stored");
+        Assert.That(await StoredKeyAsync(keys, circleId), Is.Null, "nothing was stored");
     }
 
     [Test]
@@ -165,7 +164,7 @@ public class CircleShareKeyTests : V2Fixture
     }
 
     [Test]
-    public async Task AMemberWithoutACopyYetGetsNotFound()
+    public async Task AMemberWithoutACopyYetGetsAnEmptyAnswer()
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
@@ -173,7 +172,36 @@ public class CircleShareKeyTests : V2Fixture
         await AddAsync(app, circleId, Identities.Sam);
 
         var fetched = await FetchCopyAsync(sam, owner, circleId);
-        Assert.That(fetched.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), fetched.Error?.Content);
+        Assert.That(fetched.StatusCode, Is.EqualTo(HttpStatusCode.OK), fetched.Error?.Content);
+        Assert.That(fetched.Content!.SealedKey, Is.Null, "a 404 would mean the route is missing, not that no copy exists");
+    }
+
+    /// <summary>
+    /// A disabled circle grants nothing, so its members can't fetch their copies, even within the hour a peer's
+    /// context stays cached; enabling it again gives the same copy back.
+    /// </summary>
+    [Test]
+    public async Task ADisabledCircleServesNoCopy()
+    {
+        var owner = await LoginAsOwner();
+        var sam = await LoginAsOwner(Identities.Sam);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
+        var keys = app.RefitFor<ICircleShareKeyHttpClient>();
+        var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
+        await AddAsync(app, circleId, Identities.Sam);
+        await keys.SetShareKey(circleId, Key(Blob(61, 1)));
+        await keys.SetSealedShareKeys(circleId, Sealed(Identities.Sam, 7));
+
+        // Fetched once, so Sam's peer context, with the circle in it, is cached on Frodo's server
+        Assert.That((await FetchCopyAsync(sam, owner, circleId)).Content?.SealedKey, Is.EqualTo(Blob(200, 7)));
+
+        Assert.That((await network.DisableCircle(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var whileDisabled = await FetchCopyAsync(sam, owner, circleId);
+        Assert.That(whileDisabled.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), whileDisabled.Error?.Content);
+
+        Assert.That((await network.EnableCircle(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var enabledAgain = await FetchCopyAsync(sam, owner, circleId);
+        Assert.That(enabledAgain.Content?.SealedKey, Is.EqualTo(Blob(200, 7)), enabledAgain.Error?.Content);
     }
 
     /// <summary>

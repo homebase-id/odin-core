@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Refit;
 
@@ -13,10 +14,10 @@ public interface IPeerCircleShareKeyHttpClient
     private const string Root = PeerApiPathConstants.CirclesV1;
 
     [Get(Root + "/{circleId}/my-share-key")]
-    Task<ApiResponse<SealedShareKeyResponse>> GetMySealedShareKey(Guid circleId);
+    Task<ApiResponse<SealedShareKeyResponse>> GetMySealedShareKey(Guid circleId, CancellationToken cancellationToken);
 }
 
-/// <summary>A caller's sealed copy of a circle's share key, as the circle's owner stored it.</summary>
+/// <summary>A caller's sealed copy of a circle's share key, as the circle's owner stored it; null while there is none.</summary>
 public class SealedShareKeyResponse
 {
     public byte[] SealedKey { get; set; }

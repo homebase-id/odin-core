@@ -44,6 +44,9 @@ public static class UnifiedApiRouteConstants
     public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
     public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
 
+    // This identity's sealed copy of a peer's circle key (Selective Share)
+    public const string PeerCircleShareKey = PeerByOdinId + "/circles/{circleId:guid}/share-key";
+
     // Temporal (time-boxed) read of a drive hosted by another identity. Parallels the peer file-read
     // chain above so temporal actions share the same templates as their non-temporal twins.
     public const string PeerTemporalRoot = PeerByDriveId + "/temporal";
@@ -53,7 +56,6 @@ public static class UnifiedApiRouteConstants
     // Slug addressing over peer: /peer/{odinId}/apps/{appSlug}/drives/{driveSlug} -- the portable
     // name, and the reason the slug columns exist.  Resolved by the recipient, exactly as a drive id
     // is: the sender asks the remote what the address names there, then uses the ordinary peer path.
-    public const string PeerCircleShareKey = PeerByOdinId + "/circles/{circleId:guid}/share-key";
     public const string PeerByAppSlug = PeerByOdinId + "/apps/{appSlug}";
     public const string PeerAppDriveBySlug = PeerByAppSlug + "/drives/{driveSlug}";
     public const string PeerAppFilesRoot = PeerAppDriveBySlug + "/files";
