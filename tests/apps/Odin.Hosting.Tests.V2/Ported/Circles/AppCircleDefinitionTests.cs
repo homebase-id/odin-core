@@ -136,6 +136,9 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That((await GetDomainsInCircle(other, circleId)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await other.RefitFor<IConnectionNetworkHttpClientApiV2>().GetCircleMembers(circleId)).StatusCode,
             Is.EqualTo(HttpStatusCode.Forbidden));
+
+        // Refused, not "not found": the answer doesn't tell an app without the key which circle ids exist
+        Assert.That((await GetDomainsInCircle(other, Guid.NewGuid())).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
     [Test]

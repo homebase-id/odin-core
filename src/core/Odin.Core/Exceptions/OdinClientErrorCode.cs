@@ -136,6 +136,7 @@ public enum OdinClientErrorCode
 
     //Transit errors
     RemoteServerReturnedForbidden = 7403,
+    RemoteServerReturnedNotFound = 7404,
     RemoteServerReturnedInternalServerError = 7500,
     RemoteServerReturnedUnavailable = 7503,
     RemoteServerTransitRejected = 7900,

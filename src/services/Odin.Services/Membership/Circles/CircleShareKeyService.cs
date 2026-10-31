@@ -34,6 +34,9 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
     /// </summary>
     public const byte FormatVersion = 2;
 
+    /// <summary>Copies one request may store, so one batch can't hold the identity's write transaction for long.</summary>
+    public const int MaxSealedShareKeysPerRequest = 500;
+
     /// <summary>The circle's share key, locked with the owning app's key; null until the app sets one.</summary>
     public async Task<byte[]> GetShareKeyAsync(GuidId circleId, IOdinContext odinContext)
     {
@@ -88,9 +91,10 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
     {
         var circle = await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "seal the share key of", odinContext);
 
-        if (sealedKeys == null || sealedKeys.Count == 0)
+        if (sealedKeys == null || sealedKeys.Count == 0 || sealedKeys.Count > MaxSealedShareKeysPerRequest)
         {
-            throw new OdinClientException("No sealed share keys supplied", OdinClientErrorCode.ArgumentError);
+            throw new OdinClientException($"Supply 1 to {MaxSealedShareKeysPerRequest} sealed share keys",
+                OdinClientErrorCode.ArgumentError);
         }
 
         var members = new List<(Guid MemberId, string OdinId, byte[] SealedKey)>();

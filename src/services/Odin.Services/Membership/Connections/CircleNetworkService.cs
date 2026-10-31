@@ -599,9 +599,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<IEnumerable<OdinId>> GetCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
         {
-            await circleMembershipService.AssertCallerMayReadMembersAsync(circleId, odinContext);
-            //added override:true because the caller may read the members (checked above)
-            var result = (await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true))
+            var result = (await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext))
                 .Where(d => d.DomainType == DomainType.Identity)
                 .Select(m => new OdinId(m.Domain));
             return result;

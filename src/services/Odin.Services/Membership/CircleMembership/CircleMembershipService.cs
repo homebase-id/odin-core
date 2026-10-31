@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Apps;
@@ -247,12 +248,21 @@ public class CircleMembershipService(
     /// Who may see who is in a circle: an app holding <c>ReadCircleMembership</c>, any circle; otherwise the owner,
     /// or the app that owns the circle, which may always see who is in its own circles.
     /// </summary>
+    /// <remarks>
+    /// An app without the key is refused (403) for a circle that doesn't exist too, as it always was, so the answer
+    /// doesn't tell it which circle ids exist.
+    /// </remarks>
     public async Task AssertCallerMayReadMembersAsync(GuidId circleId, IOdinContext odinContext)
     {
-        if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadCircleMembership))
+        if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadCircleMembership))
         {
-            await AssertCallerMayManageCircleAsync(circleId, "list the members of", odinContext);
+            return;
         }
+
+        OdinValidationUtils.AssertNotNull(circleId, nameof(circleId));
+        var circle = await circleDefinitionService.GetCircleAsync(circleId)
+                     ?? throw new OdinSecurityException($"Caller cannot list the members of circle {circleId}");
+        AssertCallerMayManageCircle(circleId, circle.AppId, "list the members of", odinContext);
     }
 
     public async Task AddCircleMemberAsync(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)

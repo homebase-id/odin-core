@@ -39,9 +39,15 @@ public class PeerCircleShareKeyService(
             PeerRequestIssueType.Forbidden => throw new OdinSecurityException($"{odinId}: not a member of circle {circleId}"),
             PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr => throw new OdinSecurityException(
                 $"{odinId} no longer recognises this connection"),
-            PeerRequestIssueType.ServiceUnavailable or PeerRequestIssueType.SocketError or PeerRequestIssueType.HttpRequestFailed =>
+            // A timeout surfaces as a cancellation too; only the caller going away is one
+            PeerRequestIssueType.OperationCancelled when cancellationToken.IsCancellationRequested =>
+                throw new OperationCanceledException(cancellationToken),
+            PeerRequestIssueType.ServiceUnavailable or PeerRequestIssueType.SocketError or PeerRequestIssueType.HttpRequestFailed
+                or PeerRequestIssueType.OperationCancelled =>
                 throw new OdinClientException($"{odinId} is unavailable", OdinClientErrorCode.RemoteServerReturnedUnavailable),
-            PeerRequestIssueType.OperationCancelled => throw new OperationCanceledException(cancellationToken),
+            // No copy is an empty answer, so a 404 is a server that doesn't serve the route (an older one)
+            _ when result.Response?.StatusCode == System.Net.HttpStatusCode.NotFound =>
+                throw new OdinClientException($"{odinId} doesn't serve circle share keys", OdinClientErrorCode.RemoteServerReturnedNotFound),
             _ => throw new OdinClientException(
                 $"{odinId} answered {(int?)result.Response?.StatusCode} ({result.IssueType}) for circle {circleId}",
                 OdinClientErrorCode.RemoteServerReturnedInternalServerError)
