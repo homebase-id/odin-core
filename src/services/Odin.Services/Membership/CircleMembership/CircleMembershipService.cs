@@ -162,9 +162,9 @@ public class CircleMembershipService(
 
     /// <summary>
     /// Makes a domain's membership rows of one type match its circle grants: rows of circles no longer granted
-    /// are deleted, the rest written with the current grant.  A kept row keeps the member's sealed share key
-    /// (docs/selective-share-plan.md), which a delete and re-insert would take.  A circle whose row for this
-    /// name is held by the other domain type is left alone, as it always was.
+    /// are deleted, the rest written with the current grant when it differs from the row's.  A kept row keeps
+    /// the member's sealed share key (docs/selective-share-plan.md), which a delete and re-insert would take.  A
+    /// circle whose row for this name is held by the other domain type is left alone, as it always was.
     /// </summary>
     public async Task ReconcileMemberCirclesAsync(AsciiDomainName domainName, DomainType domainType,
         IReadOnlyDictionary<Guid, CircleGrant> circleGrants)

@@ -18,6 +18,7 @@ using Odin.Hosting.Controllers;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Network;
@@ -178,7 +179,7 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId, keys) = await CircleWithSamsCopyAsync(owner);
+        var (app, circleId, keys, _) = await CircleWithSamsCopyAsync(owner);
         var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
 
         // Fetched once, so Sam's peer context, with the circle in it, is cached on Frodo's server
@@ -203,7 +204,7 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (_, circleId, keys) = await CircleWithSamsCopyAsync(owner);
+        var (_, circleId, keys, _) = await CircleWithSamsCopyAsync(owner);
 
         var byTheApp = await keys.ResetShareKey(circleId);
         Assert.That(byTheApp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), byTheApp.Error?.Content);
@@ -212,7 +213,7 @@ public class CircleShareKeyTests : V2Fixture
         var reset = await owner.RefitFor<ICircleShareKeyHttpClient>().ResetShareKey(circleId);
         Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.OK), reset.Error?.Content);
 
-        Assert.That((await keys.GetShareKey(circleId)).Content?.AppKeyLockedShareKey, Is.Null, "the key is still there");
+        Assert.That(await StoredKeyAsync(keys, circleId), Is.Null, "the key is still there");
         Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.EqualTo(new[] { Identities.Sam }));
         var fetched = await FetchCopyAsync(sam, owner, circleId);
         Assert.That(fetched.StatusCode, Is.EqualTo(HttpStatusCode.OK), fetched.Error?.Content);
@@ -220,6 +221,14 @@ public class CircleShareKeyTests : V2Fixture
 
         Assert.That((await keys.SetShareKey(circleId, Key(Blob(61, 2)))).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(Blob(61, 2)));
+
+        // Never an owner circle, and the owner console is told a missing circle doesn't exist
+        var ownersKeys = owner.RefitFor<ICircleShareKeyHttpClient>();
+        var ownerCircleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(ownerCircleId, "the owner's", new PermissionSetGrantRequest { Drives = [AppCircles.WriteOn(MeshDrive)] });
+        var onOwnerCircle = await ownersKeys.ResetShareKey(ownerCircleId);
+        Assert.That(onOwnerCircle.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), onOwnerCircle.Error?.Content);
+        DriveAsserts.AssertRejected(await ownersKeys.ResetShareKey(Guid.NewGuid()), OdinClientErrorCode.CircleNotFound);
     }
 
     /// <summary>
@@ -231,7 +240,7 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (_, circleId, _) = await CircleWithSamsCopyAsync(owner);
+        var (_, circleId, _, _) = await CircleWithSamsCopyAsync(owner);
 
         var tenant = Host.GetTenantScope(owner.Identity.DomainName);
         await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(sam.Identity, ConnectionStatus.Connected, null);
@@ -249,26 +258,23 @@ public class CircleShareKeyTests : V2Fixture
     }
 
     /// <summary>
-    /// The writes that rewrite a member's rows (block, unblock: each saves the connection) keep both keys.  Leaving the circle takes the member's copy; coming back starts without one.
+    /// Saves of the connection keep both keys: block and unblock, which leave the member's rows as they are, and
+    /// changing the circle's grants, which rewrites Sam's row with the new grant.  Leaving the circle takes the
+    /// member's copy; coming back starts without one.
     /// </summary>
     [Test]
     public async Task KeysSurviveSavesOfTheConnection()
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId, keys) = await CircleWithSamsCopyAsync(owner);
+        var (app, circleId, keys, drive) = await CircleWithSamsCopyAsync(owner);
         var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
         var key = Blob(61, 1);
 
         var ownerNetwork = owner.RefitFor<IConnectionNetworkHttpClientApiV2>();
         Assert.That((await ownerNetwork.Block(new OdinIdRequest { OdinId = Identities.Sam })).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await ownerNetwork.Unblock(new OdinIdRequest { OdinId = Identities.Sam })).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key));
-        Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.Empty,
-            "Sam's copy was lost to a save of the connection");
-        var fetched = await FetchCopyAsync(sam, owner, circleId);
-        Assert.That(fetched.Content?.SealedKey, Is.EqualTo(Copy(7)), fetched.Error?.Content);
+        await AssertSamKeepsCopyAsync(sam, owner, keys, circleId, key, Copy(7), "block and unblock");
 
         // Leaving takes the copy: Sam is refused, and comes back with none
         Assert.That((await network.RevokeCircle(new RevokeCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam }))
@@ -279,22 +285,44 @@ public class CircleShareKeyTests : V2Fixture
         await AppCircles.AddMemberAsync(app, circleId, Identities.Sam);
         Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.EqualTo(new[] { Identities.Sam }));
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key));
+
+        // Changing what the circle grants rewrites Sam's row, and the copy stays
+        Assert.That((await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 8)))).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var definition = await owner.Admin.GetCircleDefinition(circleId);
+        definition.DriveGrants = [new DriveGrantRequest
+            { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.ReadWrite } }];
+        var update = await owner.Admin.TryUpdateCircleDefinition(definition);
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        var samsGrant = (await Host.GetTenantScope(owner.Identity.DomainName).Resolve<CircleMembershipService>()
+            .GetCirclesGrantsByDomainAsync(new OdinId(Identities.Sam), DomainType.Identity)).Single(g => g.CircleId == circleId);
+        Assert.That(samsGrant.KeyStoreKeyEncryptedDriveGrants.Single().PermissionedDrive.Permission,
+            Is.EqualTo(DrivePermission.ReadWrite), "precondition: Sam's row was rewritten with the new grant");
+        await AssertSamKeepsCopyAsync(sam, owner, keys, circleId, key, Copy(8), "a change of the circle's grants");
+    }
+
+    private static async Task AssertSamKeepsCopyAsync(OwnerSession sam, OwnerSession owner, ICircleShareKeyHttpClient keys,
+        Guid circleId, byte[] key, byte[] copy, string after)
+    {
+        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key), $"the circle's key was lost to {after}");
+        Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.Empty, $"Sam's copy was lost to {after}");
+        var fetched = await FetchCopyAsync(sam, owner, circleId);
+        Assert.That(fetched.Content?.SealedKey, Is.EqualTo(copy), $"after {after}: {fetched.Error?.Content}");
     }
 
     // -------------------------------------------------------------------------------------------
 
     /// <summary>An app's circle with Sam in it, its key <c>Blob(61, 1)</c>, and Sam's copy <c>Copy(7)</c> stored.</summary>
-    private static async Task<(AppSession App, Guid CircleId, ICircleShareKeyHttpClient Keys)> CircleWithSamsCopyAsync(
-        OwnerSession owner)
+    private static async Task<(AppSession App, Guid CircleId, ICircleShareKeyHttpClient Keys, TargetDrive Drive)>
+        CircleWithSamsCopyAsync(OwnerSession owner)
     {
-        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
+        var (app, circleId, drive) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
         await AppCircles.AddMemberAsync(app, circleId, Identities.Sam);
         var key = await keys.SetShareKey(circleId, Key(Blob(61, 1)));
         Assert.That(key.StatusCode, Is.EqualTo(HttpStatusCode.OK), key.Error?.Content);
         var copy = await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7)));
         Assert.That(copy.StatusCode, Is.EqualTo(HttpStatusCode.OK), copy.Error?.Content);
-        return (app, circleId, keys);
+        return (app, circleId, keys, drive);
     }
 
     /// <summary>The circle's stored key; a missing one fails with the status it got.</summary>

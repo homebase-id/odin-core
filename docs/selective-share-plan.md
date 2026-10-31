@@ -112,7 +112,10 @@ the drive columns.
 | `DriveAclIndex` | `permissions` | Int32, not null, default 1 | what the row's circle or person may do with the file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), narrowing the drive grant per file. Every existing row means read, hence the default |
 
 **Before any row is written without Read** (PR 3, e.g. an upload-only folder), every query that reads through
-`DriveAclIndex` must check the Read bit, or a write-only row would let its circle list the files.
+`DriveAclIndex` must check the Read bit, or a write-only row would let its circle list the files. A row that
+nobody fills in means read (the generated record starts at the column's DEFAULT), but an explicit 0 is still
+stored as given: PR 3's entry validation must refuse an entry with no bits, which would hide the file from the
+member it names.
 
 ## Blob formats: key header version 2 from the start
 

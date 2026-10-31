@@ -132,14 +132,20 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
         }
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        var rows = (await db.CircleMemberCached.GetCircleMembersAsync(circleId)).ToDictionary(r => r.memberId);
         foreach (var (memberId, odinId, sealedKey) in members)
         {
-            if (!rows.TryGetValue(memberId, out var row) || !IsIdentityMember(CircleMemberStorageData.From(row)) ||
-                await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey) == 0)
+            var row = await db.CircleMemberCached.GetAsync(circleId, memberId);
+            if (row == null || !IsIdentityMember(CircleMemberStorageData.From(row)))
             {
                 throw new OdinClientException($"{odinId} is not a member of circle {circleId}",
                     OdinClientErrorCode.NotACircleMember);
+            }
+
+            // The member is there, so nothing written means the key was reset or replaced since it was read
+            if (await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey, circle.appKeyLockedShareKey) == 0)
+            {
+                throw new OdinClientException($"Circle {circleId}'s share key changed while sealing; seal with the current key",
+                    OdinClientErrorCode.CircleShareKeyChanged);
             }
         }
 

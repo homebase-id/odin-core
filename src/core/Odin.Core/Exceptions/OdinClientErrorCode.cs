@@ -48,6 +48,7 @@ public enum OdinClientErrorCode
     CircleShareKeyNotSet = 3024,
     NotACircleMember = 3025,
     InvalidShareKey = 3026,
+    CircleShareKeyChanged = 3027,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,

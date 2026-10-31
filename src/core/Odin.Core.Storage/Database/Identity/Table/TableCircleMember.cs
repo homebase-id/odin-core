@@ -39,10 +39,12 @@ public class TableCircleMember(
 
     /// <summary>
     /// Stores a member's sealed copy of the circle key, replacing any earlier one (the app re-seals when the
-    /// member's drive key changes): 1 when stored, 0 when they are not a member of the circle.  Touches no
+    /// member's drive key changes): 1 when stored, 0 when they are not a member of the circle or the circle no
+    /// longer holds <paramref name="circleShareKey"/>, the key the copy was sealed from.  Checked in the same
+    /// statement, so a key reset or replaced meanwhile can't be left with copies of the old one.  Touches no
     /// other column.
     /// </summary>
-    internal async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey)
+    internal async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey, byte[] circleShareKey)
     {
         // Never empty: an empty copy would count as sealed.
         if (sealedShareKey == null || sealedShareKey.Length == 0 || sealedShareKey.Length > MaxSealedShareKeyLength)
@@ -55,11 +57,14 @@ public class TableCircleMember(
         await using var cmd = cn.CreateCommand();
         cmd.CommandText =
             "UPDATE CircleMember SET sealedShareKey = @sealedShareKey " +
-            "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId;";
+            "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId " +
+            "AND EXISTS (SELECT 1 FROM Circle WHERE Circle.identityId = @identityId AND Circle.circleId = @circleId " +
+            "AND Circle.appKeyLockedShareKey = @circleShareKey);";
         cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
         cmd.AddParameter("@circleId", DbType.Binary, circleId);
         cmd.AddParameter("@memberId", DbType.Binary, memberId);
         cmd.AddParameter("@sealedShareKey", DbType.Binary, sealedShareKey);
+        cmd.AddParameter("@circleShareKey", DbType.Binary, circleShareKey);
         return await cmd.ExecuteNonQueryAsync();
     }
 

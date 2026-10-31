@@ -223,11 +223,12 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   locked with the owning app's zero-knowledge key, and each member's copy, sealed to their matching drive. The server
   opens neither, and checks only their size and format version (`CircleShareKeyService`) **(V)**.
   - Only the owning app or the owner console may read or set the key, list members without a copy, or store copies
-    (`CircleMembershipService.AssertCallerMayManageCircle`); never on an owner circle. No permission key: owning the
+    (`CircleMembershipService.GetCircleCallerMayManageAsync`); never on an owner circle. No permission key: owning the
     circle is the authority, as for enabling or disabling it **(V)**. An app is refused alike for a missing circle,
     an owner circle and another app's circle; only the owner console is told a circle doesn't exist **(V)**.
-  - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only when the circle
-    has its key **(V)**. The one way back is a developer's reset, owner console only: it clears the key and every
+  - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only while the circle
+    holds the key it was sealed from, checked in the same statement, so a reset meanwhile can't leave copies of the
+    old key (`CircleShareKeyChanged`) **(V)**. The one way back is a developer's reset, owner console only: it clears the key and every
     copy (`CircleShareKeyService.ResetShareKeyAsync`) **(V)**.
   - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles and only
     once the owner has reviewed the connection (`ReviewedSecurityTier`: the circle key opens content, which an

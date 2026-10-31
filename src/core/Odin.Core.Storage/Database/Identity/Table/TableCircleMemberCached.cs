@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -87,9 +88,9 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
     //
 
     /// <summary>Stores a member's sealed copy of the circle key (<see cref="TableCircleMember.SetSealedShareKeyAsync"/>).</summary>
-    public async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey)
+    public async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey, byte[] circleShareKey)
     {
-        var result = await table.SetSealedShareKeyAsync(circleId, memberId, sealedShareKey);
+        var result = await table.SetSealedShareKeyAsync(circleId, memberId, sealedShareKey, circleShareKey);
 
         await InvalidateAsync(circleId, memberId);
 
@@ -104,10 +105,15 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
         var members = await table.GetCircleMembersAsync(circleId);
         var result = await table.ClearSealedShareKeysAsync(circleId);
 
-        foreach (var member in members)
-        {
-            await InvalidateAsync(circleId, member.memberId);
-        }
+        await Cache.InvalidateAsync([
+            ..members.SelectMany(m => new[]
+            {
+                Cache.CreateRemoveByKeyAction(GetCacheKey(circleId, m.memberId)),
+                Cache.CreateRemoveByKeyAction(GetMemberCacheKey(m.memberId))
+            }),
+            Cache.CreateRemoveByKeyAction(GetCircleCacheKey(circleId)),
+            Cache.CreateRemoveByKeyAction(CacheKeyAll)
+        ]);
 
         return result;
     }
