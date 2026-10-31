@@ -98,6 +98,22 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
 
     //
 
+    /// <summary>Clears every member's sealed copy in a circle (<see cref="TableCircleMember.ClearSealedShareKeysAsync"/>).</summary>
+    public async Task<int> ClearSealedShareKeysAsync(Guid circleId)
+    {
+        var members = await table.GetCircleMembersAsync(circleId);
+        var result = await table.ClearSealedShareKeysAsync(circleId);
+
+        foreach (var member in members)
+        {
+            await InvalidateAsync(circleId, member.memberId);
+        }
+
+        return result;
+    }
+
+    //
+
     public async Task<CircleMemberRecord?> GetAsync(Guid circleId, Guid memberId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(

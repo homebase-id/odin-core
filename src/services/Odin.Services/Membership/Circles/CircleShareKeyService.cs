@@ -65,6 +65,22 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
     }
 
     /// <summary>
+    /// A developer feature, not for ordinary users: clears the circle's key and every member's copy, so a key
+    /// stored by mistake (a client bug, the wrong app key) can be replaced.  Owner console only, which has no UI
+    /// for it.  Files already shared under the old key can't be opened with the new one.
+    /// </summary>
+    public async Task ResetShareKeyAsync(GuidId circleId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "reset the share key of", odinContext);
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+        await db.CircleMemberCached.ClearSealedShareKeysAsync(circleId);
+        await db.CircleCached.ClearShareKeyAsync(circleId);
+        tx.Commit();
+    }
+
+    /// <summary>
     /// The circle's members with no sealed copy of its key yet: new members, and those whose row was made
     /// again.  The owning app's device seals for each and stores them with <see cref="SetSealedShareKeysAsync"/>.
     /// </summary>

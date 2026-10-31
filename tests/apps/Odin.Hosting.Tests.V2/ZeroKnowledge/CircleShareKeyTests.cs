@@ -195,6 +195,34 @@ public class CircleShareKeyTests : V2Fixture
     }
 
     /// <summary>
+    /// The developer's way out of a key stored by mistake: the owner console clears the key and every copy, and
+    /// the app can set a new one.  The app itself can't.
+    /// </summary>
+    [Test]
+    public async Task TheOwnerConsoleResetsAKeyAndItsCopies()
+    {
+        var owner = await LoginAsOwner();
+        var sam = await LoginAsOwner(Identities.Sam);
+        var (_, circleId, keys) = await CircleWithSamsCopyAsync(owner);
+
+        var byTheApp = await keys.ResetShareKey(circleId);
+        Assert.That(byTheApp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), byTheApp.Error?.Content);
+        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(Blob(61, 1)));
+
+        var reset = await owner.RefitFor<ICircleShareKeyHttpClient>().ResetShareKey(circleId);
+        Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.OK), reset.Error?.Content);
+
+        Assert.That((await keys.GetShareKey(circleId)).Content?.AppKeyLockedShareKey, Is.Null, "the key is still there");
+        Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.EqualTo(new[] { Identities.Sam }));
+        var fetched = await FetchCopyAsync(sam, owner, circleId);
+        Assert.That(fetched.StatusCode, Is.EqualTo(HttpStatusCode.OK), fetched.Error?.Content);
+        Assert.That(fetched.Content?.SealedKey, Is.Null, "Sam still gets the old copy");
+
+        Assert.That((await keys.SetShareKey(circleId, Key(Blob(61, 2)))).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(Blob(61, 2)));
+    }
+
+    /// <summary>
     /// A connection the owner hasn't reviewed is judged as a stranger wherever content is, so it gets no copy
     /// until the review; the copy sealed before then is served once it lands.
     /// </summary>
@@ -308,6 +336,9 @@ public interface ICircleShareKeyHttpClient
 
     [Put(Root)]
     Task<ApiResponse<HttpContent>> SetShareKey(Guid circleId, [Body] CircleShareKeyData request);
+
+    [Delete(Root)]
+    Task<ApiResponse<HttpContent>> ResetShareKey(Guid circleId);
 
     [Get(Root + "/unsealed-members")]
     Task<ApiResponse<List<string>>> GetUnsealedMembers(Guid circleId);

@@ -61,6 +61,20 @@ public class TableCircle(
         return await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Clears the circle's share key, so a new one can be set: the developer's way out of a key stored by
+    /// mistake (<c>CircleShareKeyService.ResetShareKeyAsync</c>).  Touches no other column.
+    /// </summary>
+    internal async Task<int> ClearShareKeyAsync(Guid circleId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "UPDATE Circle SET appKeyLockedShareKey = NULL WHERE identityId = @identityId AND circleId = @circleId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@circleId", DbType.Binary, circleId);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     internal async Task<int> DeleteAsync(Guid circleId)
     {
         return await base.DeleteAsync(odinIdentity, circleId);

@@ -158,10 +158,17 @@ version 1 to stay compatible with.
      `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. The client must not seal to a drive that
      isn't zero knowledge, whose server could open it, nor to a Collaborative (community) drive, whose members all
      hold its key; the server may refuse both later.
+   - **A developer's reset** (`DELETE .../share-key`, owner console only, no UI): clears the key and every member's
+     copy, so a key stored by mistake (a client bug, the wrong app key) can be replaced. Not for ordinary users:
+     files already shared under the old key can't be opened with the new one.
    - **Moved to PR 3:** "the circle must grant the drive", which is about sharing files from a drive.
 3. **Shares in the ACL.** The entry type, its validation, `CircleIdList` set from the entries, an ACL-only
    update that keeps the version tag (see "Changing the ACL"), entries carried in an upload so sharing a new
    file is one request, readers seeing only their own entry, and expiry.
+   - **A shared file's ACL requires `Connected`** plus the circle, never `Authenticated` plus the circle
+     (decided 2026-10-31). `Authenticated` plus circles is allowed for YouAuth (`AccessControlList.Validate`)
+     **(V)**, and would let an unreviewed member read a file whose circle key PR 2 refuses them. With `Connected`,
+     the file and the key follow one rule: a reviewed connection the circle grants.
 4. **Member reads and writes.** The read rule lets a member read a client-locked file whose ACL has an entry
    for one of their circles; the write rules in "Who may write". The Peer API passes it all through as stored.
 5. **Clients.** odin-js, chat-kmp and filesync crypto against the golden vector; Filesync's share UI.

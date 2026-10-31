@@ -45,6 +45,18 @@ public class V2CircleShareKeyController(CircleShareKeyService shareKeys) : OdinC
         return Ok();
     }
 
+    /// <summary>
+    /// A developer feature: clears the circle's key and every member's copy, so a key stored by mistake can be
+    /// replaced.  Owner console only.
+    /// </summary>
+    [HttpDelete]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Reset a circle's share key and its members' copies (developers)")]
+    public async Task<IActionResult> ResetShareKey([FromRoute] Guid circleId)
+    {
+        await shareKeys.ResetShareKeyAsync(new GuidId(circleId), WebOdinContext);
+        return Ok();
+    }
+
     /// <summary>The members with no sealed copy of the circle's key yet, for the app to seal for.</summary>
     [HttpGet("unsealed-members")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "List a circle's members without a sealed share key")]
