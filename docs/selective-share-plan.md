@@ -143,7 +143,8 @@ version 1 to stay compatible with.
 2. **Circle keys** (built on branch `selective-share-circle-keys`).
    - **API** (`V2CircleShareKeyController`, owner or app): `GET`/`PUT /api/v2/connections/circles/{circleId}/share-key`
      (the key, set once), `GET .../share-key/unsealed-members`, `PUT .../share-key/members` (sealed copies, all or
-     none). A member: `GET /api/v2/peer/{odinId}/circles/{circleId}/share-key`, which asks the circle owner's server
+     none, with the locked key they were sealed from: refused when the circle no longer holds it). A member:
+     `GET /api/v2/peer/{odinId}/circles/{circleId}/share-key`, which asks the circle owner's server
      (`PeerCircleShareKeyController`, `GET /api/peer/v1/host/circles/{circleId}/my-share-key`).
    - **Rules:** only the owning app or the owner console, never an owner circle; a copy only for an identity
      member and only once the circle has its key; a member reads only their own copy, once the owner has reviewed

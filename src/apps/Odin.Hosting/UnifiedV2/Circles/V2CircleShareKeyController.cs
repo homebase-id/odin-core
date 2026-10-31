@@ -72,7 +72,7 @@ public class V2CircleShareKeyController(CircleShareKeyService shareKeys) : OdinC
     public async Task<IActionResult> SetSealedShareKeys([FromRoute] Guid circleId, [FromBody] SetSealedShareKeysRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        await shareKeys.SetSealedShareKeysAsync(new GuidId(circleId), request.Members, WebOdinContext);
+        await shareKeys.SetSealedShareKeysAsync(new GuidId(circleId), request.SealedFrom, request.Members, WebOdinContext);
         return Ok();
     }
 }
@@ -110,5 +110,11 @@ public class CircleShareKeyData
 
 public class SetSealedShareKeysRequest
 {
+    /// <summary>
+    /// The circle's key as <c>GET .../share-key</c> returned it, which these copies were sealed from.  Refused
+    /// (CircleShareKeyChanged) when the circle no longer holds it.
+    /// </summary>
+    public byte[] SealedFrom { get; set; }
+
     public List<SealedShareKey> Members { get; set; }
 }

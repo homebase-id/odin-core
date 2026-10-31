@@ -97,9 +97,12 @@ public class CircleShareKeyTests : V2Fixture
         // An owner circle has no app key to lock with, so not even the owner console sets one
         var ownerCircleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(ownerCircleId, "the owner's", new PermissionSetGrantRequest { Drives = [AppCircles.WriteOn(MeshDrive)] });
-        var onOwnerCircle = await owner.RefitFor<ICircleShareKeyHttpClient>()
-            .SetShareKey(ownerCircleId, Key(Blob(61, 1)));
-        Assert.That(onOwnerCircle.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        var ownersKeys = owner.RefitFor<ICircleShareKeyHttpClient>();
+        Assert.That((await ownersKeys.SetShareKey(ownerCircleId, Key(Blob(61, 1)))).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That((await ownersKeys.ResetShareKey(ownerCircleId)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+
+        // Only the owner console is told a circle doesn't exist
+        DriveAsserts.AssertRejected(await ownersKeys.ResetShareKey(Guid.NewGuid()), OdinClientErrorCode.CircleNotFound);
 
         // An app learns nothing about circles it doesn't own: a missing one and an owner circle get the same 403
         var missing = await othersKeys.GetShareKey(Guid.NewGuid());
@@ -124,6 +127,10 @@ public class CircleShareKeyTests : V2Fixture
         DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key([])),
             OdinClientErrorCode.InvalidShareKey);
         Assert.That(await StoredKeyAsync(keys, circleId), Is.Null, "nothing was stored");
+
+        // Copies must say which key they were sealed from
+        DriveAsserts.AssertRejected(await keys.SetSealedShareKeys(circleId, SealedFrom(null!, (Identities.Sam, 7))),
+            OdinClientErrorCode.InvalidShareKey);
     }
 
     [Test]
@@ -179,7 +186,7 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId, keys, _) = await CircleWithSamsCopyAsync(owner);
+        var (app, circleId, keys) = await CircleWithSamsCopyAsync(owner);
         var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
 
         // Fetched once, so Sam's peer context, with the circle in it, is cached on Frodo's server
@@ -190,9 +197,7 @@ public class CircleShareKeyTests : V2Fixture
         Assert.That(whileDisabled.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), whileDisabled.Error?.Content);
 
         Assert.That((await network.EnableCircle(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var enabledAgain = await FetchCopyAsync(sam, owner, circleId);
-        Assert.That(enabledAgain.Content?.SealedKey, Is.EqualTo(Copy(7)), enabledAgain.Error?.Content);
-        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(Blob(61, 1)), "disabling rewrote the circle and lost its key");
+        await AssertSamKeepsCopyAsync(sam, owner, keys, circleId, Blob(61, 1), Copy(7), "disable and enable");
     }
 
     /// <summary>
@@ -204,7 +209,7 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (_, circleId, keys, _) = await CircleWithSamsCopyAsync(owner);
+        var (_, circleId, keys) = await CircleWithSamsCopyAsync(owner);
 
         var byTheApp = await keys.ResetShareKey(circleId);
         Assert.That(byTheApp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), byTheApp.Error?.Content);
@@ -222,13 +227,12 @@ public class CircleShareKeyTests : V2Fixture
         Assert.That((await keys.SetShareKey(circleId, Key(Blob(61, 2)))).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(Blob(61, 2)));
 
-        // Never an owner circle, and the owner console is told a missing circle doesn't exist
-        var ownersKeys = owner.RefitFor<ICircleShareKeyHttpClient>();
-        var ownerCircleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(ownerCircleId, "the owner's", new PermissionSetGrantRequest { Drives = [AppCircles.WriteOn(MeshDrive)] });
-        var onOwnerCircle = await ownersKeys.ResetShareKey(ownerCircleId);
-        Assert.That(onOwnerCircle.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), onOwnerCircle.Error?.Content);
-        DriveAsserts.AssertRejected(await ownersKeys.ResetShareKey(Guid.NewGuid()), OdinClientErrorCode.CircleNotFound);
+        // Copies a device sealed from the old key before the reset are refused, and Sam stays listed for sealing
+        DriveAsserts.AssertRejected(await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7))),
+            OdinClientErrorCode.CircleShareKeyChanged);
+        Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.EqualTo(new[] { Identities.Sam }));
+        Assert.That((await keys.SetSealedShareKeys(circleId, SealedFrom(Blob(61, 2), (Identities.Sam, 8)))).StatusCode,
+            Is.EqualTo(HttpStatusCode.OK));
     }
 
     /// <summary>
@@ -240,7 +244,7 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (_, circleId, _, _) = await CircleWithSamsCopyAsync(owner);
+        var (_, circleId, _) = await CircleWithSamsCopyAsync(owner);
 
         var tenant = Host.GetTenantScope(owner.Identity.DomainName);
         await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(sam.Identity, ConnectionStatus.Connected, null);
@@ -267,7 +271,7 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId, keys, drive) = await CircleWithSamsCopyAsync(owner);
+        var (app, circleId, keys) = await CircleWithSamsCopyAsync(owner);
         var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
         var key = Blob(61, 1);
 
@@ -289,8 +293,7 @@ public class CircleShareKeyTests : V2Fixture
         // Changing what the circle grants rewrites Sam's row, and the copy stays
         Assert.That((await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 8)))).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var definition = await owner.Admin.GetCircleDefinition(circleId);
-        definition.DriveGrants = [new DriveGrantRequest
-            { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.ReadWrite } }];
+        definition.DriveGrants.Single().PermissionedDrive.Permission = DrivePermission.ReadWrite;
         var update = await owner.Admin.TryUpdateCircleDefinition(definition);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
         var samsGrant = (await Host.GetTenantScope(owner.Identity.DomainName).Resolve<CircleMembershipService>()
@@ -312,17 +315,17 @@ public class CircleShareKeyTests : V2Fixture
     // -------------------------------------------------------------------------------------------
 
     /// <summary>An app's circle with Sam in it, its key <c>Blob(61, 1)</c>, and Sam's copy <c>Copy(7)</c> stored.</summary>
-    private static async Task<(AppSession App, Guid CircleId, ICircleShareKeyHttpClient Keys, TargetDrive Drive)>
-        CircleWithSamsCopyAsync(OwnerSession owner)
+    private static async Task<(AppSession App, Guid CircleId, ICircleShareKeyHttpClient Keys)> CircleWithSamsCopyAsync(
+        OwnerSession owner)
     {
-        var (app, circleId, drive) = await AppCircles.AppWithItsOwnCircleAsync(owner);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
         await AppCircles.AddMemberAsync(app, circleId, Identities.Sam);
         var key = await keys.SetShareKey(circleId, Key(Blob(61, 1)));
         Assert.That(key.StatusCode, Is.EqualTo(HttpStatusCode.OK), key.Error?.Content);
         var copy = await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7)));
         Assert.That(copy.StatusCode, Is.EqualTo(HttpStatusCode.OK), copy.Error?.Content);
-        return (app, circleId, keys, drive);
+        return (app, circleId, keys);
     }
 
     /// <summary>The circle's stored key; a missing one fails with the status it got.</summary>
@@ -350,8 +353,14 @@ public class CircleShareKeyTests : V2Fixture
     /// <summary>A stand-in for a member's sealed copy.</summary>
     private static byte[] Copy(byte fill) => Blob(200, fill);
 
-    private static SetSealedShareKeysRequest Sealed(params (string Identity, byte Fill)[] members) =>
-        new() { Members = members.Select(m => new SealedShareKey { OdinId = m.Identity, SealedKey = Copy(m.Fill) }).ToList() };
+    /// <summary>Copies sealed from the key every test sets first, <c>Blob(61, 1)</c>.</summary>
+    private static SetSealedShareKeysRequest Sealed(params (string Identity, byte Fill)[] members) => SealedFrom(Blob(61, 1), members);
+
+    private static SetSealedShareKeysRequest SealedFrom(byte[] key, params (string Identity, byte Fill)[] members) => new()
+    {
+        SealedFrom = key,
+        Members = members.Select(m => new SealedShareKey { OdinId = m.Identity, SealedKey = Copy(m.Fill) }).ToList()
+    };
 }
 
 public interface ICircleShareKeyHttpClient

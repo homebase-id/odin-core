@@ -68,13 +68,14 @@ public class TableCircleMember(
         return await cmd.ExecuteNonQueryAsync();
     }
 
-    /// <summary>Clears every member's sealed copy in a circle.  Touches no other column.</summary>
+    /// <summary>Clears every member's sealed copy in a circle: the number cleared.  Touches no other column.</summary>
     internal async Task<int> ClearSealedShareKeysAsync(Guid circleId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
         cmd.CommandText =
-            "UPDATE CircleMember SET sealedShareKey = NULL WHERE identityId = @identityId AND circleId = @circleId;";
+            "UPDATE CircleMember SET sealedShareKey = NULL " +
+            "WHERE identityId = @identityId AND circleId = @circleId AND sealedShareKey IS NOT NULL;";
         cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
         cmd.AddParameter("@circleId", DbType.Binary, circleId);
         return await cmd.ExecuteNonQueryAsync();

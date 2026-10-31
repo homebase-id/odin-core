@@ -227,8 +227,8 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
     circle is the authority, as for enabling or disabling it **(V)**. An app is refused alike for a missing circle,
     an owner circle and another app's circle; only the owner console is told a circle doesn't exist **(V)**.
   - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only while the circle
-    holds the key it was sealed from, checked in the same statement, so a reset meanwhile can't leave copies of the
-    old key (`CircleShareKeyChanged`) **(V)**. The one way back is a developer's reset, owner console only: it clears the key and every
+    holds the key the app says it sealed from (`SealedFrom`), checked again in the same statement, so a reset
+    meanwhile can't leave copies of the old key (`CircleShareKeyChanged`) **(V)**. The one way back is a developer's reset, owner console only: it clears the key and every
     copy (`CircleShareKeyService.ResetShareKeyAsync`) **(V)**.
   - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles and only
     once the owner has reviewed the connection (`ReviewedSecurityTier`: the circle key opens content, which an

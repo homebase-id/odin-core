@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -102,18 +101,10 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
     /// <summary>Clears every member's sealed copy in a circle (<see cref="TableCircleMember.ClearSealedShareKeysAsync"/>).</summary>
     public async Task<int> ClearSealedShareKeysAsync(Guid circleId)
     {
-        var members = await table.GetCircleMembersAsync(circleId);
         var result = await table.ClearSealedShareKeysAsync(circleId);
 
-        await Cache.InvalidateAsync([
-            ..members.SelectMany(m => new[]
-            {
-                Cache.CreateRemoveByKeyAction(GetCacheKey(circleId, m.memberId)),
-                Cache.CreateRemoveByKeyAction(GetMemberCacheKey(m.memberId))
-            }),
-            Cache.CreateRemoveByKeyAction(GetCircleCacheKey(circleId)),
-            Cache.CreateRemoveByKeyAction(CacheKeyAll)
-        ]);
+        // Every member's rows, as the other many-row writes here do
+        await Cache.InvalidateAllAsync();
 
         return result;
     }

@@ -102,11 +102,12 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
 
     /// <summary>
     /// Stores members' sealed copies of the circle key, all or none.  Each must be an identity member (as
-    /// <see cref="GetMembersWithoutSealedShareKeyAsync"/> lists them), and the circle must have its key: a copy
-    /// of a key the circle doesn't have can't be right.  A copy replaces an earlier one, as
-    /// when the app re-seals to a member's new drive key.
+    /// <see cref="GetMembersWithoutSealedShareKeyAsync"/> lists them), and the circle must still hold
+    /// <paramref name="sealedFrom"/>, the locked key the app read and sealed these copies from: a copy of a key
+    /// the circle doesn't hold (none yet, or reset since) can't be right, and would never be listed for sealing
+    /// again.  A copy replaces an earlier one, as when the app re-seals to a member's new drive key.
     /// </summary>
-    public async Task SetSealedShareKeysAsync(GuidId circleId, IReadOnlyCollection<SealedShareKey> sealedKeys,
+    public async Task SetSealedShareKeysAsync(GuidId circleId, byte[] sealedFrom, IReadOnlyCollection<SealedShareKey> sealedKeys,
         IOdinContext odinContext)
     {
         var circle = await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "seal the share key of", odinContext);
@@ -125,27 +126,35 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
             members.Add((odinId.ToHashId(), odinId.DomainName, sealedKey.SealedKey));
         }
 
+        AssertFormat(sealedFrom, TableCircle.MaxShareKeyLength, "sealed from");
         if (circle.appKeyLockedShareKey == null)
         {
             throw new OdinClientException($"Circle {circleId} has no share key to seal",
                 OdinClientErrorCode.CircleShareKeyNotSet);
         }
 
+        var keyChanged = new OdinClientException($"Circle {circleId} no longer holds the share key these copies were sealed from",
+            OdinClientErrorCode.CircleShareKeyChanged);
+        if (!circle.appKeyLockedShareKey.AsSpan().SequenceEqual(sealedFrom))
+        {
+            throw keyChanged;
+        }
+
+        // Read in the transaction, so from the database, not the cache: one query for the batch
         await using var tx = await db.BeginStackedTransactionAsync();
+        var rows = (await db.CircleMemberCached.GetCircleMembersAsync(circleId)).ToDictionary(r => r.memberId);
         foreach (var (memberId, odinId, sealedKey) in members)
         {
-            var row = await db.CircleMemberCached.GetAsync(circleId, memberId);
-            if (row == null || !IsIdentityMember(CircleMemberStorageData.From(row)))
+            if (!rows.TryGetValue(memberId, out var row) || !IsIdentityMember(CircleMemberStorageData.From(row)))
             {
                 throw new OdinClientException($"{odinId} is not a member of circle {circleId}",
                     OdinClientErrorCode.NotACircleMember);
             }
 
-            // The member is there, so nothing written means the key was reset or replaced since it was read
-            if (await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey, circle.appKeyLockedShareKey) == 0)
+            // Checked again in the same statement: a reset meanwhile leaves nothing written
+            if (await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey, sealedFrom) == 0)
             {
-                throw new OdinClientException($"Circle {circleId}'s share key changed while sealing; seal with the current key",
-                    OdinClientErrorCode.CircleShareKeyChanged);
+                throw keyChanged;
             }
         }
 
