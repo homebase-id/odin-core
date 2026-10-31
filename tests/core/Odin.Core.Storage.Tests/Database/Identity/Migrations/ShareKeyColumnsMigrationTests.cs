@@ -84,6 +84,20 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
             Is.EqualTo(sealedKey));
         Assert.That((await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1[0].expiresAt,
             Is.EqualTo(expiresAt));
+
+        // Writing the circle or the membership again keeps both keys: the generated upsert leaves them out of its SET
+        var circle = circles[0];
+        circle.circleName = "Family renamed";
+        circle.appKeyLockedShareKey = null;
+        await scope.Resolve<TableCircle>().UpsertAsync(circle);
+        var member = members[0];
+        member.sealedShareKey = null;
+        await scope.Resolve<TableCircleMember>().UpsertAsync(member);
+
+        var rewritten = (await scope.Resolve<TableCircle>().PagingByRowIdAsync(10, null)).Item1[0];
+        Assert.That((rewritten.circleName, rewritten.appKeyLockedShareKey), Is.EqualTo(("Family renamed", lockedKey)));
+        Assert.That((await scope.Resolve<TableCircleMember>().PagingByRowIdAsync(10, null)).Item1[0].sealedShareKey,
+            Is.EqualTo(sealedKey));
     }
 
     private async Task ExecuteAsync(ScopedIdentityConnectionFactory connectionFactory, string sql,

@@ -173,7 +173,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji,appKeyLockedShareKey) " +
                                             $"VALUES (@identityId,@circleId,@circleName,@data,@AppId,@CircleSlug,@GrantOn,@Designation,@Emoji,@appKeyLockedShareKey)"+
                                             "ON CONFLICT (identityId,circleId) DO UPDATE "+
-                                            $"SET circleName = @circleName,data = @data,AppId = @AppId,CircleSlug = @CircleSlug,GrantOn = @GrantOn,Designation = @Designation,Emoji = @Emoji,appKeyLockedShareKey = @appKeyLockedShareKey "+
+                                            $"SET circleName = @circleName,data = @data,AppId = @AppId,CircleSlug = @CircleSlug,GrantOn = @GrantOn,Designation = @Designation,Emoji = @Emoji "+
                                             "RETURNING -1,-1,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@circleId", DbType.Binary, item.circleId);
@@ -202,7 +202,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE Circle " +
-                                            $"SET circleName = @circleName,data = @data,AppId = @AppId,CircleSlug = @CircleSlug,GrantOn = @GrantOn,Designation = @Designation,Emoji = @Emoji,appKeyLockedShareKey = @appKeyLockedShareKey "+
+                                            $"SET circleName = @circleName,data = @data,AppId = @AppId,CircleSlug = @CircleSlug,GrantOn = @GrantOn,Designation = @Designation,Emoji = @Emoji "+
                                             "WHERE (identityId = @identityId AND circleId = @circleId) "+
                                             "RETURNING -1,-1,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -214,7 +214,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.AddParameter("@GrantOn", DbType.Int32, item.GrantOn);
                 updateCommand.AddParameter("@Designation", DbType.Int32, item.Designation);
                 updateCommand.AddParameter("@Emoji", DbType.String, item.Emoji);
-                updateCommand.AddParameter("@appKeyLockedShareKey", DbType.Binary, item.appKeyLockedShareKey);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {

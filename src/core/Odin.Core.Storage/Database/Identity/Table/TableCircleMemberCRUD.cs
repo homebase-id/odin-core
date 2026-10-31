@@ -142,7 +142,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO CircleMember (identityId,circleId,memberId,data,sealedShareKey) " +
                                             $"VALUES (@identityId,@circleId,@memberId,@data,@sealedShareKey)"+
                                             "ON CONFLICT (identityId,circleId,memberId) DO UPDATE "+
-                                            $"SET data = @data,sealedShareKey = @sealedShareKey "+
+                                            $"SET data = @data "+
                                             "RETURNING -1,-1,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@circleId", DbType.Binary, item.circleId);
@@ -166,14 +166,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE CircleMember " +
-                                            $"SET data = @data,sealedShareKey = @sealedShareKey "+
+                                            $"SET data = @data "+
                                             "WHERE (identityId = @identityId AND circleId = @circleId AND memberId = @memberId) "+
                                             "RETURNING -1,-1,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 updateCommand.AddParameter("@circleId", DbType.Binary, item.circleId);
                 updateCommand.AddParameter("@memberId", DbType.Binary, item.memberId);
                 updateCommand.AddParameter("@data", DbType.Binary, item.data);
-                updateCommand.AddParameter("@sealedShareKey", DbType.Binary, item.sealedShareKey);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
