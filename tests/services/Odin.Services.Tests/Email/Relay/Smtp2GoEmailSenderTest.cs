@@ -1,18 +1,10 @@
 #nullable enable
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
-using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Moq;
 using NUnit.Framework;
-using Odin.Core.Http;
-using Odin.Services.Configuration;
 using Odin.Services.Email;
 using Odin.Services.Email.Relay;
 
@@ -24,13 +16,10 @@ namespace Odin.Services.Tests.Email.Relay;
 /// </summary>
 public class Smtp2GoEmailSenderTest
 {
-    private const string ApiKey = "api-secret-123";
+    private const string ApiKey = Smtp2GoTestRig.ApiKey;
     private const string SentBody = """{"request_id":"x","data":{"succeeded":1,"failed":0,"failures":[],"email_id":"1rCLaG-4hzZa6-Bp"}}""";
 
-    private readonly List<(string Path, string? ApiKeyHeader, string Body)> _requests = [];
-
-    [SetUp]
-    public void SetUp() => _requests.Clear();
+    private Smtp2GoTestRig _rig = null!;
 
     [Test]
     public async Task ItShouldSendFromTheSystemSenderWithTheKeyInTheHeader()
@@ -39,15 +28,13 @@ public class Smtp2GoEmailSenderTest
 
         await sender.SendAsync(new Envelope
         {
-            // Ignored: SMTP2GO refuses any sender it has not verified
-            From = new NameAndEmailAddress { Email = "someone@elsewhere.example" },
             To = [new NameAndEmailAddress { Name = "Doe, Jane", Email = "jane@example.org" }],
             Subject = "Please verify your new recovery email address!",
             TextMessage = "Open https://frodo.example.com/verify?id=abc",
             HtmlMessage = "<a href=\"https://frodo.example.com/verify?id=abc\">Verify</a>",
         });
 
-        var request = _requests.Single();
+        var request = _rig.Requests.Single();
         Assert.That(request.Path, Is.EqualTo("/v3/email/send"));
         Assert.That(request.ApiKeyHeader, Is.EqualTo(ApiKey));
         Assert.That(request.Body, Does.Not.Contain(ApiKey), "the key belongs in the header only");
@@ -94,18 +81,18 @@ public class Smtp2GoEmailSenderTest
     [TestCase(false, true, false)]
     public async Task ItShouldPassTheCheckOnlyWhenTheSenderDomainIsVerified(bool dkimVerified, bool rpathVerified, bool expected)
     {
-        var sender = CreateSender(_ => (HttpStatusCode.OK, DomainsBody("ravenhosting.cloud", dkimVerified, rpathVerified)));
+        var sender = CreateSender(_ => (HttpStatusCode.OK, Smtp2GoTestRig.DomainsBody("ravenhosting.cloud", dkimVerified, rpathVerified)));
 
         var ok = await sender.VerifyCredentialsAsync();
 
         Assert.That(ok, Is.EqualTo(expected), $"dkim={dkimVerified} rpath={rpathVerified}");
-        Assert.That(_requests.Single().Path, Is.EqualTo("/v3/domain/view"));
+        Assert.That(_rig.Requests.Single().Path, Is.EqualTo("/v3/domain/view"));
     }
 
     [Test]
     public async Task ItShouldFailTheCheckWhenTheSenderDomainIsNotOnTheAccount()
     {
-        var sender = CreateSender(_ => (HttpStatusCode.OK, DomainsBody("other.example", true, true)));
+        var sender = CreateSender(_ => (HttpStatusCode.OK, Smtp2GoTestRig.DomainsBody("other.example", true, true)));
 
         Assert.That(await sender.VerifyCredentialsAsync(), Is.False);
     }
@@ -120,52 +107,9 @@ public class Smtp2GoEmailSenderTest
         HtmlMessage = "h",
     };
 
-    private static string DomainsBody(string domain, bool dkimVerified, bool rpathVerified) => $$$"""
-        {"request_id":"x","data":{"domains":[{"domain":{
-          "fulldomain":"{{{domain}}}",
-          "dkim_expected":"dkim.smtp2go.net","dkim_selector":"s934313","dkim_verified":{{{(dkimVerified ? "true" : "false")}}},"dkim_status":"","dkim_value":"",
-          "rpath_expected":"return.smtp2go.net","rpath_selector":"em934313","rpath_verified":{{{(rpathVerified ? "true" : "false")}}},"rpath_status":"","rpath_value":""},
-          "trackers":[]}]}}
-        """;
-
     private Smtp2GoEmailSender CreateSender(Func<string, (HttpStatusCode status, string body)> responder)
     {
-        var httpClientFactory = new Mock<IDynamicHttpClientFactory>();
-        httpClientFactory
-            .Setup(x => x.CreateClient(It.IsAny<string>(), It.IsAny<Action<ClientHandlerConfig>?>()))
-            .Returns(() => new HttpClient(new RecordingHandler(_requests, responder)));
-
-        var configuration = new OdinConfiguration
-        {
-            Email = new OdinConfiguration.EmailSection
-            {
-                Relay = new OdinConfiguration.RelaySection
-                {
-                    Provider = OdinConfiguration.RelayProvider.Smtp2Go,
-                    ApiKey = ApiKey,
-                    ApiBaseUrl = "https://relay.test/v3",
-                    SystemFrom = new NameAndEmailAddress { Name = "Homebase", Email = "no-reply@ravenhosting.cloud" },
-                },
-            },
-        };
-
-        var api = new Smtp2GoApi(configuration, httpClientFactory.Object);
-        var relayProvider = new Smtp2GoRelayProvider(new Mock<ILogger<Smtp2GoRelayProvider>>().Object, api);
-        return new Smtp2GoEmailSender(configuration, api, relayProvider);
-    }
-
-    private class RecordingHandler(
-        List<(string Path, string? ApiKeyHeader, string Body)> requests,
-        Func<string, (HttpStatusCode status, string body)> responder) : HttpMessageHandler
-    {
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var path = request.RequestUri!.AbsolutePath;
-            var key = request.Headers.TryGetValues("X-Smtp2go-Api-Key", out var values) ? values.Single() : null;
-            requests.Add((path, key, await request.Content!.ReadAsStringAsync(cancellationToken)));
-
-            var (status, body) = responder(path);
-            return new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
-        }
+        _rig = new Smtp2GoTestRig(responder, new NameAndEmailAddress { Name = "Homebase", Email = "no-reply@ravenhosting.cloud" });
+        return _rig.Sender();
     }
 }

@@ -16,6 +16,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Dns.Health;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -64,16 +65,13 @@ public class RecoveryNotifier(
 
         AssertEmailEnabled();
 
-        if (configuration.Email.Relay.SendsSystemMail)
+        await EnqueueEmailAsync(new Envelope
         {
-            await EnqueueEmailAsync(new Envelope
-            {
-                To = [new NameAndEmailAddress { Name = email.DisplayName, Email = email.Address }],
-                Subject = "Please verify your new recovery email address!",
-                TextMessage = RecoveryEmails.VerifyNewRecoveryEmailText(tenant, link),
-                HtmlMessage = RecoveryEmails.VerifyNewRecoveryEmailHtml(tenant, link)
-            });
-        }
+            To = [new NameAndEmailAddress { Name = email.DisplayName, Email = email.Address }],
+            Subject = "Please verify your new recovery email address!",
+            TextMessage = RecoveryEmails.VerifyNewRecoveryEmailText(tenant, link),
+            HtmlMessage = RecoveryEmails.VerifyNewRecoveryEmailHtml(tenant, link)
+        });
     }
 
     /// <param name="nonceData">Kept with the link's nonce: the recovering browser's public key, for a friend deal.</param>
@@ -111,17 +109,7 @@ public class RecoveryNotifier(
         }
 #endif
 
-        if (configuration.Email.Relay.SendsSystemMail)
-        {
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
-            {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
-            });
-        }
+        await ScheduleMailJobAsync(job);
     }
 
     /// <summary>
@@ -136,16 +124,13 @@ public class RecoveryNotifier(
 
         AssertEmailEnabled();
 
-        if (configuration.Email.Relay.SendsSystemMail)
+        await EnqueueEmailAsync(new Envelope
         {
-            await EnqueueEmailAsync(new Envelope
-            {
-                To = [new NameAndEmailAddress { Email = email }],
-                Subject = "Your recovery is ready",
-                TextMessage = RecoveryEmails.ShardsCollectedText(tenant),
-                HtmlMessage = RecoveryEmails.ShardsCollectedHtml(tenant)
-            });
-        }
+            To = [new NameAndEmailAddress { Email = email }],
+            Subject = "Your recovery is ready",
+            TextMessage = RecoveryEmails.ShardsCollectedText(tenant),
+            HtmlMessage = RecoveryEmails.ShardsCollectedHtml(tenant)
+        });
     }
 
     /// <summary>
@@ -165,33 +150,27 @@ public class RecoveryNotifier(
         logger.LogInformation("\n\n\n{link}\n\n\n{holder} releases shard {shardId}", link, holder, shardId);
 #endif
 
-        if (configuration.Email.Relay.SendsSystemMail)
+        await EnqueueEmailAsync(new Envelope
         {
-            await EnqueueEmailAsync(new Envelope
-            {
-                To = [new NameAndEmailAddress { Email = email.Address }],
-                Subject = $"Your recovery: a piece from {holder}",
-                TextMessage = RecoveryEmails.ReleaseShardText(dealer, holder, link),
-                HtmlMessage = RecoveryEmails.ReleaseShardHtml(dealer, holder, link)
-            });
-        }
+            To = [new NameAndEmailAddress { Email = email.Address }],
+            Subject = $"Your recovery: a piece from {holder}",
+            TextMessage = RecoveryEmails.ReleaseShardText(dealer, holder, link),
+            HtmlMessage = RecoveryEmails.ReleaseShardHtml(dealer, holder, link)
+        });
     }
 
     public async Task NotifyUser(OdinId odinId, RecoveryInfo recoveryInfo, IOdinContext odinContext,
         DnssecHealthResult dnssecAttention = null,
         IReadOnlyCollection<string> mailAttention = null)
     {
-        if (configuration.Email.Relay.SendsSystemMail)
+        var email = recoveryInfo.Email;
+        await EnqueueEmailAsync(new Envelope
         {
-            var email = recoveryInfo.Email;
-            await EnqueueEmailAsync(new Envelope
-            {
-                To = [new NameAndEmailAddress { Email = email }],
-                Subject = "Your Homebase Account Recovery Risk Report",
-                TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention, mailAttention),
-                HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention, mailAttention)
-            });
-        }
+            To = [new NameAndEmailAddress { Email = email }],
+            Subject = "Your Homebase Account Recovery Risk Report",
+            TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention, mailAttention),
+            HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention, mailAttention)
+        });
 
         await pushNotificationService.EnqueueNotification(odinId, new AppNotificationOptions()
             {
@@ -216,6 +195,16 @@ public class RecoveryNotifier(
     {
         var job = jobManager.NewJob<SendEmailJob>();
         job.Data = new SendEmailJobData { Envelope = envelope };
+        await ScheduleMailJobAsync(job);
+    }
+
+    /// <summary>The one place mail is gated: a host that sends no mail of its own schedules none.</summary>
+    private async Task ScheduleMailJobAsync(AbstractJob job)
+    {
+        if (!configuration.Email.Relay.SendsSystemMail)
+        {
+            return;
+        }
 
         await jobManager.ScheduleJobAsync(job, new JobSchedule
         {

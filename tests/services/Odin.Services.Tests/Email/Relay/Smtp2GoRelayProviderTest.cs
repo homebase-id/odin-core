@@ -82,7 +82,7 @@ public class Smtp2GoRelayProviderTest
         {
             if (path.EndsWith("/domain/view"))
             {
-                return views++ == 0 ? (HttpStatusCode.OK, NoDomainsBody) : (HttpStatusCode.OK, RegisteredBody);
+                return views++ == 0 ? (HttpStatusCode.OK, NoDomainsBody) : (HttpStatusCode.OK, Smtp2GoTestRig.DomainsBody(Domain.DomainName));
             }
             return (HttpStatusCode.BadRequest, AlreadyExistsBody);
         });
@@ -96,50 +96,8 @@ public class Smtp2GoRelayProviderTest
     private const string AlreadyExistsBody =
         """{"request_id":"x","data":{"error_code":"E_ApiResponseCodes.API_EXCEPTION","error":"A sender domain matching the passed value of frodo.example.com already exists"}}""";
 
-    private const string RegisteredBody = """
-    {"request_id":"x","data":{"domains":[{"domain":{
-      "fulldomain":"frodo.example.com","subdomain":"frodo","domain":"example","suffix":"com",
-      "dkim_expected":"dkim.smtp2go.net","dkim_selector":"s934313","dkim_verified":false,"dkim_status":"","dkim_value":"",
-      "rpath_expected":"return.smtp2go.net","rpath_selector":"em934313","rpath_verified":false,"rpath_status":"","rpath_value":""},
-      "trackers":[]}]}}
-    """;
-
     //
 
     private static Smtp2GoRelayProvider CreateProvider(Func<string, (HttpStatusCode status, string body)> responder)
-    {
-        var httpClientFactory = new Mock<IDynamicHttpClientFactory>();
-        httpClientFactory
-            .Setup(x => x.CreateClient(It.IsAny<string>(), It.IsAny<Action<ClientHandlerConfig>?>()))
-            .Returns(() => new HttpClient(new ScriptedHandler(responder)));
-
-        var configuration = new OdinConfiguration
-        {
-            Email = new OdinConfiguration.EmailSection
-            {
-                Relay = new OdinConfiguration.RelaySection
-                {
-                    Provider = OdinConfiguration.RelayProvider.Smtp2Go,
-                    ApiKey = "test-key",
-                    ApiBaseUrl = "https://relay.test/v3",
-                },
-            },
-        };
-
-        return new Smtp2GoRelayProvider(
-            new Mock<ILogger<Smtp2GoRelayProvider>>().Object,
-            new Smtp2GoApi(configuration, httpClientFactory.Object));
-    }
-
-    private class ScriptedHandler(Func<string, (HttpStatusCode status, string body)> responder) : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var (status, body) = responder(request.RequestUri!.AbsolutePath);
-            return Task.FromResult(new HttpResponseMessage(status)
-            {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
-            });
-        }
-    }
+        => new Smtp2GoTestRig(responder).Provider();
 }

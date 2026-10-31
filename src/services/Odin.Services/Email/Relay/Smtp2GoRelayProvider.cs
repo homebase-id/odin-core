@@ -1,17 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Http;
-using Odin.Core.Serialization;
 using Odin.Core.Util;
-using Odin.Services.Configuration;
 using Odin.Services.Email.Dkim;
 using Odin.Services.Registry.Registration;
 
@@ -36,12 +30,13 @@ public class Smtp2GoRelayProvider(
 {
     private const string DkimSuffix = "_domainkey";
 
-    public bool IsConfigured => api.IsConfigured;
+    /// <summary>Registered only when Email:Relay:Provider is Smtp2Go (SystemServices).</summary>
+    public bool IsConfigured => true;
 
     public async Task<MailRelayDomainState?> GetDomainAsync(
         AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        var response = await PostAsync("/domain/view", new { }, cancellationToken);
+        var response = await api.PostAsync<Smtp2GoDomainResponse>("/domain/view", new { }, cancellationToken);
         var entry = response.Data.Domains.FirstOrDefault(
             x => string.Equals(x.Domain.FullDomain, domain.DomainName, StringComparison.OrdinalIgnoreCase));
 
@@ -69,7 +64,7 @@ public class Smtp2GoRelayProvider(
         Smtp2GoDomainResponse response;
         try
         {
-            response = await PostAsync("/domain/add", new
+            response = await api.PostAsync<Smtp2GoDomainResponse>("/domain/add", new
             {
                 domain = domain.DomainName,
                 auto_verify = false,
@@ -102,7 +97,7 @@ public class Smtp2GoRelayProvider(
     public async Task<MailRelayDomainState> VerifyDomainAsync(
         AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        var response = await PostAsync("/domain/verify", new { domain = domain.DomainName }, cancellationToken);
+        var response = await api.PostAsync<Smtp2GoDomainResponse>("/domain/verify", new { domain = domain.DomainName }, cancellationToken);
         var entry = response.Data.Domains.FirstOrDefault()
                     ?? throw new OdinSystemException($"Relay: /domain/verify returned no domain for {domain}");
 
@@ -114,7 +109,7 @@ public class Smtp2GoRelayProvider(
 
     public async Task RemoveDomainAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        await PostAsync("/domain/remove", new { domain = domain.DomainName }, cancellationToken);
+        await api.PostAsync<Smtp2GoDomainResponse>("/domain/remove", new { domain = domain.DomainName }, cancellationToken);
         logger.LogInformation("Relay: removed {domain}", domain);
     }
 
@@ -243,7 +238,4 @@ public class Smtp2GoRelayProvider(
                 "this tenant's own DKIM selector. Refusing to publish.");
         }
     }
-
-    private Task<Smtp2GoDomainResponse> PostAsync(string path, object body, CancellationToken cancellationToken)
-        => api.PostAsync<Smtp2GoDomainResponse>(path, body, cancellationToken);
 }

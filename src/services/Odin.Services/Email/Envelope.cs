@@ -14,7 +14,6 @@ public class NameAndEmailAddress
 
 public class Envelope
 {
-    public NameAndEmailAddress From { get; set; } = new();
     public List<NameAndEmailAddress> To { get; set; } = new();
     public List<NameAndEmailAddress> Cc { get; set; } = new();
     public List<NameAndEmailAddress> Bcc { get; set; } = new();

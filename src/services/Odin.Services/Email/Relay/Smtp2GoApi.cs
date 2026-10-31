@@ -21,11 +21,9 @@ public class Smtp2GoApi(OdinConfiguration configuration, IDynamicHttpClientFacto
 {
     private OdinConfiguration.RelaySection Relay => configuration.Email.Relay;
 
-    public bool IsConfigured => Relay.Provider == OdinConfiguration.RelayProvider.Smtp2Go;
-
     public async Task<TResponse> PostAsync<TResponse>(string path, object body, CancellationToken cancellationToken)
     {
-        if (!IsConfigured)
+        if (!Relay.IsConfigured)
         {
             throw new OdinSystemException("Relay: Email:Relay:Provider is not Smtp2Go");
         }
