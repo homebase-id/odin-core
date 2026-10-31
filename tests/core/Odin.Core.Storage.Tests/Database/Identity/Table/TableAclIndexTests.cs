@@ -60,6 +60,25 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
+        // A record starts at permissions 0 in C#, whatever the column's DEFAULT; a row granting nothing is refused
+        public async Task ARowGrantingNothingIsRefused(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
+
+            var row = new DriveAclIndexRecord { driveId = Guid.NewGuid(), fileId = Guid.NewGuid(), aclMemberId = Guid.NewGuid() };
+            Assert.ThrowsAsync<ArgumentException>(() => tblDriveAclIndex.InsertAsync(row));
+
+            row.permissions = TableDriveAclIndex.ReadPermission;
+            Assert.That(await tblDriveAclIndex.InsertAsync(row), Is.EqualTo(1));
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert and read two aclmembers
         public async Task InsertDoubleRowTest(DatabaseType databaseType)
         {

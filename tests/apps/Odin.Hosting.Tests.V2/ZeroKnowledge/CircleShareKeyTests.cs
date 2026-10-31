@@ -99,6 +99,12 @@ public class CircleShareKeyTests : V2Fixture
         var onOwnerCircle = await owner.RefitFor<ICircleShareKeyHttpClient>()
             .SetShareKey(ownerCircleId, Key(Blob(61, 1)));
         Assert.That(onOwnerCircle.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+
+        // An app learns nothing about circles it doesn't own: a missing one and an owner circle get the same 403
+        var missing = await othersKeys.GetShareKey(Guid.NewGuid());
+        Assert.That(missing.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), missing.Error?.Content);
+        var ownersFromAnApp = await othersKeys.GetShareKey(ownerCircleId);
+        Assert.That(ownersFromAnApp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), ownersFromAnApp.Error?.Content);
     }
 
     [Test]

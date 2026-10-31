@@ -14,6 +14,12 @@ public class TableDriveAclIndex(
     OdinIdentity odinIdentity)
     : TableDriveAclIndexCRUD(scopedConnectionFactory)
 {
+    /// <summary>
+    /// DrivePermission.Read, the column's default.  A record starts at 0 in C# whatever the column's DEFAULT
+    /// says (the generated insert always sends the value), so every writer here sets it.
+    /// </summary>
+    public const int ReadPermission = 1;
+
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
     
     internal new async Task<DriveAclIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid aclMemberId)
@@ -33,6 +39,12 @@ public class TableDriveAclIndex(
 
     internal new async Task<int> InsertAsync(DriveAclIndexRecord item)
     {
+        // A row granting nothing would hide the file from the member it names once queries check the bits
+        if (item.permissions == 0)
+        {
+            throw new ArgumentException("An ACL row must grant at least one permission", nameof(item));
+        }
+
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
@@ -45,8 +57,8 @@ public class TableDriveAclIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        // Read (DrivePermission.Read): until Selective Share writes its own, every row means "may read".
-        var item = new DriveAclIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId, permissions = 1 };
+        // Until Selective Share writes its own, every row means "may read"
+        var item = new DriveAclIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId, permissions = ReadPermission };
 
         foreach (var memberId in accessControlList)
         {

@@ -224,13 +224,18 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   opens neither, and checks only their size and format version (`CircleShareKeyService`) **(V)**.
   - Only the owning app or the owner console may read or set the key, list members without a copy, or store copies
     (`CircleMembershipService.AssertCallerMayManageCircle`); never on an owner circle. No permission key: owning the
-    circle is the authority, as for enabling or disabling it **(V)**.
+    circle is the authority, as for enabling or disabling it **(V)**. An app is refused alike for a missing circle,
+    an owner circle and another app's circle; only the owner console is told a circle doesn't exist **(V)**.
   - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only when the circle
     has its key **(V)**.
   - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles and only
     once the owner has reviewed the connection (`ReviewedSecurityTier`: the circle key opens content, which an
     unreviewed connection may not see). The row is looked up by the caller's identity, never by anything they send
     **(V)**.
+  - On the member's side, any app with `UseTransitRead` may fetch this identity's copy from a peer
+    (`PeerCircleShareKeyService`), whichever app owns that circle **(V)**. By design: the copy is sealed to the
+    member's matching drive, so only an app holding that drive's key can open it (the plan; the server can't check
+    what a blob is sealed to). What another app learns is which peers' circles grant this identity **(I)**.
   - Rewriting a circle or a membership row keeps both: the generated upsert and update leave the two columns out
     (`keepOnUpsert`), and saving a connection reconciles the member's rows instead of deleting and re-inserting them
     (`CircleMembershipService.ReconcileMemberCirclesAsync`). Leaving the circle or disconnecting deletes the member's

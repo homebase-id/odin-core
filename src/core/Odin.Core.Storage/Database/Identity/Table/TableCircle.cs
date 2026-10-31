@@ -72,7 +72,7 @@ public class TableCircle(
     /// </summary>
     internal async Task<List<CircleRecord>> GetByGrantOnAsync(int grantOn)
     {
-        return await base.GetByGrantOnAsync(odinIdentity, grantOn) ?? [];
+        return await base.GetByGrantOnAsync(odinIdentity, grantOn);
     }
 
     /// <summary>
