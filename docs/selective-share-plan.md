@@ -236,5 +236,28 @@ content with it and leaves the key headers alone. Two things are needed:
 
 ## Out of scope
 
-- Key rotation when a member leaves (design doc: not in the first version).
+- Key rotation (design doc: not in the first version). What rotating would take is listed below, so it isn't
+  rediscovered later.
 - Collaborative drives: unchanged.
+
+## Work to do if keys are ever rotated
+
+Nothing below is built. Each key in Selective Share has a copy somewhere that rotating it leaves behind.
+
+- **A member's drive key** (the matching drive's write-only key pair, which their circle-key copy is sealed to).
+  #2045 already keeps retired drive keys and accepts deposits to them for a grace period, but:
+  - the owning app can't tell which members' copies are sealed to an old key: the server shows it only which
+    members have no copy (`unsealed-members`). It needs each copy's key id, so the key id
+    (`PublicKeyCrc32`) must sit at a fixed place in the sealed copy, right after the version byte, and an
+    endpoint must return it per member, for the app to compare with each member's current key;
+  - the member's devices must keep the retired private half for as long as any copy is sealed to it.
+- **A circle's key** (when a member leaves, so they can't read what's shared next):
+  - `SetShareKeyAsync` is set-once by design; rotation needs a replace that a second racing device can't
+    win with a different key (e.g. guarded by the old key's hash);
+  - every remaining member needs a new sealed copy, and every file's ACL entry for the circle a new
+    `lockedKeyHeader`: a client bulk job, as sharing existing files is;
+  - members' devices must keep the old circle key until every entry is rewritten, or files they could read
+    become unreadable mid-job.
+- **The owning app's key** (`AppZkK`): `appKeyLockedShareKey` on each of the app's circles must be locked again
+  with the new key, in the same step that re-locks the app's drives.
+- **A file's key**: the file's own key header and every share's `lockedKeyHeader` change together.

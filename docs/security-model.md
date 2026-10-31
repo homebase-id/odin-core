@@ -220,7 +220,9 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   locked with the owning app's zero-knowledge key, and each member's copy, sealed to their matching drive. The server
   opens neither, and checks only their size and format version (`CircleShareKeyService`) **(V)**.
   - Only the owning app or the owner console may read or set the key, list members without a copy, or store copies
-    (`CircleMembershipService.AssertCallerMayManageCircleAsync`); never on an owner circle **(V)**.
+    (`CircleMembershipService.AssertCallerMayManageCircle`); never on an owner circle. No permission key: an app may
+    always see who is in its own circles, as the owner may in any; `ReadCircleMembership` is for an app reading
+    other circles **(V)**.
   - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only when the circle
     has its key **(V)**.
   - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles; the row
