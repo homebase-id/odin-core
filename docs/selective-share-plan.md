@@ -47,9 +47,13 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
   - No size limit: the header's server data is at most 16 KB **(V)**; rows have none.
   - A member asks "which of my shares changed since X" by the rows' own `modified`.
 - **Cleanup comes free:** a hard delete already clears the file's `DriveAclIndex` rows (`MainIndexMeta`) **(V)**.
-- **What it costs:** today every header write deletes all of the file's rows and inserts them again from
-  `CircleIdList` (`MainIndexMeta.BaseUpsertEntryZapZapAsync`) **(V)**. On a Selective Share drive that would throw
-  the key headers away, so there a header write must leave the rows alone (PR 3).
+- **A header write keeps the rows it doesn't change** (PR 1). It used to delete all of the file's rows and insert
+  them again from the ACL; now it reconciles them in the same transaction as the header
+  (`MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync`) **(V)**: rows of circles
+  and identities no longer named go, new ones are added, and a row that stays keeps its key header, bits, expiry
+  and times. A member named twice gets one row; before, the write failed on the unique key.
+- **What is left for PR 3:** on a Selective Share drive the header's ACL names no circles, so reconciling against it
+  would delete every share. There a header write must leave the rows alone entirely.
 - **Moves with the identity:** the identity move's export and import carry `DriveAclIndex` rows column by column,
   `created` and `modified` included (`IdentityDatabase.Export.Generated.cs`, `TableDriveAclIndexCRUD.ImportRowAsync`)
   **(V)**.
@@ -129,6 +133,9 @@ time (none of the existing rows is a share yet).
 filtered (`QueryBatch.SharedWhereAnd`) **(V)**, and with `created` and `modified` in both tables an unnamed one
 is ambiguous. It already named `fileId` and `rowId` for the same reason **(V)**.
 
+**A header write reconciles the file's rows** instead of deleting and inserting them all, so a row that stays
+keeps what it holds (see "Why the ACL index rows").
+
 **Before any row is written without Read** (PR 3, e.g. an upload-only folder), every query that reads through
 `DriveAclIndex` must check the Read bit, or a write-only row would let its circle list the files.
 
@@ -159,7 +166,7 @@ version 1 to stay compatible with.
    circle's owning app; the circle must grant the drive. A member row's sealed copy goes when the member leaves.
 3. **Shares as ACL index rows.** The share writes (see "Changing a share") and their validation (no share
    without bits from a client; only a circle that grants the drive); a header write on a Selective Share drive
-   leaving the rows alone, and its ACL holding no circles; shares carried in an upload so sharing a new file is
+   leaving the rows alone (elsewhere a header write already reconciles them, PR 1), and its ACL holding no circles; shares carried in an upload so sharing a new file is
    one request; the ACL returned built from the rows, a reader seeing only their own; the Read bit and expiry
    checked by every read and query; a member's "shares changed since" query by the rows' `modified`; when
    withdrawn rows are removed; and a file with no rows left staying owner-only (see "The share row").

@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -332,6 +335,70 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var (all, allCursor) = await tbl.PagingByRowIdAsync(100, null);
             Assert.That(all.Count, Is.EqualTo(3));
             Assert.That(allCursor, Is.Null);
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // A header write reconciles the file's ACL rows: a member that stays keeps its row as it was, key header
+        // and times included; a member taken off loses its row; a new one gets a row; a member listed twice, one
+        public async Task AHeaderWriteKeepsTheRowsOfMembersThatStay(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var tbl = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var stays = Guid.NewGuid();
+            var leaves = Guid.NewGuid();
+            var joins = Guid.NewGuid();
+            var otherFileId = Guid.NewGuid();
+
+            var mainIndex = scope.Resolve<TableDriveMainIndex>();
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
+                UnixTimeUtc.Now(), 1, [stays, leaves], null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, otherFileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
+                UnixTimeUtc.Now(), 1, [leaves], null, 1);
+
+            var lockedKeyHeader = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
+            var connectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+            await using (var cn = await connectionFactory.CreateScopedConnectionAsync())
+            await using (var cmd = cn.CreateCommand())
+            {
+                cmd.CommandText = "UPDATE DriveAclIndex SET lockedKeyHeader=@value " +
+                                  "WHERE identityId=@identityId AND fileId=@fileId AND aclMemberId=@member;";
+                cmd.AddParameter("@value", DbType.Binary, lockedKeyHeader);
+                cmd.AddParameter("@identityId", DbType.Binary, IdentityId);
+                cmd.AddParameter("@fileId", DbType.Binary, fileId);
+                cmd.AddParameter("@member", DbType.Binary, stays);
+                Assert.That(await cmd.ExecuteNonQueryAsync(), Is.EqualTo(1));
+            }
+
+            var before = await tbl.GetAsync(driveId, fileId, stays);
+            await Task.Delay(5); // a rewritten row would get a later created and modified
+            await RewriteHeaderAsync(metaIndex, mainIndex, driveId, fileId, [stays, joins, joins]);
+
+            var after = await tbl.GetAsync(driveId, fileId, stays);
+            Assert.That((after.rowId, after.created, after.modified, after.lockedKeyHeader),
+                Is.EqualTo((before.rowId, before.created, before.modified, lockedKeyHeader)), "the row of a member that stays");
+            Assert.That((await tbl.GetAsync(driveId, fileId)).OrderBy(m => m),
+                Is.EqualTo(new[] { stays, joins }.OrderBy(m => m)), "the file's members after the write");
+            Assert.That(await tbl.GetAsync(driveId, otherFileId), Is.EqualTo(new[] { leaves }), "another file's rows");
+
+            await RewriteHeaderAsync(metaIndex, mainIndex, driveId, fileId, []);
+            Assert.That(await tbl.GetAsync(driveId, fileId), Is.Empty, "an empty list leaves no rows");
+        }
+
+        // Writes the stored header again with a new ACL, as DriveQuery.SaveFileHeaderAsync does
+        private static async Task RewriteHeaderAsync(MainIndexMeta metaIndex, TableDriveMainIndex mainIndex, Guid driveId,
+            Guid fileId, List<Guid> acl)
+        {
+            var record = await mainIndex.GetAsync(driveId, fileId);
+            Assert.That(await metaIndex.BaseUpsertEntryZapZapAsync(record, acl), Is.EqualTo(1), "the header write");
         }
     }
 }
