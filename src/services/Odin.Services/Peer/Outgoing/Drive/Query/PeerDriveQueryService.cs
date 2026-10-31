@@ -141,7 +141,8 @@ public class PeerDriveQueryService(
         OdinSlug.Required(appSlug, nameof(appSlug));
         OdinSlug.Required(driveSlug, nameof(driveSlug));
 
-        return await cache.GetOrSetAsync($"peer-drive-key:{odinId}:{appSlug}:{driveSlug}",
+        // v2: the answer carries the drive's SharingModel; a copy cached before it would read as Collaborative
+        return await cache.GetOrSetAsync($"peer-drive-key-v2:{odinId}:{appSlug}:{driveSlug}",
             _ => FetchRemoteDriveWriteOnlyPublicKeyAsync(odinId, appSlug, driveSlug, odinContext),
             odinConfiguration.Host.PeerDriveKeyCacheAge, _ => EntrySize.Small, tags: [DriveKeysTag(odinId)],
             storeIf: key => key.IsZeroKnowledge);

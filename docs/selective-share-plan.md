@@ -153,7 +153,9 @@ version 1 to stay compatible with.
      the key, and only the targeted update writes a copy.
    - **The member's public key** comes from #2045's endpoint and cache (`GET /api/v2/peer/{odinId}/apps/{appSlug}/
      drives/{driveSlug}/public-key`): `PublicKeyJwk`, `PublicKeyCrc32` (the key hint in the sealed copy) and
-     `IsZeroKnowledge`. The client must not seal to a drive that isn't zero knowledge, whose server could open it.
+     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. The client must not seal to a drive that
+     isn't zero knowledge, whose server could open it, nor to a Collaborative (community) drive, whose members all
+     hold its key; the server may refuse both later.
    - **Moved to PR 3:** "the circle must grant the drive", which is about sharing files from a drive.
 3. **Shares in the ACL.** The entry type, its validation, `CircleIdList` set from the entries, an ACL-only
    update that keeps the version tag (see "Changing the ACL"), entries carried in an upload so sharing a new
