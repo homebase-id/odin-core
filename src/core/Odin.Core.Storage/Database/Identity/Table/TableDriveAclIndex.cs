@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -38,32 +39,11 @@ public class TableDriveAclIndex(
         return await base.InsertAsync(item);
     }
 
-    internal async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
-    {
-        if (accessControlList == null)
-            return;
-
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var tx = await cn.BeginStackedTransactionAsync();
-
-        // permissions keeps the record's default, 1 (DrivePermission.Read): until Selective Share writes its own,
-        // every row means "may read"
-        var item = new DriveAclIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId };
-
-        foreach (var memberId in accessControlList)
-        {
-            item.aclMemberId = memberId;
-            await base.InsertAsync(item);
-        }
-
-        tx.Commit();
-    }
-
     /// <summary>
-    /// Makes the file's rows match the list: deletes the rows of members no longer in it and inserts the new
-    /// ones, in one transaction. A row whose member stays is not touched, so it keeps its key header, its
-    /// permissions, its expiry and its created and modified (docs/selective-share-plan.md). A member listed
-    /// twice gets one row.
+    /// Makes the file's rows match the list, in one transaction: deletes the rows of members no longer in it and
+    /// inserts the new ones. A row whose member stays is not touched, so its created and modified stay put, and so
+    /// would its key header, permissions and expiry (docs/selective-share-plan.md). A member listed twice gets
+    /// one row.
     /// </summary>
     internal async Task ReconcileRowsAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
     {
@@ -78,44 +58,25 @@ public class TableDriveAclIndex(
 
         await using (var deleteCommand = cn.CreateCommand())
         {
-            var members = new List<string>();
             for (var i = 0; i < accessControlList.Count; i++)
-            {
-                members.Add($"@member{i}");
                 deleteCommand.AddParameter($"@member{i}", DbType.Binary, accessControlList[i]);
-            }
 
             deleteCommand.CommandText = "DELETE FROM DriveAclIndex " +
                                         "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId " +
-                                        $"AND aclMemberId NOT IN ({string.Join(",", members)});";
+                                        $"AND aclMemberId NOT IN ({string.Join(",", accessControlList.Select((_, i) => $"@member{i}"))});";
             deleteCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
             deleteCommand.AddParameter("@driveId", DbType.Binary, driveId);
             deleteCommand.AddParameter("@fileId", DbType.Binary, fileId);
             await deleteCommand.ExecuteNonQueryAsync();
         }
 
-        // permissions keeps the record's default, 1 (DrivePermission.Read), as in InsertRowsAsync
+        // permissions keeps the record's default, 1 (DrivePermission.Read): until Selective Share writes its own,
+        // every row means "may read"
         var item = new DriveAclIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId };
         foreach (var memberId in accessControlList)
         {
             item.aclMemberId = memberId;
             await base.TryInsertAsync(item);
-        }
-
-        tx.Commit();
-    }
-
-    internal async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
-    {
-        if (accessControlList == null)
-            return;
-
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var tx = await cn.BeginStackedTransactionAsync();
-
-        foreach (var memberId in accessControlList)
-        {
-            await base.DeleteAsync(odinIdentity, driveId, fileId, memberId);
         }
 
         tx.Commit();

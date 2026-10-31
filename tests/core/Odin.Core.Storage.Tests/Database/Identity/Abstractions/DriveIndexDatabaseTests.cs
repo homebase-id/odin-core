@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
@@ -2510,6 +2511,57 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, moreRows, outCursor) = await queryBatch.QueryBatchSmartCursorAsync(driveId, 400, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: new IntRange(start: 2, end: 3));
             ClassicAssert.IsTrue(result.Count == 3);
             ClassicAssert.IsTrue(moreRows == false);
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite, QueryBatchSortField.UserDate)]
+        [TestCase(DatabaseType.Sqlite, QueryBatchSortField.CreatedDate)]
+        [TestCase(DatabaseType.Sqlite, QueryBatchSortField.AnyChangeDate)]
+        [TestCase(DatabaseType.Sqlite, QueryBatchSortField.OnlyModifiedDate)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres, QueryBatchSortField.UserDate)]
+        [TestCase(DatabaseType.Postgres, QueryBatchSortField.CreatedDate)]
+        [TestCase(DatabaseType.Postgres, QueryBatchSortField.AnyChangeDate)]
+        [TestCase(DatabaseType.Postgres, QueryBatchSortField.OnlyModifiedDate)]
+        #endif
+        // The ACL filter joins driveAclIndex, which shares column names with driveMainIndex (fileId, rowId, created,
+        // modified): every sort and every filter must still work with it
+        public async Task AnAclFilterWorksWithEverySortAndFilter(DatabaseType databaseType, QueryBatchSortField sortField)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var queryBatch = scope.Resolve<QueryBatch>();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+
+            var driveId = Guid.NewGuid();
+            var shared = SequentialGuid.CreateGuid(); // the caller's circle
+            var other = SequentialGuid.CreateGuid();
+            var groupId = SequentialGuid.CreateGuid();
+            var (f1, f2, f3) = (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid());
+            var (g1, g2, g3) = (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid());
+            var (u1, u2, u3) = (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid());
+            var start = UnixTimeUtc.Now();
+
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, "sam", groupId, u1, 0, new UnixTimeUtc(1000), 1, [shared], null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, g2, 1, 1, "sam", groupId, u2, 0, new UnixTimeUtc(2000), 1, [other], null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, g3, 1, 1, "sam", groupId, u3, 0, new UnixTimeUtc(3000), 1, null, null, 1);
+            // f1 written again, so it is modified as well as created
+            var record = await tblDriveMainIndex.GetAsync(driveId, f1);
+            await metaIndex.BaseUpsertEntryZapZapAsync(record, [shared]);
+            await Task.Delay(10); // change-date queries leave out what was written in the current millisecond
+
+            var (result, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, new QueryBatchCursor(), sortField: sortField,
+                fileStateAnyOf: [0], requiredSecurityGroup: allIntRange, globalTransitIdAnyOf: [g1, g2, g3],
+                filetypesAnyOf: [1], datatypesAnyOf: [1], senderidAnyOf: ["sam"], groupIdAnyOf: [groupId],
+                uniqueIdAnyOf: [u1, u2, u3], archivalStatusAnyOf: [0],
+                userdateSpan: new UnixTimeUtcRange(new UnixTimeUtc(0), new UnixTimeUtc(10_000)),
+                aclAnyOf: [shared], modifiedAfter: start.AddSeconds(-60));
+
+            // The caller's circle may read f1; nobody's circle is named on f3, so the security group decides; f2 is
+            // another circle's. Only f1 has been modified.
+            var expected = sortField == QueryBatchSortField.OnlyModifiedDate ? new[] { f1 } : new[] { f1, f3 };
+            Assert.That(result.Select(r => r.fileId).OrderBy(id => id), Is.EqualTo(expected.OrderBy(id => id)), $"sorted by {sortField}");
         }
 
         [Test]

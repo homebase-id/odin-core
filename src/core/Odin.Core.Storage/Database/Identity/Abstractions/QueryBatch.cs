@@ -47,8 +47,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
         static QueryBatch()
         {
-            // Initialize selectOutputFields statically. Every column names its table: the ACL join brings in
-            // driveAclIndex, which has a fileId, rowId, created and modified of its own
+            // Initialize selectOutputFields statically. Every driveMainIndex column the query uses names its table:
+            // the ACL join brings in driveAclIndex, which has a fileId, rowId, created and modified of its own
             SelectOutputFields = string.Join(",",
                 TableDriveMainIndex.GetColumnNames()
                     .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
@@ -71,8 +71,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             listWhere.Add($"driveMainIndex.identityId = {odinIdentity.BytesToSql(_databaseType)}");
             listWhere.Add($"driveMainIndex.driveid = {driveId.BytesToSql(_databaseType)}");
-            listWhere.Add($"(fileSystemType = {fileSystemType})");
-            listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
+            listWhere.Add($"(driveMainIndex.fileSystemType = {fileSystemType})");
+            listWhere.Add($"(driveMainIndex.requiredSecurityGroup >= {requiredSecurityGroup.Start} AND driveMainIndex.requiredSecurityGroup <= {requiredSecurityGroup.End})");
 
             //
             // An ACL for a file is the required security group and optional list of circles
@@ -96,22 +96,22 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(filetypesAnyOf))
             {
-                listWhere.Add($"filetype IN ({IntList(filetypesAnyOf)})");
+                listWhere.Add($"driveMainIndex.filetype IN ({IntList(filetypesAnyOf)})");
             }
 
             if (IsSet(datatypesAnyOf))
             {
-                listWhere.Add($"datatype IN ({IntList(datatypesAnyOf)})");
+                listWhere.Add($"driveMainIndex.datatype IN ({IntList(datatypesAnyOf)})");
             }
 
             if (IsSet(globalTransitIdAnyOf))
             {
-                listWhere.Add($"globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
+                listWhere.Add($"driveMainIndex.globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
             }
 
             if (IsSet(uniqueIdAnyOf))
             {
-                listWhere.Add($"uniqueid IN ({HexList(uniqueIdAnyOf)})");
+                listWhere.Add($"driveMainIndex.uniqueid IN ({HexList(uniqueIdAnyOf)})");
             }
 
             if (IsSet(tagsAnyOf))
@@ -126,23 +126,23 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(archivalStatusAnyOf))
             {
-                listWhere.Add($"archivalStatus IN ({IntList(archivalStatusAnyOf)})");
+                listWhere.Add($"driveMainIndex.archivalStatus IN ({IntList(archivalStatusAnyOf)})");
             }
 
             if (IsSet(senderidAnyOf))
             {
-                listWhere.Add($"senderid IN ({UnsafeStringList(senderidAnyOf)})");
+                listWhere.Add($"driveMainIndex.senderid IN ({UnsafeStringList(senderidAnyOf)})");
             }
 
             if (IsSet(groupIdAnyOf))
             {
-                listWhere.Add($"groupid IN ({HexList(groupIdAnyOf)})");
+                listWhere.Add($"driveMainIndex.groupid IN ({HexList(groupIdAnyOf)})");
             }
 
             if (userdateSpan != null)
             {
                 userdateSpan.Validate();
-                listWhere.Add($"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds})");
+                listWhere.Add($"(driveMainIndex.userdate >= {userdateSpan.Start.milliseconds} AND driveMainIndex.userdate <= {userdateSpan.End.milliseconds})");
             }
 
             if (IsSet(tagsAllOf))
@@ -347,7 +347,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(fileStateAnyOf))
             {
-                listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
+                listWhereAnd.Add($"driveMainIndex.fileState IN ({IntList(fileStateAnyOf)})");
             }
 
             if (modifiedAfter != null)

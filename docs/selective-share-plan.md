@@ -42,18 +42,11 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
   only `RequiredSecurityGroup` (Connected for a shared file); the rows are the record of who the file is shared
   with.
 - **What it buys:**
-  - Sharing or unsharing writes one row. The file, its version tag and its `modified` stay put.
   - Two devices sharing the same file with different circles at the same moment don't conflict.
   - No size limit: the header's server data is at most 16 KB **(V)**; rows have none.
   - A member asks "which of my shares changed since X" by the rows' own `modified`.
 - **Cleanup comes free:** a hard delete already clears the file's `DriveAclIndex` rows (`MainIndexMeta`) **(V)**.
-- **A header write keeps the rows it doesn't change** (PR 1). It used to delete all of the file's rows and insert
-  them again from the ACL; now it reconciles them in the same transaction as the header
-  (`MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync`) **(V)**: rows of circles
-  and identities no longer named go, new ones are added, and a row that stays keeps its key header, bits, expiry
-  and times. A member named twice gets one row; before, the write failed on the unique key.
-- **What is left for PR 3:** on a Selective Share drive the header's ACL names no circles, so reconciling against it
-  would delete every share. There a header write must leave the rows alone entirely.
+- **A header write keeps the rows it doesn't change** (PR 1, below).
 - **Moves with the identity:** the identity move's export and import carry `DriveAclIndex` rows column by column,
   `created` and `modified` included (`IdentityDatabase.Export.Generated.cs`, `TableDriveAclIndexCRUD.ImportRowAsync`)
   **(V)**.
@@ -65,10 +58,10 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 | Column | Type | Meaning |
 |---|---|---|
 | `aclMemberId` | Guid | the circle (and later a link's id, decision 4) |
-| `permissions` | Int32, `DrivePermission` bits | what the circle may do with this file: Read, and Write to update it or, on a folder, add files to it (see "Who may write"). No bits = a withdrawn share |
-| `expiresAt` | UnixTimeUtc (ms), null | when this share of this file ends. NULL = never |
-| `lockedKeyHeader` | bytes, null | the file's key header locked with the circle key: key header version 2 (see Blob formats). NULL on every other drive, and on a withdrawn share |
-| `created`, `modified` | UnixTimeUtc (ms) | the share's own times, apart from the file's. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
+| `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), narrowing the drive grant per file: Read, and Write to update it or, on a folder, add files to it (see "Who may write"). No bits = a withdrawn share. Every row before Selective Share means read, hence the default |
+| `expiresAt` | UnixTimeUtc (ms), null | when this share of this file ends, so queries skip expired shares. NULL = never |
+| `lockedKeyHeader` | ByteArray (≤ 128), null | the file's key header locked with the circle key: key header version 2, 61 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
+| `created`, `modified` | UnixTimeUtc (ms), not null | the share's own times, apart from the file's (the generator's `FinallyAddCreatedModified`): the cursor a member syncs their shares by. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
 
 - **Each reader sees only their own circle's row.** When a file's ACL is returned, the server builds its circle
   list from the rows: all of them for the owner, only the caller's own for a member. The server already clears
@@ -124,17 +117,19 @@ time (none of the existing rows is a share yet).
 |---|---|---|---|
 | `Circle` | `appKeyLockedShareKey` | ByteArray (≤ 512), null | the circle key locked with the owning app's `AppZkK`. NULL until the app first shares with the circle |
 | `CircleMember` | `sealedShareKey` | ByteArray (≤ 2048), null | the circle key sealed to this member. NULL until a device of the owning app seals it (a new member waits for the app's next sign-in, like the app-key backfill) |
-| `DriveAclIndex` | `expiresAt` | UnixTimeUtc, null | when the share ends, so queries skip expired shares |
-| `DriveAclIndex` | `permissions` | Int32, not null, default 1 | what the row's circle or person may do with the file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), narrowing the drive grant per file. Every existing row means read, hence the default |
-| `DriveAclIndex` | `lockedKeyHeader` | ByteArray (≤ 128), null | the file's key header locked with the circle key (61 bytes, see Blob formats). NULL on every other drive and on a withdrawn share |
-| `DriveAclIndex` | `created`, `modified` | UnixTimeUtc, not null | the share's own times (the generator's `FinallyAddCreatedModified`), the cursor a member syncs their shares by |
+| `DriveAclIndex` | `permissions`, `expiresAt`, `lockedKeyHeader`, `created`, `modified` | | see "The share row" |
 
-**The query batch names its table on every column.** It joins `DriveAclIndex` when the caller's circles are
-filtered (`QueryBatch.SharedWhereAnd`) **(V)**, and with `created` and `modified` in both tables an unnamed one
-is ambiguous. It already named `fileId` and `rowId` for the same reason **(V)**.
+**The query batch names `driveMainIndex` on every column it uses.** It joins `DriveAclIndex` when the caller's
+circles are filtered (`QueryBatch.SharedWhereAnd`) **(V)**, and with `created` and `modified` in both tables an
+unnamed one is ambiguous.
 
-**A header write reconciles the file's rows** instead of deleting and inserting them all, so a row that stays
-keeps what it holds (see "Why the ACL index rows").
+**A header write reconciles the file's rows** instead of deleting all of them and inserting them again from the
+ACL, in the same transaction as the header (`MainIndexMeta.BaseUpsertEntryZapZapAsync`,
+`TableDriveAclIndex.ReconcileRowsAsync`) **(V)**: rows of circles and identities no longer named go, new ones are
+added, and a row that stays is not touched, so it keeps its times (and would keep its key header, bits and
+expiry). A member named twice gets one row; before, the write failed on the unique key. On a Selective Share drive
+the header's ACL names no circles, so reconciling against it would delete every share: there a header write must
+leave the rows alone entirely (PR 3).
 
 **Before any row is written without Read** (PR 3, e.g. an upload-only folder), every query that reads through
 `DriveAclIndex` must check the Read bit, or a write-only row would let its circle list the files.
@@ -166,10 +161,14 @@ version 1 to stay compatible with.
    circle's owning app; the circle must grant the drive. A member row's sealed copy goes when the member leaves.
 3. **Shares as ACL index rows.** The share writes (see "Changing a share") and their validation (no share
    without bits from a client; only a circle that grants the drive); a header write on a Selective Share drive
-   leaving the rows alone (elsewhere a header write already reconciles them, PR 1), and its ACL holding no circles; shares carried in an upload so sharing a new file is
+   leaving the rows alone, and its ACL holding no circles; shares carried in an upload so sharing a new file is
    one request; the ACL returned built from the rows, a reader seeing only their own; the Read bit and expiry
    checked by every read and query; a member's "shares changed since" query by the rows' `modified`; when
    withdrawn rows are removed; and a file with no rows left staying owner-only (see "The share row").
+   - **The query's ACL filter as `EXISTS`:** today a `LEFT JOIN` with `cir.fileId IS NULL OR cir.aclMemberId IN
+     (…)`, under a `SELECT DISTINCT` that exists only for the join **(V)**. Once the Read bit and expiry join the
+     filter, `NOT EXISTS (any row) OR EXISTS (a live row for my circles)` says plainly that a file whose rows are
+     all expired is not "rowless", and drops the `DISTINCT`. Check the plan on SQLite and Postgres (`EXPLAIN`).
 4. **Member reads and writes.** The read rule lets a member read a client-locked file with a share row for one
    of their circles; the write rules in "Who may write". The Peer API passes it all through as stored.
 5. **Clients.** odin-js, chat-kmp and filesync crypto against the golden vector; Filesync's share UI.
@@ -239,9 +238,8 @@ content with it and leaves the key headers alone. Two things are needed:
    copy of its key), a small table of its own or a hidden app circle with no members.
 5. **Members editing existing files:** whether a writer may update a file's content while keeping its stored
    key header, and on which drives (see "A member adds a file").
-6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31):** no. A share is its `DriveAclIndex` row,
-   with its own `created` and `modified`, and the key header lives only there, never in the header's ACL as well;
-   a withdrawn share stays as a row with no bits until it is removed (see "The share row" and "Changing a share").
+6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31):** no; a share is its `DriveAclIndex` row,
+   with times of its own (see "Changing a share").
 
 ## Out of scope
 

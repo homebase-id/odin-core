@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -39,7 +37,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (md.Count != 0)
                 Assert.Fail();
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
 
             md = await tblDriveAclIndex.GetAsync(driveId, k1);
 
@@ -128,7 +126,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             a1.Add(Guid.NewGuid());
             a1.Add(Guid.NewGuid());
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
 
             var md = await tblDriveAclIndex.GetAsync(driveId, k1);
 
@@ -158,7 +156,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
-        // Test we cannot insert the same aclmember key twice on the same key
+        // A member listed twice in a file's ACL gets one row
         public async Task InsertDuplicateAclMemberTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -168,25 +166,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
-            a1.Add(a1[0]);
+            var member = Guid.NewGuid();
 
-            bool ok = false;
-            try
-            {
-                await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
-                ok = false;
-            }
-            catch
-            {
-                ok = true;
-            }
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, [member, member]);
 
-            if (!ok)
-                Assert.Fail();
-
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EqualTo(new[] { member }));
         }
 
         [Test]
@@ -208,8 +192,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k2, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k2, a1);
 
             var md = await tblDriveAclIndex.GetAsync(driveId, k1);
             if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
@@ -239,11 +223,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
+            // The table holds one row per file and member: a second insert of the same row is refused
+            await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = k1, aclMemberId = a1[0] });
             bool ok = false;
             try
             {
-                await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
+                await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = k1, aclMemberId = a1[0] });
                 ok = false;
             }
             catch
@@ -254,6 +239,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (!ok)
                 Assert.Fail();
 
+            // Writing the same ACL again keeps the one row
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EqualTo(a1));
         }
 
 
@@ -279,20 +267,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             a1.Add(v1);
             a1.Add(v2);
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k2, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k2, a1);
 
-            // Delete all aclmembers of the first key entirely
-            await tblDriveAclIndex.DeleteRowAsync(driveId, k1, a1);
+            // Take all aclmembers off the first key
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, []);
 
             // Check that k1 is now gone
             var md = await tblDriveAclIndex.GetAsync(driveId, k1);
             if (md.Count != 0)
                 Assert.Fail();
 
-            // Remove one of the aclmembers from the list, delete it, and make sure we have the other one
-            a1.RemoveAt(0); // Remove v1
-            await tblDriveAclIndex.DeleteRowAsync(driveId, k2, a1);  // Delete v2
+            // Take v2 off the second key, and make sure we have the other one
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k2, [v1]);
 
             // Check that we have one left
             md = await tblDriveAclIndex.GetAsync(driveId, k2);
@@ -320,9 +307,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var f3 = Guid.NewGuid();
             var aclMember = Guid.NewGuid();
 
-            await tbl.InsertRowsAsync(driveId, f1, new List<Guid> { aclMember });
-            await tbl.InsertRowsAsync(driveId, f2, new List<Guid> { aclMember });
-            await tbl.InsertRowsAsync(driveId, f3, new List<Guid> { aclMember });
+            await tbl.ReconcileRowsAsync(driveId, f1, new List<Guid> { aclMember });
+            await tbl.ReconcileRowsAsync(driveId, f2, new List<Guid> { aclMember });
+            await tbl.ReconcileRowsAsync(driveId, f3, new List<Guid> { aclMember });
 
             var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
             Assert.That(page1.Count, Is.EqualTo(2));
@@ -360,26 +347,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var mainIndex = scope.Resolve<TableDriveMainIndex>();
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
-                UnixTimeUtc.Now(), 1, [stays, leaves], null, 1);
+                UnixTimeUtc.Now(), 1, [leaves], null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, otherFileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
                 UnixTimeUtc.Now(), 1, [leaves], null, 1);
 
             var lockedKeyHeader = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
-            var connectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
-            await using (var cn = await connectionFactory.CreateScopedConnectionAsync())
-            await using (var cmd = cn.CreateCommand())
-            {
-                cmd.CommandText = "UPDATE DriveAclIndex SET lockedKeyHeader=@value " +
-                                  "WHERE identityId=@identityId AND fileId=@fileId AND aclMemberId=@member;";
-                cmd.AddParameter("@value", DbType.Binary, lockedKeyHeader);
-                cmd.AddParameter("@identityId", DbType.Binary, IdentityId);
-                cmd.AddParameter("@fileId", DbType.Binary, fileId);
-                cmd.AddParameter("@member", DbType.Binary, stays);
-                Assert.That(await cmd.ExecuteNonQueryAsync(), Is.EqualTo(1));
-            }
+            await tbl.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = stays, lockedKeyHeader = lockedKeyHeader });
 
             var before = await tbl.GetAsync(driveId, fileId, stays);
-            await Task.Delay(5); // a rewritten row would get a later created and modified
             await RewriteHeaderAsync(metaIndex, mainIndex, driveId, fileId, [stays, joins, joins]);
 
             var after = await tbl.GetAsync(driveId, fileId, stays);
