@@ -86,6 +86,18 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
 
     //
 
+    /// <summary>Sets the circle's share key once (<see cref="TableCircle.SetShareKeyAsync"/>).</summary>
+    public async Task<int> SetShareKeyAsync(Guid circleId, byte[] appKeyLockedShareKey)
+    {
+        var result = await table.SetShareKeyAsync(circleId, appKeyLockedShareKey);
+
+        await InvalidateAsync(circleId);
+
+        return result;
+    }
+
+    //
+
     public async Task<List<CircleRecord>> GetAllAsync(TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetListAsync(

@@ -332,6 +332,7 @@ public static class TenantServices
             .InstancePerLifetimeScope();
 
         cb.RegisterType<CircleMembershipService>().InstancePerLifetimeScope();
+        cb.RegisterType<CircleShareKeyService>().InstancePerLifetimeScope();
         cb.RegisterType<IcrKeyService>().InstancePerLifetimeScope();
         cb.RegisterType<CircleDefinitionService>().InstancePerLifetimeScope();
 

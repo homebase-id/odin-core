@@ -137,8 +137,20 @@ version 1 to stay compatible with.
 
 ## Later PRs
 
-2. **Circle keys.** The owning app's devices set the circle key (once) and seal it for members. Only the
-   circle's owning app; the circle must grant the drive. A member row's sealed copy goes when the member leaves.
+2. **Circle keys** (built on branch `selective-share-circle-keys`).
+   - **API** (`V2CircleShareKeyController`, owner or app): `GET`/`PUT /api/v2/connections/circles/{circleId}/share-key`
+     (the key, set once), `GET .../share-key/unsealed-members`, `PUT .../share-key/members` (sealed copies, all or
+     none). A member: `GET /api/v2/peer/{odinId}/circles/{circleId}/share-key`, which asks the circle owner's server
+     (`PeerCircleShareKeyController`, `GET /api/peer/v1/host/circles/{circleId}/my-share-key`).
+   - **Rules:** only the owning app or the owner console, never an owner circle; a copy only for a member and only
+     once the circle has its key; a member reads only their own copy, while the circle is enabled for them.
+   - **The keys survive other writes:** a circle upsert carries the stored key over, a member upsert the stored
+     copy, and saving a connection keeps the rows of circles still granted instead of deleting and re-inserting
+     them. Only the set-once update writes the key, and only the targeted update writes a copy.
+   - **The member's public key** comes from #2045's endpoint and cache (`GET /api/v2/peer/{odinId}/apps/{appSlug}/
+     drives/{driveSlug}/public-key`): `PublicKeyJwk`, `PublicKeyCrc32` (the key hint in the sealed copy) and
+     `IsZeroKnowledge`. The client must not seal to a drive that isn't zero knowledge, whose server could open it.
+   - **Moved to PR 3:** "the circle must grant the drive", which is about sharing files from a drive.
 3. **Shares in the ACL.** The entry type, its validation, `CircleIdList` set from the entries, an ACL-only
    update that keeps the version tag (see "Changing the ACL"), entries carried in an upload so sharing a new
    file is one request, readers seeing only their own entry, and expiry.

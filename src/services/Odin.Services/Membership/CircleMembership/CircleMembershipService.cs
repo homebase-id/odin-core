@@ -152,7 +152,10 @@ public class CircleMembershipService(
         }
     }
 
-    public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
+    /// <param name="exceptCircleIds">circles whose row stays, e.g. those a save goes on to refresh, so the row
+    /// keeps the member's sealed share key</param>
+    public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType,
+        IReadOnlyCollection<Guid> exceptCircleIds = null)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
         var memberId = OdinId.ToHashId(domainName);
@@ -164,7 +167,7 @@ public class CircleMembershipService(
         {
             var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data
                 .ToStringFromUtf8Bytes());
-            if (sd.DomainType == domainType)
+            if (sd.DomainType == domainType && exceptCircleIds?.Contains(circleMemberRecord.circleId) != true)
             {
                 await db.CircleMemberCached.DeleteAsync(sd.CircleGrant.CircleId, memberId);
             }
@@ -578,7 +581,7 @@ public class CircleMembershipService(
     /// authority over it.  An owner-console circle (no AppId, or the owner console's) is never an
     /// app's.
     /// </remarks>
-    private async Task AssertCallerMayManageCircleAsync(GuidId circleId, string action, IOdinContext odinContext)
+    internal async Task AssertCallerMayManageCircleAsync(GuidId circleId, string action, IOdinContext odinContext)
     {
         if (odinContext.Caller.HasMasterKey)
         {

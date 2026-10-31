@@ -5,6 +5,7 @@ public static class UnifiedApiRouteConstants
     public const string BasePath = "/api/v2";
     public const string Auth = BasePath + "/auth";
     public const string Connections = BasePath + "/connections";
+    public const string CircleShareKey = Connections + "/circles/{circleId:guid}/share-key";
     public const string Followers = BasePath + "/followers";
     public const string Contacts = BasePath + "/contacts";
     public const string Profile = BasePath + "/profile";
@@ -52,6 +53,7 @@ public static class UnifiedApiRouteConstants
     // Slug addressing over peer: /peer/{odinId}/apps/{appSlug}/drives/{driveSlug} -- the portable
     // name, and the reason the slug columns exist.  Resolved by the recipient, exactly as a drive id
     // is: the sender asks the remote what the address names there, then uses the ordinary peer path.
+    public const string PeerCircleShareKey = PeerByOdinId + "/circles/{circleId:guid}/share-key";
     public const string PeerByAppSlug = PeerByOdinId + "/apps/{appSlug}";
     public const string PeerAppDriveBySlug = PeerByAppSlug + "/drives/{driveSlug}";
     public const string PeerAppFilesRoot = PeerAppDriveBySlug + "/files";

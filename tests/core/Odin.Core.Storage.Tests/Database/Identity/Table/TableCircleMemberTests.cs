@@ -6,6 +6,7 @@ using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
@@ -36,6 +37,73 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].memberId, m1) == 0);
         }
 
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // A member's sealed copy is written by its own update, and no membership write changes or clears it.
+        public async Task SealedShareKeyIsKeptByMembershipWrites(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblCircleMember = scope.Resolve<TableCircleMember>();
+
+            var c1 = Guid.NewGuid();
+            var m1 = Guid.NewGuid();
+            var m2 = Guid.NewGuid();
+            await tblCircleMember.UpsertCircleMembersAsync([new CircleMemberRecord { circleId = c1, memberId = m1, data = [1] }]);
+
+            var copy = new byte[] { 2, 5, 5 };
+            Assert.That(await tblCircleMember.SetSealedShareKeyAsync(c1, m1, copy), Is.EqualTo(1));
+            Assert.That(await tblCircleMember.SetSealedShareKeyAsync(c1, m2, copy), Is.EqualTo(0), "a non-member got a copy");
+
+            // Both upsert paths refresh the data and keep the copy, even when the record names another
+            await tblCircleMember.UpsertAsync(new CircleMemberRecord { circleId = c1, memberId = m1, data = [2] });
+            await tblCircleMember.UpsertCircleMembersAsync(
+                [new CircleMemberRecord { circleId = c1, memberId = m1, data = [3], sealedShareKey = [2, 8] }]);
+
+            var stored = await tblCircleMember.GetAsync(c1, m1);
+            Assert.That((stored.data, stored.sealedShareKey), Is.EqualTo((new byte[] { 3 }, copy)));
+
+            // Re-sealing replaces it
+            var resealed = new byte[] { 2, 6, 6 };
+            await tblCircleMember.SetSealedShareKeyAsync(c1, m1, resealed);
+            Assert.That((await tblCircleMember.GetAsync(c1, m1)).sealedShareKey, Is.EqualTo(resealed));
+
+            // Leaving takes the copy; coming back starts without one
+            await tblCircleMember.RemoveCircleMembersAsync(c1, [m1]);
+            await tblCircleMember.UpsertAsync(new CircleMemberRecord { circleId = c1, memberId = m1, data = [4] });
+            Assert.That((await tblCircleMember.GetAsync(c1, m1)).sealedShareKey, Is.Null);
+
+            Assert.ThrowsAsync<OdinDatabaseValidationException>(() => tblCircleMember.SetSealedShareKeyAsync(c1, m1, []));
+            Assert.ThrowsAsync<OdinDatabaseValidationException>(() => tblCircleMember.SetSealedShareKeyAsync(c1, m1, new byte[2049]));
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        public async Task CachedSealedShareKeySetIsSeenByTheNextRead(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var cached = scope.Resolve<TableCircleMemberCached>();
+
+            var c1 = Guid.NewGuid();
+            var m1 = Guid.NewGuid();
+            await cached.UpsertAsync(new CircleMemberRecord { circleId = c1, memberId = m1, data = [1] });
+            Assert.That((await cached.GetAsync(c1, m1))!.sealedShareKey, Is.Null);
+            Assert.That((await cached.GetCircleMembersAsync(c1))[0].sealedShareKey, Is.Null);
+
+            var copy = new byte[] { 2, 4, 4 };
+            await cached.SetSealedShareKeyAsync(c1, m1, copy);
+            Assert.That((await cached.GetAsync(c1, m1))!.sealedShareKey, Is.EqualTo(copy));
+            Assert.That((await cached.GetCircleMembersAsync(c1))[0].sealedShareKey, Is.EqualTo(copy));
+            Assert.That((await cached.GetMemberCirclesAndDataAsync(m1))[0].sealedShareKey, Is.EqualTo(copy));
+        }
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]

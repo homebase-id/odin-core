@@ -86,6 +86,29 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
 
     //
 
+    /// <summary>Stores a member's sealed copy of the circle key (<see cref="TableCircleMember.SetSealedShareKeyAsync"/>).</summary>
+    public async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey)
+    {
+        var result = await table.SetSealedShareKeyAsync(circleId, memberId, sealedShareKey);
+
+        await InvalidateAsync(circleId, memberId);
+
+        return result;
+    }
+
+    //
+
+    public async Task<CircleMemberRecord?> GetAsync(Guid circleId, Guid memberId, TimeSpan? ttl = null)
+    {
+        var result = await Cache.GetOrSetAsync(
+            GetCacheKey(circleId, memberId),
+            _ => table.GetAsync(circleId, memberId),
+            ttl ?? DefaultTtl);
+        return result;
+    }
+
+    //
+
     public async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetListAsync(

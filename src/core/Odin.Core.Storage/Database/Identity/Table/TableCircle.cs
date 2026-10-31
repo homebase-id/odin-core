@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Exceptions;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -25,10 +27,58 @@ public class TableCircle(
         return await base.InsertAsync(item);
     }
 
+    /// <summary>
+    /// Writes a circle's definition, never its share key: the stored key is carried over, so renaming,
+    /// disabling or regranting a circle can't lose the key its shared files are locked with.  Only
+    /// <see cref="SetShareKeyAsync"/> writes it (docs/selective-share-plan.md).
+    /// </summary>
     internal new async Task<int> UpsertAsync(CircleRecord item)
     {
         item.identityId = odinIdentity;
-        return await base.UpsertAsync(item);
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var tx = await cn.BeginStackedTransactionAsync();
+
+        // Locked on Postgres, so a share key set by another request can't land between this read and the write.
+        await using (var cmd = cn.CreateCommand())
+        {
+            var forUpdate = cn.DatabaseType == DatabaseType.Sqlite ? "" : " FOR UPDATE";
+            cmd.CommandText =
+                $"SELECT appKeyLockedShareKey FROM Circle WHERE identityId = @identityId AND circleId = @circleId{forUpdate};";
+            cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+            cmd.AddParameter("@circleId", DbType.Binary, item.circleId);
+            var stored = await cmd.ExecuteScalarAsync();
+            item.appKeyLockedShareKey = stored is byte[] key ? key : null;
+        }
+
+        var n = await base.UpsertAsync(item);
+        tx.Commit();
+        return n;
+    }
+
+    /// <summary>
+    /// Sets the circle's share key, once: 1 when it was set, 0 when the circle has one already or doesn't
+    /// exist.  Two devices sharing with a new circle at the same moment can't each set a different key; the
+    /// loser reads the winner's.  Touches no other column.
+    /// </summary>
+    internal async Task<int> SetShareKeyAsync(Guid circleId, byte[] appKeyLockedShareKey)
+    {
+        // The column's bound (TableCircleCRUD), and never empty: an empty key would count as set.
+        if (appKeyLockedShareKey == null || appKeyLockedShareKey.Length == 0 || appKeyLockedShareKey.Length > 512)
+        {
+            throw new OdinDatabaseValidationException(
+                $"appKeyLockedShareKey must be 1 to 512 bytes, was {appKeyLockedShareKey?.Length.ToString() ?? "null"}");
+        }
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            "UPDATE Circle SET appKeyLockedShareKey = @appKeyLockedShareKey " +
+            "WHERE identityId = @identityId AND circleId = @circleId AND appKeyLockedShareKey IS NULL;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@circleId", DbType.Binary, circleId);
+        cmd.AddParameter("@appKeyLockedShareKey", DbType.Binary, appKeyLockedShareKey);
+        return await cmd.ExecuteNonQueryAsync();
     }
 
     internal async Task<int> DeleteAsync(Guid circleId)

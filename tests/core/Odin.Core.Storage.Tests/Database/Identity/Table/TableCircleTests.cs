@@ -6,6 +6,7 @@ using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
@@ -42,6 +43,63 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[1].data, d2) == 0);
         }
 
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // The share key is set once, by its own update, and no definition write can change or clear it.
+        public async Task ShareKeyIsSetOnceAndKeptByUpserts(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblCircle = scope.Resolve<TableCircle>();
+
+            var c1 = SequentialGuid.CreateGuid();
+            await tblCircle.InsertAsync(new CircleRecord { circleName = "family", circleId = c1, CircleSlug = "family" });
+
+            var key = new byte[] { 2, 1, 1, 1 };
+            Assert.That(await tblCircle.SetShareKeyAsync(c1, key), Is.EqualTo(1));
+            Assert.That(await tblCircle.SetShareKeyAsync(c1, new byte[] { 2, 9, 9 }), Is.EqualTo(0), "a second key replaced the first");
+            Assert.That(await tblCircle.SetShareKeyAsync(SequentialGuid.CreateGuid(), key), Is.EqualTo(0), "a missing circle took a key");
+
+            // A definition write carries no key, and one that names another is overruled
+            await tblCircle.UpsertAsync(new CircleRecord { circleName = "renamed", circleId = c1, CircleSlug = "family" });
+            await tblCircle.UpsertAsync(new CircleRecord
+                { circleName = "renamed again", circleId = c1, CircleSlug = "family", appKeyLockedShareKey = new byte[] { 2, 7 } });
+
+            var stored = await tblCircle.GetAsync(c1);
+            Assert.That((stored.circleName, stored.appKeyLockedShareKey), Is.EqualTo(("renamed again", key)));
+
+            // A new circle written by upsert has none
+            var c2 = SequentialGuid.CreateGuid();
+            await tblCircle.UpsertAsync(new CircleRecord { circleName = "friends", circleId = c2, CircleSlug = "friends" });
+            Assert.That((await tblCircle.GetAsync(c2)).appKeyLockedShareKey, Is.Null);
+
+            Assert.ThrowsAsync<OdinDatabaseValidationException>(() => tblCircle.SetShareKeyAsync(c2, []));
+            Assert.ThrowsAsync<OdinDatabaseValidationException>(() => tblCircle.SetShareKeyAsync(c2, new byte[513]));
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        public async Task CachedShareKeySetIsSeenByTheNextRead(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var cached = scope.Resolve<TableCircleCached>();
+
+            var c1 = SequentialGuid.CreateGuid();
+            await cached.InsertAsync(new CircleRecord { circleName = "family", circleId = c1, CircleSlug = "family" });
+            Assert.That((await cached.GetAsync(c1))!.appKeyLockedShareKey, Is.Null);
+
+            var key = new byte[] { 2, 3, 4 };
+            await cached.SetShareKeyAsync(c1, key);
+            Assert.That((await cached.GetAsync(c1))!.appKeyLockedShareKey, Is.EqualTo(key));
+        }
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]

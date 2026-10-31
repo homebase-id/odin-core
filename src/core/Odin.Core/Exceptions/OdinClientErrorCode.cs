@@ -44,6 +44,10 @@ public enum OdinClientErrorCode
     CannotDeleteBuiltInCircle = 3020,
     CircleSlugTaken = 3021,
     ContactNotReviewed = 3022,
+    CircleShareKeyAlreadySet = 3023,
+    CircleShareKeyNotSet = 3024,
+    NotACircleMember = 3025,
+    InvalidShareKey = 3026,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,

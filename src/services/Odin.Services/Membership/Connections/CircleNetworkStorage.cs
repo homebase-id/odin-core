@@ -66,14 +66,20 @@ public class CircleNetworkStorage
 
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        //Reconcile circle grants in the table
-        await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity);
-        foreach (var (circleId, circleGrant) in icr.PeerKeyStore?.CircleGrants ?? [])
+        // Reconcile circle grants in the table.  The rows of circles still granted stay and are refreshed by the
+        // upsert below, so each keeps the member's sealed share key (docs/selective-share-plan.md); a delete
+        // and re-insert would take it.
+        var circleGrants = icr.PeerKeyStore?.CircleGrants ?? [];
+        await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity,
+            exceptCircleIds: circleGrants.Keys);
+        foreach (var (circleId, circleGrant) in circleGrants)
         {
+            // A YouAuth domain of the same name holds the row: it is left alone, as it always was.
             var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
-            var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
+            var heldByAnotherDomain = circleMembers.Any(d =>
+                OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId() && d.DomainType != DomainType.Identity);
 
-            if (!isMember)
+            if (!heldByAnotherDomain)
             {
                 await _circleMembershipService.AddCircleMemberAsync(circleId, icr.OdinId, circleGrant, DomainType.Identity);
             }

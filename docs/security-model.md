@@ -216,6 +216,17 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   circle definition needs the master key (`CircleMembershipService.UpdateAsync`) **(V)**.
 - Unreviewed connections are treated as `Authenticated`, not `Connected`, when content is evaluated
   (`ReviewedSecurityTier`) **(V)**.
+- **Circle share keys** (Selective Share, [selective-share-plan.md](selective-share-plan.md)): an app circle's key,
+  locked with the owning app's zero-knowledge key, and each member's copy, sealed to their matching drive. The server
+  opens neither, and checks only their size and format version (`CircleShareKeyService`) **(V)**.
+  - Only the owning app or the owner console may read or set the key, list members without a copy, or store copies
+    (`CircleMembershipService.AssertCallerMayManageCircleAsync`); never on an owner circle **(V)**.
+  - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only when the circle
+    has its key **(V)**.
+  - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles; the row
+    is looked up by the caller's identity, never by anything they send **(V)**.
+  - Rewriting a circle (`TableCircle.UpsertAsync`) or saving a connection (`CircleNetworkStorage.UpsertAsync`) keeps
+    both. Leaving the circle or disconnecting deletes the member's row and with it their copy **(V)**.
 
 ### Enrollment: when a circle grants itself (`CircleGrantOn`) **(V)**
 
