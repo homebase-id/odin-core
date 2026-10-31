@@ -144,9 +144,10 @@ version 1 to stay compatible with.
      (`PeerCircleShareKeyController`, `GET /api/peer/v1/host/circles/{circleId}/my-share-key`).
    - **Rules:** only the owning app or the owner console, never an owner circle; a copy only for a member and only
      once the circle has its key; a member reads only their own copy, while the circle is enabled for them.
-   - **The keys survive other writes:** a circle upsert carries the stored key over, a member upsert the stored
-     copy, and saving a connection keeps the rows of circles still granted instead of deleting and re-inserting
-     them. Only the set-once update writes the key, and only the targeted update writes a copy.
+   - **The keys survive other writes:** the generator's `keepOnUpsert` leaves both columns out of the generated
+     upsert's and update's SET, and saving a connection reconciles the member's rows
+     (`ReconcileMemberCirclesAsync`) instead of deleting and re-inserting them. Only the set-once update writes
+     the key, and only the targeted update writes a copy.
    - **The member's public key** comes from #2045's endpoint and cache (`GET /api/v2/peer/{odinId}/apps/{appSlug}/
      drives/{driveSlug}/public-key`): `PublicKeyJwk`, `PublicKeyCrc32` (the key hint in the sealed copy) and
      `IsZeroKnowledge`. The client must not seal to a drive that isn't zero knowledge, whose server could open it.

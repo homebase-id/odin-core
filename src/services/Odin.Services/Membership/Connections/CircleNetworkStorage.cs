@@ -66,24 +66,9 @@ public class CircleNetworkStorage
 
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        // Reconcile circle grants in the table.  The rows of circles still granted stay and are refreshed by the
-        // upsert below, so each keeps the member's sealed share key (docs/selective-share-plan.md); a delete
-        // and re-insert would take it.
-        var circleGrants = icr.PeerKeyStore?.CircleGrants ?? [];
-        await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity,
-            exceptCircleIds: circleGrants.Keys);
-        foreach (var (circleId, circleGrant) in circleGrants)
-        {
-            // A YouAuth domain of the same name holds the row: it is left alone, as it always was.
-            var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
-            var heldByAnotherDomain = circleMembers.Any(d =>
-                OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId() && d.DomainType != DomainType.Identity);
-
-            if (!heldByAnotherDomain)
-            {
-                await _circleMembershipService.AddCircleMemberAsync(circleId, icr.OdinId, circleGrant, DomainType.Identity);
-            }
-        }
+        // Reconcile circle grants in the table, keeping each kept row's sealed share key
+        await _circleMembershipService.ReconcileMemberCirclesAsync(icr.OdinId, DomainType.Identity,
+            icr.PeerKeyStore?.CircleGrants ?? []);
 
         // remove all app grants,
         await _db.AppGrantsCached.DeleteByIdentityAsync(odinHashId);

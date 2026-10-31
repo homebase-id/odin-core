@@ -4,7 +4,6 @@ using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -15,6 +14,9 @@ public class TableCircle(
     : TableCircleCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
+
+    /// <summary>The bound of <c>appKeyLockedShareKey</c> (TableCircleCRUD).</summary>
+    public const int MaxShareKeyLength = 512;
 
     internal async Task<CircleRecord> GetAsync(Guid circleId)
     {
@@ -27,33 +29,11 @@ public class TableCircle(
         return await base.InsertAsync(item);
     }
 
-    /// <summary>
-    /// Writes a circle's definition, never its share key: the stored key is carried over, so renaming,
-    /// disabling or regranting a circle can't lose the key its shared files are locked with.  Only
-    /// <see cref="SetShareKeyAsync"/> writes it (docs/selective-share-plan.md).
-    /// </summary>
+    /// <remarks>Never writes the share key: the generated upsert leaves it out (keepOnUpsert).</remarks>
     internal new async Task<int> UpsertAsync(CircleRecord item)
     {
         item.identityId = odinIdentity;
-
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var tx = await cn.BeginStackedTransactionAsync();
-
-        // Locked on Postgres, so a share key set by another request can't land between this read and the write.
-        await using (var cmd = cn.CreateCommand())
-        {
-            var forUpdate = cn.DatabaseType == DatabaseType.Sqlite ? "" : " FOR UPDATE";
-            cmd.CommandText =
-                $"SELECT appKeyLockedShareKey FROM Circle WHERE identityId = @identityId AND circleId = @circleId{forUpdate};";
-            cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-            cmd.AddParameter("@circleId", DbType.Binary, item.circleId);
-            var stored = await cmd.ExecuteScalarAsync();
-            item.appKeyLockedShareKey = stored is byte[] key ? key : null;
-        }
-
-        var n = await base.UpsertAsync(item);
-        tx.Commit();
-        return n;
+        return await base.UpsertAsync(item);
     }
 
     /// <summary>
@@ -63,11 +43,11 @@ public class TableCircle(
     /// </summary>
     internal async Task<int> SetShareKeyAsync(Guid circleId, byte[] appKeyLockedShareKey)
     {
-        // The column's bound (TableCircleCRUD), and never empty: an empty key would count as set.
-        if (appKeyLockedShareKey == null || appKeyLockedShareKey.Length == 0 || appKeyLockedShareKey.Length > 512)
+        // Never empty: an empty key would count as set.
+        if (appKeyLockedShareKey == null || appKeyLockedShareKey.Length == 0 || appKeyLockedShareKey.Length > MaxShareKeyLength)
         {
             throw new OdinDatabaseValidationException(
-                $"appKeyLockedShareKey must be 1 to 512 bytes, was {appKeyLockedShareKey?.Length.ToString() ?? "null"}");
+                $"appKeyLockedShareKey must be 1 to {MaxShareKeyLength} bytes, was {appKeyLockedShareKey?.Length.ToString() ?? "null"}");
         }
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

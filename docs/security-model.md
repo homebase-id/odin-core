@@ -225,8 +225,10 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
     has its key **(V)**.
   - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles; the row
     is looked up by the caller's identity, never by anything they send **(V)**.
-  - Rewriting a circle (`TableCircle.UpsertAsync`) or saving a connection (`CircleNetworkStorage.UpsertAsync`) keeps
-    both. Leaving the circle or disconnecting deletes the member's row and with it their copy **(V)**.
+  - Rewriting a circle or a membership row keeps both: the generated upsert and update leave the two columns out
+    (`keepOnUpsert`), and saving a connection reconciles the member's rows instead of deleting and re-inserting them
+    (`CircleMembershipService.ReconcileMemberCirclesAsync`). Leaving the circle or disconnecting deletes the member's
+    row and with it their copy **(V)**.
 
 ### Enrollment: when a circle grants itself (`CircleGrantOn`) **(V)**
 

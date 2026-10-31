@@ -467,7 +467,7 @@ public class AppCircleDefinitionTests : V2Fixture
         var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
             Name = "made by the app",
-            DriveGrants = [WriteOn(drive)],
+            DriveGrants = [AppCircles.WriteOn(drive)],
             Permissions = new PermissionSet(PermissionKeys.ReadConnections)
         });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -498,7 +498,7 @@ public class AppCircleDefinitionTests : V2Fixture
         var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
             Name = "nobody can be added",
-            DriveGrants = [WriteOn(unreachable)]
+            DriveGrants = [AppCircles.WriteOn(unreachable)]
         });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
@@ -512,7 +512,7 @@ public class AppCircleDefinitionTests : V2Fixture
         var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
             Name = "write it cannot do itself",
-            DriveGrants = [WriteOn(drive)]
+            DriveGrants = [AppCircles.WriteOn(drive)]
         });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
@@ -549,7 +549,7 @@ public class AppCircleDefinitionTests : V2Fixture
         var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
             Name = "reaching too far",
-            DriveGrants = [WriteOn(ownersDrive)]
+            DriveGrants = [AppCircles.WriteOn(ownersDrive)]
         });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
@@ -577,7 +577,7 @@ public class AppCircleDefinitionTests : V2Fixture
     public async Task AppManagesMembersOfItsOwnCircleWithoutAKeyViaV2()
     {
         var owner = await LoginAsOwner();
-        var (app, circleId, drive) = await AppWithItsOwnCircleAsync(owner);
+        var (app, circleId, drive) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var v2 = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
 
         var add = await v2.GrantCircle(new AddCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam });
@@ -590,7 +590,7 @@ public class AppCircleDefinitionTests : V2Fixture
 
         var reviewCircleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(reviewCircleId, "the app's reviewed circle",
-            new PermissionSetGrantRequest { Drives = [WriteOn(drive)] }, app.AppId, CircleGrantOn.Review);
+            new PermissionSetGrantRequest { Drives = [AppCircles.WriteOn(drive)] }, app.AppId, CircleGrantOn.Review);
         var many = await v2.GrantCircleToMany(new AddManyCircleMembershipRequest { CircleId = reviewCircleId, OdinIds = [Identities.Sam] });
         Assert.That(many.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(many.Content!.Enrolled + many.Content.Deposited, Is.EqualTo(1), "the bulk add added nobody");
@@ -601,7 +601,7 @@ public class AppCircleDefinitionTests : V2Fixture
     public async Task AppWithoutTheKeyCannotAddToAnotherAppsCircleViaV2()
     {
         var owner = await LoginAsOwner();
-        var (_, othersCircleId, _) = await AppWithItsOwnCircleAsync(owner);
+        var (_, othersCircleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var app = await CreateAppAndClient(owner, Guid.NewGuid());
 
         var add = await app.RefitFor<IConnectionNetworkHttpClientApiV2>()
@@ -618,7 +618,7 @@ public class AppCircleDefinitionTests : V2Fixture
     public async Task AppHoldingTheRetiredKeyCanStillAddToAnotherAppsCircleViaV2()
     {
         var owner = await LoginAsOwner();
-        var (_, othersCircleId, drive) = await AppWithItsOwnCircleAsync(owner);
+        var (_, othersCircleId, drive) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var app = await AppSession.SetupAsync(owner, drive, DrivePermission.All, [PermissionKeys.ManageCircleMembership],
             knownAppId: Guid.NewGuid());
 
@@ -628,19 +628,6 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That(await SamIsInCircleAsync(owner, othersCircleId), Is.True);
     }
 
-    /// <summary>An app with no permission keys, write on a drive, and a circle of its own granting that drive.</summary>
-    private static async Task<(AppSession App, Guid CircleId, TargetDrive Drive)> AppWithItsOwnCircleAsync(OwnerSession owner)
-    {
-        var appId = Guid.NewGuid();
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "the app's", allowAnonymousReads: false);
-        var app = await AppSession.SetupAsync(owner, drive, DrivePermission.All, [], knownAppId: appId);
-
-        var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "the app's circle", new PermissionSetGrantRequest { Drives = [WriteOn(drive)] }, appId);
-        return (app, circleId, drive);
-    }
-
     private async Task<bool> SamIsInCircleAsync(OwnerSession owner, Guid circleId)
     {
         var icr = await Host.GetTenantScope(owner.Identity.DomainName)
@@ -648,9 +635,6 @@ public class AppCircleDefinitionTests : V2Fixture
         return icr!.PeerKeyStore.CircleGrants.ContainsKey(circleId) ||
                icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId);
     }
-
-    private static DriveGrantRequest WriteOn(TargetDrive drive) =>
-        new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Write } };
 
     [Test]
     public async Task AppFailsToDisableOwnerCircleViaV2()

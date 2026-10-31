@@ -30,16 +30,16 @@ public class V2CircleShareKeyController(CircleShareKeyService shareKeys) : OdinC
     /// <summary>The circle's key, locked with the owning app's key.  404 until the app sets one.</summary>
     [HttpGet]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Get a circle's share key")]
-    public async Task<ActionResult<CircleShareKeyResponse>> GetShareKey([FromRoute] Guid circleId)
+    public async Task<ActionResult<CircleShareKeyData>> GetShareKey([FromRoute] Guid circleId)
     {
         var key = await shareKeys.GetShareKeyAsync(new GuidId(circleId), WebOdinContext);
-        return key == null ? NotFound() : new CircleShareKeyResponse { AppKeyLockedShareKey = key };
+        return key == null ? NotFound() : new CircleShareKeyData { AppKeyLockedShareKey = key };
     }
 
     /// <summary>Sets the circle's key, once; refused (CircleShareKeyAlreadySet) when it has one.</summary>
     [HttpPut]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Set a circle's share key, once")]
-    public async Task<IActionResult> SetShareKey([FromRoute] Guid circleId, [FromBody] CircleShareKeyResponse request)
+    public async Task<IActionResult> SetShareKey([FromRoute] Guid circleId, [FromBody] CircleShareKeyData request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         await shareKeys.SetShareKeyAsync(new GuidId(circleId), request.AppKeyLockedShareKey, WebOdinContext);
@@ -73,7 +73,7 @@ public class V2CircleShareKeyController(CircleShareKeyService shareKeys) : OdinC
 [Route(UnifiedApiRouteConstants.PeerCircleShareKey)]
 [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
 [ApiExplorerSettings(GroupName = "v2")]
-public class V2PeerCircleShareKeyController(CircleShareKeyService shareKeys) : OdinControllerBase
+public class V2PeerCircleShareKeyController(PeerCircleShareKeyService peerShareKeys) : OdinControllerBase
 {
     /// <summary>
     /// Your sealed copy of <paramref name="odinId"/>'s circle key.  404 while they have sealed none for you; 403
@@ -85,12 +85,12 @@ public class V2PeerCircleShareKeyController(CircleShareKeyService shareKeys) : O
         [FromRoute] Guid circleId)
     {
         OdinValidationUtils.AssertIsValidOdinId(odinId, out var id);
-        var key = await shareKeys.GetSealedShareKeyFromPeerAsync(id, new GuidId(circleId), WebOdinContext);
+        var key = await peerShareKeys.GetMySealedShareKeyAsync(id, new GuidId(circleId), WebOdinContext);
         return key == null ? NotFound() : new SealedShareKeyResponse { SealedKey = key };
     }
 }
 
-public class CircleShareKeyResponse
+public class CircleShareKeyData
 {
     public byte[] AppKeyLockedShareKey { get; set; }
 }

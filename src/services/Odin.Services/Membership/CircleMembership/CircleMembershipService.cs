@@ -152,10 +152,7 @@ public class CircleMembershipService(
         }
     }
 
-    /// <param name="exceptCircleIds">circles whose row stays, e.g. those a save goes on to refresh, so the row
-    /// keeps the member's sealed share key</param>
-    public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType,
-        IReadOnlyCollection<Guid> exceptCircleIds = null)
+    public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
         var memberId = OdinId.ToHashId(domainName);
@@ -167,9 +164,46 @@ public class CircleMembershipService(
         {
             var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data
                 .ToStringFromUtf8Bytes());
-            if (sd.DomainType == domainType && exceptCircleIds?.Contains(circleMemberRecord.circleId) != true)
+            if (sd.DomainType == domainType)
             {
                 await db.CircleMemberCached.DeleteAsync(sd.CircleGrant.CircleId, memberId);
+            }
+        }
+
+        tx.Commit();
+    }
+
+    /// <summary>
+    /// Makes a domain's membership rows of one type match its circle grants: rows of circles no longer granted
+    /// are deleted, the rest written with the current grant.  A kept row keeps the member's sealed share key
+    /// (docs/selective-share-plan.md), which a delete and re-insert would take.  A circle whose row for this
+    /// name is held by the other domain type is left alone, as it always was.
+    /// </summary>
+    public async Task ReconcileMemberCirclesAsync(AsciiDomainName domainName, DomainType domainType,
+        IReadOnlyDictionary<Guid, CircleGrant> circleGrants)
+    {
+        var memberId = OdinId.ToHashId(domainName);
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var heldByOtherType = new HashSet<Guid>();
+        foreach (var row in await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId))
+        {
+            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(row.data.ToStringFromUtf8Bytes());
+            if (sd.DomainType != domainType)
+            {
+                heldByOtherType.Add(row.circleId);
+            }
+            else if (!circleGrants.ContainsKey(row.circleId))
+            {
+                await db.CircleMemberCached.DeleteAsync(row.circleId, memberId);
+            }
+        }
+
+        foreach (var (circleId, circleGrant) in circleGrants)
+        {
+            if (!heldByOtherType.Contains(circleId))
+            {
+                await AddCircleMemberAsync(circleId, domainName, circleGrant, domainType);
             }
         }
 

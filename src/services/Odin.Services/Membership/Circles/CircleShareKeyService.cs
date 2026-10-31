@@ -1,20 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Util;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing.Network;
 
 namespace Odin.Services.Membership.Circles;
 
@@ -29,29 +27,18 @@ namespace Odin.Services.Membership.Circles;
 /// and never on an owner circle, which has no app key to lock with (plan, decision 2).  A member reads only
 /// their own copy, through the Peer API, while the circle grants them access.
 /// </remarks>
-public class CircleShareKeyService(
-    IdentityDatabase db,
-    CircleDefinitionService circleDefinitionService,
-    CircleMembershipService circleMembershipService,
-    CircleNetworkService circleNetworkService,
-    IOdinHttpClientFactory odinHttpClientFactory)
+public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService circleMembershipService)
 {
     /// <summary>
     /// The first byte of every share key blob: key header version 2 (#2024), AES-GCM from the start.
     /// </summary>
     public const byte FormatVersion = 2;
 
-    /// <summary>The bounds of the columns that keep them (Circle.appKeyLockedShareKey, CircleMember.sealedShareKey).</summary>
-    public const int MaxShareKeyLength = 512;
-
-    public const int MaxSealedShareKeyLength = 2048;
-
     /// <summary>The circle's share key, locked with the owning app's key; null until the app sets one.</summary>
     public async Task<byte[]> GetShareKeyAsync(GuidId circleId, IOdinContext odinContext)
     {
-        await AssertCallerMayHandleShareKeysAsync(circleId, "read the share key of", odinContext);
-        var circle = await db.CircleCached.GetAsync(circleId);
-        return circle?.appKeyLockedShareKey;
+        var circle = await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "read the share key of", odinContext);
+        return circle.appKeyLockedShareKey;
     }
 
     /// <summary>
@@ -61,8 +48,8 @@ public class CircleShareKeyService(
     /// </summary>
     public async Task SetShareKeyAsync(GuidId circleId, byte[] appKeyLockedShareKey, IOdinContext odinContext)
     {
-        await AssertCallerMayHandleShareKeysAsync(circleId, "set the share key of", odinContext);
-        AssertFormat(appKeyLockedShareKey, MaxShareKeyLength, nameof(appKeyLockedShareKey));
+        await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "set the share key of", odinContext);
+        AssertFormat(appKeyLockedShareKey, TableCircle.MaxShareKeyLength, nameof(appKeyLockedShareKey));
 
         if (await db.CircleCached.SetShareKeyAsync(circleId, appKeyLockedShareKey) == 0)
         {
@@ -77,7 +64,7 @@ public class CircleShareKeyService(
     /// </summary>
     public async Task<List<OdinId>> GetMembersWithoutSealedShareKeyAsync(GuidId circleId, IOdinContext odinContext)
     {
-        await AssertCallerMayHandleShareKeysAsync(circleId, "list the unsealed members of", odinContext);
+        await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "list the unsealed members of", odinContext);
 
         var rows = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
         return rows
@@ -96,32 +83,33 @@ public class CircleShareKeyService(
     public async Task SetSealedShareKeysAsync(GuidId circleId, IReadOnlyCollection<SealedShareKey> sealedKeys,
         IOdinContext odinContext)
     {
-        await AssertCallerMayHandleShareKeysAsync(circleId, "seal the share key of", odinContext);
+        var circle = await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "seal the share key of", odinContext);
 
         if (sealedKeys == null || sealedKeys.Count == 0)
         {
             throw new OdinClientException("No sealed share keys supplied", OdinClientErrorCode.ArgumentError);
         }
 
+        var members = new List<(Guid MemberId, string OdinId, byte[] SealedKey)>();
         foreach (var sealedKey in sealedKeys)
         {
-            AssertFormat(sealedKey?.SealedKey, MaxSealedShareKeyLength, nameof(SealedShareKey.SealedKey));
+            OdinValidationUtils.AssertIsValidOdinId(sealedKey?.OdinId, out var odinId);
+            AssertFormat(sealedKey!.SealedKey, TableCircleMember.MaxSealedShareKeyLength, nameof(SealedShareKey.SealedKey));
+            members.Add((odinId.ToHashId(), odinId.DomainName, sealedKey.SealedKey));
         }
 
-        var circle = await db.CircleCached.GetAsync(circleId);
-        if (circle?.appKeyLockedShareKey == null)
+        if (circle.appKeyLockedShareKey == null)
         {
             throw new OdinClientException($"Circle {circleId} has no share key to seal",
                 OdinClientErrorCode.CircleShareKeyNotSet);
         }
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        foreach (var sealedKey in sealedKeys)
+        foreach (var (memberId, odinId, sealedKey) in members)
         {
-            var memberId = new OdinId(sealedKey.OdinId).ToHashId();
-            if (await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey.SealedKey) == 0)
+            if (await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey) == 0)
             {
-                throw new OdinClientException($"{sealedKey.OdinId} is not a member of circle {circleId}",
+                throw new OdinClientException($"{odinId} is not a member of circle {circleId}",
                     OdinClientErrorCode.NotACircleMember);
             }
         }
@@ -138,7 +126,7 @@ public class CircleShareKeyService(
     {
         odinContext.Caller.AssertCallerIsConnected();
 
-        if (odinContext.Caller.Circles?.Any(c => c == circleId) != true)
+        if (odinContext.Caller.Circles?.Contains(circleId) != true)
         {
             throw new OdinSecurityException($"Caller is not a member of circle {circleId}");
         }
@@ -148,61 +136,23 @@ public class CircleShareKeyService(
     }
 
     /// <summary>
-    /// Fetches this identity's sealed copy of <paramref name="odinId"/>'s circle key from their server; null when
-    /// they have sealed none for this identity yet.
+    /// The circle, when the caller is its owning app (or the owner console) and it is an app circle; never an
+    /// owner circle, which has no app key to lock the circle key with (plan, decision 2).
     /// </summary>
-    public async Task<byte[]> GetSealedShareKeyFromPeerAsync(OdinId odinId, GuidId circleId, IOdinContext odinContext)
-    {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
-
-        // The permission check above stands in for the one GetIcrAsync would make.
-        var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true);
-        if (icr?.IsConnected() != true)
-        {
-            throw new OdinClientException($"Not connected to {odinId}", OdinClientErrorCode.NotAConnectedIdentity);
-        }
-
-        var token = icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey());
-        var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerCircleShareKeyHttpClient>(odinId, token);
-        var response = await client.GetMySealedShareKey(circleId.Value);
-
-        if (response.StatusCode == HttpStatusCode.NotFound)
-        {
-            return null;
-        }
-
-        if (response.StatusCode == HttpStatusCode.Forbidden)
-        {
-            throw new OdinSecurityException($"{odinId} refused: not a member of circle {circleId}");
-        }
-
-        if (!response.IsSuccessStatusCode || response.Content?.SealedKey == null)
-        {
-            throw new OdinClientException($"{odinId} returned {(int)response.StatusCode} for circle {circleId}",
-                OdinClientErrorCode.RemoteServerReturnedInternalServerError);
-        }
-
-        return response.Content.SealedKey;
-    }
-
-    /// <summary>
-    /// The owning app (or the owner console) of an app circle; never an owner circle, which has no app key
-    /// to lock the circle key with (plan, decision 2).
-    /// </summary>
-    private async Task AssertCallerMayHandleShareKeysAsync(GuidId circleId, string action, IOdinContext odinContext)
+    private async Task<CircleRecord> GetCircleCallerMayHandleShareKeysOfAsync(GuidId circleId, string action,
+        IOdinContext odinContext)
     {
         await circleMembershipService.AssertCallerMayManageCircleAsync(circleId, action, odinContext);
 
-        var circle = await circleDefinitionService.GetCircleAsync(circleId);
-        if (circle == null)
-        {
-            throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
-        }
-
+        // The app check above refuses owner circles already; the owner console skips it, so it is made here too
+        var circle = await db.CircleCached.GetAsync(circleId)
+                     ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
         if (SystemAppConstants.IsOwnerConsole(circle.AppId))
         {
             throw new OdinSecurityException($"Cannot {action} circle {circleId}: an owner circle has no share key");
         }
+
+        return circle;
     }
 
     /// <summary>Checks what the server can check of a blob it can't open: its size, and the format it knows.</summary>

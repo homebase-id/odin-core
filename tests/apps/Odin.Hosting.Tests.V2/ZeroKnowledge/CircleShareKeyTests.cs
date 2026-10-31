@@ -57,19 +57,19 @@ public class CircleShareKeyTests : V2Fixture
     public async Task TheOwningAppSetsTheKeyOnceAndReadsItBack()
     {
         var owner = await LoginAsOwner();
-        var (app, circleId) = await AppWithItsOwnCircleAsync(owner);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
 
         Assert.That((await keys.GetShareKey(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
             "a new circle has no key");
 
         var key = Blob(61, 1);
-        Assert.That((await keys.SetShareKey(circleId, new CircleShareKeyResponse { AppKeyLockedShareKey = key })).StatusCode,
+        Assert.That((await keys.SetShareKey(circleId, Key(key))).StatusCode,
             Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key));
 
         // A second device racing the first loses, and the first key stays
-        var second = await keys.SetShareKey(circleId, new CircleShareKeyResponse { AppKeyLockedShareKey = Blob(61, 2) });
+        var second = await keys.SetShareKey(circleId, Key(Blob(61, 2)));
         DriveAsserts.AssertRejected(second, OdinClientErrorCode.CircleShareKeyAlreadySet);
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key));
 
@@ -82,12 +82,12 @@ public class CircleShareKeyTests : V2Fixture
     public async Task AnotherAppAndAnOwnerCircleAreRefused()
     {
         var owner = await LoginAsOwner();
-        var (_, circleId) = await AppWithItsOwnCircleAsync(owner);
-        var (other, _) = await AppWithItsOwnCircleAsync(owner);
+        var (_, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
+        var (other, _, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var othersKeys = other.RefitFor<ICircleShareKeyHttpClient>();
 
         Assert.That((await othersKeys.GetShareKey(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-        Assert.That((await othersKeys.SetShareKey(circleId, new CircleShareKeyResponse { AppKeyLockedShareKey = Blob(61, 1) }))
+        Assert.That((await othersKeys.SetShareKey(circleId, Key(Blob(61, 1))))
             .StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await othersKeys.GetUnsealedMembers(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await othersKeys.SetSealedShareKeys(circleId, Sealed(Identities.Sam, 1))).StatusCode,
@@ -95,9 +95,9 @@ public class CircleShareKeyTests : V2Fixture
 
         // An owner circle has no app key to lock with, so not even the owner console sets one
         var ownerCircleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(ownerCircleId, "the owner's", new PermissionSetGrantRequest { Drives = [WriteOn(MeshDrive)] });
+        await owner.Admin.CreateCircle(ownerCircleId, "the owner's", new PermissionSetGrantRequest { Drives = [AppCircles.WriteOn(MeshDrive)] });
         var onOwnerCircle = await owner.RefitFor<ICircleShareKeyHttpClient>()
-            .SetShareKey(ownerCircleId, new CircleShareKeyResponse { AppKeyLockedShareKey = Blob(61, 1) });
+            .SetShareKey(ownerCircleId, Key(Blob(61, 1)));
         Assert.That(onOwnerCircle.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
@@ -105,16 +105,16 @@ public class CircleShareKeyTests : V2Fixture
     public async Task OnlyAFormatVersionTwoKeyWithinTheColumnBoundIsTaken()
     {
         var owner = await LoginAsOwner();
-        var (app, circleId) = await AppWithItsOwnCircleAsync(owner);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
 
         var wrongVersion = Blob(61, 1);
         wrongVersion[0] = 1;
-        DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, new CircleShareKeyResponse { AppKeyLockedShareKey = wrongVersion }),
+        DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key(wrongVersion)),
             OdinClientErrorCode.InvalidShareKey);
-        DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, new CircleShareKeyResponse { AppKeyLockedShareKey = Blob(513, 1) }),
+        DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key(Blob(513, 1))),
             OdinClientErrorCode.InvalidShareKey);
-        DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, new CircleShareKeyResponse { AppKeyLockedShareKey = [] }),
+        DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key([])),
             OdinClientErrorCode.InvalidShareKey);
         Assert.That((await keys.GetShareKey(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "nothing was stored");
     }
@@ -125,7 +125,7 @@ public class CircleShareKeyTests : V2Fixture
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
         var pippin = await LoginAsOwner(Identities.Pippin);
-        var (app, circleId) = await AppWithItsOwnCircleAsync(owner);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
         await AddAsync(app, circleId, Identities.Sam);
 
@@ -135,7 +135,7 @@ public class CircleShareKeyTests : V2Fixture
         DriveAsserts.AssertRejected(await keys.SetSealedShareKeys(circleId, Sealed(Identities.Sam, 7)),
             OdinClientErrorCode.CircleShareKeyNotSet);
 
-        await keys.SetShareKey(circleId, new CircleShareKeyResponse { AppKeyLockedShareKey = Blob(61, 1) });
+        await keys.SetShareKey(circleId, Key(Blob(61, 1)));
 
         // All or none: Pippin is no member, so Sam's copy in the same batch isn't stored either
         var withPippin = await keys.SetSealedShareKeys(circleId, new SetSealedShareKeysRequest
@@ -150,17 +150,17 @@ public class CircleShareKeyTests : V2Fixture
         Assert.That((await keys.SetSealedShareKeys(circleId, Sealed(Identities.Sam, 7))).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.Empty);
 
-        var fetched = await sam.RefitFor<ICircleShareKeyHttpClient>().GetMySealedShareKey(owner.Identity.DomainName, circleId);
+        var fetched = await FetchCopyAsync(sam, owner, circleId);
         Assert.That(fetched.StatusCode, Is.EqualTo(HttpStatusCode.OK), fetched.Error?.Content);
         Assert.That(fetched.Content!.SealedKey, Is.EqualTo(samsCopy));
 
         // Pippin is connected to Frodo but not in the circle
-        var pippins = await pippin.RefitFor<ICircleShareKeyHttpClient>().GetMySealedShareKey(owner.Identity.DomainName, circleId);
+        var pippins = await FetchCopyAsync(pippin, owner, circleId);
         Assert.That(pippins.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
 
         // Re-sealing (the member's drive key changed) replaces the copy
         await keys.SetSealedShareKeys(circleId, Sealed(Identities.Sam, 9));
-        var resealed = await sam.RefitFor<ICircleShareKeyHttpClient>().GetMySealedShareKey(owner.Identity.DomainName, circleId);
+        var resealed = await FetchCopyAsync(sam, owner, circleId);
         Assert.That(resealed.Content?.SealedKey, Is.EqualTo(Blob(200, 9)), resealed.Error?.Content);
     }
 
@@ -169,10 +169,10 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId) = await AppWithItsOwnCircleAsync(owner);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         await AddAsync(app, circleId, Identities.Sam);
 
-        var fetched = await sam.RefitFor<ICircleShareKeyHttpClient>().GetMySealedShareKey(owner.Identity.DomainName, circleId);
+        var fetched = await FetchCopyAsync(sam, owner, circleId);
         Assert.That(fetched.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), fetched.Error?.Content);
     }
 
@@ -185,13 +185,13 @@ public class CircleShareKeyTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var sam = await LoginAsOwner(Identities.Sam);
-        var (app, circleId) = await AppWithItsOwnCircleAsync(owner);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
         var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
         await AddAsync(app, circleId, Identities.Sam);
 
         var key = Blob(61, 1);
-        await keys.SetShareKey(circleId, new CircleShareKeyResponse { AppKeyLockedShareKey = key });
+        await keys.SetShareKey(circleId, Key(key));
         await keys.SetSealedShareKeys(circleId, Sealed(Identities.Sam, 7));
 
         Assert.That((await network.DisableCircle(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -204,13 +204,13 @@ public class CircleShareKeyTests : V2Fixture
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key), "the circle's key was lost to a rewrite of the circle");
         Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.Empty,
             "Sam's copy was lost to a save of the connection");
-        var fetched = await sam.RefitFor<ICircleShareKeyHttpClient>().GetMySealedShareKey(owner.Identity.DomainName, circleId);
+        var fetched = await FetchCopyAsync(sam, owner, circleId);
         Assert.That(fetched.Content?.SealedKey, Is.EqualTo(Blob(200, 7)), fetched.Error?.Content);
 
         // Leaving takes the copy: Sam is refused, and comes back with none
         Assert.That((await network.RevokeCircle(new RevokeCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam }))
             .StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await sam.RefitFor<ICircleShareKeyHttpClient>().GetMySealedShareKey(owner.Identity.DomainName, circleId))
+        Assert.That((await FetchCopyAsync(sam, owner, circleId))
             .StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
 
         await AddAsync(app, circleId, Identities.Sam);
@@ -219,20 +219,6 @@ public class CircleShareKeyTests : V2Fixture
     }
 
     // -------------------------------------------------------------------------------------------
-
-    /// <summary>An app with no permission keys, its own drive, and a circle of its own granting Write on it.</summary>
-    private static async Task<(AppSession App, Guid CircleId)> AppWithItsOwnCircleAsync(OwnerSession owner)
-    {
-        var appId = Guid.NewGuid();
-        var appDrive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(appDrive, "the app's", allowAnonymousReads: false);
-        var app = await AppSession.SetupAsync(owner, appDrive, DrivePermission.All, [], knownAppId: appId);
-
-        var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "the app's circle", new PermissionSetGrantRequest { Drives = [WriteOn(appDrive)] },
-            appId);
-        return (app, circleId);
-    }
 
     private static async Task AddAsync(AppSession app, Guid circleId, string identity)
     {
@@ -249,21 +235,19 @@ public class CircleShareKeyTests : V2Fixture
         return response.Content!.AppKeyLockedShareKey;
     }
 
-    private static DriveGrantRequest WriteOn(TargetDrive drive) =>
-        new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Write } };
-
     /// <summary>A stand-in for a blob the server can't open: format version 2, then <paramref name="fill"/>.</summary>
     private static byte[] Blob(int length, byte fill)
     {
-        if (length == 0)
-        {
-            return [];
-        }
-
         var blob = Enumerable.Repeat(fill, length).ToArray();
         blob[0] = CircleShareKeyService.FormatVersion;
         return blob;
     }
+
+    private static CircleShareKeyData Key(byte[] appKeyLockedShareKey) => new() { AppKeyLockedShareKey = appKeyLockedShareKey };
+
+    /// <summary>A member's own copy, fetched through their server from the circle owner's.</summary>
+    private static Task<ApiResponse<SealedShareKeyResponse>> FetchCopyAsync(OwnerSession member, OwnerSession owner, Guid circleId) =>
+        member.RefitFor<ICircleShareKeyHttpClient>().GetMySealedShareKey(owner.Identity.DomainName, circleId);
 
     private static SetSealedShareKeysRequest Sealed(string identity, byte fill) =>
         new() { Members = [new SealedShareKey { OdinId = identity, SealedKey = Blob(200, fill) }] };
@@ -271,13 +255,13 @@ public class CircleShareKeyTests : V2Fixture
 
 public interface ICircleShareKeyHttpClient
 {
-    private const string Root = "/api/v2/connections/circles/{circleId}/share-key";
+    private const string Root = UnifiedApiRouteConstants.Connections + "/circles/{circleId}/share-key";
 
     [Get(Root)]
-    Task<ApiResponse<CircleShareKeyResponse>> GetShareKey(Guid circleId);
+    Task<ApiResponse<CircleShareKeyData>> GetShareKey(Guid circleId);
 
     [Put(Root)]
-    Task<ApiResponse<HttpContent>> SetShareKey(Guid circleId, [Body] CircleShareKeyResponse request);
+    Task<ApiResponse<HttpContent>> SetShareKey(Guid circleId, [Body] CircleShareKeyData request);
 
     [Get(Root + "/unsealed-members")]
     Task<ApiResponse<List<string>>> GetUnsealedMembers(Guid circleId);

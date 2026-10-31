@@ -4,7 +4,6 @@ using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
@@ -17,6 +16,9 @@ public class TableCircleMember(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
+    /// <summary>The bound of <c>sealedShareKey</c> (TableCircleMemberCRUD).</summary>
+    public const int MaxSealedShareKeyLength = 2048;
+
     internal async Task<int> DeleteAsync(Guid circleId, Guid memberId)
     {
         return await base.DeleteAsync(odinIdentity, circleId, memberId);
@@ -28,38 +30,10 @@ public class TableCircleMember(
         return await base.InsertAsync(item);
     }
 
-    /// <summary>
-    /// Writes a membership row, never its sealed share key: the stored one is carried over, so refreshing a
-    /// member's grant doesn't take their copy of the circle key.  Only <see cref="SetSealedShareKeyAsync"/>
-    /// writes it (docs/selective-share-plan.md).
-    /// </summary>
+    /// <remarks>Never writes the sealed share key: the generated upsert leaves it out (keepOnUpsert).</remarks>
     internal new async Task<int> UpsertAsync(CircleMemberRecord item)
     {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var tx = await cn.BeginStackedTransactionAsync();
-        var n = await UpsertKeepingSealedShareKeyAsync(cn, item);
-        tx.Commit();
-        return n;
-    }
-
-    private async Task<int> UpsertKeepingSealedShareKeyAsync(IConnectionWrapper cn, CircleMemberRecord item)
-    {
         item.identityId = odinIdentity;
-
-        // Locked on Postgres, so a sealed copy stored by another request can't land between this read and the write.
-        await using (var cmd = cn.CreateCommand())
-        {
-            var forUpdate = cn.DatabaseType == DatabaseType.Sqlite ? "" : " FOR UPDATE";
-            cmd.CommandText =
-                "SELECT sealedShareKey FROM CircleMember " +
-                $"WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId{forUpdate};";
-            cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-            cmd.AddParameter("@circleId", DbType.Binary, item.circleId);
-            cmd.AddParameter("@memberId", DbType.Binary, item.memberId);
-            var stored = await cmd.ExecuteScalarAsync();
-            item.sealedShareKey = stored is byte[] key ? key : null;
-        }
-
         return await base.UpsertAsync(item);
     }
 
@@ -70,11 +44,11 @@ public class TableCircleMember(
     /// </summary>
     internal async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey)
     {
-        // The column's bound (TableCircleMemberCRUD), and never empty: an empty copy would count as sealed.
-        if (sealedShareKey == null || sealedShareKey.Length == 0 || sealedShareKey.Length > 2048)
+        // Never empty: an empty copy would count as sealed.
+        if (sealedShareKey == null || sealedShareKey.Length == 0 || sealedShareKey.Length > MaxSealedShareKeyLength)
         {
             throw new OdinDatabaseValidationException(
-                $"sealedShareKey must be 1 to 2048 bytes, was {sealedShareKey?.Length.ToString() ?? "null"}");
+                $"sealedShareKey must be 1 to {MaxSealedShareKeyLength} bytes, was {sealedShareKey?.Length.ToString() ?? "null"}");
         }
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -129,7 +103,8 @@ public class TableCircleMember(
 
         foreach (var circleMember in circleMemberRecordList)
         {
-            await UpsertKeepingSealedShareKeyAsync(cn, circleMember);
+            circleMember.identityId = odinIdentity;
+            await base.UpsertAsync(circleMember);
         }
 
         tx.Commit();
