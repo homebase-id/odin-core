@@ -46,7 +46,7 @@ public class TableCircle(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            "SELECT rowId,identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji FROM Circle " +
+            "SELECT rowId,identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji,appKeyLockedShareKey FROM Circle " +
             "WHERE identityId = @identityId AND GrantOn = @grantOn;";
 
         cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
