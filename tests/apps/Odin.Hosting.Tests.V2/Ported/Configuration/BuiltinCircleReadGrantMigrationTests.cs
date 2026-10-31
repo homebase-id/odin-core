@@ -109,7 +109,7 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
             DepositingAppId = depositingApp,
             Deposited = UnixTimeUtc.Now()
         });
-        await storage.UpsertAsync(icr, ctx);
+        await storage.UpsertAsync(icr);
 
         var migration = scope.Resolve<V19ToV20VersionMigrationService>();
         Assert.ThrowsAsync<OdinSystemException>(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None),

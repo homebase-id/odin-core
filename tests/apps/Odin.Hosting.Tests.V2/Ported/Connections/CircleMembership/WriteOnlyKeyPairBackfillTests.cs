@@ -43,7 +43,7 @@ public class WriteOnlyKeyPairBackfillTests : V2Fixture
             "precondition: normal accept flow should already carry master-key store-key encryption");
 
         before.PeerKeyStore.WriteOnlyKeyPair = null;
-        await storage.UpsertAsync(before, ctx);
+        await storage.UpsertAsync(before);
 
         var circleNetworkService = scope.Resolve<CircleNetworkService>();
         var (upgraded, skipped, keyPairsProvisioned) =
@@ -111,7 +111,7 @@ public class WriteOnlyKeyPairBackfillTests : V2Fixture
         before.TempWeakKeyStoreKey = resealedTempKey;
         before.PeerKeyStore.MasterKeyEncryptedPeerKey = null;
         before.PeerKeyStore.WriteOnlyKeyPair = null;
-        await storage.UpsertAsync(before, ctx);
+        await storage.UpsertAsync(before);
 
         var midpoint = await storage.GetAsync(sam.Identity);
         Assert.That(midpoint!.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade(), Is.True,
@@ -154,7 +154,7 @@ public class WriteOnlyKeyPairBackfillTests : V2Fixture
         Assert.That(before!.TempWeakKeyStoreKey, Is.Null,
             "precondition: a normal owner-accepted connection has no weak fallback key to begin with");
         before.PeerKeyStore.MasterKeyEncryptedPeerKey = null;
-        await storage.UpsertAsync(before, ctx);
+        await storage.UpsertAsync(before);
 
         var circleNetworkService = scope.Resolve<CircleNetworkService>();
         var (upgraded, skipped, keyPairsProvisioned) =

@@ -261,17 +261,66 @@ public class DatabaseMigrationTests : IocTestBase
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
 
         await AssertMigratesRowUpAndDownAsync(cn, new TableCircleMigrationList(), "Circle",
-            "INSERT INTO Circle (identityId,circleId,circleName,data) " +
-            "VALUES (@identityId,@circleId,'seed circle',NULL)",
+            "INSERT INTO Circle (identityId,circleId,circleName,data,CircleSlug) " +
+            "VALUES (@identityId,@circleId,'seed circle',NULL,'seed')",
             cmd =>
             {
                 cmd.AddParameter("@identityId", DbType.Binary, IdentityId.ToByteArray());
                 cmd.AddParameter("@circleId", DbType.Binary, Guid.NewGuid().ToByteArray());
             },
             // GrantOn/Designation are NOT NULL and take their column DEFAULTs of
-            // 0 (NONE) and 1 (PERSONAL), which preserve today's behaviour.
-            "SELECT COUNT(*) FROM Circle WHERE circleName = 'seed circle' " +
-            "AND AppId IS NULL AND Emoji IS NULL AND GrantOn = 0 AND Designation = 1");
+            // 0 (NONE) and 1 (PERSONAL), which preserve today's behaviour. No circle has a share key yet.
+            "SELECT COUNT(*) FROM Circle WHERE circleName = 'seed circle' AND CircleSlug = 'seed' " +
+            "AND AppId IS NULL AND Emoji IS NULL AND GrantOn = 0 AND Designation = 1 AND appKeyLockedShareKey IS NULL");
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task CircleMemberMigration_CopiesExistingRow_AndLeavesSealedShareKeyNull(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+        await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
+
+        await AssertMigratesRowUpAndDownAsync(cn, new TableCircleMemberMigrationList(), "CircleMember",
+            "INSERT INTO CircleMember (identityId,circleId,memberId,data) VALUES (@identityId,@circleId,@memberId,@data)",
+            cmd =>
+            {
+                cmd.AddParameter("@identityId", DbType.Binary, IdentityId.ToByteArray());
+                cmd.AddParameter("@circleId", DbType.Binary, Guid.NewGuid().ToByteArray());
+                cmd.AddParameter("@memberId", DbType.Binary, Guid.NewGuid().ToByteArray());
+                cmd.AddParameter("@data", DbType.Binary, new byte[] { 1, 2, 3 });
+            },
+            "SELECT COUNT(*) FROM CircleMember WHERE data IS NOT NULL AND sealedShareKey IS NULL");
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task DriveAclIndexMigration_CopiesExistingRow_AsReadWithNoExpiry(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+        await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
+
+        var aclMemberId = Guid.NewGuid();
+        await AssertMigratesRowUpAndDownAsync(cn, new TableDriveAclIndexMigrationList(), "DriveAclIndex",
+            "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) VALUES (@identityId,@driveId,@fileId,@aclMemberId)",
+            cmd =>
+            {
+                cmd.AddParameter("@identityId", DbType.Binary, IdentityId.ToByteArray());
+                cmd.AddParameter("@driveId", DbType.Binary, Guid.NewGuid().ToByteArray());
+                cmd.AddParameter("@fileId", DbType.Binary, Guid.NewGuid().ToByteArray());
+                cmd.AddParameter("@aclMemberId", DbType.Binary, aclMemberId.ToByteArray());
+            },
+            "SELECT COUNT(*) FROM DriveAclIndex WHERE expiresAt IS NULL AND permissions = 1");
     }
 
     [Test]

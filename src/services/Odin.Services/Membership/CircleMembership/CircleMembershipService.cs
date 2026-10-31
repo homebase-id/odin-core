@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Apps;
@@ -46,7 +47,7 @@ public class CircleMembershipService(
         var allCircleMembers = await db.CircleMemberCached.GetAllCirclesAsync();
         foreach (var cmr in allCircleMembers)
         {
-            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(cmr.data.ToStringFromUtf8Bytes());
+            var storageData = CircleMemberStorageData.From(cmr);
 
             //convert the driveId to the alias
             var updatedDriveIdList = storageData.CircleGrant.KeyStoreKeyEncryptedDriveGrants.Select(g => new DriveGrant
@@ -133,7 +134,7 @@ public class CircleMembershipService(
     {
         foreach (var member in await db.CircleMemberCached.GetAllCirclesAsync())
         {
-            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(member.data.ToStringFromUtf8Bytes());
+            var storageData = CircleMemberStorageData.From(member);
             if (update(storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants))
             {
                 member.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
@@ -152,22 +153,48 @@ public class CircleMembershipService(
         }
     }
 
-    public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
+    /// <summary>
+    /// Deletes a domain's membership rows of one type only, so signing in through YouAuth doesn't delete the
+    /// identity's circles: <see cref="ReconcileMemberCirclesAsync"/> with no grants.
+    /// </summary>
+    public Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType) =>
+        ReconcileMemberCirclesAsync(domainName, domainType, new Dictionary<Guid, CircleGrant>());
+
+    /// <summary>
+    /// Makes a domain's membership rows of one type match its circle grants: rows of circles no longer granted
+    /// are deleted, the rest written with the current grant when it differs from the row's.  A kept row keeps
+    /// the member's sealed share key (docs/selective-share-plan.md), which a delete and re-insert would take.  A
+    /// circle whose row for this name is held by the other domain type is left alone, as it always was.
+    /// </summary>
+    public async Task ReconcileMemberCirclesAsync(AsciiDomainName domainName, DomainType domainType,
+        IReadOnlyDictionary<Guid, CircleGrant> circleGrants)
     {
-        //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
         var memberId = OdinId.ToHashId(domainName);
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        var circleMemberRecords = await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId);
-
-        foreach (var circleMemberRecord in circleMemberRecords)
+        // Each row of this name: its own type's to keep or delete, the other type's to leave alone
+        var existing = new Dictionary<Guid, (bool OwnType, byte[] Data)>();
+        foreach (var row in await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId))
         {
-            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data
-                .ToStringFromUtf8Bytes());
-            if (sd.DomainType == domainType)
+            var ownType = CircleMemberStorageData.From(row).DomainType == domainType;
+            existing[row.circleId] = (ownType, row.data);
+            if (ownType && !circleGrants.ContainsKey(row.circleId))
             {
-                await db.CircleMemberCached.DeleteAsync(sd.CircleGrant.CircleId, memberId);
+                await db.CircleMemberCached.DeleteAsync(row.circleId, memberId);
             }
+        }
+
+        foreach (var (circleId, circleGrant) in circleGrants)
+        {
+            var record = ToMemberRecord(circleId, domainName, circleGrant, domainType);
+
+            // Most saves change nothing here, since the grants were read from these same rows
+            if (existing.TryGetValue(circleId, out var row) && (!row.OwnType || row.Data.SequenceEqual(record.data)))
+            {
+                continue;
+            }
+
+            await db.CircleMemberCached.UpsertAsync(record);
         }
 
         tx.Commit();
@@ -191,7 +218,7 @@ public class CircleMembershipService(
         var records =
             await db.CircleMemberCached.GetMemberCirclesAndDataAsync(OdinId.ToHashId(domainName));
         var circleMemberRecords = records.Select(d =>
-            OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
+            CircleMemberStorageData.From(d)
         );
         return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
@@ -202,14 +229,13 @@ public class CircleMembershipService(
         //coming from EstablishConnection (i.e. we need some form of pre-authorized token)
         if (!overrideHack)
         {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-
+            await AssertCallerMayReadMembersAsync(circleId, odinContext);
         }
 
         var memberBytesList = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
         var result = memberBytesList.Select(item =>
         {
-            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
+            var data = CircleMemberStorageData.From(item);
             return new CircleDomainResult()
             {
                 DomainType = data.DomainType,
@@ -221,24 +247,41 @@ public class CircleMembershipService(
         return result;
     }
 
+    /// <summary>
+    /// Who may see who is in a circle: an app holding <c>ReadCircleMembership</c>, any circle; otherwise the owner,
+    /// or the app that owns the circle, which may always see who is in its own circles.
+    /// </summary>
+    /// <remarks>
+    /// An app without the key is refused (403) for a circle that doesn't exist too, as it always was, so the answer
+    /// doesn't tell it which circle ids exist (<see cref="GetCircleCallerMayManageAsync"/>).
+    /// </remarks>
+    public async Task AssertCallerMayReadMembersAsync(GuidId circleId, IOdinContext odinContext)
+    {
+        if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadCircleMembership))
+        {
+            return;
+        }
+
+        await GetCircleCallerMayManageAsync(circleId, "list the members of", odinContext);
+    }
+
     public async Task AddCircleMemberAsync(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
     {
-        var circleMemberRecord = new CircleMemberRecord()
-        {
-            circleId = circleId,
-            memberId = OdinId.ToHashId(domainName),
-            data = OdinSystemSerializer.Serialize(new CircleMemberStorageData
-            {
-                DomainType = domainType,
-                DomainName = domainName,
-                CircleGrant = circleGrant
-            }).ToUtf8ByteArray()
-        };
-
-        // db.CircleMember.Insert(circleMemberRecord);
-        await db.CircleMemberCached.UpsertAsync(circleMemberRecord);
-        // db.CircleMember.UpsertCircleMembers([circleMemberRecord]);
+        await db.CircleMemberCached.UpsertAsync(ToMemberRecord(circleId, domainName, circleGrant, domainType));
     }
+
+    private static CircleMemberRecord ToMemberRecord(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant,
+        DomainType domainType) => new()
+    {
+        circleId = circleId,
+        memberId = OdinId.ToHashId(domainName),
+        data = OdinSystemSerializer.Serialize(new CircleMemberStorageData
+        {
+            DomainType = domainType,
+            DomainName = domainName,
+            CircleGrant = circleGrant
+        }).ToUtf8ByteArray()
+    };
 
     // Grants
 
@@ -585,13 +628,7 @@ public class CircleMembershipService(
             return;
         }
 
-        odinContext.Caller.AssertCallerIsOwner();
-
-        var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
-        if (callerAppId == null)
-        {
-            throw new OdinSecurityException($"Caller cannot {action} circle {circleId}; it is not an app");
-        }
+        var callerAppId = CallingAppId(circleId, action, odinContext);
 
         var circle = await circleDefinitionService.GetCircleAsync(circleId);
         if (null == circle)
@@ -599,14 +636,54 @@ public class CircleMembershipService(
             throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
         }
 
+        AssertCircleIsTheApps(circleId, circle.AppId, callerAppId, action);
+    }
+
+    /// <summary>
+    /// <see cref="AssertCallerMayManageCircleAsync"/>'s rule, returning the circle, for the newer paths (member
+    /// lists, Selective Share's keys) that don't tell an app which circle ids exist.
+    /// </summary>
+    /// <remarks>
+    /// An app gets the same 403 for a circle that doesn't exist as for one it doesn't own; only the owner console
+    /// is told a circle doesn't exist.
+    /// </remarks>
+    internal async Task<CircleRecord> GetCircleCallerMayManageAsync(GuidId circleId, string action, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotNull(circleId, nameof(circleId));
+        var circle = await db.CircleCached.GetAsync(circleId);
+        if (odinContext.Caller.HasMasterKey)
+        {
+            return circle ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
+        }
+
+        var callerAppId = CallingAppId(circleId, action, odinContext);
+        if (circle == null)
+        {
+            throw new OdinSecurityException($"App {callerAppId} cannot {action} circle {circleId}");
+        }
+
+        AssertCircleIsTheApps(circleId, circle.AppId, callerAppId, action);
+        return circle;
+    }
+
+    private static Guid CallingAppId(GuidId circleId, string action, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsOwner();
+
+        return odinContext.Caller.OdinClientContext?.AppId?.Value
+               ?? throw new OdinSecurityException($"Caller cannot {action} circle {circleId}; it is not an app");
+    }
+
+    private static void AssertCircleIsTheApps(GuidId circleId, Guid? circleAppId, Guid callerAppId, string action)
+    {
         // Both tests are about the circle; the caller is already known to be an app (no master key).
         // A circle the owner owns is never an app's.  That is not implied by the AppId comparison:
         // owner-owned circles are tagged SystemAppId, and System is a registered app a client token can
         // be minted for, so its token would match every owner-owned circle.
-        if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != callerAppId)
+        if (SystemAppConstants.IsOwnerConsole(circleAppId) || circleAppId != callerAppId)
         {
             throw new OdinSecurityException(
-                $"App {callerAppId} cannot {action} circle {circleId}; it belongs to {circle.AppId?.ToString() ?? "the owner"}");
+                $"App {callerAppId} cannot {action} circle {circleId}; it belongs to {circleAppId?.ToString() ?? "the owner"}");
         }
     }
 

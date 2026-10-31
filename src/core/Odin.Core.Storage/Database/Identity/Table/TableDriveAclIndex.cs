@@ -45,6 +45,8 @@ public class TableDriveAclIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
+        // permissions keeps the record's default, 1 (DrivePermission.Read): until Selective Share writes its own,
+        // every row means "may read"
         var item = new DriveAclIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId };
 
         foreach (var memberId in accessControlList)

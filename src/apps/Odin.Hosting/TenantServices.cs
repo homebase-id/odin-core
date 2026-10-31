@@ -46,6 +46,7 @@ using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Peer.Outgoing.Network;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
@@ -332,6 +333,8 @@ public static class TenantServices
             .InstancePerLifetimeScope();
 
         cb.RegisterType<CircleMembershipService>().InstancePerLifetimeScope();
+        cb.RegisterType<CircleShareKeyService>().InstancePerLifetimeScope();
+        cb.RegisterType<PeerCircleShareKeyService>().InstancePerLifetimeScope();
         cb.RegisterType<IcrKeyService>().InstancePerLifetimeScope();
         cb.RegisterType<CircleDefinitionService>().InstancePerLifetimeScope();
 

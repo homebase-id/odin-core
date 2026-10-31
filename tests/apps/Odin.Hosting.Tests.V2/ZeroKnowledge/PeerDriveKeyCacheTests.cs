@@ -76,9 +76,12 @@ public class PeerDriveKeyCacheTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.ConnectAsync(frodo, sam);
-        Assert.That((await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam)).IsZeroKnowledge, Is.False);
+        var before = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
+        Assert.That((before.IsZeroKnowledge, before.SharingModel), Is.EqualTo((false, DriveSharingModel.Collaborative)));
 
         await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
-        Assert.That((await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam)).IsZeroKnowledge, Is.True);
+        var after = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
+        Assert.That((after.IsZeroKnowledge, after.SharingModel), Is.EqualTo((true, DriveSharingModel.Private)),
+            "the fresh answer says what the key is now bound to");
     }
 }

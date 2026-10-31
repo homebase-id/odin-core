@@ -109,9 +109,45 @@ Naming notes:
 - **Members:** each member gets the share key, locked to the public key of their matching drive.
   That's one row per member.
 - **Files:** each shared file gets one extra header per share, locked with the share key. It's
-  stored in a side table next to the file, modelled on `DriveAclIndex` **(V)**.
+  stored in the file's ACL, next to the circle it names, with the share's expiry and whether it may write;
+  `DriveAclIndex` **(V)** indexes it for queries (decided 2026-10-30, instead of a side table).
 - **Cost:** sharing new files is free, because the header rides in the upload. Sharing many
   existing files is a client bulk job.
+- **Links (to consider):** sharing with someone not on Homebase by a link that carries the key. It fits
+  the same ACL, as a third kind of share target next to circles and persons: see
+  [Links: sharing with someone not on Homebase](#links-sharing-with-someone-not-on-homebase).
+  Plan and exact columns: [selective-share-plan.md](selective-share-plan.md).
+
+#### Links: sharing with someone not on Homebase
+
+To consider, not decided. The idea is that a link is just another share. Every share has its own share key,
+and every shared file has one ACL entry per share holding its key header locked with that key. Only the way
+a reader gets the share key differs:
+
+| Share target | How the reader gets the share key |
+|---|---|
+| Circle | locked to each member's drive public key, one row per member |
+| Person | the same, with one member |
+| Link | in the link itself, never stored on the server |
+
+- **The key travels in the URL fragment**, `https://michael.id/s#<key>`, never in a query parameter. A
+  fragment is not sent to the server, so it stays out of request logs, proxies and `Referer` headers. WebDrop
+  already does this ([web-drop-plan.md](web-drop-plan.md#url-contract)) **(V)**.
+- **One secret in the link.** The viewer works out the share's id from the key
+  (`shareId = HKDF(key, "share-id")`). The server sees the id, never the key, and can't work the key out
+  from it. Holding the link is both the right to fetch and the key to open.
+- **One new read path, nothing else changes.** An anonymous caller with a share id can list and fetch only
+  the files whose ACL has that share: its key header and the payloads exactly as stored, ciphertext. File ACLs, encryption, the
+  drive's `AllowAnonymousReads` and enumeration all stay as they are, and the file is not copied, as
+  WebDrop copies it today. Today an encrypted file can't be anonymous at all
+  (`FileSystemStreamWriterBase.cs`, `CannotUploadEncryptedFileForAnonymous`) **(V)**; the link path doesn't
+  change that, it is a separate way in.
+- **Revoke or expire** deletes the share and its ACL entries. A reader keeps any file key they already opened,
+  as with circles and persons.
+- **A link can become a person share** when the recipient joins Homebase: the owner seals the same share
+  key to their public key, and no file's entry changes.
+- **Optional password:** the client can lock the entries with a key made from the fragment key and a
+  password. The server doesn't change.
 
 ### Collaborative
 

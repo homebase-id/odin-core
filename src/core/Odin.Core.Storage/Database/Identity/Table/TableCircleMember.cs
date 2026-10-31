@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -13,6 +15,9 @@ public class TableCircleMember(
     : TableCircleMemberCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
+
+    /// <summary>The bound of <c>sealedShareKey</c> (TableCircleMemberCRUD).</summary>
+    public const int MaxSealedShareKeyLength = 2048;
 
     internal async Task<int> DeleteAsync(Guid circleId, Guid memberId)
     {
@@ -25,10 +30,60 @@ public class TableCircleMember(
         return await base.InsertAsync(item);
     }
 
+    /// <remarks>Never writes the sealed share key: the generated upsert leaves it out (keepOnUpsert).</remarks>
     internal new async Task<int> UpsertAsync(CircleMemberRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
+    }
+
+    /// <summary>
+    /// Stores a member's sealed copy of the circle key, replacing any earlier one (the app re-seals when the
+    /// member's drive key changes): 1 when stored, 0 when they are not a member of the circle or the circle no
+    /// longer holds <paramref name="circleShareKey"/>, the key the copy was sealed from.  Checked in the same
+    /// statement, so a key reset or replaced meanwhile can't be left with copies of the old one.  Touches no
+    /// other column.
+    /// </summary>
+    internal async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey, byte[] circleShareKey)
+    {
+        // Never empty: an empty copy would count as sealed.
+        if (sealedShareKey == null || sealedShareKey.Length == 0 || sealedShareKey.Length > MaxSealedShareKeyLength)
+        {
+            throw new OdinDatabaseValidationException(
+                $"sealedShareKey must be 1 to {MaxSealedShareKeyLength} bytes, was {sealedShareKey?.Length.ToString() ?? "null"}");
+        }
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            "UPDATE CircleMember SET sealedShareKey = @sealedShareKey " +
+            "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId " +
+            "AND EXISTS (SELECT 1 FROM Circle WHERE Circle.identityId = @identityId AND Circle.circleId = @circleId " +
+            "AND Circle.appKeyLockedShareKey = @circleShareKey);";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@circleId", DbType.Binary, circleId);
+        cmd.AddParameter("@memberId", DbType.Binary, memberId);
+        cmd.AddParameter("@sealedShareKey", DbType.Binary, sealedShareKey);
+        cmd.AddParameter("@circleShareKey", DbType.Binary, circleShareKey);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>Clears every member's sealed copy in a circle: the number cleared.  Touches no other column.</summary>
+    internal async Task<int> ClearSealedShareKeysAsync(Guid circleId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            "UPDATE CircleMember SET sealedShareKey = NULL " +
+            "WHERE identityId = @identityId AND circleId = @circleId AND sealedShareKey IS NOT NULL;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@circleId", DbType.Binary, circleId);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+    internal async Task<CircleMemberRecord> GetAsync(Guid circleId, Guid memberId)
+    {
+        return await base.GetAsync(odinIdentity, circleId, memberId);
     }
 
     internal async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId)

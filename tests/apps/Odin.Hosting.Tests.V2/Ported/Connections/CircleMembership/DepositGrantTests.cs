@@ -161,13 +161,12 @@ public class DepositGrantTests : V2Fixture
         // would normally have provisioned.
         var scope = Host.GetTenantScope(frodo.Identity.DomainName);
         var storage = scope.Resolve<CircleNetworkStorage>();
-        var ctx = await BuildOwnerContextAsync(scope, frodo);
 
         var icrBefore = await storage.GetAsync(sam.Identity);
         Assert.That(icrBefore!.PeerKeyStore.WriteOnlyKeyPair, Is.Not.Null,
             "precondition: normal accept flow should have provisioned the write-only keypair");
         icrBefore.PeerKeyStore.WriteOnlyKeyPair = null;
-        await storage.UpsertAsync(icrBefore, ctx);
+        await storage.UpsertAsync(icrBefore);
 
         var (_, circleA, app) = await SetupAppWithMatchingCircleAsync(frodo);
 
