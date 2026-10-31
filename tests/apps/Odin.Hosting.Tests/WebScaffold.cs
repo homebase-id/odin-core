@@ -225,7 +225,7 @@ namespace Odin.Hosting.Tests
 
             // Tests must never send mail. Explicit rather than relying on the default:
             // these are process-wide, so one fixture enabling it would leak into the rest.
-            Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
+            Environment.SetEnvironmentVariable("Email__Relay__Provider", "None");
 
             // The STUN responder stays on so every fixture runs its real start/stop path, but on
             // an ephemeral loopback port: the default 3478 would clash with a running dev host.
