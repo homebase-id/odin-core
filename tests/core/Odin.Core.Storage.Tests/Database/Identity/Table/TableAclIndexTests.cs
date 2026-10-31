@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
@@ -46,6 +48,33 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
                 Assert.Fail();
+
+            // A file's ACL grants read; nothing narrower is written until Selective Share.
+            var (rows, _) = await tblDriveAclIndex.PagingByRowIdAsync(10, null);
+            Assert.That(rows.Select(r => (r.aclMemberId, r.permissions, r.expiresAt)),
+                Is.EqualTo(new[] { (a1[0], 1, (UnixTimeUtc?)null) }));
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // The generated insert sends every column, so the column's DEFAULT 1 reaches a row only through the
+        // record's own default: a record nobody filled in still means read, never "nothing allowed"
+        public async Task ARecordLeftUnsetMeansRead(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var member = Guid.NewGuid();
+            await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = member });
+
+            var row = await tblDriveAclIndex.GetAsync(driveId, fileId, member);
+            Assert.That(row?.permissions, Is.EqualTo(1), $"a row read back as {row?.permissions}");
         }
 
         [Test]
