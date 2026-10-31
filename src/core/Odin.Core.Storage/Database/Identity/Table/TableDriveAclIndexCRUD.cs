@@ -27,7 +27,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public Guid fileId { get; set; }
         public Guid aclMemberId { get; set; }
         public UnixTimeUtc? expiresAt { get; set; }
-        public Int32 permissions { get; set; }
+        public Int32 permissions { get; set; } = 1;
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");

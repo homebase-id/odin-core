@@ -52,7 +52,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // A file's ACL grants read; nothing narrower is written until Selective Share.
             var (rows, _) = await tblDriveAclIndex.PagingByRowIdAsync(10, null);
             Assert.That(rows.Select(r => (r.aclMemberId, r.permissions, r.expiresAt)),
-                Is.EqualTo(new[] { (a1[0], TableDriveAclIndex.ReadPermission, (UnixTimeUtc?)null) }));
+                Is.EqualTo(new[] { (a1[0], 1, (UnixTimeUtc?)null) }));
         }
 
         [Test]
@@ -60,18 +60,21 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
-        // A record starts at permissions 0 in C#, whatever the column's DEFAULT; a row granting nothing is refused
-        public async Task ARowGrantingNothingIsRefused(DatabaseType databaseType)
+        // The generated insert sends every column, so the column's DEFAULT 1 reaches a row only through the
+        // record's own default: a record nobody filled in still means read, never "nothing allowed"
+        public async Task ARecordLeftUnsetMeansRead(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
 
-            var row = new DriveAclIndexRecord { driveId = Guid.NewGuid(), fileId = Guid.NewGuid(), aclMemberId = Guid.NewGuid() };
-            Assert.ThrowsAsync<ArgumentException>(() => tblDriveAclIndex.InsertAsync(row));
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var member = Guid.NewGuid();
+            await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = member });
 
-            row.permissions = TableDriveAclIndex.ReadPermission;
-            Assert.That(await tblDriveAclIndex.InsertAsync(row), Is.EqualTo(1));
+            var row = await tblDriveAclIndex.GetAsync(driveId, fileId, member);
+            Assert.That(row?.permissions, Is.EqualTo(1), $"a row read back as {row?.permissions}");
         }
 
         [Test]

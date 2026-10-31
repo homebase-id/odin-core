@@ -133,7 +133,6 @@ internal static class DataImporterSeedHelper
             driveId = Guid.NewGuid(),
             fileId = Guid.NewGuid(),
             aclMemberId = Guid.NewGuid(),
-            permissions = TableDriveAclIndex.ReadPermission,
         });
     }
 

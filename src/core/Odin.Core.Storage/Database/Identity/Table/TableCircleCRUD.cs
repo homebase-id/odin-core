@@ -29,7 +29,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public Guid? AppId { get; set; }
         public string CircleSlug { get; set; }
         public Int32 GrantOn { get; set; }
-        public Int32 Designation { get; set; }
+        public Int32 Designation { get; set; } = 1;
         public string Emoji { get; set; }
         public byte[] appKeyLockedShareKey { get; set; }
         public void Validate()

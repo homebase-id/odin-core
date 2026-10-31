@@ -66,7 +66,7 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         Assert.That(circles[0].appKeyLockedShareKey, Is.Null, "no circle has a key until its app first shares");
         Assert.That(members[0].sealedShareKey, Is.Null, "no member has a sealed copy until the app seals one");
         Assert.That(aclRows[0].expiresAt, Is.Null, "no existing share expires");
-        Assert.That(aclRows[0].permissions, Is.EqualTo(TableDriveAclIndex.ReadPermission), "every existing row means read, as it did before");
+        Assert.That(aclRows[0].permissions, Is.EqualTo(1), "every existing row means read, as it did before");
 
         // The new columns hold what is written and read back through the generated records.
         var lockedKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
