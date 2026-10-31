@@ -35,8 +35,10 @@ public class Smtp2GoEmailSender(
             HtmlBody = envelope.HtmlMessage,
         }, CancellationToken.None);
 
-        // Counts only: their failure entries name the recipients
-        if (response.Data.Failed > 0 || response.Data.Succeeded == 0)
+        // A 200 can still refuse recipients (data.failed). Only that counts as a failure: a mail
+        // that went out but read back oddly must not be retried, which would resend it - up to 20
+        // copies of a recovery link. Counts only: their failure entries name the recipients.
+        if (response.Data.Failed > 0)
         {
             throw new EmailException(
                 $"Relay: /email/send accepted {response.Data.Succeeded} recipient(s) and refused {response.Data.Failed}");

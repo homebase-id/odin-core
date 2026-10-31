@@ -91,7 +91,8 @@ public class Smtp2GoTracker
 
 /// <summary>
 /// /email/send: the host's own mail (<see cref="Smtp2GoEmailSender"/>). Unlike the /domain/*
-/// shapes above, taken from their API documentation; not yet captured from a live response.
+/// shapes above, taken from their API documentation (developers.smtp2go.com, send-standard-email);
+/// not yet captured from a live response.
 /// </summary>
 public class Smtp2GoSendRequest
 {

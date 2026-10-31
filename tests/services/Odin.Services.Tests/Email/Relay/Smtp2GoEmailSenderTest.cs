@@ -76,6 +76,34 @@ public class Smtp2GoEmailSenderTest
         Assert.That(e.Message, Does.Not.Contain("jane@example.org"), e.Message);
     }
 
+    /// <summary>
+    /// A 200 without counts (fastaccept, or a shape we misread) went out: throwing would make the
+    /// job resend it, up to 20 copies of a recovery link.
+    /// </summary>
+    [Test]
+    public void ItShouldNotRetryAnAcceptedMailItCannotCount()
+    {
+        var sender = CreateSender(_ => (HttpStatusCode.OK, """{"request_id":"x","data":{"email_id":"1u0SwL"}}"""));
+
+        Assert.DoesNotThrowAsync(() => sender.SendAsync(Mail()));
+    }
+
+    [Test]
+    public async Task ItShouldSendCcAndBccAsBareAddressesWhenUnnamed()
+    {
+        var sender = CreateSender(_ => (HttpStatusCode.OK, SentBody));
+        var mail = Mail();
+        mail.Cc = [new NameAndEmailAddress { Email = "cc@example.org" }];
+        mail.Bcc = [new NameAndEmailAddress { Email = "bcc@example.org" }];
+
+        await sender.SendAsync(mail);
+
+        var body = JsonDocument.Parse(_rig.Requests.Single().Body).RootElement;
+        Assert.That(body.GetProperty("to").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "jane@example.org" }));
+        Assert.That(body.GetProperty("cc").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "cc@example.org" }));
+        Assert.That(body.GetProperty("bcc").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "bcc@example.org" }));
+    }
+
     [TestCase(true, true, true)]
     [TestCase(true, false, false)]
     [TestCase(false, true, false)]

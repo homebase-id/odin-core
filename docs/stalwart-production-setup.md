@@ -94,7 +94,7 @@ config edit.
 - **Expect no email-related errors at boot.** Tenant mail on with no system From
   logs two INF lines and nothing else:
   `Tenant mailbox provider: Stalwart at ...` and
-  `Email:Relay:SystemFromEmail is not set; this host sends no mail of its own`. Anything at ERR
+  `This host sends no mail of its own: that needs Email:Relay:Provider=Smtp2Go and Email:Relay:SystemFromEmail`. Anything at ERR
   is a real finding.
 
 ### Verify

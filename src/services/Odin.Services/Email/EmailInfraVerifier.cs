@@ -52,7 +52,8 @@ public class EmailInfraVerifier(
 
         if (!email.Relay.SendsSystemMail)
         {
-            logger.LogInformation("Email:Relay:SystemFromEmail is not set; this host sends no mail of its own");
+            logger.LogInformation(
+                "This host sends no mail of its own: that needs Email:Relay:Provider=Smtp2Go and Email:Relay:SystemFromEmail");
         }
 
         return email.Relay.SendsSystemMail || email.TenantMail.Enabled;
