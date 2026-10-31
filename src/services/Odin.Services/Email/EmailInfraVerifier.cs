@@ -33,11 +33,9 @@ public class EmailInfraVerifier(
     public bool LogConfigurationFindings()
     {
         var email = configuration.Email;
-        var mailgun = configuration.Mailgun;
 
-        // Tenant mail (mailboxes we serve for identities) and Mailgun (how this host sends its
-        // own mail to users) are unrelated, so neither gates the other. Only their own state is
-        // reported here.
+        // Tenant mail (mailboxes we serve for identities) and the host's own mail to users are
+        // unrelated, so neither gates the other. Only their own state is reported here.
         if (email.TenantMail.Enabled)
         {
             if (email.Stalwart.IsConfigured)
@@ -52,12 +50,13 @@ public class EmailInfraVerifier(
             }
         }
 
-        if (!mailgun.Enabled)
+        if (!email.Relay.SendsSystemMail)
         {
-            logger.LogInformation("Mailgun is not enabled; this host sends no mail of its own");
+            logger.LogInformation(
+                "This host sends no mail of its own: that needs Email:Relay:Provider=Smtp2Go and Email:Relay:SystemFromEmail");
         }
 
-        return mailgun.Enabled || email.TenantMail.Enabled;
+        return email.Relay.SendsSystemMail || email.TenantMail.Enabled;
     }
 
     /// <summary>
@@ -70,18 +69,19 @@ public class EmailInfraVerifier(
         var errors = new List<string>();
         var email = configuration.Email;
 
-        if (configuration.Mailgun.Enabled)
+        if (email.Relay.SendsSystemMail)
         {
             try
             {
                 if (!await emailSender.VerifyCredentialsAsync(cancellationToken))
                 {
-                    errors.Add("Mailgun credential check failed");
+                    errors.Add(
+                        $"System mail check failed: {email.Relay.SystemFrom.Email} is not on a sender domain SMTP2GO has verified");
                 }
             }
             catch (Exception e)
             {
-                errors.Add($"Mailgun credential check failed: {e.Message}");
+                errors.Add($"System mail check failed: {e.Message}");
             }
         }
 

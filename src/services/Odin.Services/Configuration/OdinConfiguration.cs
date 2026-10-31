@@ -34,9 +34,6 @@ public class OdinConfiguration
     public CertificateRenewalSection CertificateRenewal { get; init; } = new();
 
     public EmailSection Email { get; init; } = new();
-
-    /// <summary>How this host sends its OWN mail to users (password recovery, security reports).</summary>
-    public MailgunSection Mailgun { get; init; } = new();
     public AdminSection Admin { get; init; } = new();
 
     public FeedSection Feed { get; init; } = new();
@@ -78,7 +75,6 @@ public class OdinConfiguration
         BackgroundServices = new BackgroundServicesSection(config);
         Registry = new RegistrySection(config);
         Email = new EmailSection(config);
-        Mailgun = new MailgunSection(config);
         Admin = new AdminSection(config);
         AccountRecovery = new AccountRecoverySection(config);
         Development = new DevelopmentSection(config);
@@ -571,13 +567,8 @@ public class OdinConfiguration
     //
 
     /// <summary>
-    /// TENANT MAIL only: the mailboxes this host serves for its identities, via Stalwart.
-    ///
-    /// How this host sends its OWN mail to users - password recovery, security reports - is a
-    /// separate concern and lives in <see cref="MailgunSection"/>, where it always has. The two
-    /// were briefly merged here while Stalwart was being built, on the mistaken belief that they
-    /// were related. They are not: one is a mail SERVER we run for identities, the other is a
-    /// third-party API we call.
+    /// Mail: the mailboxes this host serves for its identities (Stalwart), and SMTP2GO, which
+    /// relays their outbound mail and sends this host's own (see <see cref="RelaySection.SystemFrom"/>).
     /// </summary>
     public class EmailSection
     {
@@ -618,19 +609,22 @@ public class OdinConfiguration
     }
 
     /// <summary>
-    /// Outbound relay for TENANT mail. Stalwart receives; this is only how it sends, and it
-    /// exists because a host that cannot open port 25 outbound has no other route.
+    /// SMTP2GO. Outbound relay for TENANT mail: Stalwart receives, and this is how it sends,
+    /// because a host that cannot open port 25 outbound has no other route. Also how the HOST
+    /// sends its own mail (password recovery, security reports), over the same API, when
+    /// <see cref="SystemFrom"/> is set.
     ///
-    /// Not to be confused with the top-level Mailgun section, which sends the HOST's own mail
-    /// (password recovery, security reports) and is unrelated.
-    ///
-    /// Ships as <see cref="RelayProvider.None"/>: no onboarding, no extra DNS, no status rows.
+    /// Ships as <see cref="RelayProvider.None"/>: no onboarding, no extra DNS, no status rows,
+    /// and no mail of the host's own.
     /// </summary>
     public class RelaySection
     {
         public RelayProvider Provider { get; init; } = RelayProvider.None;
 
-        /// <summary>Management API key. Needs only the four /domain/* permissions.</summary>
+        /// <summary>
+        /// API key. Tenant onboarding needs the four /domain/* permissions; the host's own mail
+        /// (<see cref="SystemFrom"/>) also needs /email/send.
+        /// </summary>
         public string ApiKey { get; init; } = "";
 
         /// <summary>Regional endpoints exist (us-api, eu-api); one key works against all of them.</summary>
@@ -649,7 +643,17 @@ public class OdinConfiguration
         /// </summary>
         public bool EnableTracking { get; init; }
 
+        /// <summary>
+        /// Who the host's own mail comes from (Email:Relay:SystemFromEmail, SystemFromName).
+        /// SMTP2GO refuses a sender whose domain it has not verified, so the domain must be a
+        /// verified Sender Domain on the account. Unset means the host sends no mail of its own.
+        /// </summary>
+        public NameAndEmailAddress SystemFrom { get; init; } = new();
+
         public bool IsConfigured => Provider != RelayProvider.None;
+
+        /// <summary>The host sends its own mail: recovery links, risk reports, provisioning.</summary>
+        public bool SendsSystemMail => IsConfigured && !string.IsNullOrEmpty(SystemFrom.Email);
 
         public RelaySection()
         {
@@ -682,6 +686,13 @@ public class OdinConfiguration
             SmtpUsername = config.Required<string>("Email:Relay:SmtpUsername");
             SmtpPassword = config.Required<string>("Email:Relay:SmtpPassword");
             EnableTracking = config.GetOrDefault("Email:Relay:EnableTracking", false);
+
+            // Optional: a relay host without it still starts, and sends no mail of its own
+            SystemFrom = new NameAndEmailAddress
+            {
+                Email = config.GetOrDefault("Email:Relay:SystemFromEmail", ""),
+                Name = config.GetOrDefault("Email:Relay:SystemFromName", ""),
+            };
         }
     }
 
@@ -715,40 +726,6 @@ public class OdinConfiguration
             {
                 AdminUsername = config.Required<string>("Email:Stalwart:AdminUsername");
                 AdminPassword = config.Required<string>("Email:Stalwart:AdminPassword");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Mailgun: how this host sends its own mail to users. Unrelated to <see cref="EmailSection"/>,
-    /// which is about mailboxes we serve for identities - a third-party sending API versus a mail
-    /// server we run. They were briefly merged while Stalwart was being built; this is the
-    /// long-standing shape and the one that stayed correct.
-    /// </summary>
-    public class MailgunSection
-    {
-        public string ApiKey { get; init; } = "";
-        public NameAndEmailAddress DefaultFrom { get; init; } = new();
-        public string EmailDomain { get; init; } = "";
-        public bool Enabled { get; init; }
-
-        public MailgunSection()
-        {
-            // Mockable support
-        }
-
-        public MailgunSection(IConfiguration config)
-        {
-            Enabled = config.GetOrDefault("Mailgun:Enabled", false);
-            if (Enabled)
-            {
-                ApiKey = config.Required<string>("Mailgun:ApiKey");
-                DefaultFrom = new NameAndEmailAddress
-                {
-                    Email = config.Required<string>("Mailgun:DefaultFromEmail"),
-                    Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
-                };
-                EmailDomain = config.Required<string>("Mailgun:EmailDomain");
             }
         }
     }
