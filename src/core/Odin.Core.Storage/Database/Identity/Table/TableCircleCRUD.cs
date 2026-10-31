@@ -469,6 +469,63 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
+        protected CircleRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Int32 GrantOn)
+        {
+            var result = new List<CircleRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new CircleRecord();
+            item.identityId = identityId;
+            item.GrantOn = GrantOn;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.circleId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.circleName = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.data = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            item.AppId = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
+            item.CircleSlug = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.Designation = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.Emoji = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
+            item.appKeyLockedShareKey = (rdr[8] == DBNull.Value) ? null : (byte[])(rdr[8]);
+            if (item.appKeyLockedShareKey?.Length < 0)
+                throw new Exception("Too little data in appKeyLockedShareKey...");
+            return item;
+       }
+
+        protected virtual async Task<List<CircleRecord>> GetByGrantOnAsync(Guid identityId,Int32 GrantOn)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get2Command = cn.CreateCommand();
+            {
+                get2Command.CommandText = "SELECT rowId,circleId,circleName,data,AppId,CircleSlug,Designation,Emoji,appKeyLockedShareKey FROM Circle " +
+                                             "WHERE identityId = @identityId AND GrantOn = @GrantOn "+
+                                             ";";
+
+                get2Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get2Command.AddParameter("@GrantOn", DbType.Int32, GrantOn);
+                {
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<CircleRecord>();
+                        }
+                        var result = new List<CircleRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader2(rdr,identityId,GrantOn));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
         protected virtual async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
