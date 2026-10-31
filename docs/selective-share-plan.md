@@ -143,8 +143,10 @@ version 1 to stay compatible with.
      none). A member: `GET /api/v2/peer/{odinId}/circles/{circleId}/share-key`, which asks the circle owner's server
      (`PeerCircleShareKeyController`, `GET /api/peer/v1/host/circles/{circleId}/my-share-key`).
    - **Rules:** only the owning app or the owner console, never an owner circle; a copy only for an identity
-     member and only once the circle has its key; a member reads only their own copy, while the circle grants
-     them and is enabled (asked at the time: a peer's cached context doesn't see a disable).
+     member and only once the circle has its key; a member reads only their own copy, once the owner has reviewed
+     the connection, while the circle grants them and is enabled (asked at the time: a peer's cached context
+     doesn't see a disable). An unreviewed connection is judged as a stranger wherever content is
+     (`ReviewedSecurityTier`), and the circle key opens content; a copy sealed before the review is served after it.
    - **No copy yet is an empty answer** (`200` with no key), so a `404` always means a server that doesn't serve
      the route.
    - **The keys survive other writes:** the generator's `keepOnUpsert` leaves both columns out of the generated

@@ -9,6 +9,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Util;
 using Odin.Services.Membership.CircleMembership;
@@ -27,7 +28,8 @@ namespace Odin.Services.Membership.Circles;
 /// and never on an owner circle, which has no app key to lock with (plan, decision 2).  A member reads only
 /// their own copy, through the Peer API, while the circle grants them access.
 /// </remarks>
-public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService circleDefinitionService)
+public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService circleDefinitionService,
+    TenantContext tenantContext)
 {
     /// <summary>
     /// The first byte of every share key blob: key header version 2 (#2024), AES-GCM from the start.
@@ -128,12 +130,21 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
 
     /// <summary>
     /// The calling peer's own sealed copy of a circle's key; null when they have none yet.  Served only to a
-    /// connected caller the circle currently grants, and never anyone else's copy: the row is looked up by the
-    /// caller's identity, not by anything they send.
+    /// connection the owner has reviewed, which the circle currently grants, and never anyone else's copy: the
+    /// row is looked up by the caller's identity, not by anything they send.
     /// </summary>
+    /// <remarks>
+    /// An unreviewed connection is judged as a logged-in stranger wherever content is (<see cref="ReviewedSecurityTier"/>),
+    /// and the circle key opens content, so it waits for the review.  The copy can be sealed before then; it is
+    /// served once the review lands.
+    /// </remarks>
     public async Task<byte[]> GetCallersSealedShareKeyAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsConnected();
+        if (ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller) != SecurityGroupType.Connected)
+        {
+            throw new OdinSecurityException("Caller is a connection the owner has not reviewed yet");
+        }
 
         // The caller's circles come from a peer context cached for up to an hour, which disabling a circle doesn't
         // clear, so whether it is enabled is asked now

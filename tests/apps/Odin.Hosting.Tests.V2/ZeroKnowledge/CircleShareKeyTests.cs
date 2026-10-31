@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -189,6 +190,36 @@ public class CircleShareKeyTests : V2Fixture
         var enabledAgain = await FetchCopyAsync(sam, owner, circleId);
         Assert.That(enabledAgain.Content?.SealedKey, Is.EqualTo(Copy(7)), enabledAgain.Error?.Content);
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(Blob(61, 1)), "disabling rewrote the circle and lost its key");
+    }
+
+    /// <summary>
+    /// A connection the owner hasn't reviewed is judged as a stranger wherever content is, so it gets no copy
+    /// until the review; the copy sealed before then is served once it lands.
+    /// </summary>
+    [Test]
+    public async Task AnUnreviewedConnectionGetsItsCopyOnlyOnceReviewed()
+    {
+        var owner = await LoginAsOwner();
+        var sam = await LoginAsOwner(Identities.Sam);
+        var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
+        var keys = app.RefitFor<ICircleShareKeyHttpClient>();
+        await AddAsync(app, circleId, Identities.Sam);
+        await keys.SetShareKey(circleId, Key(Blob(61, 1)));
+        await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7)));
+
+        var tenant = Host.GetTenantScope(owner.Identity.DomainName);
+        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(sam.Identity, ConnectionStatus.Connected, null);
+        await tenant.Resolve<OdinContextCache>().ResetAsync();
+
+        var unreviewed = await FetchCopyAsync(sam, owner, circleId);
+        Assert.That(unreviewed.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
+            $"an unreviewed connection was served: {unreviewed.Content?.SealedKey?.Length} bytes, {unreviewed.Error?.Content}");
+
+        var review = await new V2ConnectionNetworkClient(owner.Identity, owner.Factory).MarkReviewedAsync(sam.Identity);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+
+        var reviewed = await FetchCopyAsync(sam, owner, circleId);
+        Assert.That(reviewed.Content?.SealedKey, Is.EqualTo(Copy(7)), reviewed.Error?.Content);
     }
 
     /// <summary>
