@@ -230,6 +230,40 @@ public class SelectiveShareTests : V2Fixture
         Assert.That((await s.SharesAsync(encrypted)).Single().Permissions, Is.EqualTo(DrivePermission.Read));
     }
 
+    [Test]
+    public async Task ANewFilesUploadCarriesItsShares()
+    {
+        var s = await ArrangeAsync();
+
+        // Sent as Owner, stored Connected, as a share lifts the file; the share is written with the header
+        var plain = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
+        Assert.That((await s.HeaderAsync(plain)).ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+        Assert.That((await s.SharesAsync(plain)).Single().Permissions, Is.EqualTo(DrivePermission.Read | DrivePermission.Write));
+        await AssertSamSeesAsync(s, plain, true, "shared in its upload");
+
+        var encrypted = await s.UploadEncryptedAsync([s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
+        Assert.That((await s.SharesAsync(encrypted)).Single().CircleId, Is.EqualTo(s.CircleId));
+
+        // Each refused before anything is stored
+        foreach (var (why, share) in new (string, ShareRequest)[]
+                 {
+                     ("a share without Read", s.Share(Guid.Empty, DrivePermission.Write)),
+                     ("a share naming a file", s.Share(Guid.NewGuid(), DrivePermission.Read)),
+                     ("a key on an unencrypted file", s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())),
+                 })
+        {
+            var uniqueId = Guid.NewGuid();
+            var refused = await s.TryUploadAsync(s.Frodo, SecurityGroupType.Owner, [share], uniqueId);
+            Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"{why}: {refused.Error?.Content}");
+            var query = await s.Frodo.Drives.Reader.GetBatchAsync(s.Drive.Alias, QueryFor(uniqueId));
+            Assert.That(query.Content!.SearchResults, Is.Empty, $"{why}: no file stored");
+        }
+
+        var otherApp = await AppSession.SetupAsync(s.Frodo, s.Drive, DrivePermission.All);
+        var byOtherApp = await s.TryUploadAsync(otherApp, SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read)], Guid.NewGuid());
+        Assert.That(byOtherApp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"another app's upload: {byOtherApp.Error?.Content}");
+    }
+
     private static async Task AssertSamSeesAsync(Arranged s, Guid fileId, bool sees, string when) =>
         await AssertSeesAsync(s.Sam, s, fileId, sees, when);
 
@@ -315,19 +349,27 @@ public class SelectiveShareTests : V2Fixture
         }
 
         /// <summary>An unencrypted file, which a member's read can show before client-locked files reach members (section 6).</summary>
-        public async Task<Guid> UploadAsync(SecurityGroupType group)
+        public async Task<Guid> UploadAsync(SecurityGroupType group, List<ShareRequest>? shares = null)
         {
-            var upload = await Frodo.Drives.Writer.CreateNewUnencryptedFile(Drive.Alias, Metadata(group),
-                new UploadManifest { PayloadDescriptors = [] }, []);
+            var upload = await TryUploadAsync(Frodo, group, shares, Guid.NewGuid());
             Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
             return upload.Content!.FileId;
         }
 
-        public async Task<Guid> UploadEncryptedAsync()
+        public Task<ApiResponse<CreateFileResult>> TryUploadAsync(IV2Caller caller, SecurityGroupType group, List<ShareRequest>? shares,
+            Guid uniqueId)
+        {
+            var metadata = Metadata(group);
+            metadata.AppData.UniqueId = uniqueId;
+            return caller.Drives.Writer.CreateNewUnencryptedFile(Drive.Alias, metadata, new UploadManifest { PayloadDescriptors = [] }, [],
+                shares: shares);
+        }
+
+        public async Task<Guid> UploadEncryptedAsync(List<ShareRequest>? shares = null)
         {
             var fileKey = KeyHeader.NewRandom16();
             var (upload, _, _, _) = await Frodo.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(SecurityGroupType.Owner),
-                transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: ZkBrowser.LockFileKey(fileKey, driveKey));
+                transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: ZkBrowser.LockFileKey(fileKey, driveKey), shares: shares);
             Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
             return upload.Content!.FileId;
         }

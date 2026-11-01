@@ -4,10 +4,12 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -25,10 +27,16 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         PeerOutgoingTransferService peerOutgoingTransferService,
         IDriveManager driveManager,
         TenantQuotaGuard quotaGuard,
+        DriveShareService shares,
         ILogger<StandardFileStreamWriter> logger)
         : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService, quotaGuard, logger)
     {
+        _shares = shares;
     }
+
+    private readonly DriveShareService _shares;
+
+    protected override bool TakesShares => true;
 
     protected override Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor)
     {
@@ -50,19 +58,29 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
+    protected override async Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata,
         IOdinContext odinContext)
     {
-        return Task.CompletedTask;
+        if (package.Shares is not { Count: > 0 } shares)
+        {
+            return;
+        }
+
+        await _shares.AssertUploadMayShareAsync(package.InternalFile.DriveId, shares, metadata.IsEncrypted, odinContext);
+
+        // A shared file is Connected, as a share lifts an Owner file (decision A)
+        serverMetadata.AccessControlList.RequiredSecurityGroup = SecurityGroupType.Connected;
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata,
         IOdinContext odinContext)
     {
+        // The shares in the header's transaction, so the file is never seen half shared (section 4)
+        var writeShares = package.Shares is { Count: > 0 } shares ? _shares.UploadSharesWriter(package.InternalFile, shares) : null;
         await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false,
-            odinContext, sourceArea: StagingArea.Upload);
+            odinContext, sourceArea: StagingArea.Upload, markComplete: writeShares);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,

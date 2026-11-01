@@ -156,6 +156,11 @@ caches are cleared after commit, through a new `MainIndexMetaCached` method, as 
 - Checked with the upload's other checks, before any payload is moved, and written in the header's transaction, so a
   file is never visible half shared.
 - Updates and overwrites carry no shares: they keep the file key (decision 7), so the share rows stay valid.
+- **Built (2026-11-01):** the entries name no file (they are the upload's), and the same checks as the `PUT` run
+  (`DriveShareService.AssertUploadMayShareAsync`), so only the owner console or the drive's app uploads with shares. A
+  file sent as `Owner` with shares is stored `Connected`, as a share lifts it. The rows are written through
+  `CommitNewFile`'s second-row hook, inside the header's transaction, which also deletes the copied payloads if it fails.
+  Only standard files take shares; a comment follows its file's (section 10).
 
 ## 5. What owner callers see
 

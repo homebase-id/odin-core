@@ -17,6 +17,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 
 namespace Odin.Services.Drives.Shares;
 
@@ -52,37 +53,12 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
     /// </summary>
     public async Task WriteSharesAsync(Guid driveId, List<ShareRequest>? shares, IOdinContext odinContext)
     {
-        if (shares == null || shares.Count == 0 || shares.Count > MaxSharesPerRequest)
-        {
-            throw new OdinClientException($"Between 1 and {MaxSharesPerRequest} shares per request", OdinClientErrorCode.ArgumentError);
-        }
-
-        if (shares.DistinctBy(s => (s.FileId, s.CircleId)).Count() != shares.Count)
-        {
-            throw new OdinClientException("A file is shared with a circle once per request", OdinClientErrorCode.ArgumentError);
-        }
-
-        var drive = await GetDriveCallerMayShareOnAsync(driveId, odinContext);
-        AssertCallerMayWrite(drive, odinContext);
-        foreach (var circleId in shares.Select(s => s.CircleId).Distinct())
-        {
-            await AssertCircleMayShareAsync(drive, circleId, odinContext);
-        }
-
-        var now = UnixTimeUtc.Now();
-        foreach (var share in shares)
-        {
-            AssertShape(share, now);
-        }
+        var drive = await AssertMayWriteAsync(driveId, shares, odinContext);
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        foreach (var file in shares.GroupBy(s => s.FileId))
+        foreach (var file in shares!.GroupBy(s => s.FileId))
         {
-            var rows = file.Select(s => new DriveAclIndexRecord
-            {
-                aclMemberId = s.CircleId, permissions = (int)s.Permissions, expiresAt = s.ExpiresAt, lockedFileKey = s.LockedFileKey
-            }).ToList();
-            var written = await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, file.Key, rows,
+            var written = await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, file.Key, ToRows(file),
                 record => CheckFileAndLift(record, file.ToList()));
             if (written == null)
             {
@@ -91,6 +67,32 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
         }
 
         tx.Commit();
+    }
+
+    /// <summary>
+    /// A new file's upload carrying its shares (section 4): the same checks as <see cref="WriteSharesAsync"/>, before
+    /// anything is stored.  The shares name no file; they are the upload's.
+    /// </summary>
+    public async Task AssertUploadMayShareAsync(Guid driveId, List<ShareRequest> shares, bool encrypted, IOdinContext odinContext)
+    {
+        if (shares.Any(s => s.FileId != Guid.Empty))
+        {
+            throw new OdinClientException("An upload's shares are for the file uploaded: they name no file", OdinClientErrorCode.ArgumentError);
+        }
+
+        await AssertMayWriteAsync(driveId, shares, odinContext);
+        AssertKeysFit(encrypted, shares, "The file");
+    }
+
+    /// <summary>The upload's shares, written in its header's transaction, so a file is never seen half shared.</summary>
+    public WriteSecondDatabaseRowBase UploadSharesWriter(InternalDriveFileId file, List<ShareRequest> shares) =>
+        new WriteUploadShares(db, file, ToRows(shares));
+
+    private sealed class WriteUploadShares(IdentityDatabase db, InternalDriveFileId file, List<DriveAclIndexRecord> rows)
+        : WriteSecondDatabaseRowBase
+    {
+        public override async Task<int> ExecuteAsync() =>
+            await db.MainIndexMetaCached.WriteSharesAsync(file.DriveId, file.FileId, rows, _ => null) == null ? 0 : 1;
     }
 
     /// <summary>
@@ -117,6 +119,40 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
         await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, fileId,
             [new DriveAclIndexRecord { aclMemberId = circleId, permissions = 0 }], _ => null);
     }
+
+    /// <summary>The drive, once the caller may write every one of <paramref name="shares"/> on it.</summary>
+    private async Task<StorageDrive> AssertMayWriteAsync(Guid driveId, List<ShareRequest>? shares, IOdinContext odinContext)
+    {
+        if (shares == null || shares.Count == 0 || shares.Count > MaxSharesPerRequest)
+        {
+            throw new OdinClientException($"Between 1 and {MaxSharesPerRequest} shares per request", OdinClientErrorCode.ArgumentError);
+        }
+
+        if (shares.DistinctBy(s => (s.FileId, s.CircleId)).Count() != shares.Count)
+        {
+            throw new OdinClientException("A file is shared with a circle once per request", OdinClientErrorCode.ArgumentError);
+        }
+
+        var drive = await GetDriveCallerMayShareOnAsync(driveId, odinContext);
+        AssertCallerMayWrite(drive, odinContext);
+        foreach (var circleId in shares.Select(s => s.CircleId).Distinct())
+        {
+            await AssertCircleMayShareAsync(drive, circleId, odinContext);
+        }
+
+        var now = UnixTimeUtc.Now();
+        foreach (var share in shares)
+        {
+            AssertShape(share, now);
+        }
+
+        return drive;
+    }
+
+    private static List<DriveAclIndexRecord> ToRows(IEnumerable<ShareRequest> shares) => shares.Select(s => new DriveAclIndexRecord
+    {
+        aclMemberId = s.CircleId, permissions = (int)s.Permissions, expiresAt = s.ExpiresAt, lockedFileKey = s.LockedFileKey
+    }).ToList();
 
     /// <summary>
     /// The drive, when it is Selective Share and the caller is the owner console or the owner's app that owns it.
@@ -215,6 +251,17 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
         }
     }
 
+    // A locked file key with each share exactly when the file is encrypted
+    private static void AssertKeysFit(bool encrypted, IEnumerable<ShareRequest> shares, string file)
+    {
+        if (shares.Any(s => (s.LockedFileKey != null) != encrypted))
+        {
+            throw new OdinClientException(encrypted
+                ? $"{file} is encrypted: each share carries its file key, locked with the circle's key"
+                : $"{file} isn't encrypted: its shares carry no file key", OdinClientErrorCode.InvalidShareKey);
+        }
+    }
+
     /// <summary>
     /// The file, read with its row locked: an active standard file; a locked file key with each share exactly when it
     /// is encrypted; and the lift of an Owner file to Connected, in the column and the header alike (decision A).
@@ -228,13 +275,7 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
             throw new OdinClientException($"File {record.fileId} is deleted or isn't a file", OdinClientErrorCode.InvalidFile);
         }
 
-        var encrypted = header.FileMetadata.IsEncrypted;
-        if (shares.Any(s => (s.LockedFileKey != null) != encrypted))
-        {
-            throw new OdinClientException(encrypted
-                ? $"File {record.fileId} is encrypted: each share carries its file key, locked with the circle's key"
-                : $"File {record.fileId} isn't encrypted: its shares carry no file key", OdinClientErrorCode.InvalidShareKey);
-        }
+        AssertKeysFit(header.FileMetadata.IsEncrypted, shares, $"File {record.fileId}");
 
         var acl = header.ServerMetadata.AccessControlList;
         if (acl.RequiredSecurityGroup != SecurityGroupType.Owner)
