@@ -122,7 +122,7 @@ public class AclDecisionTests
         Assert.Throws<OdinClientException>(() => acl.Validate());
     }
 
-    // A missing group, 0 (what a client sends when it leaves the group out) and any undefined number mean Owner, in
+    // A missing group, 0 (what a serializer writes for a group nobody set) and any undefined number mean Owner, in
     // both places an ACL reaches the server as JSON: an upload's or update's metadata, and a header read from the
     // database.  Owner then refuses every outside caller (TheSecurityGroupsAreALadder).
     [TestCase("{}")]
@@ -146,10 +146,39 @@ public class AclDecisionTests
     }
 
     [Test]
-    public void CirclesWithNoGroupAreRefused()
+    public void CirclesWithNoGroupAreRefusedSayingWhy()
     {
-        // No group means Owner, which can't name circles
+        // No group means Owner, which can't name circles; the message says the group was missing, not that it was owner
         var acl = OdinSystemSerializer.Deserialize<AccessControlList>($"{{\"circleIdList\":[\"{Friends}\"]}}");
-        Assert.Throws<OdinClientException>(() => acl!.Validate());
+        var e = Assert.Throws<OdinClientException>(() => acl!.Validate());
+        Assert.That(e!.Message, Does.StartWith("No required security group was given"));
+
+        var owner = Acl(SecurityGroupType.Owner, Friends);
+        e = Assert.Throws<OdinClientException>(() => owner.Validate());
+        Assert.That(e!.Message, Does.StartWith("Cannot specify circle or identity list"));
+    }
+
+    // A client's upload or update with a group that names no rung is a 400 (a typo would otherwise store a private
+    // file); a missing group is Owner.  A stored header with one still reads as Owner, and validates.
+    [TestCase("{\"requiredSecurityGroup\":0}", true)]
+    [TestCase("{\"requiredSecurityGroup\":778}", true)]
+    [TestCase("{}", false)]
+    [TestCase("{\"requiredSecurityGroup\":\"connected\"}", false)]
+    public void AClientIsRefusedAnUndefinedGroup(string aclJson, bool refused)
+    {
+        var upload = OdinSystemSerializer.Deserialize<UploadFileDescriptor>($"{{\"fileMetadata\":{{\"accessControlList\":{aclJson}}}}}");
+        var acl = upload!.FileMetadata.AccessControlList;
+        if (refused)
+        {
+            var e = Assert.Throws<OdinClientException>(() => acl.AssertGivenGroupIsDefined());
+            Assert.That(e!.ErrorCode, Is.EqualTo(OdinClientErrorCode.ArgumentError));
+        }
+        else
+        {
+            Assert.DoesNotThrow(() => acl.AssertGivenGroupIsDefined());
+        }
+
+        var stored = OdinSystemSerializer.Deserialize<ServerMetadataDto>($"{{\"accessControlList\":{aclJson}}}");
+        Assert.DoesNotThrow(() => stored!.AccessControlList.Validate(), "a stored header with no names still validates");
     }
 }

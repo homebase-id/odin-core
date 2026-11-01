@@ -126,7 +126,9 @@ Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → 
    storage key for the drive.
 
 **The SQL may only leave files out; the per-result read rule is the authority.** The two agree because the index
-rows are made from the ACL (below); the SQL keeps pages full, and security doesn't depend on it **(I)**.
+rows and the group column are made from the ACL on each header write (below); the SQL keeps pages full, and security
+doesn't depend on it **(I)**. Where they disagree, as for a file stored with a group of 0 before it meant `Owner`,
+the page comes back short.
 
 ### Writing
 
@@ -141,12 +143,17 @@ rows are made from the ACL (below); the SQL keeps pages full, and security doesn
   - a required group of `Anonymous` or `Owner` with named circles or identities is refused;
   - named identities are made canonical and de-duplicated;
   - named circles are allowed from `Authenticated` up, since an `Authenticated` caller can hold circles (a YouAuth
-    domain) (`AccessControlList.cs:85-92`);
+    domain) (`AccessControlList.cs:97-104`);
   - an encrypted file can't have a required group of `Anonymous` or `Authenticated` (`FileSystemStreamWriterBase.cs:565-576`);
   - on an `OwnerOnly` drive every file's required group must be `Owner` (`:599`; `FileSystemUpdateWriterBase.cs:485`);
   - an upload that names no ACL gets a required group of `Owner` (`UploadFileMetadata.cs:19`); so does one whose ACL
-    leaves the group out or sends an undefined value, such as 0 (`AccessControlList.RequiredSecurityGroup`). The
-    rule lives on the ACL itself, so every reader sees `Owner`, a header already stored with 0 included.
+    leaves the group out (`AccessControlList.RequiredSecurityGroup`). An upload or update that sends an undefined
+    value, such as 0 or 778, is refused with a 400 (`AssertGivenGroupIsDefined`), and one that leaves the group out but
+    names circles or identities is refused saying so: `Owner` can't name them. A stored header isn't refused for an
+    undefined value: it reads as `Owner`. The
+    rule lives on the ACL itself, so every reader of the header sees `Owner`, a header already stored with 0
+    included. The query's group column keeps 0 for such a file until its next header write; the SQL then still
+    returns it to every caller, and the per-result read rule leaves it out ("A query").
 - Comments, reactions and read receipts have rules of their own ("Special cases").
 
 ### What else widens access, on purpose
@@ -183,7 +190,7 @@ circle share key read does).
 - **A sent copy carries the ACL without its named identities**, so a recipient never learns who else was named
   (`SendFileOutboxWorkerAsync`, `UpdateRemoteFileOutboxWorker`) **(V)**.
 - **The recipient's copy gets a required group of `Owner`**, except: a comment takes the ACL of the file it comments
-  on (`IncomingCommentAcl`), and a collaborative channel keeps the sender's ACL (`PeerFileWriter.cs:76-100`) **(V)**.
+  on (`IncomingCommentAcl`), and a collaborative channel keeps the sender's ACL (`PeerFileWriter.cs:75-94`) **(V)**.
 - **A zero-knowledge drive sends nothing** (`ZkDriveFiles.AssertNotSent`) **(V)**.
 
 ## Special cases
@@ -215,9 +222,9 @@ channels move to Selective Share drives (not planned yet).
 
 The attribute `IsCollaborativeChannel` is set by the community app, by collaborative feed channels and on the built-in
 Lists drive (`BuiltinDrives.cs:146`) **(V)**. On such a drive **(V)**:
-1. a peer may update a file another identity sent; elsewhere only the original sender may (`PeerFileWriter.cs:285`);
+1. a peer may update a file another identity sent; elsewhere only the original sender may (`PeerFileWriter.cs:279`);
 2. a peer's delete takes the direct soft-delete path (`PeerDriveIncomingTransferService.cs:226`);
-3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter.cs:94-100`);
+3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter.cs:88-94`);
 4. files received from others are distributed on to the members (`AllowDistribution`,
    `FeedDriveDistributionRouter.ShouldDistribute`);
 5. an upload may name recipients for app notifications (`FileSystemStreamWriterBase.cs:431`).

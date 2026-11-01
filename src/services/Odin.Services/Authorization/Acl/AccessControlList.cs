@@ -16,17 +16,38 @@ namespace Odin.Services.Authorization.Acl
         public static AccessControlList Anonymous => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Anonymous };
 
         private SecurityGroupType _requiredSecurityGroup = SecurityGroupType.Owner;
+        private bool _groupGiven;
+        private int? _undefinedGroupGiven;
 
         /// <summary>
-        /// The lowest caller level that may see the file.  Missing, or undefined (0, which a client sends when it leaves the
-        /// group out, or any other number that names no rung), means <see cref="SecurityGroupType.Owner"/>:
+        /// The lowest caller level that may see the file.  Missing (the field starts at Owner), or undefined (0, which a
+        /// serializer writes for a group nobody set, or any other number that names no rung), means <see cref="SecurityGroupType.Owner"/>:
         /// an ACL that names no group lets no one outside the identity in.  Set here, so every reader sees it, a stored header
-        /// included (docs/file-access.md, "Writing").
+        /// included (docs/file-access.md, "Writing").  A client's upload or update is refused an undefined group instead
+        /// (<see cref="AssertGivenGroupIsDefined"/>).
         /// </summary>
         public SecurityGroupType RequiredSecurityGroup
         {
             get => _requiredSecurityGroup;
-            set => _requiredSecurityGroup = Enum.IsDefined(value) ? value : SecurityGroupType.Owner;
+            set
+            {
+                _groupGiven = true;
+                var isDefined = Enum.IsDefined(value);
+                _undefinedGroupGiven = isDefined ? null : (int)value;
+                _requiredSecurityGroup = isDefined ? value : SecurityGroupType.Owner;
+            }
+        }
+
+        /// <summary>
+        /// For an ACL a client sends with an upload or update: refuses a group that names no rung, so a client bug (778
+        /// for Connected) is a 400, not a file nobody else can see.  Not for stored headers, which read it as Owner.
+        /// </summary>
+        public void AssertGivenGroupIsDefined()
+        {
+            if (_undefinedGroupGiven is { } value)
+            {
+                throw new OdinClientException($"{value} is not a required security group", OdinClientErrorCode.ArgumentError);
+            }
         }
 
         /// <summary>
@@ -77,7 +98,10 @@ namespace Odin.Services.Authorization.Acl
             {
                 if ((this.CircleIdList?.Count() ?? 0) > 0 || (this.OdinIdList?.Count() ?? 0) > 0)
                 {
-                    throw new OdinClientException("Cannot specify circle or identity list when required security group is anonymous or owner",
+                    throw new OdinClientException(
+                        !_groupGiven || _undefinedGroupGiven != null
+                            ? "No required security group was given, so it means owner, which can't name circles or identities"
+                            : "Cannot specify circle or identity list when required security group is anonymous or owner",
                         OdinClientErrorCode.CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly);
                 }
             }
