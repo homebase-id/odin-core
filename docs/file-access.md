@@ -1,276 +1,295 @@
 # File access: who may see and change a file
 
-How a file's access control works today, and how Selective Share changes it. The reference to read before touching a
-drive permission check, a file's ACL, the ACL index or the query's ACL filter. Its neighbours:
-[security-model.md](security-model.md) (callers, keys and every permission, in short),
-[owner-keys.md](owner-keys.md) (the names of the keys), [zero-knowledge-drives.md](zero-knowledge-drives.md) (the
-drive key models) and [selective-share-plan.md](selective-share-plan.md) (how shares are built, PR by PR).
+How a file's access control works today, and how Selective Share changes it. Read it before touching a drive
+permission check, a file's ACL, the `DriveAclIndex` rows or the query's ACL filter. Its neighbours:
+[security-model.md](security-model.md) (every caller and permission, in short), [owner-keys.md](owner-keys.md) (the
+names of the keys), [zero-knowledge-drives.md](zero-knowledge-drives.md) (the drive sharing models) and
+[selective-share-plan.md](selective-share-plan.md) (how shares are built, PR by PR).
 
 **Status:** "Today" describes `main` plus Selective Share PR 1 and PR 2 (the share columns and circle keys), read in
 the code on 2026-11-01, partly by subagents. "With Selective Share" is the plan for PR 3 and PR 4, not built.
 Markers follow security-model.md: **(V)** read in the code (file named), **(I)** inferred.
 
-## The pieces
+## Terms
 
-| Name | What it is | Where it lives |
-|---|---|---|
-| **Drive permission** | what a caller may do on a whole drive: `Read` 1, `Write` 2, `React` 4, `Comment` 8, `ConditionalTemporalRead` 16 | the caller's grants, from an app registration, a circle, a YouAuth domain or the anonymous drives (`PermissionContext`) **(V)** |
-| **Security level** | who the caller is, on a ladder: `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 < `Owner` 999, and `System` 1 for the server's own work | the caller's context (`CallerContext.SecurityLevel`) **(V)** |
-| **The file's ACL** | `RequiredSecurityGroup` (a rung of that ladder) plus optional `CircleIdList` and `OdinIdList` | the header's server metadata (`ServerMetadata.AccessControlList`), stored as JSON in `driveMainIndex.hdrServerData` **(V)** |
-| **The group column** | a copy of the ACL's group, so the query can filter by it | `driveMainIndex.requiredSecurityGroup` **(V)** |
-| **ACL index rows** | one row per circle or person a file's ACL names (a person as their OdinId's hash), so the query can find "files my circles may see" | `DriveAclIndex` **(V)** |
-| **Share row** (Selective Share) | an ACL index row that is also the share: permission bits, expiry, the file key locked with the circle key, its own `created` and `modified` | `DriveAclIndex`, the columns PR 1 added **(V)**; written from PR 3 |
-| **Drive options** | `OwnerOnly`, `AllowAnonymousReads`, `AllowSubscriptions`, `AllowCdn`, `IsArchived`, … | typed fields on the drive (`StorageDriveDetails`) **(V)** |
-| **Drive attributes** | free key/value strings an app sets; the server reads one, `IsCollaborativeChannel` | `StorageDriveDetails.Attributes` **(V)** |
-| **Sharing model** | who holds the drive key: `Collaborative` (the default), `Private`, `SelectiveShare` | `Drives.SharingModel` (`DriveSharingModel.cs`) **(V)** |
+Each term below means one thing everywhere in this document.
 
-An **option** and an **attribute** do the same job, a setting on a drive. The difference is only how they're
-stored: an option is a typed field the drive API validates; an attribute is any string pair, and the server gives
-meaning to the ones it knows. `IsCollaborativeChannel` is an attribute because the community and feed apps added it
-without a server change **(I)**.
+**Callers**
 
-Two different things are called collaborative: the **sharing model** `Collaborative` (every member holds the drive
-key; every drive that isn't zero knowledge counts as one) and the **attribute** `IsCollaborativeChannel` (V1
-community and feed channels: members may edit each other's files, below).
+| Term | Means |
+|---|---|
+| **owner callers** | the **owner console** (signed in with the master key) and the **owner's apps** (an app's client token). Both act at the `Owner` level (`CallerContext.IsOwner`) **(V)** |
+| **outside callers** | everyone else: peers, YouAuth domains, signed-in identities that aren't connected, and anonymous visitors |
+| **peer** | another identity, calling this one through the Peer API (`/api/peer/…`, `/api/v2/peer/…`) |
+| **`System`** | the server's own work (outbox, jobs, the CDN): a caller level, not a person |
+
+**Levels and groups**
+
+| Term | Means |
+|---|---|
+| **level** | where a caller stands on the ladder `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 < `Owner` 999 (`CallerContext.SecurityLevel`) **(V)**. An unreviewed connection's level counts as `Authenticated` wherever content is judged (`ReviewedSecurityTier.EffectiveLevel`) **(V)** |
+| **required group** | the rung a file asks for: the ACL's `RequiredSecurityGroup`, on the same ladder **(V)** |
+
+**Drives**
+
+| Term | Means |
+|---|---|
+| **drive permission** | what a caller may do on a whole drive, from their grants: `Read` 1, `Write` 2, `React` 4, `Comment` 8, `ConditionalTemporalRead` 16 (`DrivePermission`, `PermissionContext`) **(V)** |
+| **public drive** | a drive with the option `AllowAnonymousReads` |
+| **drive option** | a typed setting on the drive the drive API validates: `OwnerOnly`, `AllowAnonymousReads`, `AllowSubscriptions`, `AllowCdn`, `IsArchived`, `IsReadonly`, `RequirePayloadHashes` (`StorageDriveDetails`) **(V)** |
+| **drive attribute** | a free key/value string an app sets on a drive; the server gives meaning only to `IsCollaborativeChannel` (`StorageDriveDetails.Attributes`) **(V)**. An option and an attribute do the same job and differ only in how they're stored |
+| **sharing model** | who holds the drive key: `Collaborative` (the default: the server holds it, and members of the drive's circles get it), `Private` or `SelectiveShare` (zero knowledge) (`Drives.SharingModel`) **(V)** |
+| **drive key** | the key every file's key is locked with on that drive (DrvK, [owner-keys.md](owner-keys.md)) |
+
+"Collaborative" names two different things: the **sharing model** `Collaborative`, and the **attribute**
+`IsCollaborativeChannel` (V1 community and feed channels, where members may edit each other's files). This document
+writes "collaborative channel" for the second.
+
+**Files**
+
+| Term | Means |
+|---|---|
+| **header** | the file's server-side record (`ServerFileHeader`): metadata, key header and server metadata, stored in `driveMainIndex` **(V)** |
+| **ACL** | the file's access control list, in the header's server metadata (`ServerMetadata.AccessControlList`): a **required group**, plus optional **named circles** (`CircleIdList`) and **named identities** (`OdinIdList`) **(V)** |
+| **client-locked file** | a file whose key header a client locked (types `sealed` and `zkDrive`); the server can't open it **(V)** |
+| **the read rule** | the one check that decides whether a caller may see a stored file: `IDriveAclAuthorizationService.CallerMayReadAsync` **(V)** |
+| **version tag**, **`modified`** | the header's version (a new one on every header write, used to refuse a stale update) and its last-change time (what clients sync by) **(V)** |
+
+**Index rows and shares**
+
+| Term | Means |
+|---|---|
+| **index row** | a `DriveAclIndex` row: one per named circle or named identity of a file (an identity as its OdinId's hash), so the query can find "files my circles may see" **(V)** |
+| **share row** | on a Selective Share drive, the index row *is* the share: it adds permission bits, an expiry, the file key locked with the circle key, and its own `created` and `modified` (columns from PR 1 **(V)**; written from PR 3) |
+| **live row** | a row with `Read` that hasn't expired |
+| **withdrawn share** | a share row kept with no bits and no locked key, so members syncing see it go |
+| **member** | an identity in a circle |
 
 ## Who each check applies to
 
-Drive permissions and the file's ACL apply to different callers. **The owner console holds every permission on every
-drive and skips every file's ACL; an app the owner installed is held to its drives but skips the ACL; everyone else
-is held to both.**
+**Owner callers skip every file's ACL; the owner console also holds every drive permission, the owner's apps only
+their own; outside callers are held to both.**
 
 | Caller | Drive permissions | The file's ACL |
 |---|---|---|
-| **Owner console** (master key) | `All` on every drive (`OwnerAuthenticationService.cs:160-171`) **(V)** | skipped: the caller is the owner **(V)** |
-| **The owner's apps** | only the drives in the app's registration, plus `Read` on public drives (`AppRegistrationService.cs:303-317`) **(V)** | skipped: an app acts at the owner's level (`SecurityGroupType.Owner`) **(V)** |
-| **Connected identities** (peers) | what their enabled circles grant, plus public drives (`CircleNetworkService`, `TenantSettings`) **(V)** | applies, at `Connected` (or `Authenticated` until reviewed) |
-| **YouAuth domains** | what their circles grant, plus public drives (`YouAuthDomainRegistrationService.cs:505-552`) **(V)** | applies, at `Authenticated` (`Connected` for a connected identity) |
-| **Other identities, signed in** | public drives only **(V)** | applies, at `Authenticated` |
-| **Anonymous visitors** | `Read` on public drives only **(V)** | applies, at `Anonymous` |
-| **The server's own work** (`System`) | every drive (`PermissionContext.cs:110`) **(V)** | skipped **(V)** |
+| owner console | `All` on every drive (`OwnerAuthenticationService.cs:160-171`) **(V)** | skipped **(V)** |
+| owner's apps | the drives in the app's registration, plus `Read` on public drives (`AppRegistrationService.cs:303-317`) **(V)** | skipped **(V)** |
+| connected identities (as peers) | what their enabled circles grant, plus the public-drive grants (`TenantSettings`) **(V)** | applies, at `Connected`, or `Authenticated` until reviewed |
+| YouAuth domains | what their circles grant, plus the public-drive grants (`YouAuthDomainRegistrationService.cs:505-552`) **(V)** | applies, at `Authenticated` (`Connected` when the domain is a connected identity) |
+| signed-in identities, not connected | the public-drive grants only **(V)** | applies, at `Authenticated` |
+| anonymous visitors | `Read` on public drives only **(V)** | applies, at `Anonymous` |
+| `System` | every drive (`PermissionContext.cs:110`) **(V)** | skipped **(V)** |
 
-So a drive's `Read` and `Write` mean two things: for an app, the sandbox the owner gave it; for everyone outside
-the identity, what a circle (or the drive being public) lets them do. A file's ACL only ever narrows access for
-callers outside the identity: peers, domains and visitors.
+So a drive permission means two things: for an owner's app, the part of the identity the owner gave it; for an
+outside caller, what a circle (or the drive being public) lets them do. A file's ACL only narrows access for outside
+callers.
 
-## How the checks combine
+## How a request is decided
 
-**Every check must pass; any refusal ends the request.** No later step can grant what an earlier one refused,
-and nothing "allows over" a deny. The only ways round a step are named bypasses, listed under each step. **(V)**
-for the order: `DriveStorageServiceBase.GetServerFileHeader`, `GetServerFileHeaderInternal`,
-`GetServerFileHeaderForWriting`, `DriveAclAuthorizationService.CallerMayReadAsync`.
+**Every check must pass, in order; the first refusal ends the request.** A later check never grants what an earlier
+one refused. The only ways round a check are the bypasses named with it.
 
-**Reading a file by id**, in order:
+### Reading a file by id
+
+Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → `GetServerFileHeaderInternal`) **(V)**:
 
 | # | Check | Refused as | Bypassed by |
 |---|---|---|---|
-| 1 | the drive isn't archived | an error | the owner |
-| 2 | drive `Read` (`AssertCanReadDriveAsync`) | 403 | a `System` context; skipped on an `AllowAnonymousReads` drive (the file's ACL still applies) |
-| 3 | the file exists and its TTL hasn't passed | not found | a delete, which must still see an expired file |
-| 4 | a client-locked file only for a holder of the drive key (`ZkDriveFiles.VisibleTo`) | 403 | `System`; files on the transient drive |
-| 5 | the file's ACL (`CallerPassesAcl` → `Allows`) | 403 | the owner and apps acting for the owner; `System` |
+| 1 | the drive isn't archived | 400 `InvalidDrive` | the owner console (master key) |
+| 2 | drive `Read` | 403 | `System`; not asked on a public drive (`StandardFileDriveStorageService`) |
+| 3 | the file exists and its TTL hasn't passed | no file (I: a 404 to the client) | a delete, which must still see an expired file |
+| 4 | the read rule, part 1: a client-locked file only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) | 403, or no file when the path asks for that (`aclDeniedAsMissing`) | `System`; files on the transient drive |
+| 5 | the read rule, part 2: the file's ACL (`CallerPassesAcl`) | as 4 | owner callers; `System` |
 
-**Inside step 5**, in order: a missing ACL refuses; a `System` group refuses; the caller's level (an unreviewed
-connection counts as `Authenticated`) must reach the group; then, only if the ACL names circles or people, the
-caller must be in one of the circles **or** be one of the people. **The group is a floor and the names only
-narrow it**: naming a circle never lets in someone below the group, and naming no one leaves the group alone.
+**The ACL check (step 5)**, in order (`DriveAclAuthorizationService.Allows`, `:101-123`) **(V)**:
+1. A missing ACL refuses.
+2. A required group of `System` refuses: it is a caller level, never a file's.
+3. The caller's level must reach the required group.
+4. If the ACL names no circles and no identities, the caller passes.
+5. Otherwise the caller must be in a named circle **or** be a named identity.
 
-**A query** runs the same steps in two places: the SQL drops what the security group and the rows rule out
-(steps 2 and 5, roughly), then every result goes through steps 1, 3, 4 and 5 again (`FilterVisibleAsync`). **The
-SQL may only drop; the per-result check is the authority.** A client-locked file a caller may not see is left out as
-missing, not reported as refused.
+**The required group is a floor, and names only narrow it:** naming a circle never lets in a caller below the group.
 
-**Writing:** an upload needs drive `Write`. An update, overwrite or delete runs: drive not archived, drive `Write`,
-then **loads the existing header through steps 3 to 5**, so the writer must also be able to see the file. Then the
-new ACL is validated (`AccessControlList.Validate`, the encrypted-file and `OwnerOnly` rules below). Comments, reactions
-and read receipts have their own rules ("The special cases").
+### A query
 
-**What else can widen access**, each on purpose: `UpgradeToByPassAclCheck` makes a caller the owner for one job;
-the CDN reads CDN-enabled drives as `System`; three callers read headers skipping the file's ACL; a public drive
-skips drive-permission checks (not the file's ACL). All in "The special cases".
+(`DriveQueryServiceBase`, `QueryBatch`) **(V)**:
+1. **Once, for the drive:** it exists and isn't archived (bypassed by the owner console), and the caller has drive
+   `Read`.
+2. **In SQL:** the file's required group is at or below the caller's level; for an outside caller, also "no index
+   row for the file, or an index row for one of my circles or for my OdinId's hash" (`QueryBatch.cs:75-95`, the list
+   from `DriveQuery.GetAcl`). An anonymous caller has neither circles nor an OdinId, so for them the SQL has no row
+   condition.
+3. **For each result** (`FilterVisibleAsync`): an expired file is left out; then the drive is checked for archiving
+   again and the read rule runs. A client-locked file the caller may not see is left out silently; any other refusal
+   is left out as an ACL failure. An encrypted file that isn't client-locked is left out when the caller holds no
+   storage key for the drive.
 
-**With Selective Share** the order stays. Step 5 on a Selective Share drive reads the caller's live row instead of the
-header's circles (PR 4), and the SQL counts a row only with `Read` and before its expiry (PR 3).
+**The SQL may only leave files out; the per-result read rule is the authority.** The two agree because the index
+rows are made from the ACL (below); the SQL keeps pages full, and security doesn't depend on it **(I)**.
 
-## Today: reading a file
+### Writing
 
-A read needs both: the **drive permission** (`Read`), and the **file's ACL** (`DriveAclAuthorizationService`)
-**(V)**.
-
-**The ACL rule** (`Allows`, `DriveAclAuthorizationService.cs:101-123`) **(V)**:
-1. The owner and `System` callers pass (`CallerPassesAcl`, `:67-87`).
-2. A `System` group on a file admits no one; it is a caller level, never a file's.
-3. The caller's level must reach the file's group. An unreviewed connection counts as `Authenticated`, not
-   `Connected`, wherever content is judged (`ReviewedSecurityTier.EffectiveLevel`) **(V)**.
-4. If the ACL names no circles and no people, that's enough.
-5. Otherwise the caller must be in one of the named circles **or** be one of the named people.
-
-**One rule for every read** (`CallerMayReadAsync`): the ACL above, and a client-locked file (sealed or `zkDrive`)
-only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) **(V)**. It is asked by:
-- every read by id: header, payload, thumbnail, and the header a write loads first (`GetServerFileHeaderInternal`,
-  `DriveStorageServiceBase.cs:2209-2235`) **(V)**;
-- every query, on each result (`DriveQueryServiceBase.FilterVisibleAsync`) **(V)**;
-- every socket event, per connected device (`ClientDriveNotification.VisibleToAsync`) **(V)**.
-
-**Queries filter in SQL first, then by the rule.** The SQL (`QueryBatch.cs:75-95`) **(V)**:
-- `requiredSecurityGroup BETWEEN 0 AND <caller's level>`;
-- when the caller isn't the owner, `LEFT JOIN driveAclIndex` and `(no row for the file) OR (a row for one of my
-  circles or my own OdinId hash)`; the list comes from `DriveQuery.GetAcl` (`:157-173`) **(V)**.
-
-So the query reads the **rows** and the rule reads the **header's ACL**. They agree because the rows are made from the
-ACL on every header write (below). An anonymous caller has no circles and no OdinId, so `GetAcl` returns nothing and
-the SQL has no row filter; the per-result rule then drops what they may not see **(V)**.
-
-**Who gets the ACL back:** only the owner and apps acting for the owner. Everyone else gets the header without its
-server metadata (`DriveFileUtility.CreateClientFileHeader`, `:113-116`) **(V)**.
-
-**Peers** read through the Peer API with the same services and their own context: `Connected`, their enabled circles,
-and `IsReviewed` (`TransitAuthenticationService`) **(V)**. That context is cached for up to an hour and reset when a
-connection is finalized, blocked or deleted, not when a circle is disabled (`OdinContextCache`) **(V)**; the peer path
-for circle share keys asks whether the circle is enabled at the time for that reason (`CircleShareKeyService`) **(V)**.
-
-## Today: writing a file
-
-- **Upload and update need drive `Write`** (`StandardFileDriveStorageService.AssertCanWriteToDrive`) **(V)**.
-- **An update or a delete loads the existing header through the read rule** (`GetServerFileHeaderForWriting`,
-  `SoftDeleteLongTermFile`) **(V)**, so it also needs the file's ACL to admit the caller. There is no per-file write
-  permission: drive `Write` plus "may see it" is the whole rule **(V)**.
-- **The ACL is checked on every write** (`AccessControlList.Validate`, via upload and update validation and
+- **Upload:** drive `Write` (`StandardFileDriveStorageService.AssertCanWriteToDrive`) **(V)**, then the new ACL's checks
+  below.
+- **Update, overwrite, delete:** the drive isn't archived, drive `Write`, then **the existing header is loaded through
+  steps 3 to 5**, so the writer must also pass the read rule (`GetServerFileHeaderForWriting`,
+  `SoftDeleteLongTermFile`) **(V)**. There is no per-file write permission today: drive `Write` plus passing the read
+  rule is the whole rule **(V)**.
+- **The new ACL's checks** (`AccessControlList.Validate`, through upload and update validation and
   `ServerFileHeader.Validate`) **(V)**:
-  - `Anonymous` or `Owner` with circles or people is refused;
-  - people are canonicalised and de-duplicated;
-  - circles are allowed from `Authenticated` up: an `Authenticated` caller can hold circles (a YouAuth domain), so
-    "Authenticated plus circles" means something (`AccessControlList.cs:85-92`) **(V)**;
-  - an encrypted file can't be `Anonymous` or `Authenticated` (`FileSystemStreamWriterBase.cs:565-576`) **(V)**;
-  - on an `OwnerOnly` drive every file must be `Owner` (`:599`; `FileSystemUpdateWriterBase.cs:485`) **(V)**.
-- **An upload that names no ACL gets `Owner`** (`UploadFileMetadata.cs:19`) **(V)**.
+  - a required group of `Anonymous` or `Owner` with named circles or identities is refused;
+  - named identities are made canonical and de-duplicated;
+  - named circles are allowed from `Authenticated` up, since an `Authenticated` caller can hold circles (a YouAuth
+    domain) (`AccessControlList.cs:85-92`);
+  - an encrypted file can't have a required group of `Anonymous` or `Authenticated` (`FileSystemStreamWriterBase.cs:565-576`);
+  - on an `OwnerOnly` drive every file's required group must be `Owner` (`:599`; `FileSystemUpdateWriterBase.cs:485`);
+  - an upload that names no ACL gets a required group of `Owner` (`UploadFileMetadata.cs:19`).
+- Comments, reactions and read receipts have rules of their own ("Special cases").
 
-**The rows follow the header.** Every header write (some 50 call sites, soft delete included) ends in
-`DriveQuery.SaveFileHeaderAsync`, which turns the ACL into a member list (circles, plus each person's OdinId hash)
-and reconciles the file's rows in the header's transaction: rows of members no longer named go, new ones are added,
-a row that stays is untouched (`MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync`)
-**(V)**. A new row means read (`permissions` 1, no expiry), the column's default **(V)**. A hard delete and a drive
-purge delete the rows **(V)**. Nothing else writes them **(V)**.
+### What else widens access, on purpose
 
-## Today: copies sent to others
+`UpgradeToByPassAclCheck` makes a caller an owner caller for one job; the CDN reads CDN-enabled drives as `System`;
+three callers read headers without the read rule; a public drive skips the drive-permission check, not the read
+rule. All in "Special cases".
 
-- **Feed:** a file is distributed to followers whose access the ACL allows (`IdentityHasPermissionAsync`, the same
-  rule judged from the follower's connection); encrypted posts only to those who can also decrypt the drive
+## Index rows today
+
+**They follow the header.** Every header write (about 50 call sites, soft delete included) ends in
+`DriveQuery.SaveFileHeaderAsync`. It turns the ACL into a member list (the named circles, plus each named identity's
+OdinId hash) and reconciles the file's index rows in the header's transaction: rows of members no longer named are
+deleted, new ones inserted, and a row that stays isn't touched (`MainIndexMeta.BaseUpsertEntryZapZapAsync`,
+`TableDriveAclIndex.ReconcileRowsAsync`) **(V)**. A new row means read: `permissions` 1, no expiry, the columns'
+defaults **(V)**. A hard delete and a drive purge delete the rows **(V)**. Nothing else writes them **(V)**.
+
+**Who gets the ACL back:** owner callers only. Outside callers get the header without its server metadata
+(`DriveFileUtility.CreateClientFileHeader`, `:113-116`) **(V)**.
+
+**Peers' contexts are cached** for up to an hour (`OdinContextCache`): their level, enabled circles and whether they
+are reviewed (`TransitAuthenticationService`) **(V)**. The cache is reset when a connection is finalized, blocked or
+deleted, not when a circle is disabled **(V)**, so a check that must see a disable asks at the time (as the circle
+share key read does, `CircleShareKeyService`) **(V)**.
+
+## Copies sent to others
+
+- **Feed:** a file goes to the followers the ACL lets in, judged from each follower's connection
+  (`IdentityHasPermissionAsync`); an encrypted post only to those who can also decrypt the drive
   (`FeedDriveDistributionRouter`) **(V)**.
-- **Direct sends** (`TransitOptions.Recipients`) are not checked against the ACL; the sender names the recipients
+- **Direct sends** (`TransitOptions.Recipients`) aren't checked against the ACL: the sender names the recipients
   (`PeerOutgoingTransferService.CreateOutboxItems`) **(V)**.
-- **A sent copy carries the ACL without its `OdinIdList`**, so a recipient never learns who else was named
+- **A sent copy carries the ACL without its named identities**, so a recipient never learns who else was named
   (`SendFileOutboxWorkerAsync`, `UpdateRemoteFileOutboxWorker`) **(V)**.
-- **The recipient's copy gets `Owner`**, except: a comment takes the ACL of the file it comments on
-  (`IncomingCommentAcl`), and a collaborative channel keeps the sender's ACL (`PeerFileWriter.cs:76-100`) **(V)**.
+- **The recipient's copy gets a required group of `Owner`**, except: a comment takes the ACL of the file it comments
+  on (`IncomingCommentAcl`), and a collaborative channel keeps the sender's ACL (`PeerFileWriter.cs:76-100`) **(V)**.
 - **A zero-knowledge drive sends nothing** (`ZkDriveFiles.AssertNotSent`) **(V)**.
 
-## Today: the special cases
+## Special cases
 
-- **Public drives (`AllowAnonymousReads`):** the file services skip the drive-permission checks for read, and a
-  comment's write check (`CommentFileStorageService`) **(V)**; the file's ACL still applies to reads. The tenant's
-  settings give authenticated and connected callers read (and, by flag, comment and react) on these drives
-  (`TenantSettings`) **(V)**.
-- **Comments** are a separate file system on the same drive; read needs `Read` or `Comment`, write needs `Comment`
-  (security-model.md, section 6) **(V)**.
-- **Reactions** need drive `React` and never pass the file's ACL, locally or from a peer: the peer path finds the
-  file by global transit id with a drive check only (`ResolveFileId`) **(V)**. Their rules are their own by an earlier
-  decision (#1977); whether the drive check is enough is asked in #2058.
-- **Read receipts** check the drive; the inbox applies them through the read rule (`PeerFileWriter.MarkFileAsRead`)
-  **(V)**.
-- **System work skips the ACL:** a `System` caller passes it, and `UpgradeToByPassAclCheck` makes a caller the owner
-  for one job (profile attributes, contacts, Shamir, zero-knowledge keys) (`OdinContextUpgrades.cs:34-65`) **(V)**.
-  `GetServerFileHeaderBy…SkippingFileAcl` has three callers: the peer file-exists probes, the email key writer and
-  Shamir (`DriveQueryServiceBase.cs:206-235`) **(V)**.
+- **Public drives:** the file services don't ask for drive `Read`, nor for `Comment` when writing a comment
+  (`CommentFileStorageService`) **(V)**; the read rule still applies. The tenant's settings give signed-in and
+  connected callers `Read`, and by flag `Comment` and `React`, on public drives (`TenantSettings`) **(V)**.
+- **Comments** are a separate file system on the same drive: reading needs drive `Read` or `Comment`, writing needs
+  `Comment` (security-model.md, section 6) **(V)**.
+- **Reactions** need drive `React` and never pass the read rule, locally or from a peer: a peer's reaction finds the
+  file by global transit id with a drive check only (`ResolveFileId`) **(V)**. Reactions keep rules of their own by an
+  earlier decision (#1977); whether the drive check is enough is asked in #2058.
+- **Read receipts** need a drive check; the inbox then applies them through the read rule
+  (`PeerFileWriter.MarkFileAsRead`) **(V)**.
+- **The server's own work skips the read rule's ACL part:** `System` passes it, and `UpgradeToByPassAclCheck` makes a
+  caller an owner caller for one job: profile attributes, contacts, Shamir, zero-knowledge keys
+  (`OdinContextUpgrades.cs:34-65`) **(V)**. `GetServerFileHeaderBy…SkippingFileAcl` skips the read rule for three
+  callers: the peer file-exists probes, the email key writer and Shamir (`DriveQueryServiceBase.cs:206-235`) **(V)**.
 - **The CDN** reads payloads and thumbnails of CDN-enabled drives as `System`, so it passes every file's ACL there
-  (`CdnAuthPathHandler`) **(V)**: `AllowCdn` means "the CDN may read this drive". Zero-knowledge drives are never
+  (`CdnAuthPathHandler`) **(V)**: `AllowCdn` means "the CDN may read this drive". A zero-knowledge drive is never
   CDN-enabled (`DriveManager.GetCdnEnabledDrivesAsync`) **(V)**.
-- **Static and profile publishing** pick public files themselves: active, unencrypted, `Anonymous`, no TTL
-  (`StaticFileContentService.Filter`) **(V)**.
+- **Static and profile publishing** pick public files themselves: active, unencrypted, a required group of
+  `Anonymous`, no TTL (`StaticFileContentService.Filter`) **(V)**.
 
-## Today: collaborative channels (`IsCollaborativeChannel`)
+## Collaborative channels
 
-**Status: kept on today's drives; refused on Selective Share drives from PR 3; to retire when the community and
-feed channels move to Selective Share drives (not planned yet).** Set by the community app, by collaborative feed
-channels and on the built-in Lists drive (`BuiltinDrives.cs:146`) **(V)**. On such a drive **(V)**:
-1. a peer may update a file someone else sent; elsewhere only the original sender may
-   (`PeerFileWriter.cs:285`);
+**Status:** kept on today's drives; refused on Selective Share drives from PR 3; to retire when community and feed
+channels move to Selective Share drives (not planned yet).
+
+The attribute `IsCollaborativeChannel` is set by the community app, by collaborative feed channels and on the built-in
+Lists drive (`BuiltinDrives.cs:146`) **(V)**. On such a drive **(V)**:
+1. a peer may update a file another identity sent; elsewhere only the original sender may (`PeerFileWriter.cs:285`);
 2. a peer's delete takes the direct soft-delete path (`PeerDriveIncomingTransferService.cs:226`);
 3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter.cs:94-100`);
 4. files received from others are distributed on to the members (`AllowDistribution`,
    `FeedDriveDistributionRouter.ShouldDistribute`);
 5. an upload may name recipients for app notifications (`FileSystemStreamWriterBase.cs:431`).
 
-The community app's per-message "collaborative" (`appData.content.isCollaborative`) is inside the encrypted
-content, so only clients read it: it decides whether to offer Edit **(V, odin-js)**. The server's rule is the drive's.
+The community app's per-message flag `appData.content.isCollaborative` is inside the encrypted content, so only
+clients read it, to decide whether to offer Edit **(V, odin-js)**. The server goes by the drive's attribute.
 
 ## With Selective Share
 
-Selective Share is a drive sharing model: only the owner's devices and apps hold the drive key, and each share has a
-key of its own ([zero-knowledge-drives.md](zero-knowledge-drives.md#selective-share)). **A share is the file's
-`DriveAclIndex` row**: on these drives the rows stop being a copy of the header's ACL and become the record
-(decided 2026-10-31).
+On a Selective Share drive only owner callers hold the drive key, and each share has a key of its own
+([zero-knowledge-drives.md](zero-knowledge-drives.md#selective-share)). **A share is the file's index row**: there
+the index rows stop being a copy of the ACL and become the record (decided 2026-10-31).
 
 | | Other drives | Selective Share drive |
 |---|---|---|
-| The header's ACL | the record: group, circles, people | always `Connected`, set by the server; circles and people refused (PR 3) |
-| The rows | made from the header's ACL on every write; bits 1, no expiry | written on their own by the share API; a header write leaves them alone (PR 3) |
-| A file with no rows | open to everyone who meets the group | the owner's alone (PR 3) |
-| A row counts when | it exists | it has `Read` and hasn't expired (PR 3; on other drives every row qualifies, so nothing changes) |
-| Who may edit a file | anyone with drive `Write` who may see it | a member whose row has `Write` (PR 4), the owner and the drive's app |
-| Changing who may see it | a header write: new version tag, `modified` moves | a row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
-| Who learns of the change | everyone syncing by `modified` | the owner's devices by `modified`; members by the rows' `modified`, which also shows a withdrawal (PR 4) |
+| The ACL | the record: required group, named circles, named identities | required group always `Connected`, set by the server; named circles and identities refused (PR 3) |
+| The index rows | made from the ACL on every header write; `Read`, no expiry | share rows, written on their own by the share API; a header write leaves them alone (PR 3) |
+| A file with no rows | open to every caller who reaches the required group | owner callers only (PR 3) |
+| Which rows count in a query | every row | live rows (PR 3; every row on other drives is live, so nothing changes there) |
+| The read rule's ACL part | the ACL's names | the caller's live row (PR 4) |
+| Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 4) |
+| Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
+| How others learn of it | by `modified` | owner callers' other devices by `modified`; members by the share rows' own `modified`, which also shows a withdrawn share (PR 4) |
 
 **PR 3** ([selective-share-pr3-plan.md](selective-share-pr3-plan.md)):
-- the share API: the owner console or the app owning both the drive and the circle writes rows (`Read` required,
-  an expiry in the future, the file key locked with the circle key: 45 bytes, format 2), all or none per batch;
-  `DELETE` withdraws a share, keeping the row with no bits and no key so members see it go;
-- shares carried in a new file's upload, written with its header;
-- the query's ACL filter as `EXISTS`: a row counts only with `Read` and before its expiry, and a file with no rows is
-  the owner's on these drives;
-- `includeShares` on the query and the read by id: the owner gets each file's live rows (circle, bits, expiry,
-  `modified`; no key headers), so a client can show what is shared without a call per file.
+- **The share API**, for the owner console or the app that owns both the drive and the circle: list a file's share
+  rows, write a batch (all or none; `Read` required, an expiry in the future, the file key locked with the circle
+  key: 45 bytes, format 2), withdraw a share.
+- **Shares in a new file's upload**, written with its header.
+- **The query's ACL filter as `EXISTS`:** only live rows count, and a file with no rows is the owner callers' on these
+  drives.
+- **`includeShares`** on the query and on the read by id: owner callers get each file's live rows (circle, bits,
+  expiry, `modified`; no locked keys), so a client can show what is shared without one call per file.
 
-**PR 4:** members. The read rule reads the caller's row instead of the header's circles; `ZkDriveFiles.VisibleTo`
-lets a member with a live row see the client-locked file and get their row's locked key; members' writes are judged
-by their row's `Write` bit; members sync their shares by the rows' `modified`; socket events for shares.
+**PR 4, members:** the read rule's ACL part reads the caller's live row; `ZkDriveFiles.VisibleTo` lets a member with a
+live row see the client-locked file and get their row's locked key; a member's write needs `Write` on their live row;
+members sync their shares by the share rows' `modified`; socket events for shares.
 
-**Is the collaborative attribute still needed?** On a Selective Share drive, no. Its edit rule (1 and 2 above) is what
-a row's `Write` bit says per file, and more precisely; its other effects (3 to 5) move copies around, and a
-zero-knowledge drive sends none. PR 3 refuses the attribute on Selective Share drives so the two can't mix. On the V1
-community and feed drives, which work by copies, it stays until they move to Selective Share drives.
+**Is the collaborative channel attribute still needed?** On a Selective Share drive, no. Its edit rules (1 and 2
+above) are what a share row's `Write` bit says, per file; its other effects (3 to 5) move copies, and a
+zero-knowledge drive sends none. PR 3 refuses the attribute on Selective Share drives so the two can't mix. On today's
+community and feed drives, which work by copies, it stays.
 
 ## Kept, retiring, retired
 
 | What | Status |
 |---|---|
-| `IsCollaborativeChannel` attribute | **kept** on today's drives; **refused** on Selective Share drives (PR 3); **retires** when community and feed channels move to Selective Share drives, which isn't planned yet. A row's `Write` bit replaces its edit rule per file |
-| The header's circles and people on a Selective Share drive | **not used** there: refused from PR 3, the rows say who. Kept on every other drive |
-| ACL index rows made from the header's ACL | **kept** on every other drive; on Selective Share drives **replaced** by share rows, written on their own (PR 3) |
+| The `IsCollaborativeChannel` attribute | **kept** on today's drives; **refused** on Selective Share drives (PR 3); **retires** when community and feed channels move to Selective Share drives, not planned yet |
+| The ACL's named circles and identities on a Selective Share drive | **not used**: refused from PR 3, the share rows say who. Kept on every other drive |
+| Index rows made from the ACL | **kept** on every other drive; **replaced** by share rows on Selective Share drives (PR 3) |
 | `QueryModifiedAsync` (V1's change query) | **obsolete**, V1 only; the query batch does the same. Left as it is (it ignores its `MaxDate`) until V1 goes |
 | `FileUpdateInstructionSetV2` | **unused**; removed in PR 3 |
-| Drive option `IsReadonly` | documented, **not enforced**: no write path reads it (security-model.md, section 3) **(V)**. Open whether to enforce or remove |
-| Key header version 1 (AES-CBC, the IV cancels out) | **to be replaced** by version 2 (#2024); share rows use version 2 from the start |
+| The drive option `IsReadonly` | documented but **not enforced**: no write path reads it (security-model.md, section 3) **(V)**. Open: enforce or remove |
+| Key header version 1 (AES-CBC; the IV cancels out) | **to be replaced** by version 2 (#2024); share rows use version 2 from the start |
 
 ## Open
 
-- **Withdrawn rows:** when they are removed (they let a member see a share go).
-- **A deleted circle's rows** grant no one (a reader must be in the circle), and **a reset circle key** leaves rows
-  nobody can open: what to do with them, decided in PR 4.
-- **Sharing with one person, and links** (selective-share-plan.md, decisions 3 and 4).
-- **Reactions and the file's ACL** (#2058).
+- **Withdrawn shares:** when the rows are removed.
+- **A deleted circle's share rows** let no one in (a reader must be a member), and **a reset circle key** leaves rows
+  nobody can open: what to do with both is decided in PR 4.
+- **Sharing with one identity, and links** (selective-share-plan.md, decisions 3 and 4).
+- **Reactions and the read rule** (#2058).
 
 ## Where in the code
 
-| What | Where |
+| What | Where (under `src/`) |
 |---|---|
-| The ACL rule | `Services/Authorization/Acl/DriveAclAuthorizationService.cs` |
-| The ACL and its validation | `Services/Authorization/Acl/AccessControlList.cs` |
-| Client-locked files | `Services/Drives/ZkDriveFiles.cs` (`VisibleTo`) |
-| Unreviewed connections | `Services/Authorization/Acl/ReviewedSecurityTier.cs` |
-| Drive permissions | `Services/Base/PermissionContext.cs`, `Services/Drives/DrivePermission.cs` |
-| The query's ACL SQL | `Core.Storage/Database/Identity/Abstractions/QueryBatch.cs` |
-| The caller's member list for the query | `Services/Drives/DriveCore/Query/DriveQuery.cs` (`GetAcl`) |
-| The rows on a header write | `MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync` |
-| What a recipient's copy gets | `Services/Peer/Incoming/Drive/Transfer/PeerFileWriter.cs` |
-| Feed distribution | `Services/DataSubscription/FeedDriveDistributionRouter.cs` |
+| The read rule and the ACL check | `services/Odin.Services/Authorization/Acl/DriveAclAuthorizationService.cs` |
+| The ACL and its checks | `services/Odin.Services/Authorization/Acl/AccessControlList.cs` |
+| Unreviewed connections | `services/Odin.Services/Authorization/Acl/ReviewedSecurityTier.cs` |
+| Client-locked files | `services/Odin.Services/Drives/ZkDriveFiles.cs` (`VisibleTo`) |
+| Drive permissions | `services/Odin.Services/Base/PermissionContext.cs`, `services/Odin.Services/Drives/DrivePermission.cs` |
+| Reading by id, writing | `services/Odin.Services/Drives/FileSystem/Base/DriveStorageServiceBase.cs` |
+| Queries, the per-result check | `services/Odin.Services/Drives/FileSystem/Base/DriveQueryServiceBase.cs` (`FilterVisibleAsync`) |
+| The query's SQL | `core/Odin.Core.Storage/Database/Identity/Abstractions/QueryBatch.cs` |
+| The caller's member list for the SQL | `services/Odin.Services/Drives/DriveCore/Query/DriveQuery.cs` (`GetAcl`) |
+| Index rows on a header write | `MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync` |
+| What a recipient's copy gets | `services/Odin.Services/Peer/Incoming/Drive/Transfer/PeerFileWriter.cs` |
+| Feed distribution | `services/Odin.Services/DataSubscription/FeedDriveDistributionRouter.cs` |
