@@ -33,6 +33,26 @@ Two different things are called collaborative: the **sharing model** `Collaborat
 key; every drive that isn't zero knowledge counts as one) and the **attribute** `IsCollaborativeChannel` (V1
 community and feed channels: members may edit each other's files, below).
 
+## Who each check applies to
+
+Drive permissions and the file's ACL apply to different callers. **The owner console holds every permission on every
+drive and skips every file's ACL; an app the owner installed is held to its drives but skips the ACL; everyone else
+is held to both.**
+
+| Caller | Drive permissions | The file's ACL |
+|---|---|---|
+| **Owner console** (master key) | `All` on every drive (`OwnerAuthenticationService.cs:160-171`) **(V)** | skipped: the caller is the owner **(V)** |
+| **The owner's apps** | only the drives in the app's registration, plus `Read` on public drives (`AppRegistrationService.cs:303-317`) **(V)** | skipped: an app acts at the owner's level (`SecurityGroupType.Owner`) **(V)** |
+| **Connected identities** (peers) | what their enabled circles grant, plus public drives (`CircleNetworkService`, `TenantSettings`) **(V)** | applies, at `Connected` (or `Authenticated` until reviewed) |
+| **YouAuth domains** | what their circles grant, plus public drives (`YouAuthDomainRegistrationService.cs:505-552`) **(V)** | applies, at `Authenticated` (`Connected` for a connected identity) |
+| **Other identities, signed in** | public drives only **(V)** | applies, at `Authenticated` |
+| **Anonymous visitors** | `Read` on public drives only **(V)** | applies, at `Anonymous` |
+| **The server's own work** (`System`) | every drive (`PermissionContext.cs:110`) **(V)** | skipped **(V)** |
+
+So a drive's `Read` and `Write` mean two things: for an app, the sandbox the owner gave it; for everyone outside
+the identity, what a circle (or the drive being public) lets them do. A file's ACL only ever narrows access for
+callers outside the identity: peers, domains and visitors.
+
 ## How the checks combine
 
 **Every check must pass; any refusal ends the request.** No later step can grant what an earlier one refused,
@@ -170,8 +190,9 @@ purge delete the rows **(V)**. Nothing else writes them **(V)**.
 
 ## Today: collaborative channels (`IsCollaborativeChannel`)
 
-Set by the community app, by collaborative feed channels and on the built-in Lists drive (`BuiltinDrives.cs:146`)
-**(V)**. On such a drive **(V)**:
+**Status: kept on today's drives; refused on Selective Share drives from PR 3; to retire when the community and
+feed channels move to Selective Share drives (not planned yet).** Set by the community app, by collaborative feed
+channels and on the built-in Lists drive (`BuiltinDrives.cs:146`) **(V)**. On such a drive **(V)**:
 1. a peer may update a file someone else sent; elsewhere only the original sender may
    (`PeerFileWriter.cs:285`);
 2. a peer's delete takes the direct soft-delete path (`PeerDriveIncomingTransferService.cs:226`);
@@ -218,6 +239,18 @@ by their row's `Write` bit; members sync their shares by the rows' `modified`; s
 a row's `Write` bit says per file, and more precisely; its other effects (3 to 5) move copies around, and a
 zero-knowledge drive sends none. PR 3 refuses the attribute on Selective Share drives so the two can't mix. On the V1
 community and feed drives, which work by copies, it stays until they move to Selective Share drives.
+
+## Kept, retiring, retired
+
+| What | Status |
+|---|---|
+| `IsCollaborativeChannel` attribute | **kept** on today's drives; **refused** on Selective Share drives (PR 3); **retires** when community and feed channels move to Selective Share drives, which isn't planned yet. A row's `Write` bit replaces its edit rule per file |
+| The header's circles and people on a Selective Share drive | **not used** there: refused from PR 3, the rows say who. Kept on every other drive |
+| ACL index rows made from the header's ACL | **kept** on every other drive; on Selective Share drives **replaced** by share rows, written on their own (PR 3) |
+| `QueryModifiedAsync` (V1's change query) | **obsolete**, V1 only; the query batch does the same. Left as it is (it ignores its `MaxDate`) until V1 goes |
+| `FileUpdateInstructionSetV2` | **unused**; removed in PR 3 |
+| Drive option `IsReadonly` | documented, **not enforced**: no write path reads it (security-model.md, section 3) **(V)**. Open whether to enforce or remove |
+| Key header version 1 (AES-CBC, the IV cancels out) | **to be replaced** by version 2 (#2024); share rows use version 2 from the start |
 
 ## Open
 
