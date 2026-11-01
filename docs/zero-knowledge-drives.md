@@ -125,7 +125,7 @@ Naming notes:
 #### Links: sharing with someone not on Homebase
 
 To consider, not decided. The idea is that a link is just another share. Every share has its own share key,
-and every shared file has one share row per share holding its key header locked with that key. Only the way
+and every shared file has one share row per share holding the file key locked with that key. Only the way
 a reader gets the share key differs:
 
 | Share target | How the reader gets the share key |

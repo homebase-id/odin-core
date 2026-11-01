@@ -266,6 +266,8 @@ Details in [connection-defaults.md](connection-defaults.md).
 
 ## 5. Files and their ACL
 
+The full description, today's and Selective Share's, is [file-access.md](file-access.md).
+
 - Each file carries an `AccessControlList`: `RequiredSecurityGroup` + optional `CircleIdList` and `OdinIdList` **(V)**.
 - Security groups are a ladder: `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 <
   `Owner` 999. A caller passes every rung at or below their own (`DriveAclAuthorizationService.Allows`) **(V)**.
