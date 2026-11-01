@@ -82,14 +82,18 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
   connection. PR 3 must close that: on a Selective Share drive, either no rows means owner only, or removing the
   last row sets the file back to Owner.
 
-## Changing a share: neither the version tag nor `modified`
+## Changing a share: `modified` moves, the version tag doesn't
 
-**Decided (2026-10-31, decision 6):** sharing or unsharing a file writes only its share row. It changes who may
-read the file, not the file, so the file's version tag stays (a member editing the file at that moment must not get
-a conflict, the same reason a `sealed` → `zkDrive` transform keeps it) and so does its `modified` (the owner's own
-devices gain nothing from fetching the file again, and a bulk share of a folder would make every one of them
-re-fetch it). Members learn of shares and unshares from the rows' own `modified`: a file shared with Family
-today, last modified a year ago, sits behind every member's file cursor, but its new row doesn't.
+**Decided (2026-10-31, decision 6; amended 2026-11-01):** sharing or unsharing a file writes its share row and
+moves the file's `modified`, but not its version tag. It changes who may read the file, not the file:
+- **The version tag stays:** a member editing the file at that moment must not get a conflict, the same reason a
+  `sealed` → `zkDrive` transform keeps it.
+- **`modified` moves** (amended): the owner's other devices must learn that a file was shared, to show it, and
+  their ordinary sync by `modified` is how they learn anything. They read the shares with the query's
+  `includeShares` flag (PR 3 plan, section 5). A bulk share of a folder makes each device re-fetch those headers,
+  not their payloads (I). A member's file feed lists a newly shared file the same way.
+- **Members still sync by the rows' own `modified`** for what the file feed can't show: a withdrawn share, whose
+  file they can no longer see.
 
 **What today's code does:** every ACL change gives the file a new version tag and moves `modified`. There
 is no way to change only the ACL.
@@ -285,8 +289,9 @@ content with it and leaves the key headers alone. Two things are needed:
    copy of its key), a small table of its own or a hidden app circle with no members.
 5. **Members editing existing files:** whether a writer may update a file's content while keeping its stored
    key header, and on which drives (see "A member adds a file").
-6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31):** no; a share is its `DriveAclIndex` row,
-   with times of its own (see "Changing a share").
+6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31), amended 2026-11-01:** a share is its
+   `DriveAclIndex` row, with times of its own, and writing it moves the file's `modified` but not its version
+   tag (see "Changing a share").
 7. ~~A share row's IV after the file changes.~~ **Decided (2026-11-01):** the row locks the file key only, and
    a member takes the IV from the file (Blob formats). Every update of an encrypted file must carry a new IV: a
    metadata-only update is refused without one (`FileSystemStreamWriterBase`, "You must specify a new IV") **(V)**.
