@@ -243,7 +243,7 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 | The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused. Required group `Owner` (owner callers only; the default) or `Connected` (shareable); the first share lifts `Owner` to `Connected`, keeping the version tag |
 | The index rows | made from the ACL on every header write; each means read | share rows, written on their own by the share API; a header write leaves them alone (PR 3) |
 | A file with no rows | open to every caller who reaches the required group | owner callers only, whatever its group (PR 3) |
-| Which rows count in a query | every row | live rows (PR 3; every row on other drives is live, so nothing changes there) |
+| Which rows count in a query | a row naming the caller, or no row at all | a row naming the caller, live or not, so a withdrawn share reaches their sync; the read rule then lets through only a file with a live row (PR 3) |
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere (PR 3) |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 3) |
 | Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member whose live row has `React` or `Comment`, without the drive permission; a comment is read by whoever may read its file (PR 3) |

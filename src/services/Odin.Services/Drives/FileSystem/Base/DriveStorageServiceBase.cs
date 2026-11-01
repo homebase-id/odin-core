@@ -716,10 +716,16 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Whether the caller may see <paramref name="header"/> (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>),
         /// on a drive that isn't archived
         /// </summary>
-        public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext)
+        /// <inheritdoc cref="IDriveAclAuthorizationService.FilesSharedWithCallerAsync"/>
+        public Task<IReadOnlySet<Guid>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
+            IOdinContext odinContext) =>
+            driveAclAuthorizationService.FilesSharedWithCallerAsync(driveId, fileIds, odinContext);
+
+        public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext,
+            IReadOnlySet<Guid> sharedWithCaller = null)
         {
             await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
-            return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext);
+            return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext, sharedWithCaller);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)

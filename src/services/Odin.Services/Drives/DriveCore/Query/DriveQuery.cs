@@ -62,6 +62,7 @@ public class DriveQuery(
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
+            aclRowsRequired: AclRowsRequired(drive, odinContext),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
@@ -100,6 +101,7 @@ public class DriveQuery(
             groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList?.ToList(),
+            aclRowsRequired: AclRowsRequired(drive, odinContext),
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
@@ -142,6 +144,7 @@ public class DriveQuery(
             groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList?.ToList(),
+            aclRowsRequired: AclRowsRequired(drive, odinContext),
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
@@ -154,21 +157,18 @@ public class DriveQuery(
     }
 
 
+    // On a Selective Share drive an outside caller sees a file only through a row naming them (QueryBatch, aclRowsRequired)
+    private static bool AclRowsRequired(StorageDrive drive, IOdinContext odinContext) =>
+        drive.IsSelectiveShare && !DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller);
+
     private List<Guid> GetAcl(IOdinContext odinContext)
     {
-        var callerContext = odinContext.Caller;
-
-        var aclList = new List<Guid>();
-        if (callerContext.IsOwner == false)
+        if (odinContext.Caller.IsOwner)
         {
-            if (!callerContext.IsAnonymous)
-            {
-                aclList.Add(odinContext.GetCallerOdinIdOrFail().ToHashId());
-            }
-
-            aclList.AddRange(callerContext.Circles?.Select(c => c.Value) ?? Array.Empty<Guid>());
+            return null;
         }
 
+        var aclList = DriveAclAuthorizationService.CallerMemberIds(odinContext);
         return aclList.Any() ? aclList : null;
     }
 

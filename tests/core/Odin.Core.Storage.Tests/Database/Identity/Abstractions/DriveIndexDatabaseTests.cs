@@ -2514,20 +2514,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         }
 
         [Test]
-        [TestCase(DatabaseType.Sqlite, QueryBatchSortField.UserDate)]
-        [TestCase(DatabaseType.Sqlite, QueryBatchSortField.CreatedDate)]
-        [TestCase(DatabaseType.Sqlite, QueryBatchSortField.AnyChangeDate)]
-        [TestCase(DatabaseType.Sqlite, QueryBatchSortField.OnlyModifiedDate)]
-        #if RUN_POSTGRES_TESTS
-        [TestCase(DatabaseType.Postgres, QueryBatchSortField.UserDate)]
-        [TestCase(DatabaseType.Postgres, QueryBatchSortField.CreatedDate)]
-        [TestCase(DatabaseType.Postgres, QueryBatchSortField.AnyChangeDate)]
-        [TestCase(DatabaseType.Postgres, QueryBatchSortField.OnlyModifiedDate)]
-        #endif
-        // The ACL filter joins driveAclIndex, which shares column names with driveMainIndex (fileId, rowId, created,
-        // modified): every sort, both orders, paging by cursor, a boundary and every filter must still work with it
-        public async Task AnAclFilterWorksWithEverySortAndFilter(DatabaseType databaseType, QueryBatchSortField sortField)
+        [Combinatorial]
+        public async Task AnAclFilterWorksWithEverySortAndFilter(
+            [Values(DatabaseType.Sqlite
+                #if RUN_POSTGRES_TESTS
+                , DatabaseType.Postgres
+                #endif
+            )] DatabaseType databaseType,
+            [Values(QueryBatchSortField.UserDate, QueryBatchSortField.CreatedDate, QueryBatchSortField.AnyChangeDate,
+                QueryBatchSortField.OnlyModifiedDate)] QueryBatchSortField sortField,
+            [Values(false, true)] bool aclRowsRequired)
         {
+            // The ACL filter joins driveAclIndex, which shares column names with driveMainIndex (fileId, rowId, created,
+            // modified): every sort, both orders, paging by cursor, a boundary and every filter must still work with it.
+            // With aclRowsRequired (a Selective Share drive) it asks driveAclIndex in a subquery instead.
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var metaIndex = scope.Resolve<MainIndexMeta>();
@@ -2563,9 +2563,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.BaseUpsertEntryZapZapAsync(record, [shared], [tag1, tag2]);
             await Task.Delay(10); // change-date queries leave out what was written in the current millisecond
 
-            // The caller's circle may read f1; nobody's circle is named on f3, so the security group decides; f2 is
-            // another circle's. Only f1 has been modified.
-            var expected = (sortField == QueryBatchSortField.OnlyModifiedDate ? new[] { f1 } : new[] { f1, f3 }).OrderBy(id => id);
+            // The caller's circle may read f1; nobody's circle is named on f3, so the security group decides, unless rows
+            // are required; f2 is another circle's. Only f1 has been modified.
+            var expected = (sortField == QueryBatchSortField.OnlyModifiedDate || aclRowsRequired ? new[] { f1 } : new[] { f1, f3 })
+                .OrderBy(id => id);
 
             foreach (var sortOrder in new[] { QueryBatchSortOrder.NewestFirst, QueryBatchSortOrder.OldestFirst })
             {
@@ -2596,7 +2597,60 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                     uniqueIdAnyOf: [u1, u2, u3], archivalStatusAnyOf: [0],
                     userdateSpan: new UnixTimeUtcRange(new UnixTimeUtc(0), new UnixTimeUtc(10_000)),
                     aclAnyOf: [shared], tagsAnyOf: [tag1], tagsAllOf: [tag1, tag2], localTagsAnyOf: [localTag1],
-                    localTagsAllOf: [localTag1, localTag2], modifiedAfter: start.AddSeconds(-60));
+                    localTagsAllOf: [localTag1, localTag2], modifiedAfter: start.AddSeconds(-60), aclRowsRequired: aclRowsRequired);
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // On a Selective Share drive a file comes back through any row naming the caller, live or not (a withdrawn or
+        // expired share reaches their sync), and never without one; the live rows are the read rule's, one read a page
+        public async Task WithRowsRequiredAFileComesBackOnlyThroughTheCallersRows(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var queryBatch = scope.Resolve<QueryBatch>();
+            var tblAcl = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var (circle, me, other) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+            var (live, mine, withdrawn, expired, noRead, others, none) = (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(),
+                SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(),
+                SequentialGuid.CreateGuid());
+            var past = UnixTimeUtc.Now().AddSeconds(-60);
+            foreach (var (fileId, member, permissions, expiresAt) in new (Guid, Guid?, int, UnixTimeUtc?)[]
+                     {
+                         (live, circle, 1, null), (mine, me, 3, UnixTimeUtc.Now().AddSeconds(3600)), (withdrawn, circle, 0, null),
+                         (expired, circle, 1, past), (noRead, circle, 2, null), (others, other, 1, null), (none, null, 0, null)
+                     })
+            {
+                await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, null, 1, 1, "sam", null, null, 0,
+                    UnixTimeUtc.Now(), 1, null, null, 1);
+                if (member is { } m)
+                {
+                    await tblAcl.InsertAsync(new DriveAclIndexRecord
+                        { driveId = driveId, fileId = fileId, aclMemberId = m, permissions = permissions, expiresAt = expiresAt });
+                }
+            }
+
+            var (page, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, null, requiredSecurityGroup: allIntRange,
+                aclAnyOf: [circle, me], aclRowsRequired: true);
+            Assert.That(page.Select(r => r.fileId).OrderBy(id => id),
+                Is.EqualTo(new[] { live, mine, withdrawn, expired, noRead }.OrderBy(id => id)), "through the caller's rows, live or not");
+
+            var (nobody, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, null, requiredSecurityGroup: allIntRange,
+                aclAnyOf: null, aclRowsRequired: true);
+            Assert.That(nobody, Is.Empty, "a caller no row can name");
+
+            var all = new[] { live, mine, withdrawn, expired, noRead, others, none };
+            Assert.That((await tblAcl.GetFilesWithLiveRowAsync(driveId, all, [circle, me], UnixTimeUtc.Now())).OrderBy(id => id),
+                Is.EqualTo(new[] { live, mine }.OrderBy(id => id)), "the live rows: Read set, not expired");
+            Assert.That(await tblAcl.GetFilesWithLiveRowAsync(driveId, all, [], UnixTimeUtc.Now()), Is.Empty, "no members");
+            Assert.That(await tblAcl.GetFilesWithLiveRowAsync(Guid.NewGuid(), all, [circle, me], UnixTimeUtc.Now()), Is.Empty,
+                "another drive");
         }
 
         [Test]

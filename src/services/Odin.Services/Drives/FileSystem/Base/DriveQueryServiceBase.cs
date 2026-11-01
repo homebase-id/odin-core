@@ -424,6 +424,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             var visible = new List<ServerFileHeader>();
             var aclFailures = new List<ServerFileHeader>();
 
+            // On a Selective Share drive, the page's share rows in one read rather than one per file
+            var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(driveId,
+                recordList.Select(r => r.fileId).ToList(), odinContext);
+
             foreach (var record in recordList)
             {
                 var file = new InternalDriveFileId()
@@ -450,7 +454,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 var isClientLocked = ZkDriveFiles.IsClientLocked(serverFileHeader);
-                if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext))
+                if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext, sharedWithCaller))
                 {
                     // A client-locked file (sealed or zkDrive) is left out as missing, not reported as refused: a
                     // read by unique id or global transit id answers as for no file, and a write's check for a taken

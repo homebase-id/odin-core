@@ -71,24 +71,14 @@ reads the rows. For a page of query results the rows are read once for the page 
 aclMemberId IN (caller's circles)`), not per file. `VisibleTo` is unchanged in PR 3, so a client-locked file still
 reaches no member.
 
-**The query's ACL filter** becomes, on every drive:
-
-```sql
-( (@rowlessIsOpen AND NOT EXISTS (SELECT 1 FROM driveAclIndex r WHERE <same file>))
-  OR EXISTS (SELECT 1 FROM driveAclIndex r WHERE <same file>
-             AND r.aclMemberId IN (…) AND (r.permissions & 1) = 1
-             AND (r.expiresAt IS NULL OR r.expiresAt > @now)) )
-```
-
-- `@rowlessIsOpen` is false on a Selective Share drive and true elsewhere; `DriveQuery` knows the drive (I: passed
-  down like the other parameters).
-- On every other drive the answer is today's: all their index rows are live, made by the reconcile with the columns'
-  defaults **(V)**.
-- The `LEFT JOIN` goes, and with it the `SELECT DISTINCT` that exists only for it (`QueryBatch.cs:369`) **(V)**.
-  `EXPLAIN` on SQLite and Postgres, before and after, on a drive of 100,000 files: the `UNIQUE(identityId, driveId,
-  fileId, aclMemberId)` prefix serves both subqueries **(V for the index)**.
+**The query's ACL filter stays as it is on every other drive** (built 2026-11-01, instead of the first draft's
+`EXISTS` rewrite of every drive's filter): its index rows are all live, so the live-row condition would change no
+answer there, and leaving the SQL alone keeps every other drive's query plan as it is. On a Selective Share drive an
+outside caller's query takes its own branch (`QueryBatch`, `aclRowsRequired`), below.
 - **Expiry and the query cache:** a cached page can outlive a share's expiry by up to 2 hours (`QueryBatchCached`,
   `DefaultTtl`) **(V)**. On a Selective Share drive an outside caller's query isn't cached.
+- **One read per page:** the read rule's live rows for a page are read once (`FilesSharedWithCallerAsync`,
+  `TableDriveAclIndex.GetFilesWithLiveRowAsync`), and a read by id reads them for its one file.
 
 **On a Selective Share drive an outside caller's query starts from their share rows** (decided 2026-11-01). A
 Selective Share drive shares a few of many files; a drive whose files are mostly shared is a `Collaborative`
