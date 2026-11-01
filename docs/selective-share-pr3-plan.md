@@ -12,7 +12,7 @@ Owner callers write a file's shares: one share row per circle, with its permissi
 locked with the circle key. A new file's upload can carry its shares. On a Selective Share drive a header write leaves
 the share rows alone, and both the query and the read rule let an outside caller in only through a live row of one of
 their circles; a file with no rows is the owner callers' alone. Members then read a shared file with their row's
-locked key, write where their row has `Write`, sync their shares by the rows' `modified`, and hear of changes on their
+locked file key, write where their row has `Write`, sync their shares by the rows' `modified`, and hear of changes on their
 sockets (sections 6 to 9, what was planned as PR 4).
 
 **Changed from the first draft** (2026-11-01, after file-access.md):
@@ -97,8 +97,8 @@ reaches no member.
 | Method and route | Does |
 |---|---|
 | `GET /api/v2/drives/{driveId}/files/{fileId}/shares` | the file's share rows, withdrawn shares included |
-| `PUT /api/v2/drives/{driveId}/shares` | a batch of `{fileId, circleId, permissions, expiresAt, lockedKeyHeader}`, all or none, up to 100 |
-| `DELETE /api/v2/drives/{driveId}/files/{fileId}/shares/{circleId}` | withdraws one: no bits, no locked key, `modified` moved |
+| `PUT /api/v2/drives/{driveId}/shares` | a batch of `{fileId, circleId, permissions, expiresAt, lockedFileKey}`, all or none, up to 100 |
+| `DELETE /api/v2/drives/{driveId}/files/{fileId}/shares/{circleId}` | withdraws one: no bits, no locked file key, `modified` moved |
 
 One `PUT` for one share or a hundred: the job that shares a folder's existing files makes the same call.
 
@@ -110,15 +110,15 @@ and the caller holds drive `Write`. Members write files (section 7), not shares,
 **Checked for each entry, before anything is written:**
 - The drive is Selective Share; the file exists on it and isn't deleted.
 - The circle belongs to the app, is enabled, grants the drive `Read` and `Write` (decision 1 of the plan), and holds its
-  share key, since the locked key is locked with it (`CircleShareKeyNotSet`).
+  share key, since the file key is locked with it (`CircleShareKeyNotSet`).
 - `permissions` isn't 0 (0 is a withdrawn share, written only by `DELETE`), holds only `Read`, `Write`, `React` and
   `Comment`, and includes `Read`: no upload-only rows yet (decided 2026-11-01). The index rows V1 makes from an ACL on
   other drives always mean `Read`, as today; V1 gets no share API.
 - `expiresAt` is null or later than now.
-- `lockedKeyHeader` is exactly 45 bytes and starts with format byte 2 (decision 7), when the file is encrypted; absent
+- `lockedFileKey` is exactly 45 bytes and starts with format byte 2 (decision 7), when the file is encrypted; absent
   when it isn't.
 
-**Stored** with one upsert per row, in one transaction (insert, or update bits, expiry and locked key; the generated
+**Stored** with one upsert per row, in one transaction (insert, or update bits, expiry and locked file key; the generated
 `modified = MAX(modified + 1, now)`) **(V for the generated rule)**. The file's existence is checked in the same
 transaction, with its row locked on Postgres as `TableDriveMainIndex` does (`:391`) **(V)**, so a hard delete running
 alongside can't leave a share behind.
@@ -147,7 +147,7 @@ caches are cleared after commit, through a new `MainIndexMetaCached` method, as 
 
 **`includeShares`, asked for, never sent by default:** a query (`QueryBatch`, smart batch, the change feed) and a read
 by id take it. With it, each returned file carries `shares`: its live rows as `{circleId, permissions, expiresAt,
-modified}`, without the locked keys, which only a member needs. One grouped read per page (`… WHERE fileId IN
+modified}`, without the locked file keys, which only a member needs. One grouped read per page (`… WHERE fileId IN
 (page)`), only when asked, only for owner callers, only on a Selective Share drive; without it nothing changes and
 nothing is read. A client draws what it wants from it (shared, editable by others, expiring), and nothing is stored
 that an expiry could make stale.
@@ -158,15 +158,15 @@ The header's ACL names no one on these drives. The `GET` lists one file's share 
 
 - **`VisibleTo` lets a member in** (`ZkDriveFiles.VisibleTo`): on a Selective Share drive a client-locked file is
   visible to a caller holding the drive key, as today, **or** to an outside caller with a live row (section 2).
-- **What a member gets:** the header with its key header replaced by their live row's locked key: they can't open the
-  file's own `sealed` or `zkDrive` key header, and the locked key opens with their circle key. With live rows in more
+- **What a member gets:** the header with their live row's locked file key in place of the key header: they can't open the
+  file's own `sealed` or `zkDrive` key header, and the locked file key opens with their circle key. With live rows in more
   than one of their circles, the row of the lowest circle id, so every read picks the same one. Payload and thumbnail
   reads carry no key header for a client-locked file **(V, file-access.md)**: the client uses the file key and the
   payload's IV, unchanged.
 - **Nothing about other shares:** outside callers never get the header's server metadata (`CreateClientFileHeader`)
   **(V)**, so a member sees only their own row: its bits and expiry come with the header, for the client to show.
 - **Through the Peer API:** a member reads via their own server, which asks the owner's. A client-locked key header is
-  passed through as stored today (`PeerDriveQueryService`, zero-knowledge-drives.md) **(V)**; the row's locked key goes
+  passed through as stored today (`PeerDriveQueryService`, zero-knowledge-drives.md) **(V)**; the row's locked file key goes
   the same way **(I, to check when built)**.
 
 ## 7. Members write
@@ -190,7 +190,7 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   (section 3).
 - **A withdrawn or expired share** can't: the member no longer passes the read rule for that file. So a member asks
   "my shares changed since" over the Peer API: the share rows of their circles on a drive, by the rows' `modified`
-  (withdrawn shares included, with no locked key), using the PR 1 index (`identityId, driveId, aclMemberId, modified,
+  (withdrawn shares included, with no locked file key), using the PR 1 index (`identityId, driveId, aclMemberId, modified,
   rowId`). Paged by `(modified, rowId)`, holding back rows at or after now, as the file feed does (`QueryBatch`)
   **(V for the feed's rule)**.
 
@@ -215,7 +215,7 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
 - **The required group:** a share on an `Owner` file lifts it to `Connected` with the version tag unchanged; an
   `Owner` file with live rows is refused to members; `Anonymous`, `Authenticated` and `AutoConnected` are refused on
   upload to a Selective Share drive; the last withdrawal leaves `Connected` and the file owner-only.
-- **Members (V2 and Peer API):** a member reads a client-locked file with their row's locked key, and is refused with no
+- **Members (V2 and Peer API):** a member reads a client-locked file with their row's locked file key, and is refused with no
   live row; with two circles' rows they always get the same one; a member updates a file with a `Write` row and is
   refused without; adds a file to a folder with a `Write` row; their own server finds the file for an update; "my
   shares changed since" returns new and withdrawn shares in order; a share write reaches the owner's devices and the
