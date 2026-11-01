@@ -16,6 +16,7 @@ public static class PeerApiPathConstants
     public const string ConnectionsV1 = HostV1 + "/connections";
     public const string FollowersV1 = HostV1 + "/followers";
     public const string NetworkV1 = HostV1 + "/network";
+    public const string CirclesV1 = HostV1 + "/circles";
     public const string EncryptionV1 = HostV1 + "/encryption";
 
     public const string PasswordRecoveryV1 = HostV1 + "/passwd";

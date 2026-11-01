@@ -131,7 +131,7 @@ public class DepositConversionPrePassTests : V2Fixture
         var icr = await storage.GetAsync(sam.Identity);
         icr!.PeerKeyStore.MasterKeyEncryptedPeerKey = null!;
         icr.TempWeakKeyStoreKey = null;
-        await storage.UpsertAsync(icr, ctx);
+        await storage.UpsertAsync(icr);
 
         Assert.That((await storage.GetAsync(sam.Identity))!.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade(), Is.True,
             "precondition: the connection should now require the ksk upgrade");
@@ -174,7 +174,7 @@ public class DepositConversionPrePassTests : V2Fixture
         var sealedKey = broken!.PeerKeyStore.DepositedGrants.Single().DriveGrants
             .Single(dg => dg.SealedStorageKey != null).SealedStorageKey!;
         sealedKey.EncryptedData = sealedKey.EncryptedData.Select(b => (byte)~b).ToArray();
-        await storage.UpsertAsync(broken, ctx);
+        await storage.UpsertAsync(broken);
 
         var (connectionsDrained, grantsConverted) = await scope.Resolve<CircleNetworkService>()
             .ConvertDepositedGrantsForConnectedIdentitiesAsync(ctx, CancellationToken.None);

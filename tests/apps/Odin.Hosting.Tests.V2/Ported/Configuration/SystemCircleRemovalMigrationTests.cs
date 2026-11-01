@@ -191,7 +191,7 @@ public class SystemCircleRemovalMigrationTests : V2Fixture
             };
         }
 
-        await storage.UpsertAsync(icr, ctx);
+        await storage.UpsertAsync(icr);
 
         var db = scope.Resolve<IdentityDatabase>();
         foreach (var id in V19ToV20VersionMigrationService.RetiredSystemCircleIds)

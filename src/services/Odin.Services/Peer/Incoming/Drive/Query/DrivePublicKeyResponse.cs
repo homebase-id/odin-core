@@ -1,3 +1,5 @@
+using Odin.Services.Drives;
+
 namespace Odin.Services.Peer.Incoming.Drive.Query;
 
 /// <summary>
@@ -24,4 +26,12 @@ public class DrivePublicKeyResponse
     /// isn't, the owner's server can open whatever is sealed to it.
     /// </summary>
     public bool IsZeroKnowledge { get; set; }
+
+    /// <summary>
+    /// Who holds the drive's key (docs/zero-knowledge-drives.md), so a sealer knows what the public key is bound
+    /// to: on a <see cref="DriveSharingModel.Collaborative"/> drive every member holds it and can open what is
+    /// sealed to it, so a circle's share key must not be sealed there (docs/selective-share-plan.md).  Cached with
+    /// the key.
+    /// </summary>
+    public DriveSharingModel SharingModel { get; set; }
 }

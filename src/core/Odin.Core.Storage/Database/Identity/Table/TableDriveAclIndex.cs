@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -37,36 +38,32 @@ public class TableDriveAclIndex(
         return await base.InsertAsync(item);
     }
 
-    internal async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
+    /// <summary>
+    /// Makes the file's rows match the list, in one transaction: deletes the rows of members no longer in it and
+    /// inserts the new ones. A row whose member stays is not touched, so its created and modified stay put, and so
+    /// would its key header, permissions and expiry (docs/selective-share-plan.md). A member listed twice gets
+    /// one row. An unchanged list, the usual header write, costs one read.
+    /// </summary>
+    internal async Task ReconcileRowsAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
     {
-        if (accessControlList == null)
-            return;
+        var wanted = accessControlList?.ToHashSet() ?? [];
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        var item = new DriveAclIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId };
-
-        foreach (var memberId in accessControlList)
-        {
-            item.aclMemberId = memberId;
-            await base.InsertAsync(item);
-        }
-
-        tx.Commit();
-    }
-
-    internal async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
-    {
-        if (accessControlList == null)
-            return;
-
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var tx = await cn.BeginStackedTransactionAsync();
-
-        foreach (var memberId in accessControlList)
+        var existing = await GetAsync(driveId, fileId);
+        foreach (var memberId in existing.Where(m => !wanted.Contains(m)))
         {
             await base.DeleteAsync(odinIdentity, driveId, fileId, memberId);
+        }
+
+        // permissions keeps the record's default, 1 (DrivePermission.Read): until Selective Share writes its own,
+        // every row means "may read". TryInsert, as a row added meanwhile by another writer is no conflict.
+        var item = new DriveAclIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId };
+        foreach (var memberId in wanted.Except(existing))
+        {
+            item.aclMemberId = memberId;
+            await base.TryInsertAsync(item);
         }
 
         tx.Commit();
