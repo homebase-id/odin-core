@@ -104,7 +104,7 @@ waits in the outbox for up to O. So **G ≥ C + O**, checked at startup. Default
   header before the IV (`0x02 ‖ key id ‖ throwaway public key`) is the AES-GCM associated data, so the
   authentication covers it. v1 authenticates the ciphertext only (`ZkSeal.cs:53-70`) **(V)**.
 - The seal already protects what it carries: AES-GCM over `IV ‖ file key` (`KeyHeader.Combine`) **(V)**.
-  #2024 (the CBC key header, content integrity) is a different format and stays its own issue.
+  #2024 (the CBC key header) is a different format and stays its own issue.
 - Three implementations seal and open: odin-core `ZkSeal.cs`, odin-js `ZeroKnowledgeKeys.ts`, chat-kmp
   `ZkKeys.kt` **(V)**. Apps in the field update slowly, so **every reader accepts v2 before any writer
   makes it**. Readers keep accepting v1 for good: v1 seals are stored (Shamir shards, deposits), and a
