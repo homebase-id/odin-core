@@ -45,7 +45,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"aclMemberId BYTEA NOT NULL, "
                    +"expiresAt BIGINT , "
                    +"permissions BIGINT NOT NULL DEFAULT 1, "
-                   +"lockedKeyHeader BYTEA , "
+                   +"lockedFileKey BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,aclMemberId)"
@@ -65,7 +65,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             sl.Add("aclMemberId");
             sl.Add("expiresAt");
             sl.Add("permissions");
-            sl.Add("lockedKeyHeader");
+            sl.Add("lockedFileKey");
             sl.Add("created");
             sl.Add("modified");
             return sl;
@@ -77,9 +77,9 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await CheckSqlTableVersion(cn, "DriveAclIndex", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
-                // expiresAt, permissions, lockedKeyHeader, created and modified are new in this version.
+                // expiresAt, permissions, lockedFileKey, created and modified are new in this version.
                 // Every existing row lands as NULL, which never expires, as 1, read, which is what every row
-                // meant before, and with no locked key header: none of them is a share yet. created and
+                // meant before, and with no locked file key: none of them is a share yet. created and
                 // modified are NOT NULL with no default, so they get the migration's time
                 // (docs/selective-share-plan.md).
                 string sqlNowStr = copyCommand.SqlNow();

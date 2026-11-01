@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #endif
         // Selective Share: the row is the share, so it holds the file's key header locked with the circle key,
         // and keeps its own created and modified apart from the file's
-        public async Task ARowHoldsItsLockedKeyHeaderAndItsOwnTimes(DatabaseType databaseType)
+        public async Task ARowHoldsItsLockedFileKeyAndItsOwnTimes(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
@@ -83,13 +83,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
             var fileId = Guid.NewGuid();
             var circleId = Guid.NewGuid();
-            var lockedKeyHeader = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
+            var lockedFileKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
             var before = UnixTimeUtc.Now();
             await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord
-                { driveId = driveId, fileId = fileId, aclMemberId = circleId, lockedKeyHeader = lockedKeyHeader });
+                { driveId = driveId, fileId = fileId, aclMemberId = circleId, lockedFileKey = lockedFileKey });
 
             var row = await tblDriveAclIndex.GetAsync(driveId, fileId, circleId);
-            Assert.That(row?.lockedKeyHeader, Is.EqualTo(lockedKeyHeader));
+            Assert.That(row?.lockedFileKey, Is.EqualTo(lockedFileKey));
             Assert.That(row.modified, Is.EqualTo(row.created), "a new share was modified when it was created");
             // The database's clock, not .NET's: SQLite's julianday can land a millisecond either side
             Assert.That(row.created.milliseconds, Is.InRange(before.milliseconds - 1000, UnixTimeUtc.Now().milliseconds + 1000),
@@ -294,15 +294,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, otherFileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
                 UnixTimeUtc.Now(), 1, [leaves], null, 1);
 
-            var lockedKeyHeader = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
-            await tbl.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = stays, lockedKeyHeader = lockedKeyHeader });
+            var lockedFileKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
+            await tbl.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = stays, lockedFileKey = lockedFileKey });
 
             var before = await tbl.GetAsync(driveId, fileId, stays);
             await RewriteHeaderAsync(metaIndex, mainIndex, driveId, fileId, [stays, joins, joins]);
 
             var after = await tbl.GetAsync(driveId, fileId, stays);
-            Assert.That((after.rowId, after.created, after.modified, after.lockedKeyHeader),
-                Is.EqualTo((before.rowId, before.created, before.modified, lockedKeyHeader)), "the row of a member that stays");
+            Assert.That((after.rowId, after.created, after.modified, after.lockedFileKey),
+                Is.EqualTo((before.rowId, before.created, before.modified, lockedFileKey)), "the row of a member that stays");
             Assert.That((await tbl.GetAsync(driveId, fileId)).OrderBy(m => m),
                 Is.EqualTo(new[] { stays, joins }.OrderBy(m => m)), "the file's members after the write");
             Assert.That(await tbl.GetAsync(driveId, otherFileId), Is.EqualTo(new[] { leaves }), "another file's rows");

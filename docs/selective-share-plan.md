@@ -1,6 +1,6 @@
 # Selective Share: sharing files on a zero-knowledge drive
 
-**Status:** plan. PR 1 (the database) is built and in review; the rest is not built. The design is in
+**Status:** PR 1 (the database) and PR 2 (circle keys) built and in review; PR 3 onwards planned. The design is in
 [zero-knowledge-drives.md](zero-knowledge-drives.md#selective-share); this plan says how to build it.
 Markers follow [security-model.md](security-model.md): **(V)** verified in the code (file named), **(I)**
 inferred.
@@ -82,14 +82,18 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
   connection. PR 3 must close that: on a Selective Share drive, either no rows means owner only, or removing the
   last row sets the file back to Owner.
 
-## Changing a share: neither the version tag nor `modified`
+## Changing a share: `modified` moves, the version tag doesn't
 
-**Decided (2026-10-31, decision 6):** sharing or unsharing a file writes only its share row. It changes who may
-read the file, not the file, so the file's version tag stays (a member editing the file at that moment must not get
-a conflict, the same reason a `sealed` → `zkDrive` transform keeps it) and so does its `modified` (the owner's own
-devices gain nothing from fetching the file again, and a bulk share of a folder would make every one of them
-re-fetch it). Members learn of shares and unshares from the rows' own `modified`: a file shared with Family
-today, last modified a year ago, sits behind every member's file cursor, but its new row doesn't.
+**Decided (2026-10-31, decision 6; amended 2026-11-01):** sharing or unsharing a file writes its share row and
+moves the file's `modified`, but not its version tag. It changes who may read the file, not the file:
+- **The version tag stays:** a member editing the file at that moment must not get a conflict, the same reason a
+  `sealed` → `zkDrive` transform keeps it.
+- **`modified` moves** (amended): the owner's other devices must learn that a file was shared, to show it, and
+  their ordinary sync by `modified` is how they learn anything. They read the shares with the query's
+  `includeShares` flag (PR 3 plan, section 5). A bulk share of a folder makes each device re-fetch those headers,
+  not their payloads (I). A member's file feed lists a newly shared file the same way.
+- **Members still sync by the rows' own `modified`** for what the file feed can't show: a withdrawn share, whose
+  file they can no longer see.
 
 **What today's code does:** every ACL change gives the file a new version tag and moves `modified`. There
 is no way to change only the ACL.
@@ -136,7 +140,10 @@ the header's ACL names no circles, so reconciling against it would delete every 
 leave the rows alone entirely (PR 3).
 
 **Before any row is written without Read** (PR 3, e.g. an upload-only folder), every query that reads through
-`DriveAclIndex` must check the Read bit, or a write-only row would let its circle list the files.
+`DriveAclIndex` must check the Read bit, or a write-only row would let its circle list the files. A row that
+nobody fills in means read (the generated record starts at the column's DEFAULT), but an explicit 0 is still
+stored as given, and 0 is a withdrawn share: only a withdrawal may write it, so PR 3's validation must refuse a
+share with no bits from a client.
 
 **Who owns a row's bits and expiry depends on the drive** (PR 3). The reconcile leaves a staying row's
 `permissions` and `expiresAt` alone. On a Selective Share drive that is the point: the row is the share. On any
@@ -177,8 +184,32 @@ version 1 to stay compatible with.
 
 ## Later PRs
 
-2. **Circle keys.** The owning app's devices set the circle key (once) and seal it for members. Only the
-   circle's owning app; the circle must grant the drive. A member row's sealed copy goes when the member leaves.
+2. **Circle keys** (built on branch `selective-share-circle-keys`).
+   - **API** (`V2CircleShareKeyController`, owner or app): `GET`/`PUT /api/v2/connections/circles/{circleId}/share-key`
+     (the key, set once), `GET .../share-key/unsealed-members`, `PUT .../share-key/members` (sealed copies, all or
+     none, with the locked key they were sealed from: refused when the circle no longer holds it). A member:
+     `GET /api/v2/peer/{odinId}/circles/{circleId}/share-key`, which asks the circle owner's server
+     (`PeerCircleShareKeyController`, `GET /api/peer/v1/host/circles/{circleId}/my-share-key`).
+   - **Rules:** only the owning app or the owner console, never an owner circle; a copy only for an identity
+     member and only once the circle has its key; a member reads only their own copy, once the owner has reviewed
+     the connection, while the circle grants them and is enabled (asked at the time: a peer's cached context
+     doesn't see a disable). An unreviewed connection is judged as a stranger wherever content is
+     (`ReviewedSecurityTier`), and the circle key opens content; a copy sealed before the review is served after it.
+   - **No copy yet is an empty answer** (`200` with no key), so a `404` always means a server that doesn't serve
+     the route.
+   - **The keys survive other writes:** the generator's `keepOnUpsert` leaves both columns out of the generated
+     upsert's and update's SET, and saving a connection reconciles the member's rows
+     (`ReconcileMemberCirclesAsync`) instead of deleting and re-inserting them. Only the set-once update writes
+     the key, and only the targeted update writes a copy.
+   - **The member's public key** comes from #2045's endpoint and cache (`GET /api/v2/peer/{odinId}/apps/{appSlug}/
+     drives/{driveSlug}/public-key`): `PublicKeyJwk`, `PublicKeyCrc32` (the key hint in the sealed copy) and
+     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. The client must not seal to a drive that
+     isn't zero knowledge, whose server could open it, nor to a Collaborative (community) drive, whose members all
+     hold its key; the server may refuse both later.
+   - **A developer's reset** (`DELETE .../share-key`, owner console only, no UI): clears the key and every member's
+     copy, so a key stored by mistake (a client bug, the wrong app key) can be replaced. Not for ordinary users:
+     files already shared under the old key can't be opened with the new one.
+   - **Moved to PR 3:** "the circle must grant the drive", which is about sharing files from a drive.
 3. **Shares as ACL index rows.** The share writes (see "Changing a share") and their validation (no share
    without bits from a client; only a circle that grants the drive); a header write on a Selective Share drive
    leaving the rows alone, and its ACL holding no circles; shares carried in an upload so sharing a new file is
@@ -189,7 +220,11 @@ version 1 to stay compatible with.
      (…)`, under a `SELECT DISTINCT` that exists only for the join **(V)**. Once the Read bit and expiry join the
      filter, `NOT EXISTS (any row) OR EXISTS (a live row for my circles)` says plainly that a file whose rows are
      all expired is not "rowless", and drops the `DISTINCT`. Check the plan on SQLite and Postgres (`EXPLAIN`).
-4. **Member reads and writes.** The read rule lets a member read a client-locked file with a share row for one
+   - **A shared file requires `Connected`** as its security group, with the share row naming the circle; never
+     `Authenticated` plus the circle (decided 2026-10-31). `Authenticated` plus circles is allowed for YouAuth
+     (`AccessControlList.Validate`) **(V)**, and would let an unreviewed member read a file whose circle key PR 2
+     refuses them. With `Connected`, the file and the key follow one rule: a reviewed connection the circle grants.
+4. **Member reads and writes** (merged into PR 3 on 2026-11-01; the two aren't released apart; [selective-share-pr3-plan.md](selective-share-pr3-plan.md)). The read rule lets a member read a client-locked file with a share row for one
    of their circles; the write rules in "Who may write". The Peer API passes it all through as stored.
 5. **Clients.** odin-js, chat-kmp and filesync crypto against the golden vector; Filesync's share UI.
 6. **Links**, once decision 4 is made.
@@ -258,8 +293,9 @@ content with it and leaves the key headers alone. Two things are needed:
    copy of its key), a small table of its own or a hidden app circle with no members.
 5. **Members editing existing files:** whether a writer may update a file's content while keeping its stored
    key header, and on which drives (see "A member adds a file").
-6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31):** no; a share is its `DriveAclIndex` row,
-   with times of its own (see "Changing a share").
+6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31), amended 2026-11-01:** a share is its
+   `DriveAclIndex` row, with times of its own, and writing it moves the file's `modified` but not its version
+   tag (see "Changing a share").
 7. ~~A share row's IV after the file changes.~~ **Decided (2026-11-01):** the row locks the file key only, and
    a member takes the IV from the file (Blob formats). Every update of an encrypted file must carry a new IV: a
    metadata-only update is refused without one (`FileSystemStreamWriterBase`, "You must specify a new IV") **(V)**.
@@ -274,5 +310,29 @@ content with it and leaves the key headers alone. Two things are needed:
 
 ## Out of scope
 
-- Key rotation when a member leaves (design doc: not in the first version).
+- Key rotation (design doc: not in the first version). What rotating would take is listed below, so it isn't
+  rediscovered later.
 - Collaborative drives: unchanged.
+
+## Work to do if keys are ever rotated
+
+Nothing below is built. Each key in Selective Share has a copy somewhere that rotating it leaves behind.
+
+- **A member's drive key** (the matching drive's write-only key pair, which their circle-key copy is sealed to).
+  #2045 already keeps retired drive keys and accepts deposits to them for a grace period, but:
+  - the owning app can't tell which members' copies are sealed to an old key: the server shows it only which
+    members have no copy (`unsealed-members`). It needs each copy's key id, so the key id
+    (`PublicKeyCrc32`) must sit at a fixed place in the sealed copy, right after the version byte, and an
+    endpoint must return it per member, for the app to compare with each member's current key;
+  - the member's devices must keep the retired private half for as long as any copy is sealed to it.
+- **A circle's key** (when a member leaves, so they can't read what's shared next):
+  - `SetShareKeyAsync` is set-once by design; rotation needs a replace that a second racing device can't
+    win with a different key (e.g. guarded by the old key's hash);
+  - every remaining member needs a new sealed copy, and every share row of the circle a new
+    `lockedKeyHeader`: a client bulk job, as sharing existing files is;
+  - members' devices must keep the old circle key until every row is rewritten, or files they could read
+    become unreadable mid-job.
+- **The owning app's key** (`AppZkK`): `appKeyLockedShareKey` on each of the app's circles must be locked again
+  with the new key, in the same step that re-locks the app's drives.
+- **A file's key**: the file's own key header and every share row's `lockedKeyHeader` change together; an
+  ordinary update keeps the key (decision 7).

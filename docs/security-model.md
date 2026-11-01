@@ -207,6 +207,9 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
 - A connected caller's rights are the union of their enabled circles' grants. A disabled circle grants nothing **(V)**.
 - `AppId` on a circle is the owning app; null = owner circle. An app may change only its own circles and can't enrol
   anyone into an owner circle **(V)**.
+- **Who may see a circle's members** (and who is pending in it): the owner; the app that owns the circle, always; any
+  other app only with `ReadCircleMembership` (`CircleMembershipService.AssertCallerMayReadMembersAsync`) **(V)**.
+  Listing every circle with its members still needs the key.
 - **Read grants need the Peer Key** (the drive's storage key is wrapped for the member). Write/react grants, and every
   grant on a zero-knowledge drive, carry no key material (`CircleNetworkService.RequiresPeerKeyAsync`, which asks
   `StorageDrive.GrantCarriesStorageKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
@@ -216,6 +219,31 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   circle definition needs the master key (`CircleMembershipService.UpdateAsync`) **(V)**.
 - Unreviewed connections are treated as `Authenticated`, not `Connected`, when content is evaluated
   (`ReviewedSecurityTier`) **(V)**.
+- **Circle share keys** (Selective Share, [selective-share-plan.md](selective-share-plan.md)): an app circle's key,
+  locked with the owning app's zero-knowledge key, and each member's copy, sealed to their matching drive. The server
+  opens neither, and checks only their size and format version (`CircleShareKeyService`) **(V)**.
+  - Only the owning app or the owner console may read or set the key, list members without a copy, or store copies
+    (`CircleMembershipService.GetCircleCallerMayManageAsync`); never on an owner circle. No permission key: owning the
+    circle is the authority, as for enabling or disabling it **(V)**. An app is refused alike for a missing circle,
+    an owner circle and another app's circle; only the owner console is told a circle doesn't exist **(V)**.
+  - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only while the circle
+    holds the key the app says it sealed from (`SealedFrom`), checked again in the same statement, so a reset
+    meanwhile can't leave copies of the old key (`CircleShareKeyChanged`) **(V)**. The check locks the circle's row,
+    and the reset clears the key before the copies (`TableCircleMember.SetSealedShareKeysAsync`) **(V; on Postgres a
+    test overlaps a seal and a reset in both orders)**. The one way back is a developer's reset, owner console only: it clears the key and every
+    copy (`CircleShareKeyService.ResetShareKeyAsync`) **(V)**.
+  - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles and only
+    once the owner has reviewed the connection (`ReviewedSecurityTier`: the circle key opens content, which an
+    unreviewed connection may not see). The row is looked up by the caller's identity, never by anything they send
+    **(V)**.
+  - On the member's side, any app with `UseTransitRead` may fetch this identity's copy from a peer
+    (`PeerCircleShareKeyService`), whichever app owns that circle **(V)**. By design: the copy is sealed to the
+    member's matching drive, so only an app holding that drive's key can open it (the plan; the server can't check
+    what a blob is sealed to). What another app learns is which peers' circles grant this identity **(I)**.
+  - Rewriting a circle or a membership row keeps both: the generated upsert and update leave the two columns out
+    (`keepOnUpsert`), and saving a connection reconciles the member's rows instead of deleting and re-inserting them
+    (`CircleMembershipService.ReconcileMemberCirclesAsync`). Leaving the circle or disconnecting deletes the member's
+    row and with it their copy **(V)**.
 
 ### Enrollment: when a circle grants itself (`CircleGrantOn`) **(V)**
 
@@ -237,6 +265,8 @@ Details in [connection-defaults.md](connection-defaults.md).
 - Anyone but the owner sees a connection redacted to the identity list (`RedactedForExternalViewer`) **(V)**.
 
 ## 5. Files and their ACL
+
+The full description, today's and Selective Share's, is [file-access.md](file-access.md).
 
 - Each file carries an `AccessControlList`: `RequiredSecurityGroup` + optional `CircleIdList` and `OdinIdList` **(V)**.
 - Security groups are a ladder: `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 <
