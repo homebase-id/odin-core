@@ -229,11 +229,11 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 
 | | Other drives | Selective Share drive |
 |---|---|---|
-| The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused; the required group: decision A of the PR 3 plan |
+| The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused. Required group `Owner` (owner callers only; the default) or `Connected` (shareable); the first share lifts `Owner` to `Connected`, keeping the version tag |
 | The index rows | made from the ACL on every header write; `Read`, no expiry | share rows, written on their own by the share API; a header write leaves them alone (PR 3) |
-| A file with no rows | open to every caller who reaches the required group | owner callers only (PR 3) |
+| A file with no rows | open to every caller who reaches the required group | owner callers only, whatever its group (PR 3) |
 | Which rows count in a query | every row | live rows (PR 3; every row on other drives is live, so nothing changes there) |
-| The read rule's ACL part | the ACL's names | the caller's live row (PR 3) |
+| The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere (PR 3) |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 3) |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by the share rows' own `modified`, which also shows a withdrawn share (PR 3) |

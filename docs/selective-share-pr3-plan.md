@@ -20,19 +20,32 @@ sockets (sections 6 to 9, what was planned as PR 4).
   drive: a file the query hides would still be readable by id. That matters for any file `VisibleTo` doesn't block: an
   unencrypted file, which a zero-knowledge drive doesn't refuse (I: no check found). The app's circles grant drive
   `Read` (selective-share-plan.md, decision 1) **(V)**, so their members pass steps 1 to 4 of a read by id.
-- **The required group, decision A below:** Filesync's drives are already Selective Share (`filesync`
-  `hbsync-homebase/src/app.rs:70`) **(V)**, in production since v0.1.974, and Filesync uploads every file with a
-  required group of `Owner` (`drive/wire.rs:601`) **(V)**. "The server sets `Connected`" applies only to files written
-  after PR 3, so every existing file would stay unshareable: the query's `requiredSecurityGroup` range hides an
-  `Owner` file from every outside caller.
+- **The required group keeps its meaning** (decision A, decided 2026-11-01), instead of "always `Connected`, set by
+  the server". Filesync's drives are already Selective Share (`filesync` `hbsync-homebase/src/app.rs:70`) **(V)**, in
+  production since v0.1.974, and Filesync uploads every file with a required group of `Owner` (`drive/wire.rs:601`)
+  **(V)**: setting `Connected` only on new files would have left every existing one unshareable. Now every file starts
+  owner-only, and sharing it lifts it to `Connected` (section 1).
 
 ## 1. The header on a Selective Share drive
 
 - **The ACL names no one:** named circles and named identities are refused on upload and update
   (`FileSystemStreamWriterBase.ValidateUploadCoreAsync`, `FileSystemUpdateWriterBase.ValidateUploadCore`) **(V for the
   places)**: the share rows say who. Filesync names none today **(V, `wire.rs:601`)**.
-- **The required group** (decision A): either it is set to `Connected` by the server and existing files are moved
-  once, or it isn't used on these drives at all.
+- **The required group** (decision A): two of the ladder's rungs mean something here, and the others are refused on
+  upload and update:
+  - **`Owner`**, what Filesync sends and the default for an upload that names no ACL (`UploadFileMetadata.cs:19`)
+    **(V)**: owner callers only, whatever share rows the file has;
+  - **`Connected`**: an outside caller also needs a live share row (section 2). With no live row the file is still
+    the owner callers' alone.
+  - **Sharing lifts the file:** a share write on an `Owner` file sets it to `Connected` in the same transaction
+    (section 3). No migration, and no client change: existing files are shared one by one, when the owner shares them.
+  - **Withdrawing the last share** leaves `Connected`: with no live row the file is owner callers' only anyway. An
+    owner caller who writes the header with `Owner` again makes the file owner-only at once, whatever its rows say.
+  - `Anonymous`, `Authenticated` and `AutoConnected` are refused for now: a zero-knowledge drive is never public
+    (`CreateDriveRequest.AssertSharingModel`) **(V)**, an encrypted file can't take the two lowest anyway
+    (`FileSystemStreamWriterBase.cs:565-576`) **(V)**, and below `Connected` an unreviewed connection could read an
+    unencrypted shared file, against "a share requires `Connected`" (decided 2026-10-31). The ladder stays, so they can
+    be allowed later (links).
 - **A header write leaves the share rows alone:** `SaveFileHeaderAsync` tells `BaseUpsertEntryZapZapAsync` not to
   reconcile on a Selective Share drive (a `reconcileAcl` flag, so a null list can't come to mean two things). A soft
   delete keeps the rows, so a member syncing sees the tombstone; a hard delete and the drive purge still delete them
@@ -47,9 +60,10 @@ sockets (sections 6 to 9, what was planned as PR 4).
 ## 2. The read rule and the query on a Selective Share drive
 
 **One rule, in both places:** an owner caller or `System` passes, as today; an outside caller passes only with a
-**live row** (`Read` set, not expired) for one of their circles or for their OdinId's hash, and only at the
-`Connected` level (an unreviewed connection counts as `Authenticated` and doesn't pass) **(V for the level rule,
-`ReviewedSecurityTier`)**. A file with no live row for the caller is refused. On every other drive nothing changes.
+**live row** (`Read` set, not expired) for one of their circles or for their OdinId's hash, **and** a level that
+reaches the file's required group, as everywhere: so never for an `Owner` file, and for a `Connected` one only as a
+reviewed connection (an unreviewed one counts as `Authenticated`) **(V for the level rule, `ReviewedSecurityTier`)**.
+A file with no live row for the caller is refused. On every other drive nothing changes.
 
 **The read rule** (`DriveAclAuthorizationService.CallerMayReadAsync`): on a Selective Share drive its ACL part reads the
 caller's share rows instead of the ACL's names. It is synchronous on the header today **(V)**; it becomes async and
@@ -110,7 +124,12 @@ transaction, with its row locked on Postgres as `TableDriveMainIndex` does (`:39
 alongside can't leave a share behind.
 
 **The file's `modified` moves, its version tag doesn't** (decision 6, amended 2026-11-01): a targeted update of
-`driveMainIndex.modified` (`MAX(modified + 1, now)`), once per file the batch touches, in the same transaction. Owner
+`driveMainIndex.modified` (`MAX(modified + 1, now)`), once per file the batch touches, in the same transaction.
+**For an `Owner` file the same update lifts it to `Connected`** (decision A): the `requiredSecurityGroup` column and
+the ACL in the header's JSON (`hdrServerData`), read and rewritten in the transaction with the file's row locked.
+That is a header update that keeps the version tag, which doesn't exist today (`UpsertAllButReactionsAndTransferAsync`
+always sets a new one) **(V)**: a new targeted method beside it. Keeping the tag is safe here: an `Owner` file had no
+member who could be editing it. Owner
 callers' other devices see the file in their ordinary sync and read its shares with `includeShares`. Then the drive's
 caches are cleared after commit, through a new `MainIndexMetaCached` method, as every header write does
 (`MainIndexMetaCached.cs:24-84`) **(V)**. No `DriveFileChangedNotification`: a share raises its own event (section 9).
@@ -193,6 +212,9 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
 - **The read rule:** on a Selective Share drive, an unencrypted file read by id by a member of a granting circle: refused
   with no row, with a row without `Read`, with an expired row and when unreviewed; allowed with a live row. On another
   drive, the same reads answer as today.
+- **The required group:** a share on an `Owner` file lifts it to `Connected` with the version tag unchanged; an
+  `Owner` file with live rows is refused to members; `Anonymous`, `Authenticated` and `AutoConnected` are refused on
+  upload to a Selective Share drive; the last withdrawal leaves `Connected` and the file owner-only.
 - **Members (V2 and Peer API):** a member reads a client-locked file with their row's locked key, and is refused with no
   live row; with two circles' rows they always get the same one; a member updates a file with a `Write` row and is
   refused without; adds a file to a folder with a `Write` row; their own server finds the file for an update; "my
@@ -206,6 +228,8 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
 
 ## Decided (2026-11-01)
 
+- **A. The required group keeps its meaning:** files start `Owner` (owner-only), and the first share lifts a file to
+  `Connected`, keeping its version tag (sections 1 and 3).
 - **No rows without `Read`** from the V2 share API; V1's index rows always mean `Read`.
 - **Shares in results only when asked** (`includeShares`); the `GET` lists one file's share rows.
 - **The index for a member's "shares changed since"** (`identityId, driveId, aclMemberId, modified, rowId`) goes into
@@ -217,16 +241,6 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
 
 ## To decide
 
-- **A. The required group on a Selective Share drive.** Decided earlier: "always `Connected`, set by the server". That
-  holds for new files; existing ones keep `Owner` (above).
-  - **A1. Set `Connected`, and move existing files once:** a version upgrade rewrites every file on a Selective Share
-    drive to `Connected`, the column and the header's JSON, without a new version tag. That needs a header update that
-    keeps the version tag, which doesn't exist today (`UpsertAllButReactionsAndTransferAsync` always sets a new one)
-    **(V)**, and it touches every Filesync user's files in production.
-  - **A2. Don't use the required group on these drives** (recommended): the query skips the `requiredSecurityGroup`
-    range on a Selective Share drive and requires `Connected` of the caller instead; the read rule does the same.
-    Whatever group a client sends is stored and means nothing; Filesync's `Owner` stays as it is. No migration, and
-    "the share rows say who, at `Connected`" is the whole rule, in one place.
 - **B. What a share row's `React` and `Comment` bits mean.** Reactions need drive `React` and never pass the read rule
   (file-access.md, "Special cases"; #2058), and app circles grant only `Read` and `Write` today. Until that is decided,
   a circle granting `React` or `Comment` on a Selective Share drive is refused, and so are those bits on a share row.
