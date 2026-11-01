@@ -233,17 +233,22 @@ public class DriveQuery(
         header.ServerMetadata.FileByteCount = sumBytes;
         driveMainIndexRecord.byteCount = sumBytes;
 
+        // On a Selective Share drive the ACL rows are the shares, written on their own, and the ACL names no one
+        // (SelectiveShareDrives): a header write leaves them as they are
+        var reconcileAcl = !drive.IsSelectiveShare;
         var acl = new List<Guid>();
-        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
-        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId => ((OdinId)odinId).ToHashId()
-        );
-        acl.AddRange(ids.ToList());
+        if (reconcileAcl)
+        {
+            acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
+            var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId => ((OdinId)odinId).ToHashId());
+            acl.AddRange(ids.ToList());
+        }
 
         var tags = fileMetadata.AppData.Tags?.ToList();
 
         try
         {
-            int n = await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag);
+            int n = await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag, reconcileAcl);
             if (n != 1)
                 throw new OdinClientException($"SaveFileHeaderAsync() didn't write database record, n is {n}");
 

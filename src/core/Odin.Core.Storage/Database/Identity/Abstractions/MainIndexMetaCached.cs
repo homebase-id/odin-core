@@ -70,13 +70,15 @@ public class MainIndexMetaCached : AbstractTableCaching
     public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
         List<Guid>? accessControlList = null,
         List<Guid>? tagIdList = null,
-        Guid? useThisNewVersionTag = null)
+        Guid? useThisNewVersionTag = null,
+        bool reconcileAcl = true)
     {
         var result = await _meta.BaseUpsertEntryZapZapAsync(
             driveMainIndexRecord,
             accessControlList,
             tagIdList,
-            useThisNewVersionTag);
+            useThisNewVersionTag,
+            reconcileAcl);
 
         await InvalidateDriveAsync(driveMainIndexRecord.driveId);
 

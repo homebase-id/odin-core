@@ -201,11 +201,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="accessControlList"></param>
         /// <param name="tagIdList"></param>
         /// <param name="useThisNewVersionTag"></param>
+        /// <param name="reconcileAcl">False leaves the file's ACL rows as they are, whatever
+        /// <paramref name="accessControlList"/> says: on a Selective Share drive the rows are the shares, written on
+        /// their own (docs/selective-share-pr3-plan.md, section 1).</param>
         /// <returns></returns>
         internal async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null,
-            Guid? useThisNewVersionTag = null)
+            Guid? useThisNewVersionTag = null,
+            bool reconcileAcl = true)
         {
             driveMainIndexRecord.identityId = odinIdentity;
 
@@ -217,7 +221,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             // The ACL rows are reconciled, not rewritten: a row whose circle or identity stays keeps what it holds
             // (docs/selective-share-plan.md). The tags hold nothing else, so they are simply rewritten.
-            await driveAclIndex.ReconcileRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+            if (reconcileAcl)
+            {
+                await driveAclIndex.ReconcileRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+            }
+
             await driveTagIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 

@@ -603,6 +603,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 OdinClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
+        SelectiveShareDrives.AssertAclFits(drive, serverMetadata.AccessControlList);
+
         // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
         PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);
 
