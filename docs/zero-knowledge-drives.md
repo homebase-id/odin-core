@@ -46,8 +46,11 @@ merged 2026-10-27); the reasons, alternatives and work are in
   place), and a hidden "waiting" file on the drive (updates would hide files that were already
   readable).
 - **Known weakness of key header version 1:** the CBC format lets the IV cancel out, so the server sees
-  which key headers share a FileKey and could flip bits in the first block of `appData.content`. Version
-  2 fixes it with per-file integrity ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
+  which key headers share a FileKey. Version 2 fixes it
+  ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
+- **No content integrity, by decision (2026-11-01):** content is AES-CBC with no MAC, so whoever stores it
+  could change it undetected. That is out of the threat model: they could as well delete it or hold it for
+  ransom. A later move of file encryption to GCM would bring most of it.
 
 ## Goal
 
@@ -109,19 +112,20 @@ Naming notes:
 - **Members:** each member gets the share key, locked to the public key of their matching drive.
   That's one row per member.
 - **Files:** each shared file gets one extra header per share, locked with the share key. It's
-  stored in the file's ACL, next to the circle it names, with the share's expiry and whether it may write;
-  `DriveAclIndex` **(V)** indexes it for queries (decided 2026-10-30, instead of a side table).
+  to be stored in the file's `DriveAclIndex` row for that circle, with the share's expiry, what it may do
+  and its own `modified`, and only there, not in the ACL in the file's header (decided 2026-10-31; the columns
+  exist, `TableDriveAclIndexCRUD` **(V)**, nothing writes them yet). A share changes without the file changing.
 - **Cost:** sharing new files is free, because the header rides in the upload. Sharing many
   existing files is a client bulk job.
 - **Links (to consider):** sharing with someone not on Homebase by a link that carries the key. It fits
-  the same ACL, as a third kind of share target next to circles and persons: see
+  the same share rows, as a third kind of share target next to circles and persons: see
   [Links: sharing with someone not on Homebase](#links-sharing-with-someone-not-on-homebase).
   Plan and exact columns: [selective-share-plan.md](selective-share-plan.md).
 
 #### Links: sharing with someone not on Homebase
 
 To consider, not decided. The idea is that a link is just another share. Every share has its own share key,
-and every shared file has one ACL entry per share holding its key header locked with that key. Only the way
+and every shared file has one share row per share holding its key header locked with that key. Only the way
 a reader gets the share key differs:
 
 | Share target | How the reader gets the share key |
@@ -137,12 +141,12 @@ a reader gets the share key differs:
   (`shareId = HKDF(key, "share-id")`). The server sees the id, never the key, and can't work the key out
   from it. Holding the link is both the right to fetch and the key to open.
 - **One new read path, nothing else changes.** An anonymous caller with a share id can list and fetch only
-  the files whose ACL has that share: its key header and the payloads exactly as stored, ciphertext. File ACLs, encryption, the
+  the files with a row for that share: its key header and the payloads exactly as stored, ciphertext. File ACLs, encryption, the
   drive's `AllowAnonymousReads` and enumeration all stay as they are, and the file is not copied, as
   WebDrop copies it today. Today an encrypted file can't be anonymous at all
   (`FileSystemStreamWriterBase.cs`, `CannotUploadEncryptedFileForAnonymous`) **(V)**; the link path doesn't
   change that, it is a separate way in.
-- **Revoke or expire** deletes the share and its ACL entries. A reader keeps any file key they already opened,
+- **Revoke or expire** withdraws the share and its rows. A reader keeps any file key they already opened,
   as with circles and persons.
 - **A link can become a person share** when the recipient joins Homebase: the owner seals the same share
   key to their public key, and no file's entry changes.

@@ -44,7 +44,10 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"fileId BYTEA NOT NULL, "
                    +"aclMemberId BYTEA NOT NULL, "
                    +"expiresAt BIGINT , "
-                   +"permissions BIGINT NOT NULL DEFAULT 1 "
+                   +"permissions BIGINT NOT NULL DEFAULT 1, "
+                   +"lockedKeyHeader BYTEA , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,aclMemberId)"
                    +$"){wori};"
                    ;
@@ -61,6 +64,9 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             sl.Add("aclMemberId");
             sl.Add("expiresAt");
             sl.Add("permissions");
+            sl.Add("lockedKeyHeader");
+            sl.Add("created");
+            sl.Add("modified");
             return sl;
         }
 
@@ -70,11 +76,14 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await CheckSqlTableVersion(cn, "DriveAclIndex", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
-                // expiresAt and permissions are new in this version and are omitted from both lists: every
-                // existing row lands as NULL, which never expires, and as 1, read, which is what every row
-                // meant before (docs/selective-share-plan.md).
-                copyCommand.CommandText = "INSERT INTO DriveAclIndexMigrationsV202610301200 (rowId,identityId,driveId,fileId,aclMemberId) " +
-               $"SELECT rowId,identityId,driveId,fileId,aclMemberId "+
+                // expiresAt, permissions, lockedKeyHeader, created and modified are new in this version.
+                // Every existing row lands as NULL, which never expires, as 1, read, which is what every row
+                // meant before, and with no locked key header: none of them is a share yet. created and
+                // modified are NOT NULL with no default, so they get the migration's time
+                // (docs/selective-share-plan.md).
+                string sqlNowStr = copyCommand.SqlNow();
+                copyCommand.CommandText = "INSERT INTO DriveAclIndexMigrationsV202610301200 (rowId,identityId,driveId,fileId,aclMemberId,created,modified) " +
+               $"SELECT rowId,identityId,driveId,fileId,aclMemberId,{sqlNowStr},{sqlNowStr} "+
                $"FROM DriveAclIndex;";
                return await copyCommand.ExecuteNonQueryAsync();
             }

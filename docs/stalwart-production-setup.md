@@ -84,15 +84,17 @@ config edit.
   surprised.
 - **Thunderbird will warn about the certificate.** Expected in Phase 1: it is
   self-signed. Click through.
-- **Mailgun is a separate concern, and stays where it is.** `Mailgun:*` at the
-  top level is how the host sends its OWN mail to users — password recovery,
-  security health reports. It has nothing to do with tenant mail, and nothing
-  here touches it. Leave it alone; enabling tenant mail does not affect it, and
-  its absence does not hold tenant mail back.
-- **Expect no email-related errors at boot.** Tenant mail on with Mailgun off
+- **The host's own mail is a separate concern.** How the host sends its OWN mail
+  to users — password recovery, security health reports — is
+  `Email:Relay:SystemFromEmail` (and `SystemFromName`): set, it goes out through
+  SMTP2GO's API on the relay's key, which then also needs the `/email/send`
+  permission, and the From domain must be a verified Sender Domain on the account.
+  It has nothing to do with tenant mail: enabling tenant mail does not affect it,
+  and its absence does not hold tenant mail back.
+- **Expect no email-related errors at boot.** Tenant mail on with no system From
   logs two INF lines and nothing else:
   `Tenant mailbox provider: Stalwart at ...` and
-  `Mailgun is not enabled; this host sends no mail of its own`. Anything at ERR
+  `This host sends no mail of its own: that needs Email:Relay:Provider=Smtp2Go and Email:Relay:SystemFromEmail`. Anything at ERR
   is a real finding.
 
 ### Verify

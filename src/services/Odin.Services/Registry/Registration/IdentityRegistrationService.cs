@@ -760,7 +760,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             }
 
             // Queue background job to send email
-            if (_configuration.Mailgun.Enabled)
+            if (_configuration.Email.Relay.SendsSystemMail)
             {
                 var job = _jobManager.NewJob<SendProvisioningCompleteEmailJob>();
                 job.Data = new SendProvisioningCompleteEmailJobData
