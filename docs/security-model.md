@@ -238,6 +238,8 @@ Details in [connection-defaults.md](connection-defaults.md).
 
 ## 5. Files and their ACL
 
+The full description, today's and Selective Share's, is [file-access.md](file-access.md).
+
 - Each file carries an `AccessControlList`: `RequiredSecurityGroup` + optional `CircleIdList` and `OdinIdList` **(V)**.
 - Security groups are a ladder: `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 <
   `Owner` 999. A caller passes every rung at or below their own (`DriveAclAuthorizationService.Allows`) **(V)**.
@@ -359,7 +361,12 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
   the IV cancels out of the first block: the 48 bytes depend only on the locking key and the file key,
   and the IV the reader gets back is the visible `Iv` field **(V, `ZkDriveFileTests`)**. Two key
   headers for the same file key show it, and whoever stores a key header can change its IV. Key header
-  version 2 fixes it, with per-file integrity ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
+  version 2 fixes the first ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
+- **Tampering by whoever stores the data is out of the threat model** (decided 2026-11-01): content
+  (`appData.content`, payloads, thumbnails) is AES-CBC with no MAC, so changed bytes decrypt to changed
+  data without an error, and a changed IV flips bits in the first block. Someone who can change stored
+  bytes could as well delete them or hold them for ransom. A later move of file encryption to GCM would
+  bring most of it.
 - Ciphers: AES-CBC in `KeyHeader`, AES-GCM preferred for newer paths (CLAUDE.md, `youauth` docs).
 - Write-without-read keys: drive `WriteOnlyKeyPair` (data deposits) and `PeerKeyStore.WriteOnlyKeyPair` (grant deposits)
   **(V)**.

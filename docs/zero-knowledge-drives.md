@@ -46,8 +46,10 @@ merged 2026-10-27); the reasons, alternatives and work are in
   place), and a hidden "waiting" file on the drive (updates would hide files that were already
   readable).
 - **Known weakness of key header version 1:** the CBC format lets the IV cancel out, so the server sees
-  which key headers share a FileKey and could flip bits in the first block of `appData.content`. Version
-  2 fixes it with per-file integrity ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
+  which key headers share a FileKey. Version 2 fixes it
+  ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
+- **No content integrity, by decision (2026-11-01):** out of the threat model ([security-model.md](security-model.md),
+  section 8).
 
 ## Goal
 
@@ -108,10 +110,48 @@ Naming notes:
   App Key of the app that owns the circle.
 - **Members:** each member gets the share key, locked to the public key of their matching drive.
   That's one row per member.
-- **Files:** each shared file gets one extra header per share, locked with the share key. It's
-  stored in a side table next to the file, modelled on `DriveAclIndex` **(V)**.
-- **Cost:** sharing new files is free, because the header rides in the upload. Sharing many
+- **Files:** each shared file gets one locked file key per share: the file key locked with the share key
+  (`lockedFileKey`), in the file's `DriveAclIndex` row for that circle, with the share's expiry, what it may do
+  and its own `modified`, and only there, not in the file's ACL (decided 2026-10-31; the columns come
+  with PR 1, #2053, and nothing writes them before PR 3). A share changes who may read the file, not its
+  version tag (decision 6 of the plan).
+- **Cost:** sharing new files is free, because the locked file keys ride in the upload. Sharing many
   existing files is a client bulk job.
+- **Links (to consider):** sharing with someone not on Homebase by a link that carries the key. It fits
+  the same share rows, as a third kind of share target next to circles and persons: see
+  [Links: sharing with someone not on Homebase](#links-sharing-with-someone-not-on-homebase).
+  Plan and exact columns: [selective-share-plan.md](selective-share-plan.md).
+
+#### Links: sharing with someone not on Homebase
+
+To consider, not decided. The idea is that a link is just another share. Every share has its own share key,
+and every shared file has one share row per share holding the file key locked with that key. Only the way
+a reader gets the share key differs:
+
+| Share target | How the reader gets the share key |
+|---|---|
+| Circle | locked to each member's drive public key, one row per member |
+| Person | the same, with one member |
+| Link | in the link itself, never stored on the server |
+
+- **The key travels in the URL fragment**, `https://michael.id/s#<key>`, never in a query parameter. A
+  fragment is not sent to the server, so it stays out of request logs, proxies and `Referer` headers. WebDrop
+  already does this ([web-drop-plan.md](web-drop-plan.md#url-contract)) **(V)**.
+- **One secret in the link.** The viewer works out the share's id from the key
+  (`shareId = HKDF(key, "share-id")`). The server sees the id, never the key, and can't work the key out
+  from it. Holding the link is both the right to fetch and the key to open.
+- **One new read path, nothing else changes.** An anonymous caller with a share id can list and fetch only
+  the files with a row for that share: its locked file key and the payloads exactly as stored, ciphertext. File ACLs, encryption, the
+  drive's `AllowAnonymousReads` and enumeration all stay as they are, and the file is not copied, as
+  WebDrop copies it today. Today an encrypted file can't be anonymous at all
+  (`FileSystemStreamWriterBase.cs`, `CannotUploadEncryptedFileForAnonymous`) **(V)**; the link path doesn't
+  change that, it is a separate way in.
+- **Revoke or expire** withdraws the share and its rows. A reader keeps any file key they already opened,
+  as with circles and persons.
+- **A link can become a person share** when the recipient joins Homebase: the owner seals the same share
+  key to their public key, and no file's entry changes.
+- **Optional password:** the client can lock the entries with a key made from the fragment key and a
+  password. The server doesn't change.
 
 ### Collaborative
 
@@ -207,10 +247,10 @@ Keys open on the peer's devices.
 
 ### Selective Share
 
-- **Reads:** the Peer API returns the extra header as stored, locked with the share key. Neither
-  server opens it.
+- **Reads:** the Peer API returns the member's row's locked file key as stored, locked with the share key.
+  Neither server opens it.
 - **On the peer's device:** open the Peers row (the share key, locked to the peer's drive public
-  key), then the extra header, then the file.
+  key), then the locked file key, then the file.
 - **No storage key in the grant:** the circle's drive grant for a Selective Share drive carries no
   storage key (`KeyStoreKeyEncryptedStorageKey` stays empty).
 
