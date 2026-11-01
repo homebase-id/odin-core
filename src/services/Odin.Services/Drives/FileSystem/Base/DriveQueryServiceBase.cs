@@ -408,6 +408,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 results.Add(header);
             }
 
+            if (options.IncludeShares)
+            {
+                await _storage.AttachSharesAsync(driveId, results, odinContext);
+            }
+
             return (results, aclFailures);
         }
 

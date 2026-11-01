@@ -14,6 +14,7 @@ using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -716,6 +717,27 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Whether the caller may see <paramref name="header"/> (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>),
         /// on a drive that isn't archived
         /// </summary>
+        /// <summary>
+        /// Gives each of <paramref name="headers"/> its live shares, in one read, for an owner caller on a Selective
+        /// Share drive (<c>includeShares</c>, docs/selective-share-pr3-plan.md, section 5); any other caller or drive
+        /// gets none, and nothing is read.
+        /// </summary>
+        public async Task AttachSharesAsync(Guid driveId, IReadOnlyCollection<SharedSecretEncryptedFileHeader> headers,
+            IOdinContext odinContext)
+        {
+            if (!odinContext.Caller.IsOwner || headers.Count == 0 || (await DriveManager.GetDriveAsync(driveId))?.IsSelectiveShare != true)
+            {
+                return;
+            }
+
+            var rows = await db.DriveAclIndex.GetLiveRowsAsync(driveId, headers.Select(h => h.FileId).ToList(), null, UnixTimeUtc.Now());
+            var byFile = rows.ToLookup(r => r.fileId);
+            foreach (var header in headers)
+            {
+                header.Shares = byFile[header.FileId].Select(ShareRow.From).ToList();
+            }
+        }
+
         /// <inheritdoc cref="IDriveAclAuthorizationService.FilesSharedWithCallerAsync"/>
         public Task<IReadOnlySet<Guid>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
             IOdinContext odinContext) =>

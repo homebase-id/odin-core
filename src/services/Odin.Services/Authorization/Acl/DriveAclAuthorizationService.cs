@@ -105,7 +105,8 @@ namespace Odin.Services.Authorization.Acl
                 return null;
             }
 
-            return await driveAclIndex.GetFilesWithLiveRowAsync(driveId, fileIds, CallerMemberIds(odinContext), UnixTimeUtc.Now());
+            var rows = await driveAclIndex.GetLiveRowsAsync(driveId, fileIds, CallerMemberIds(odinContext), UnixTimeUtc.Now());
+            return rows.Select(r => r.fileId).ToHashSet();
         }
 
         /// <summary>

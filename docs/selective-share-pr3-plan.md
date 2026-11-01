@@ -78,7 +78,7 @@ outside caller's query takes its own branch (`QueryBatch`, `aclRowsRequired`), b
 - **Expiry and the query cache:** a cached page can outlive a share's expiry by up to 2 hours (`QueryBatchCached`,
   `DefaultTtl`) **(V)**. On a Selective Share drive an outside caller's query isn't cached.
 - **One read per page:** the read rule's live rows for a page are read once (`FilesSharedWithCallerAsync`,
-  `TableDriveAclIndex.GetFilesWithLiveRowAsync`), and a read by id reads them for its one file.
+  `TableDriveAclIndex.GetLiveRowsAsync`), and a read by id reads them for its one file.
 
 **On a Selective Share drive an outside caller's query starts from their share rows** (decided 2026-11-01). A
 Selective Share drive shares a few of many files; a drive whose files are mostly shared is a `Collaborative`

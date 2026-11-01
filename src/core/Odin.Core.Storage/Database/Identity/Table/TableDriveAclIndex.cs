@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
 [assembly: InternalsVisibleTo("IdentityDatabase")]
@@ -58,6 +59,11 @@ public class TableDriveAclIndex(
         cmd.AddParameter("@driveId", DbType.Binary, driveId);
         cmd.AddParameter("@fileId", DbType.Binary, fileId);
 
+        return await ReadRowsAsync(cmd);
+    }
+
+    private async Task<List<DriveAclIndexRecord>> ReadRowsAsync(ICommandWrapper cmd)
+    {
         var rows = new List<DriveAclIndexRecord>();
         await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
         while (await rdr.ReadAsync())
@@ -100,26 +106,25 @@ public class TableDriveAclIndex(
     }
 
     /// <summary>
-    /// Which of <paramref name="fileIds"/> have a live row for one of <paramref name="memberIds"/>: the Read bit set
-    /// (DrivePermission.Read, 1) and not expired at <paramref name="now"/> (docs/file-access.md, "live row"). One read
-    /// for a page of files, whatever its size.
+    /// The live rows of <paramref name="fileIds"/>: the Read bit set (DrivePermission.Read, 1) and not expired at
+    /// <paramref name="now"/> (docs/file-access.md, "live row"); only those of <paramref name="memberIds"/> when given.
+    /// One read for a page of files, whatever its size.
     /// </summary>
-    public async Task<HashSet<Guid>> GetFilesWithLiveRowAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
+    public async Task<List<DriveAclIndexRecord>> GetLiveRowsAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
         IReadOnlyCollection<Guid> memberIds, UnixTimeUtc now)
     {
-        if (fileIds.Count == 0 || memberIds.Count == 0)
+        if (fileIds.Count == 0 || memberIds?.Count == 0)
         {
             return [];
         }
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
-        var files = fileIds.Select((_, i) => $"@f{i}").ToList();
-        var members = memberIds.Select((_, i) => $"@m{i}").ToList();
-        cmd.CommandText = "SELECT DISTINCT fileId FROM DriveAclIndex " +
-                          "WHERE identityId = @identityId AND driveId = @driveId " +
-                          $"AND fileId IN ({string.Join(",", files)}) AND aclMemberId IN ({string.Join(",", members)}) " +
-                          "AND (permissions & 1) = 1 AND (expiresAt IS NULL OR expiresAt > @now);";
+        var members = memberIds == null ? "" : $"AND aclMemberId IN ({string.Join(",", memberIds.Select((_, i) => $"@m{i}"))}) ";
+        cmd.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt,permissions,lockedFileKey,created,modified " +
+                          "FROM DriveAclIndex WHERE identityId = @identityId AND driveId = @driveId " +
+                          $"AND fileId IN ({string.Join(",", fileIds.Select((_, i) => $"@f{i}"))}) {members}" +
+                          "AND (permissions & 1) = 1 AND (expiresAt IS NULL OR expiresAt > @now) ORDER BY rowId;";
         cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
         cmd.AddParameter("@driveId", DbType.Binary, driveId);
         cmd.AddParameter("@now", DbType.Int64, now.milliseconds);
@@ -128,19 +133,12 @@ public class TableDriveAclIndex(
             cmd.AddParameter($"@f{i}", DbType.Binary, fileId);
         }
 
-        foreach (var (memberId, i) in memberIds.Select((m, i) => (m, i)))
+        foreach (var (memberId, i) in (memberIds ?? []).Select((m, i) => (m, i)))
         {
             cmd.AddParameter($"@m{i}", DbType.Binary, memberId);
         }
 
-        var result = new HashSet<Guid>();
-        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
-        while (await rdr.ReadAsync())
-        {
-            result.Add(new Guid((byte[])rdr[0]));
-        }
-
-        return result;
+        return await ReadRowsAsync(cmd);
     }
 
     public async Task<(List<DriveAclIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)

@@ -2646,10 +2646,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Assert.That(nobody, Is.Empty, "a caller no row can name");
 
             var all = new[] { live, mine, withdrawn, expired, noRead, others, none };
-            Assert.That((await tblAcl.GetFilesWithLiveRowAsync(driveId, all, [circle, me], UnixTimeUtc.Now())).OrderBy(id => id),
+            Assert.That((await tblAcl.GetLiveRowsAsync(driveId, all, [circle, me], UnixTimeUtc.Now())).Select(r => r.fileId).OrderBy(id => id),
                 Is.EqualTo(new[] { live, mine }.OrderBy(id => id)), "the live rows: Read set, not expired");
-            Assert.That(await tblAcl.GetFilesWithLiveRowAsync(driveId, all, [], UnixTimeUtc.Now()), Is.Empty, "no members");
-            Assert.That(await tblAcl.GetFilesWithLiveRowAsync(Guid.NewGuid(), all, [circle, me], UnixTimeUtc.Now()), Is.Empty,
+            Assert.That((await tblAcl.GetLiveRowsAsync(driveId, all, null, UnixTimeUtc.Now())).Select(r => r.fileId).OrderBy(id => id),
+                Is.EqualTo(new[] { live, mine, others }.OrderBy(id => id)), "every member's live rows");
+            Assert.That(await tblAcl.GetLiveRowsAsync(driveId, all, [], UnixTimeUtc.Now()), Is.Empty, "no members");
+            Assert.That(await tblAcl.GetLiveRowsAsync(Guid.NewGuid(), all, [circle, me], UnixTimeUtc.Now()), Is.Empty,
                 "another drive");
         }
 

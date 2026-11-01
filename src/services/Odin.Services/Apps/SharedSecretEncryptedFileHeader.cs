@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using Odin.Services.Drives.Shares;
 using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -29,6 +32,13 @@ namespace Odin.Services.Apps
         public int Priority { get; set; }
 
         public Int64 FileByteCount { get; set; }
+
+        /// <summary>
+        /// On a Selective Share drive, the file's live shares, when an owner caller asked for them (<c>includeShares</c>,
+        /// docs/selective-share-pr3-plan.md, section 5); not written when not asked.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<ShareRow> Shares { get; set; }
 
         public void AssertFileIsActive()
         {

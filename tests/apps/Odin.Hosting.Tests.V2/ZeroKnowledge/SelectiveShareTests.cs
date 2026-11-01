@@ -264,6 +264,41 @@ public class SelectiveShareTests : V2Fixture
         Assert.That(byOtherApp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"another app's upload: {byOtherApp.Error?.Content}");
     }
 
+    [Test]
+    public async Task OwnerCallersGetAFilesLiveSharesOnlyWhenTheyAsk()
+    {
+        var s = await ArrangeAsync();
+        var shared = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read)]);
+        var withdrawn = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read)]);
+        var notShared = await s.UploadAsync(SecurityGroupType.Owner);
+        Assert.That((await s.Shares.WithdrawShare(s.Drive.Alias, withdrawn, s.CircleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        foreach (var (caller, who) in new (IV2Caller, string)[] { (s.Frodo, "the owner console"), (s.App, "the drive's app") })
+        {
+            var asked = await SharesInQueryAsync(caller, s, includeShares: true);
+            Assert.That(asked[shared]?.Select(r => (r.CircleId, r.Permissions)), Is.EqualTo(new[] { (s.CircleId, DrivePermission.Read) }), who);
+            Assert.That(asked[withdrawn], Is.Empty, $"{who}: a withdrawn share isn't live");
+            Assert.That(asked[notShared], Is.Empty, $"{who}: no share");
+            Assert.That((await SharesInQueryAsync(caller, s, includeShares: false)).Values, Has.All.Null, $"{who}: not asked");
+
+            var byId = await caller.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, shared, includeShares: true);
+            Assert.That(byId.Content?.Shares?.Single().CircleId, Is.EqualTo(s.CircleId), $"{who}, by id: {byId.Error?.Content}");
+            Assert.That((await caller.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, shared)).Content?.Shares, Is.Null, $"{who}, by id, not asked");
+        }
+    }
+
+    // Each file of the drive and the shares its header came with
+    private static async Task<Dictionary<Guid, List<ShareRow>?>> SharesInQueryAsync(IV2Caller caller, Arranged s, bool includeShares)
+    {
+        var query = await caller.Drives.Reader.GetBatchAsync(s.Drive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = s.Drive },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, IncludeMetadataHeader = true, IncludeShares = includeShares }
+        });
+        Assert.That(query.IsSuccessStatusCode, Is.True, $"the query answered {query.StatusCode}: {query.Error?.Content}");
+        return query.Content!.SearchResults.ToDictionary(h => h.FileId, h => (List<ShareRow>?)h.Shares);
+    }
+
     private static async Task AssertSamSeesAsync(Arranged s, Guid fileId, bool sees, string when) =>
         await AssertSeesAsync(s.Sam, s, fileId, sees, when);
 

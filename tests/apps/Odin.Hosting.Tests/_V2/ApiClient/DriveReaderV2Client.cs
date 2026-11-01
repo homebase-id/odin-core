@@ -23,11 +23,11 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
     }
 
     public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsync(Guid driveId, Guid fileId,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard, bool includeShares = false)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveReaderHttpClientApiV2>(client, sharedSecret);
-        var apiResponse = await svc.GetFileHeader(driveId, fileId, fileSystemType);
+        var apiResponse = await svc.GetFileHeader(driveId, fileId, fileSystemType, includeShares ? true : null);
         return apiResponse;
     }
 
