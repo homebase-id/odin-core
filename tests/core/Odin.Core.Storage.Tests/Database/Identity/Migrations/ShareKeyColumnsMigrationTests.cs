@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -95,6 +96,44 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         var aclRow = (await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1[0];
         Assert.That((aclRow.expiresAt, aclRow.lockedKeyHeader), Is.EqualTo((expiresAt, lockedKey)));
 
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+    [TestCase(DatabaseType.Sqlite, true)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, false)]
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    // A member syncs "my shares changed since" by their circles' rows in modified order: the index exists whether the
+    // table was made new or by the migration
+    public async Task TheAclIndexHasTheMemberSyncIndex(DatabaseType databaseType, bool migrated)
+    {
+        await RegisterServicesAsync(databaseType, createDatabases: !migrated);
+        await using var scope = Services.BeginLifetimeScope();
+        if (migrated)
+        {
+            var migrator = scope.Resolve<IdentityMigrator>();
+            await migrator.MigrateAsync(VersionBeforeShareKeys);
+            await migrator.MigrateAsync();
+        }
+
+        var connectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+        await using var cn = await connectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = databaseType == DatabaseType.Sqlite
+            ? "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'DriveAclIndex' AND sql IS NOT NULL;"
+            : "SELECT indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'driveaclindex';";
+        var definitions = new List<string>();
+        await using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                definitions.Add(reader.GetString(0).Replace(" ", "").ToLowerInvariant());
+            }
+        }
+
+        Assert.That(definitions, Has.Some.Contains("(identityid,driveid,aclmemberid,modified,rowid)"));
     }
 
     private async Task ExecuteAsync(ScopedIdentityConnectionFactory connectionFactory, string sql,

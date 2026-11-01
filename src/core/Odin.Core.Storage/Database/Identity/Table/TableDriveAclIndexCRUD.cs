@@ -86,6 +86,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,aclMemberId)"
                    +$"){wori};"
+                   +"CREATE INDEX IF NOT EXISTS Idx0DriveAclIndex ON DriveAclIndex(identityId,driveId,aclMemberId,modified,rowId);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "DriveAclIndex", createSql, commentSql);
         }
