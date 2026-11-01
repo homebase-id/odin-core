@@ -47,16 +47,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
         static QueryBatch()
         {
-            // Initialize selectOutputFields statically
+            // Initialize selectOutputFields statically. Every driveMainIndex column the query uses names its table:
+            // the ACL join brings in driveAclIndex, which has a fileId, rowId, created and modified of its own
             SelectOutputFields = string.Join(",",
                 TableDriveMainIndex.GetColumnNames()
                     .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
                                 && !name.Equals("driveId", StringComparison.OrdinalIgnoreCase))
-                    .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.fileId" :
-                                    name.Equals("rowId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.rowId" :
-                                    name));
-
-            
+                    .Select(name => "driveMainIndex." + name));
         }
 
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
@@ -68,14 +65,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> tagsAllOf,
             List<Guid> localTagsAllOf,
             Int32? fileSystemType,
-            Guid driveId)
+            Guid driveId,
+            bool aclRowsRequired)
         {
             var leftJoin = "";
 
             listWhere.Add($"driveMainIndex.identityId = {odinIdentity.BytesToSql(_databaseType)}");
             listWhere.Add($"driveMainIndex.driveid = {driveId.BytesToSql(_databaseType)}");
-            listWhere.Add($"(fileSystemType = {fileSystemType})");
-            listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
+            listWhere.Add($"(driveMainIndex.fileSystemType = {fileSystemType})");
+            listWhere.Add($"(driveMainIndex.requiredSecurityGroup >= {requiredSecurityGroup.Start} AND driveMainIndex.requiredSecurityGroup <= {requiredSecurityGroup.End})");
 
             //
             // An ACL for a file is the required security group and optional list of circles
@@ -83,7 +81,18 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             //   We then also check if EITHER there is a circle matching anyOf the circles provided
             //   OR if there are no circles defined for the fileId in question (the NOT IN check).
             //
-            if (IsSet(aclAnyOf))
+            if (aclRowsRequired)
+            {
+                // A Selective Share drive: a file comes back only through a row naming the caller, live or not, so a
+                // withdrawn or expired share still reaches the caller's sync; the read rule decides what it shows
+                // (docs/selective-share-pr3-plan.md, section 2). The rows are found by the circle's index, not by
+                // walking the drive's files. A caller no row can name gets nothing.
+                listWhere.Add(IsSet(aclAnyOf)
+                    ? $"driveMainIndex.fileId IN (SELECT r.fileId FROM driveAclIndex r WHERE r.identityId = {odinIdentity.BytesToSql(_databaseType)} " +
+                      $"AND r.driveId = {driveId.BytesToSql(_databaseType)} AND r.aclMemberId IN ({HexList(aclAnyOf)}))"
+                    : "1 = 0");
+            }
+            else if (IsSet(aclAnyOf))
             {
                 leftJoin = $"LEFT JOIN driveAclIndex cir ON (driveMainIndex.identityId = cir.identityId AND driveMainIndex.driveId = cir.driveId AND driveMainIndex.fileId = cir.fileId)";
 
@@ -99,22 +108,22 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(filetypesAnyOf))
             {
-                listWhere.Add($"filetype IN ({IntList(filetypesAnyOf)})");
+                listWhere.Add($"driveMainIndex.filetype IN ({IntList(filetypesAnyOf)})");
             }
 
             if (IsSet(datatypesAnyOf))
             {
-                listWhere.Add($"datatype IN ({IntList(datatypesAnyOf)})");
+                listWhere.Add($"driveMainIndex.datatype IN ({IntList(datatypesAnyOf)})");
             }
 
             if (IsSet(globalTransitIdAnyOf))
             {
-                listWhere.Add($"globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
+                listWhere.Add($"driveMainIndex.globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
             }
 
             if (IsSet(uniqueIdAnyOf))
             {
-                listWhere.Add($"uniqueid IN ({HexList(uniqueIdAnyOf)})");
+                listWhere.Add($"driveMainIndex.uniqueid IN ({HexList(uniqueIdAnyOf)})");
             }
 
             if (IsSet(tagsAnyOf))
@@ -129,23 +138,23 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(archivalStatusAnyOf))
             {
-                listWhere.Add($"archivalStatus IN ({IntList(archivalStatusAnyOf)})");
+                listWhere.Add($"driveMainIndex.archivalStatus IN ({IntList(archivalStatusAnyOf)})");
             }
 
             if (IsSet(senderidAnyOf))
             {
-                listWhere.Add($"senderid IN ({UnsafeStringList(senderidAnyOf)})");
+                listWhere.Add($"driveMainIndex.senderid IN ({UnsafeStringList(senderidAnyOf)})");
             }
 
             if (IsSet(groupIdAnyOf))
             {
-                listWhere.Add($"groupid IN ({HexList(groupIdAnyOf)})");
+                listWhere.Add($"driveMainIndex.groupid IN ({HexList(groupIdAnyOf)})");
             }
 
             if (userdateSpan != null)
             {
                 userdateSpan.Validate();
-                listWhere.Add($"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds})");
+                listWhere.Add($"(driveMainIndex.userdate >= {userdateSpan.Start.milliseconds} AND driveMainIndex.userdate <= {userdateSpan.End.milliseconds})");
             }
 
             if (IsSet(tagsAllOf))
@@ -222,7 +231,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> tagsAllOf = null,
             List<Guid> localTagsAnyOf = null,
             List<Guid> localTagsAllOf = null,
-            UnixTimeUtc? modifiedAfter = null)
+            UnixTimeUtc? modifiedAfter = null,
+            bool aclRowsRequired = false)
         {
             if (null == fileSystemType)
             {
@@ -282,9 +292,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await using var cmd = cn.CreateCommand();
 
             if ((sortField == QueryBatchSortField.CreatedDate) || (sortField == QueryBatchSortField.FileId))
-                timeField = "created";
+                timeField = "driveMainIndex.created";
             else if (sortField == QueryBatchSortField.UserDate)
-                timeField = "userDate";
+                timeField = "driveMainIndex.userDate";
             else if (sortField == QueryBatchSortField.AnyChangeDate || sortField == QueryBatchSortField.OnlyModifiedDate)
             {
                 // IMPORTANT: When querying by modified and getting a cursor back, it is important we do not
@@ -304,20 +314,20 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 if (sortOrder == QueryBatchSortOrder.OldestFirst)
                 {
                     trimAtNow = true;
-                    listWhereAnd.Add($"modified < {cmd.SqlNow()} + {HoldBackWindowMs}");
+                    listWhereAnd.Add($"driveMainIndex.modified < {cmd.SqlNow()} + {HoldBackWindowMs}");
                 }
                 else
                 {
-                    listWhereAnd.Add($"modified < {cmd.SqlNow()}");
+                    listWhereAnd.Add($"driveMainIndex.modified < {cmd.SqlNow()}");
                 }
 
                 if (sortField == QueryBatchSortField.OnlyModifiedDate)
                 {
                     // When modified != created, it means it's an item that has been modified, not newly created
-                    listWhereAnd.Add($"modified != created");
+                    listWhereAnd.Add($"driveMainIndex.modified != driveMainIndex.created");
                 }
 
-                timeField = "modified";
+                timeField = "driveMainIndex.modified";
             }
             else
                 throw new Exception("Invalid sorting value");
@@ -350,19 +360,19 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(fileStateAnyOf))
             {
-                listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
+                listWhereAnd.Add($"driveMainIndex.fileState IN ({IntList(fileStateAnyOf)})");
             }
 
             if (modifiedAfter != null)
             {
                 // Server-enforced lower bound on the (server-set) modified timestamp. Used by the temporal
                 // read API to clamp results to a recent window. Inclusive boundary.
-                listWhereAnd.Add($"(modified >= {modifiedAfter.Value.milliseconds})");
+                listWhereAnd.Add($"(driveMainIndex.modified >= {modifiedAfter.Value.milliseconds})");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
                 uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
-                fileSystemType, driveId);
+                fileSystemType, driveId, aclRowsRequired);
 
             var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
@@ -462,7 +472,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null,
             List<Guid> localTagsAnyOf = null,
-            List<Guid> localTagsAllOf = null)
+            List<Guid> localTagsAllOf = null,
+            bool aclRowsRequired = false)
         {
             bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
 
@@ -486,7 +497,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     tagsAnyOf,
                     tagsAllOf,
                     localTagsAnyOf,
-                    localTagsAllOf);
+                    localTagsAllOf, aclRowsRequired: aclRowsRequired);
 
             if (sortOrder == QueryBatchSortOrder.OldestFirst)
                 return (result, moreRows, refCursor);
@@ -553,7 +564,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         tagsAnyOf,
                         tagsAllOf,
                         localTagsAnyOf,
-                        localTagsAllOf);
+                        localTagsAllOf, aclRowsRequired: aclRowsRequired);
 
                     // There was more data
                     if (r2.Count > 0)
@@ -587,7 +598,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         userdateSpan,
                         aclAnyOf,
                         tagsAnyOf, tagsAllOf,
-                        localTagsAnyOf, localTagsAllOf);
+                        localTagsAnyOf, localTagsAllOf, aclRowsRequired: aclRowsRequired);
                 }
                 else
                 {
@@ -627,7 +638,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null,
             List<Guid> localTagsAnyOf = null,
-            List<Guid> localTagsAllOf = null)
+            List<Guid> localTagsAllOf = null,
+            bool aclRowsRequired = false)
         {
 
             var cursor = TimeRowCursor.FromJson(cursorString);
@@ -644,7 +656,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             var (ldr, mr, c3) = await QueryBatchAsync(driveId, noOfItems, c2, QueryBatchSortOrder.OldestFirst, QueryBatchSortField.OnlyModifiedDate,
                 fileSystemType, null, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf,
-                uniqueIdAnyOf, archivalStatusAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf, localTagsAnyOf, localTagsAllOf);
+                uniqueIdAnyOf, archivalStatusAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf, localTagsAnyOf, localTagsAllOf,
+                aclRowsRequired: aclRowsRequired);
 
             return (ldr, mr, c3.pagingCursor.ToJson());
         }

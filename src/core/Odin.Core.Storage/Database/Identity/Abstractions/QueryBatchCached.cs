@@ -81,7 +81,8 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAnyOf = null,
         List<Guid>? localTagsAllOf = null,
         UnixTimeUtc? modifiedAfter = null,
-        TimeSpan? cacheTtl = null)
+        TimeSpan? cacheTtl = null,
+        bool aclRowsRequired = false)
     {
         var cacheKey = "QueryBatchAsync:" + driveId + ":" + HashParameters.Calculate(
             driveId,
@@ -131,11 +132,13 @@ public class QueryBatchCached : AbstractTableCaching
                 tagsAllOf,
                 localTagsAnyOf,
                 localTagsAllOf,
-                modifiedAfter);
+                modifiedAfter,
+                aclRowsRequired);
             return new QueryBatchCachedResult(records, moreRows, c);
         };
 
-        if (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst)
+        // A share's expiry would outlive a cached page (QueryBatch, aclRowsRequired)
+        if (aclRowsRequired || (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst))
         {
             return await query();
         }
@@ -175,7 +178,8 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? tagsAllOf = null,
         List<Guid>? localTagsAnyOf = null,
         List<Guid>? localTagsAllOf = null,
-        TimeSpan? cacheTtl = null)
+        TimeSpan? cacheTtl = null,
+        bool aclRowsRequired = false)
     {
         var cacheKey = "QueryBatchSmartCursorAsync:" + driveId + ":" + HashParameters.Calculate(
             driveId,
@@ -223,11 +227,13 @@ public class QueryBatchCached : AbstractTableCaching
                 tagsAnyOf,
                 tagsAllOf,
                 localTagsAnyOf,
-                localTagsAllOf);
+                localTagsAllOf,
+                aclRowsRequired);
             return new QueryBatchCachedResult(records, moreRows, c);
         };
 
-        if (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst)
+        // A share's expiry would outlive a cached page (QueryBatch, aclRowsRequired)
+        if (aclRowsRequired || (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst))
         {
             return await query();
         }
@@ -265,7 +271,8 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? tagsAllOf = null,
         List<Guid>? localTagsAnyOf = null,
         List<Guid>? localTagsAllOf = null,
-        TimeSpan? cacheTtl = null)
+        TimeSpan? cacheTtl = null,
+        bool aclRowsRequired = false)
     {
         var cacheKey = "QueryModifiedAsync:" + driveId + ":" +  HashParameters.Calculate(
             driveId,
@@ -309,9 +316,15 @@ public class QueryBatchCached : AbstractTableCaching
                 tagsAnyOf,
                 tagsAllOf,
                 localTagsAnyOf,
-                localTagsAllOf);
+                localTagsAllOf,
+                aclRowsRequired);
             return new QueryModifiedCachedResult(records, moreRows, c);
         };
+
+        if (aclRowsRequired)
+        {
+            return await query(); // a share's expiry would outlive a cached page (QueryBatch, aclRowsRequired)
+        }
 
         var result = await Cache.GetOrSetAsync(
             cacheKey,

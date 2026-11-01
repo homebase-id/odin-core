@@ -105,6 +105,7 @@ public class CreateDriveRequest
                 OdinClientErrorCode.ArgumentError);
         }
 
+        SelectiveShareDrives.AssertSettingsFit(SharingModel, OwnerOnly, Attributes);
         return true;
     }
 }

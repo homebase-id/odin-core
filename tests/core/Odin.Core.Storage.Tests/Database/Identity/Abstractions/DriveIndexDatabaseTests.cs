@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
@@ -2510,6 +2511,148 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, moreRows, outCursor) = await queryBatch.QueryBatchSmartCursorAsync(driveId, 400, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: new IntRange(start: 2, end: 3));
             ClassicAssert.IsTrue(result.Count == 3);
             ClassicAssert.IsTrue(moreRows == false);
+        }
+
+        [Test]
+        [Combinatorial]
+        public async Task AnAclFilterWorksWithEverySortAndFilter(
+            [Values(DatabaseType.Sqlite
+                #if RUN_POSTGRES_TESTS
+                , DatabaseType.Postgres
+                #endif
+            )] DatabaseType databaseType,
+            [Values(QueryBatchSortField.UserDate, QueryBatchSortField.CreatedDate, QueryBatchSortField.AnyChangeDate,
+                QueryBatchSortField.OnlyModifiedDate)] QueryBatchSortField sortField,
+            [Values(false, true)] bool aclRowsRequired)
+        {
+            // The ACL filter joins driveAclIndex, which shares column names with driveMainIndex (fileId, rowId, created,
+            // modified): every sort, both orders, paging by cursor, a boundary and every filter must still work with it.
+            // With aclRowsRequired (a Selective Share drive) it asks driveAclIndex in a subquery instead.
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var queryBatch = scope.Resolve<QueryBatch>();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var tblDriveLocalTagIndex = scope.Resolve<TableDriveLocalTagIndex>();
+
+            var driveId = Guid.NewGuid();
+            var shared = SequentialGuid.CreateGuid(); // the caller's circle
+            var other = SequentialGuid.CreateGuid();
+            var groupId = SequentialGuid.CreateGuid();
+            var (tag1, tag2, localTag1, localTag2) =
+                (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid());
+            var (f1, f2, f3) = (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid());
+            var (g1, g2, g3) = (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid());
+            var (u1, u2, u3) = (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid());
+            var start = UnixTimeUtc.Now();
+
+            foreach (var (fileId, gtid, uniqueId, userDate, acl) in new[]
+                     {
+                         (f1, g1, u1, 1000L, new List<Guid> { shared }),
+                         (f2, g2, u2, 2000L, new List<Guid> { other }),
+                         (f3, g3, u3, 3000L, (List<Guid>)null),
+                     })
+            {
+                await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, gtid, 1, 1, "sam", groupId, uniqueId, 0,
+                    new UnixTimeUtc(userDate), 1, acl, [tag1, tag2], 1);
+                await tblDriveLocalTagIndex.InsertRowsAsync(driveId, fileId, [localTag1, localTag2]);
+            }
+
+            // f1 written again, so it is modified as well as created
+            var record = await tblDriveMainIndex.GetAsync(driveId, f1);
+            await metaIndex.BaseUpsertEntryZapZapAsync(record, [shared], [tag1, tag2]);
+            await Task.Delay(10); // change-date queries leave out what was written in the current millisecond
+
+            // The caller's circle may read f1; nobody's circle is named on f3, so the security group decides, unless rows
+            // are required; f2 is another circle's. Only f1 has been modified.
+            var expected = (sortField == QueryBatchSortField.OnlyModifiedDate || aclRowsRequired ? new[] { f1 } : new[] { f1, f3 })
+                .OrderBy(id => id);
+
+            foreach (var sortOrder in new[] { QueryBatchSortOrder.NewestFirst, QueryBatchSortOrder.OldestFirst })
+            {
+                // One row per page, so every page after the first goes through the paging cursor
+                var seen = new List<Guid>();
+                var cursor = new QueryBatchCursor();
+                bool moreRows;
+                do
+                {
+                    List<DriveMainIndexRecord> page;
+                    (page, moreRows, cursor) = await QueryAsync(cursor, sortOrder);
+                    seen.AddRange(page.Select(r => r.fileId));
+                } while (moreRows && seen.Count < 10);
+
+                Assert.That(seen.OrderBy(id => id), Is.EqualTo(expected), $"paged, sorted by {sortField}, {sortOrder}");
+            }
+
+            // A boundary that lets every row through, so its clause runs too
+            var (bounded, _, _) = await QueryAsync(
+                new QueryBatchCursor { stopAtBoundary = new TimeRowCursor(new UnixTimeUtc(0), 0) }, QueryBatchSortOrder.NewestFirst, 100);
+            Assert.That(bounded.Select(r => r.fileId).OrderBy(id => id), Is.EqualTo(expected), $"with a boundary, sorted by {sortField}");
+
+            Task<(List<DriveMainIndexRecord>, bool, QueryBatchCursor)> QueryAsync(QueryBatchCursor cursor, QueryBatchSortOrder sortOrder,
+                int noOfItems = 1) =>
+                queryBatch.QueryBatchAsync(driveId, noOfItems, cursor, sortOrder: sortOrder, sortField: sortField,
+                    fileStateAnyOf: [0], requiredSecurityGroup: allIntRange, globalTransitIdAnyOf: [g1, g2, g3],
+                    filetypesAnyOf: [1], datatypesAnyOf: [1], senderidAnyOf: ["sam"], groupIdAnyOf: [groupId],
+                    uniqueIdAnyOf: [u1, u2, u3], archivalStatusAnyOf: [0],
+                    userdateSpan: new UnixTimeUtcRange(new UnixTimeUtc(0), new UnixTimeUtc(10_000)),
+                    aclAnyOf: [shared], tagsAnyOf: [tag1], tagsAllOf: [tag1, tag2], localTagsAnyOf: [localTag1],
+                    localTagsAllOf: [localTag1, localTag2], modifiedAfter: start.AddSeconds(-60), aclRowsRequired: aclRowsRequired);
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // On a Selective Share drive a file comes back through any row naming the caller, live or not (a withdrawn or
+        // expired share reaches their sync), and never without one; the live rows are the read rule's, one read a page
+        public async Task WithRowsRequiredAFileComesBackOnlyThroughTheCallersRows(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var queryBatch = scope.Resolve<QueryBatch>();
+            var tblAcl = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var (circle, me, other) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+            var (live, mine, withdrawn, expired, noRead, others, none) = (SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(),
+                SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(), SequentialGuid.CreateGuid(),
+                SequentialGuid.CreateGuid());
+            var past = UnixTimeUtc.Now().AddSeconds(-60);
+            foreach (var (fileId, member, permissions, expiresAt) in new (Guid, Guid?, int, UnixTimeUtc?)[]
+                     {
+                         (live, circle, 1, null), (mine, me, 3, UnixTimeUtc.Now().AddSeconds(3600)), (withdrawn, circle, 0, null),
+                         (expired, circle, 1, past), (noRead, circle, 2, null), (others, other, 1, null), (none, null, 0, null)
+                     })
+            {
+                await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, null, 1, 1, "sam", null, null, 0,
+                    UnixTimeUtc.Now(), 1, null, null, 1);
+                if (member is { } m)
+                {
+                    await tblAcl.InsertAsync(new DriveAclIndexRecord
+                        { driveId = driveId, fileId = fileId, aclMemberId = m, permissions = permissions, expiresAt = expiresAt });
+                }
+            }
+
+            var (page, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, null, requiredSecurityGroup: allIntRange,
+                aclAnyOf: [circle, me], aclRowsRequired: true);
+            Assert.That(page.Select(r => r.fileId).OrderBy(id => id),
+                Is.EqualTo(new[] { live, mine, withdrawn, expired, noRead }.OrderBy(id => id)), "through the caller's rows, live or not");
+
+            var (nobody, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, null, requiredSecurityGroup: allIntRange,
+                aclAnyOf: null, aclRowsRequired: true);
+            Assert.That(nobody, Is.Empty, "a caller no row can name");
+
+            var all = new[] { live, mine, withdrawn, expired, noRead, others, none };
+            Assert.That((await tblAcl.GetLiveRowsAsync(driveId, all, [circle, me], UnixTimeUtc.Now())).Select(r => r.fileId).OrderBy(id => id),
+                Is.EqualTo(new[] { live, mine }.OrderBy(id => id)), "the live rows: Read set, not expired");
+            Assert.That((await tblAcl.GetLiveRowsAsync(driveId, all, null, UnixTimeUtc.Now())).Select(r => r.fileId).OrderBy(id => id),
+                Is.EqualTo(new[] { live, mine, others }.OrderBy(id => id)), "every member's live rows");
+            Assert.That(await tblAcl.GetLiveRowsAsync(driveId, all, [], UnixTimeUtc.Now()), Is.Empty, "no members");
+            Assert.That(await tblAcl.GetLiveRowsAsync(Guid.NewGuid(), all, [circle, me], UnixTimeUtc.Now()), Is.Empty,
+                "another drive");
         }
 
         [Test]

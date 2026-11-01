@@ -17,6 +17,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -71,7 +72,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         List<TestPayloadDefinition> payloads = null,
         AppNotificationOptions notificationOptions = null,
         KeyHeader keyHeader = null,
-        EncryptedKeyHeader lockedKeyHeader = null)
+        EncryptedKeyHeader lockedKeyHeader = null,
+        List<ShareRequest> shares = null)
     {
         if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
         {
@@ -121,7 +123,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
                 keyHeader,
                 instructionSet.TransferIv,
                 ref sharedSecret),
-            FileMetadata = fileMetadata
+            FileMetadata = fileMetadata,
+            Shares = shares
         };
 
         var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
@@ -209,7 +212,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         UploadFileMetadata fileMetadata,
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
-        TransitOptions transitOptions = null)
+        TransitOptions transitOptions = null,
+        List<ShareRequest> shares = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -233,7 +237,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             var descriptor = new UploadFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
-                FileMetadata = fileMetadata
+                FileMetadata = fileMetadata,
+                Shares = shares
             };
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);

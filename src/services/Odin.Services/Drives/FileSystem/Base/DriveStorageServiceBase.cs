@@ -5,6 +5,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -14,6 +15,7 @@ using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -78,7 +80,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext);
+            // A member reading through a share gets that share's locked file key (section 6)
+            var shared = await FilesSharedWithCallerAsync(file.DriveId, [file.FileId], odinContext);
+            var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext,
+                callerShare: shared?.GetValueOrDefault(file.FileId));
             return result;
         }
 
@@ -716,10 +721,37 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Whether the caller may see <paramref name="header"/> (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>),
         /// on a drive that isn't archived
         /// </summary>
-        public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext)
+        /// <summary>
+        /// Gives each of <paramref name="headers"/> its live shares, in one read, for an owner caller on a Selective
+        /// Share drive (<c>includeShares</c>, docs/selective-share-pr3-plan.md, section 5); any other caller or drive
+        /// gets none, and nothing is read.
+        /// </summary>
+        public async Task AttachSharesAsync(Guid driveId, IReadOnlyCollection<SharedSecretEncryptedFileHeader> headers,
+            IOdinContext odinContext)
+        {
+            if (!odinContext.Caller.IsOwner || headers.Count == 0 || (await DriveManager.GetDriveAsync(driveId))?.IsSelectiveShare != true)
+            {
+                return;
+            }
+
+            var rows = await db.DriveAclIndex.GetLiveRowsAsync(driveId, headers.Select(h => h.FileId).ToList(), null, UnixTimeUtc.Now());
+            var byFile = rows.ToLookup(r => r.fileId);
+            foreach (var header in headers)
+            {
+                header.Shares = byFile[header.FileId].Select(ShareRow.From).ToList();
+            }
+        }
+
+        /// <inheritdoc cref="IDriveAclAuthorizationService.FilesSharedWithCallerAsync"/>
+        public Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
+            IOdinContext odinContext) =>
+            driveAclAuthorizationService.FilesSharedWithCallerAsync(driveId, fileIds, odinContext);
+
+        public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext,
+            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller = null)
         {
             await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
-            return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext);
+            return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext, sharedWithCaller);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)

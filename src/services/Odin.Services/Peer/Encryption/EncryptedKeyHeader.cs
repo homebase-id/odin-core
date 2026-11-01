@@ -107,6 +107,18 @@ namespace Odin.Services.Peer.Encryption
         /// </summary>
         public bool IsZkDrive() => Type == EncryptionType.ZkDrive;
 
+        /// <summary>A member's key to a file shared with their circle (<see cref="EncryptionType.Share"/>), passed on as it is.</summary>
+        public bool IsShare() => Type == EncryptionType.Share;
+
+        /// <summary>A member's key to a shared file: the share's locked file key, with the file's own IV.</summary>
+        public static EncryptedKeyHeader ForShare(byte[] iv, byte[] lockedFileKey) => new()
+        {
+            EncryptionVersion = 1,
+            Type = EncryptionType.Share,
+            Iv = iv,
+            EncryptedAesKey = lockedFileKey
+        };
+
         /// <summary>A key header a client locked with a key the server doesn't hold: a deposit, or a zero-knowledge drive's own.</summary>
         public bool IsLockedByClient() => IsSealed() || IsZkDrive();
 

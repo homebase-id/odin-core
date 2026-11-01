@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 
@@ -14,7 +17,9 @@ namespace Odin.Services.Authorization.Acl
     public class DriveAclAuthorizationService(
         CircleNetworkService circleNetwork,
         CircleDefinitionService circleDefinitionService,
-        TenantContext tenantContext)
+        TenantContext tenantContext,
+        IDriveManager driveManager,
+        TableDriveAclIndex driveAclIndex)
         : IDriveAclAuthorizationService
     {
         /// <summary>
@@ -60,31 +65,72 @@ namespace Odin.Services.Authorization.Acl
             return Allows(acl, ReviewedSecurityTier.For(tenantContext.DataVersionNumber, icr), circles, odinId);
         }
 
-        public Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext) =>
-            Task.FromResult(ZkDriveFiles.VisibleTo(header, odinContext) &&
-                            CallerPassesAcl(header?.ServerMetadata?.AccessControlList, odinContext));
-
-        private bool CallerPassesAcl(AccessControlList acl, IOdinContext odinContext)
+        public async Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext,
+            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller = null)
         {
+            var visible = ZkDriveFiles.VisibleTo(header, odinContext);
             var caller = odinContext.Caller;
-            if (caller?.IsOwner ?? false)
+            if (PassesEveryAcl(caller))
             {
-                return true;
+                return visible;
             }
 
-            if (caller?.SecurityLevel == SecurityGroupType.System)
-            {
-                return true;
-            }
-
+            var acl = header?.ServerMetadata?.AccessControlList;
             if (acl == null || caller == null)
             {
                 return false;
             }
 
             var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, caller);
-            return Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId);
+            var file = header.FileMetadata.File;
+            if (await IsSelectiveShareAsync(file.DriveId))
+            {
+                // The share rows say who, not the ACL's names (docs/file-access.md, "With Selective Share"); a live
+                // share also opens a client-locked file to the member, who gets the share's locked file key (section 6)
+                sharedWithCaller ??= await FilesSharedWithCallerAsync(file.DriveId, [file.FileId], odinContext);
+                return sharedWithCaller.ContainsKey(file.FileId) && ReachesGroup(acl, level);
+            }
+
+            return visible && Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId);
         }
+
+        public async Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId,
+            IReadOnlyCollection<Guid> fileIds, IOdinContext odinContext)
+        {
+            if (PassesEveryAcl(odinContext.Caller) || !await IsSelectiveShareAsync(driveId))
+            {
+                return null;
+            }
+
+            // With live shares in more than one of the caller's circles, the lowest circle id's, so every read of the
+            // file picks the same one (section 6)
+            var rows = await driveAclIndex.GetLiveRowsAsync(driveId, fileIds, CallerMemberIds(odinContext), UnixTimeUtc.Now());
+            return rows.GroupBy(r => r.fileId).ToDictionary(g => g.Key, g => g.MinBy(r => r.aclMemberId)!);
+        }
+
+        /// <summary>
+        /// Who a file's index rows may name for this caller: their circles and their own OdinId's hash (none when
+        /// anonymous).  The query (<c>DriveQuery</c>) and the read rule ask the same list.
+        /// </summary>
+        public static List<Guid> CallerMemberIds(IOdinContext odinContext)
+        {
+            var caller = odinContext.Caller;
+            var members = new List<Guid>();
+            if (!caller.IsAnonymous)
+            {
+                members.Add(odinContext.GetCallerOdinIdOrFail().ToHashId());
+            }
+
+            members.AddRange(caller.Circles?.Select(c => c.Value) ?? []);
+            return members;
+        }
+
+        // Owner callers and the server's own work pass every file's ACL part
+        public static bool PassesEveryAcl(CallerContext caller) =>
+            (caller?.IsOwner ?? false) || caller?.SecurityLevel == SecurityGroupType.System;
+
+        private async Task<bool> IsSelectiveShareAsync(Guid driveId) =>
+            (await driveManager.GetDriveAsync(driveId))?.IsSelectiveShare == true;
 
         /// <summary>
         /// The one ACL decision, for <paramref name="reader"/> (null when anonymous) at <paramref name="level"/>
@@ -100,13 +146,7 @@ namespace Odin.Services.Authorization.Acl
         /// </remarks>
         public static bool Allows(AccessControlList acl, SecurityGroupType level, IReadOnlyCollection<Guid> circles, OdinId? reader)
         {
-            // System is a caller level, never a file's ACL; refuse it rather than let its value (1) admit everyone.
-            if (acl.RequiredSecurityGroup == SecurityGroupType.System)
-            {
-                return false;
-            }
-
-            if ((int)level < (int)acl.RequiredSecurityGroup)
+            if (!ReachesGroup(acl, level))
             {
                 return false;
             }
@@ -121,5 +161,10 @@ namespace Odin.Services.Authorization.Acl
             return requiredCircles.Intersect(circles).Any() ||
                    (reader.HasValue && requiredIdentities.Any(id => OdinId.IsValid(id) && (OdinId)id == reader.Value));
         }
+
+        /// <summary>Whether <paramref name="level"/> reaches the file's required group, on the ladder.</summary>
+        private static bool ReachesGroup(AccessControlList acl, SecurityGroupType level) =>
+            // System is a caller level, never a file's ACL; refuse it rather than let its value (1) admit everyone.
+            acl.RequiredSecurityGroup != SecurityGroupType.System && (int)level >= (int)acl.RequiredSecurityGroup;
     }
 }

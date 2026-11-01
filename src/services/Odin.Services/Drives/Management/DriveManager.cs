@@ -532,6 +532,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
+        SelectiveShareDrives.AssertSettingsFit(sharingModel, storageDrive.OwnerOnly, storageDrive.Attributes);
         storageDrive.MasterKeyEncryptedStorageKey = null;
         storageDrive.SharingModel = sharingModel; // how an existing drive becomes zero knowledge (a new one is created as one)
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
@@ -771,6 +772,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
+        SelectiveShareDrives.AssertSettingsFit(storageDrive.SharingModel, storageDrive.OwnerOnly, attributes);
         storageDrive.Attributes = attributes;
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));

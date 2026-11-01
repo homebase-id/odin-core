@@ -213,11 +213,10 @@ public class PendingEnrollmentProcessingTests : V2Fixture
         // a review before that fix left it.
         var scope = Host.GetTenantScope(frodo.Identity.DomainName);
         var storage = scope.Resolve<CircleNetworkStorage>();
-        var ownerContext = await BuildOwnerContextAsync(scope, frodo);
         var broken = await storage.GetAsync(sam.Identity);
         broken!.PeerKeyStore.WriteOnlyKeyPair = null;
         broken.PeerKeyStore.PendingEnrollments.Add(ParkedEntry(writeCircle, app.AppId));
-        await storage.UpsertAsync(broken, ownerContext);
+        await storage.UpsertAsync(broken);
 
         var result = await new V2ConnectionNetworkClient(app.Identity, app.Factory).ProcessPendingEnrollmentsAsync();
         Assert.That(result.IsSuccessStatusCode, Is.True,
@@ -278,7 +277,7 @@ public class PendingEnrollmentProcessingTests : V2Fixture
         var storage = scope.Resolve<CircleNetworkStorage>();
         var parked = await storage.GetAsync(sam.Identity);
         parked!.PeerKeyStore.PendingEnrollments.Add(ParkedEntry(writeCircle, owningApp.AppId));
-        await storage.UpsertAsync(parked, await BuildOwnerContextAsync(scope, frodo));
+        await storage.UpsertAsync(parked);
 
         // An unrelated app, holding nothing on the drive, calls in (chat does on every socket connect).
         var otherDrive = TargetDrive.NewTargetDrive();

@@ -103,10 +103,17 @@ public sealed class DriveEventMessage(
     /// file as it was, since the deleted header no longer says who could read it (it keeps the key header).
     /// Unlike a query, this doesn't leave out an encrypted file the socket holds no storage key for.
     /// </summary>
+    /// <remarks>
+    /// A client-locked file still reaches only a socket holding the drive's key: a member of a Selective Share circle
+    /// the read rule lets in hears of shares by their own events (docs/selective-share-pr3-plan.md, section 9), and the
+    /// key header this message would carry is the drive's.
+    /// </remarks>
     public async Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
     {
         var deviceOdinContext = socket.DeviceOdinContext;
-        return deviceOdinContext != null && await aclService.CallerMayReadAsync(previousHeader ?? header, deviceOdinContext);
+        var file = previousHeader ?? header;
+        return deviceOdinContext != null && ZkDriveFiles.VisibleTo(file, deviceOdinContext) &&
+               await aclService.CallerMayReadAsync(file, deviceOdinContext);
     }
 
     public string JsonFor(DeviceSocket socket)

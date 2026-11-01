@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
@@ -29,23 +33,67 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            var md = await tblDriveAclIndex.GetAsync(driveId, k1);
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.Empty, "before the write");
 
-            if (md.Count != 0)
-                Assert.Fail();
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EqualTo(a1), "after the write");
 
-            md = await tblDriveAclIndex.GetAsync(driveId, k1);
+            // A file's ACL grants read; nothing narrower is written until Selective Share.
+            var (rows, _) = await tblDriveAclIndex.PagingByRowIdAsync(10, null);
+            Assert.That(rows.Select(r => (r.aclMemberId, r.permissions, r.expiresAt)),
+                Is.EqualTo(new[] { (a1[0], 1, (UnixTimeUtc?)null) }));
+        }
 
-            if (md.Count == 0)
-                Assert.Fail();
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // The generated insert sends every column, so the column's DEFAULT 1 reaches a row only through the
+        // record's own default: a record nobody filled in still means read, never "nothing allowed"
+        public async Task ARecordLeftUnsetMeansRead(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
 
-            if (md.Count != 1)
-                Assert.Fail();
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var member = Guid.NewGuid();
+            await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = member });
 
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
+            var row = await tblDriveAclIndex.GetAsync(driveId, fileId, member);
+            Assert.That(row?.permissions, Is.EqualTo(1), $"a row read back as {row?.permissions}");
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // Selective Share: the row is the share, so it holds the file key locked with the circle key,
+        // and keeps its own created and modified apart from the file's
+        public async Task ARowHoldsItsLockedFileKeyAndItsOwnTimes(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var circleId = Guid.NewGuid();
+            var lockedFileKey = Enumerable.Range(0, 45).Select(i => (byte)i).ToArray();
+            var before = UnixTimeUtc.Now();
+            await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord
+                { driveId = driveId, fileId = fileId, aclMemberId = circleId, lockedFileKey = lockedFileKey });
+
+            var row = await tblDriveAclIndex.GetAsync(driveId, fileId, circleId);
+            Assert.That(row?.lockedFileKey, Is.EqualTo(lockedFileKey));
+            Assert.That(row.modified, Is.EqualTo(row.created), "a new share was modified when it was created");
+            // The database's clock, not .NET's: SQLite's julianday can land a millisecond either side
+            Assert.That(row.created.milliseconds, Is.InRange(before.milliseconds - 1000, UnixTimeUtc.Now().milliseconds + 1000),
+                "created is the insert's time");
         }
 
         [Test]
@@ -67,29 +115,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             a1.Add(Guid.NewGuid());
             a1.Add(Guid.NewGuid());
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
 
-            var md = await tblDriveAclIndex.GetAsync(driveId, k1);
-
-            if (md == null)
-                Assert.Fail();
-
-            if (md.Count != 2)
-                Assert.Fail();
-
-            // We don't know what order it comes back in :o) Quick hack.
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-            {
-                if (ByteArrayUtil.muidcmp(md[0], a1[1]) != 0)
-                    Assert.Fail();
-                if (ByteArrayUtil.muidcmp(md[1], a1[0]) != 0)
-                    Assert.Fail();
-            }
-            else
-            {
-                if (ByteArrayUtil.muidcmp(md[1], a1[1]) != 0)
-                    Assert.Fail();
-            }
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EquivalentTo(a1));
         }
 
         [Test]
@@ -97,7 +125,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
-        // Test we cannot insert the same aclmember key twice on the same key
+        // A member listed twice in a file's ACL gets one row
         public async Task InsertDuplicateAclMemberTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -107,25 +135,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
-            a1.Add(a1[0]);
+            var member = Guid.NewGuid();
 
-            bool ok = false;
-            try
-            {
-                await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
-                ok = false;
-            }
-            catch
-            {
-                ok = true;
-            }
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, [member, member]);
 
-            if (!ok)
-                Assert.Fail();
-
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EqualTo(new[] { member }));
         }
 
         [Test]
@@ -147,17 +161,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k2, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k2, a1);
 
-            var md = await tblDriveAclIndex.GetAsync(driveId, k1);
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
-
-            md = await tblDriveAclIndex.GetAsync(driveId, k2);
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
-
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EqualTo(a1), "first file");
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k2), Is.EqualTo(a1), "second file");
         }
 
         [Test]
@@ -178,21 +186,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
-            bool ok = false;
-            try
-            {
-                await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
-                ok = false;
-            }
-            catch
-            {
-                ok = true;
-            }
+            // The table holds one row per file and member: a second insert of the same row is refused
+            await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = k1, aclMemberId = a1[0] });
+            var ex = Assert.ThrowsAsync<OdinDatabaseException>(() =>
+                tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = k1, aclMemberId = a1[0] }));
+            Assert.That(ex!.IsUniqueConstraintViolation, Is.True, ex.ToString());
 
-            if (!ok)
-                Assert.Fail();
-
+            // Writing the same ACL again keeps the one row
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.EqualTo(a1));
         }
 
 
@@ -218,28 +220,17 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             a1.Add(v1);
             a1.Add(v2);
 
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k1, a1);
-            await tblDriveAclIndex.InsertRowsAsync(driveId, k2, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, a1);
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k2, a1);
 
-            // Delete all aclmembers of the first key entirely
-            await tblDriveAclIndex.DeleteRowAsync(driveId, k1, a1);
+            // Take all aclmembers off the first key
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k1, []);
 
-            // Check that k1 is now gone
-            var md = await tblDriveAclIndex.GetAsync(driveId, k1);
-            if (md.Count != 0)
-                Assert.Fail();
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k1), Is.Empty, "the first key's members");
 
-            // Remove one of the aclmembers from the list, delete it, and make sure we have the other one
-            a1.RemoveAt(0); // Remove v1
-            await tblDriveAclIndex.DeleteRowAsync(driveId, k2, a1);  // Delete v2
-
-            // Check that we have one left
-            md = await tblDriveAclIndex.GetAsync(driveId, k2);
-            if (md.Count != 1)
-                Assert.Fail();
-
-            if (ByteArrayUtil.muidcmp(md[0].ToByteArray(), v1.ToByteArray()) != 0)
-                Assert.Fail();
+            // Take v2 off the second key, and make sure we have the other one
+            await tblDriveAclIndex.ReconcileRowsAsync(driveId, k2, [v1]);
+            Assert.That(await tblDriveAclIndex.GetAsync(driveId, k2), Is.EqualTo(new[] { v1 }), "the second key's members");
         }
 
         [Test]
@@ -259,9 +250,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var f3 = Guid.NewGuid();
             var aclMember = Guid.NewGuid();
 
-            await tbl.InsertRowsAsync(driveId, f1, new List<Guid> { aclMember });
-            await tbl.InsertRowsAsync(driveId, f2, new List<Guid> { aclMember });
-            await tbl.InsertRowsAsync(driveId, f3, new List<Guid> { aclMember });
+            await tbl.ReconcileRowsAsync(driveId, f1, new List<Guid> { aclMember });
+            await tbl.ReconcileRowsAsync(driveId, f2, new List<Guid> { aclMember });
+            await tbl.ReconcileRowsAsync(driveId, f3, new List<Guid> { aclMember });
 
             var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
             Assert.That(page1.Count, Is.EqualTo(2));
@@ -274,6 +265,100 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var (all, allCursor) = await tbl.PagingByRowIdAsync(100, null);
             Assert.That(all.Count, Is.EqualTo(3));
             Assert.That(allCursor, Is.Null);
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // A header write reconciles the file's ACL rows: a member that stays keeps its row as it was, locked file key
+        // and times included; a member taken off loses its row; a new one gets a row; a member listed twice, one
+        public async Task AHeaderWriteKeepsTheRowsOfMembersThatStay(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var tbl = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var stays = Guid.NewGuid();
+            var leaves = Guid.NewGuid();
+            var joins = Guid.NewGuid();
+            var otherFileId = Guid.NewGuid();
+
+            var mainIndex = scope.Resolve<TableDriveMainIndex>();
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
+                UnixTimeUtc.Now(), 1, [leaves], null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, otherFileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
+                UnixTimeUtc.Now(), 1, [leaves], null, 1);
+
+            var lockedFileKey = Enumerable.Range(0, 45).Select(i => (byte)i).ToArray();
+            await tbl.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = stays, lockedFileKey = lockedFileKey });
+
+            var before = await tbl.GetAsync(driveId, fileId, stays);
+            await RewriteHeaderAsync(metaIndex, mainIndex, driveId, fileId, [stays, joins, joins]);
+
+            var after = await tbl.GetAsync(driveId, fileId, stays);
+            Assert.That((after.rowId, after.created, after.modified, after.lockedFileKey),
+                Is.EqualTo((before.rowId, before.created, before.modified, lockedFileKey)), "the row of a member that stays");
+            Assert.That((await tbl.GetAsync(driveId, fileId)).OrderBy(m => m),
+                Is.EqualTo(new[] { stays, joins }.OrderBy(m => m)), "the file's members after the write");
+            Assert.That(await tbl.GetAsync(driveId, otherFileId), Is.EqualTo(new[] { leaves }), "another file's rows");
+
+            await RewriteHeaderAsync(metaIndex, mainIndex, driveId, fileId, []);
+            Assert.That(await tbl.GetAsync(driveId, fileId), Is.Empty, "an empty list leaves no rows");
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // On a Selective Share drive the rows are the shares: a header write that doesn't reconcile leaves every row as
+        // it was, whatever list it carries, and a hard delete still deletes them
+        public async Task AHeaderWriteThatDoesntReconcileLeavesTheRowsAlone(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var mainIndex = scope.Resolve<TableDriveMainIndex>();
+            var tbl = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var shared = Guid.NewGuid();
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
+                UnixTimeUtc.Now(), 1, null, null, 1);
+            await tbl.InsertAsync(new DriveAclIndexRecord
+            {
+                driveId = driveId, fileId = fileId, aclMemberId = shared, permissions = 3,
+                lockedFileKey = Enumerable.Range(0, 45).Select(i => (byte)i).ToArray()
+            });
+            var before = await tbl.GetAsync(driveId, fileId, shared);
+
+            foreach (var acl in new List<Guid>[] { null, [], [Guid.NewGuid()] })
+            {
+                await RewriteHeaderAsync(metaIndex, mainIndex, driveId, fileId, acl, reconcileAcl: false);
+                var after = await tbl.GetAsync(driveId, fileId, shared);
+                Assert.That((after.rowId, after.permissions, after.modified, after.lockedFileKey),
+                    Is.EqualTo((before.rowId, before.permissions, before.modified, before.lockedFileKey)),
+                    $"the share row after a write carrying {acl?.Count.ToString() ?? "no"} list");
+                Assert.That(await tbl.GetAsync(driveId, fileId), Is.EqualTo(new[] { shared }), "the file's rows");
+            }
+
+            await metaIndex.DeleteEntryAsync(driveId, fileId);
+            Assert.That(await tbl.GetAsync(driveId, fileId), Is.Empty, "a hard delete deletes the shares");
+        }
+
+        // Writes the stored header again with a new ACL, as DriveQuery.SaveFileHeaderAsync does
+        private static async Task RewriteHeaderAsync(MainIndexMeta metaIndex, TableDriveMainIndex mainIndex, Guid driveId,
+            Guid fileId, List<Guid> acl, bool reconcileAcl = true)
+        {
+            var record = await mainIndex.GetAsync(driveId, fileId);
+            Assert.That(await metaIndex.BaseUpsertEntryZapZapAsync(record, acl, reconcileAcl: reconcileAcl), Is.EqualTo(1),
+                "the header write");
         }
     }
 }

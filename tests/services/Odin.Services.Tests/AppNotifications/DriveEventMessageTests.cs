@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using NSubstitute;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -6,6 +7,7 @@ using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Tests.AppNotifications;
@@ -18,8 +20,10 @@ namespace Odin.Services.Tests.AppNotifications;
 /// </summary>
 public class DriveEventMessageTests
 {
-    // The real read rule: the owner and the zero-knowledge checks it makes need none of the service's dependencies
-    private static readonly IDriveAclAuthorizationService ReadRule = new DriveAclAuthorizationService(null!, null!, null!);
+    // The real read rule. The owner and the zero-knowledge checks it makes need none of the service's dependencies; a
+    // drive manager that knows no drive puts every other file on an ordinary drive, judged by its ACL as before
+    private static readonly IDriveAclAuthorizationService ReadRule =
+        new DriveAclAuthorizationService(null!, null!, null!, Substitute.For<IDriveManager>(), null!);
 
     [TestCase(EncryptionType.ZkDrive, true, true, TestName = "AZkDriveFileReachesTheOwnerConsole")]
     [TestCase(EncryptionType.ZkDrive, false, false, TestName = "AZkDriveFileDoesNotReachAnApp")]

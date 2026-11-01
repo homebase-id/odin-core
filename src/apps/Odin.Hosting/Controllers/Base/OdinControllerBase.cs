@@ -236,7 +236,10 @@ public abstract class OdinControllerBase : ControllerBase
         HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
         HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
         HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-        HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
+        if (encryptedKeyHeader != null) // none for a client-locked file's payload: the client opens it with the file key
+        {
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
+        }
         return PayloadResult(payloadStream, "application/octet-stream");
     }
 
@@ -281,7 +284,10 @@ public abstract class OdinControllerBase : ControllerBase
         HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
         HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
         HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
-        HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
+        if (encryptedKeyHeader != null) // none for a client-locked file's payload: the client opens it with the file key
+        {
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
+        }
         return new FileStreamResult(thumb, "application/octet-stream");
     }
 

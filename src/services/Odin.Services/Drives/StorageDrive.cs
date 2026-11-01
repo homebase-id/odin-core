@@ -205,22 +205,12 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         }
     }
 
-    public bool AttributeHasTrueValue(string attribute)
-    {
-        if (null == Attributes)
-        {
-            return false;
-        }
+    public bool AttributeHasTrueValue(string attribute) => BuiltInDriveAttributes.IsTrue(Attributes, attribute);
 
-        return this.Attributes.TryGetValue(attribute, out string value) &&
-               bool.TryParse(value, out bool flagValue) &&
-               flagValue;
-    }
+    public bool IsCollaborationDrive() => BuiltInDriveAttributes.IsCollaborativeChannelIn(Attributes);
 
-    public bool IsCollaborationDrive()
-    {
-        return this.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
-    }
+    /// <summary>Shares are its index rows (docs/selective-share-pr3-plan.md); see <see cref="SelectiveShareDrives"/>.</summary>
+    public bool IsSelectiveShare => SharingModel == DriveSharingModel.SelectiveShare;
 
     /// <summary>
     /// Whether the CDN may read this drive's payloads.

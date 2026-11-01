@@ -67,16 +67,27 @@ public class MainIndexMetaCached : AbstractTableCaching
 
     //
 
+    /// <inheritdoc cref="MainIndexMeta.WriteSharesAsync"/>
+    public async Task<DriveMainIndexRecord?> WriteSharesAsync(Guid driveId, Guid fileId, IEnumerable<DriveAclIndexRecord> shares,
+        Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> checkFile)
+    {
+        var file = await _meta.WriteSharesAsync(driveId, fileId, shares, checkFile);
+        await InvalidateDriveAsync(driveId);
+        return file;
+    }
+
     public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
         List<Guid>? accessControlList = null,
         List<Guid>? tagIdList = null,
-        Guid? useThisNewVersionTag = null)
+        Guid? useThisNewVersionTag = null,
+        bool reconcileAcl = true)
     {
         var result = await _meta.BaseUpsertEntryZapZapAsync(
             driveMainIndexRecord,
             accessControlList,
             tagIdList,
-            useThisNewVersionTag);
+            useThisNewVersionTag,
+            reconcileAcl);
 
         await InvalidateDriveAsync(driveMainIndexRecord.driveId);
 

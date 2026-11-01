@@ -9,11 +9,13 @@ using System.Text.RegularExpressions;
 using NodaTime;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
@@ -49,8 +51,11 @@ public static class DriveFileUtility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
+    /// <param name="callerShare">On a Selective Share drive, the live share the read rule let an outside caller in
+    /// through: the header comes with that share, and an encrypted file's key header is the share's locked file key
+    /// with the file's IV (docs/selective-share-pr3-plan.md, section 6), never the file's own.</param>
     public static SharedSecretEncryptedFileHeader CreateClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
-        bool forceIncludeServerMetadata = false)
+        bool forceIncludeServerMetadata = false, DriveAclIndexRecord callerShare = null)
     {
         if (header == null)
         {
@@ -58,7 +63,13 @@ public static class DriveFileUtility
         }
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-        if (ZkDriveFiles.IsClientLocked(header))
+        if (callerShare != null)
+        {
+            sharedSecretEncryptedKeyHeader = header.FileMetadata.IsEncrypted
+                ? EncryptedKeyHeader.ForShare(header.EncryptedKeyHeader.Iv, callerShare.lockedFileKey)
+                : EncryptedKeyHeader.Empty();
+        }
+        else if (ZkDriveFiles.IsClientLocked(header))
         {
             // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it.  A
             // backstop: the read rule (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a
@@ -115,6 +126,12 @@ public static class DriveFileUtility
             clientFileHeader.ServerMetadata = header.ServerMetadata;
         }
 
+        // The member sees only their own share: its bits and expiry, for the client to show
+        if (callerShare != null)
+        {
+            clientFileHeader.Shares = [ShareRow.From(callerShare)];
+        }
+
         return clientFileHeader;
     }
 
@@ -134,9 +151,9 @@ public static class DriveFileUtility
 
         if (ZkDriveFiles.IsClientLocked(header))
         {
-            // No key header: the client opens a payload with the file's AES key and the payload's IV.  A backstop,
-            // as in CreateClientFileHeader
-            ZkDriveFiles.AssertVisibleTo(header, odinContext);
+            // No key header: the client opens a payload with the file's AES key and the payload's IV.  The read rule ran
+            // when the header was read, and lets in a member of a Selective Share circle too (section 6), so there is
+            // nothing to hand out or guard here
             return null;
         }
 

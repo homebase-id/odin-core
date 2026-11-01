@@ -1,0 +1,153 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
+using Autofac;
+using NUnit.Framework;
+using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity.Migrations;
+using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
+
+namespace Odin.Core.Storage.Tests.Database.Identity.Migrations;
+
+/// <summary>
+/// <see cref="TableCircleMigrationV202610301200"/>, <see cref="TableCircleMemberMigrationV202610301200"/> and
+/// <see cref="TableDriveAclIndexMigrationV202610301200"/> add the Selective Share columns
+/// (docs/selective-share-plan.md), run as the whole migrator from the version before.  Every existing row is
+/// carried over: no circle has a key, no member a sealed copy, no share expires or holds a locked file key, and
+/// every index row means read.  That upserts keep the keys is <c>TableCircleTests</c>' and
+/// <c>TableCircleMemberTests</c>' to check.
+/// </summary>
+public class ShareKeyColumnsMigrationTests : IocTestBase
+{
+    private const long VersionBeforeShareKeys = 202610221500;
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ExistingRowsKeepTheirDataAndGetNoShareKeys(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType, createDatabases: false);
+        await using var scope = Services.BeginLifetimeScope();
+        var migrator = scope.Resolve<IdentityMigrator>();
+        await migrator.MigrateAsync(VersionBeforeShareKeys);
+        var connectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+
+        var circleId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var driveId = Guid.NewGuid();
+        var fileId = Guid.NewGuid();
+        await ExecuteAsync(connectionFactory,
+            "INSERT INTO Circle (identityId,circleId,circleName,CircleSlug) VALUES (@identityId,@circleId,'Family','family');",
+            ("@circleId", circleId));
+        await ExecuteAsync(connectionFactory,
+            "INSERT INTO CircleMember (identityId,circleId,memberId) VALUES (@identityId,@circleId,@memberId);",
+            ("@circleId", circleId), ("@memberId", memberId));
+        await ExecuteAsync(connectionFactory,
+            "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) VALUES (@identityId,@driveId,@fileId,@circleId);",
+            ("@driveId", driveId), ("@fileId", fileId), ("@circleId", circleId));
+
+        var beforeMigration = UnixTimeUtc.Now();
+        await migrator.MigrateAsync();
+
+        Assert.That(await migrator.GetCurrentVersionAsync(), Is.GreaterThanOrEqualTo(202610301200));
+
+        var circles = (await scope.Resolve<TableCircle>().PagingByRowIdAsync(10, null)).Item1;
+        var members = (await scope.Resolve<TableCircleMember>().PagingByRowIdAsync(10, null)).Item1;
+        var aclRows = (await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1;
+
+        Assert.That(circles.Select(c => (c.circleId, c.circleName)), Is.EqualTo(new[] { (circleId, "Family") }));
+        Assert.That(members.Select(m => (m.circleId, m.memberId)), Is.EqualTo(new[] { (circleId, memberId) }));
+        Assert.That(aclRows.Select(a => (a.driveId, a.fileId, a.aclMemberId)), Is.EqualTo(new[] { (driveId, fileId, circleId) }));
+
+        Assert.That(circles[0].appKeyLockedShareKey, Is.Null, "no circle has a key until its app first shares");
+        Assert.That(members[0].sealedShareKey, Is.Null, "no member has a sealed copy until the app seals one");
+        Assert.That(aclRows[0].expiresAt, Is.Null, "no existing share expires");
+        Assert.That(aclRows[0].permissions, Is.EqualTo(1), "every existing row means read, as it did before");
+        Assert.That(aclRows[0].lockedFileKey, Is.Null, "no existing row is a share yet");
+        Assert.That(aclRows[0].modified, Is.EqualTo(aclRows[0].created), "created and modified both get the migration's time");
+        // The database's clock, not .NET's: SQLite's julianday can land a millisecond either side
+        Assert.That(aclRows[0].created.milliseconds,
+            Is.InRange(beforeMigration.milliseconds - 1000, UnixTimeUtc.Now().milliseconds + 1000), "created is the migration's time");
+
+        // A member syncs "my shares changed since" by their circles' rows in modified order (a new database replays the
+        // migrations too, so this is the only path)
+        Assert.That(await AclIndexDefinitionsAsync(connectionFactory, databaseType),
+            Has.Some.Contains("(identityid,driveid,aclmemberid,modified,rowid)"));
+
+        // The new columns hold what is written and read back through the generated records.
+        var lockedKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
+        var lockedFileKey = Enumerable.Range(0, 45).Select(i => (byte)(100 + i)).ToArray();
+        var sealedKey = Enumerable.Range(0, 200).Select(i => (byte)(255 - i)).ToArray();
+        var expiresAt = new UnixTimeUtc(1_900_000_000_000);
+        await ExecuteAsync(connectionFactory, "UPDATE Circle SET appKeyLockedShareKey=@value WHERE identityId=@identityId;",
+            ("@value", lockedKey));
+        await ExecuteAsync(connectionFactory, "UPDATE CircleMember SET sealedShareKey=@value WHERE identityId=@identityId;",
+            ("@value", sealedKey));
+        await ExecuteAsync(connectionFactory, "UPDATE DriveAclIndex SET expiresAt=@value WHERE identityId=@identityId;",
+            ("@value", expiresAt.milliseconds));
+        await ExecuteAsync(connectionFactory, "UPDATE DriveAclIndex SET lockedFileKey=@value WHERE identityId=@identityId;",
+            ("@value", lockedFileKey));
+
+        Assert.That((await scope.Resolve<TableCircle>().PagingByRowIdAsync(10, null)).Item1[0].appKeyLockedShareKey,
+            Is.EqualTo(lockedKey));
+        Assert.That((await scope.Resolve<TableCircleMember>().PagingByRowIdAsync(10, null)).Item1[0].sealedShareKey,
+            Is.EqualTo(sealedKey));
+        var aclRow = (await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1[0];
+        Assert.That((aclRow.expiresAt, aclRow.lockedFileKey), Is.EqualTo((expiresAt, lockedFileKey)));
+
+    }
+
+    /// <summary>The index definitions on DriveAclIndex, without spaces and in lower case.</summary>
+    private static async Task<List<string>> AclIndexDefinitionsAsync(ScopedIdentityConnectionFactory connectionFactory,
+        DatabaseType databaseType)
+    {
+        await using var cn = await connectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = databaseType == DatabaseType.Sqlite
+            ? "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'DriveAclIndex' AND sql IS NOT NULL;"
+            : "SELECT indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'driveaclindex';";
+        var definitions = new List<string>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            definitions.Add(reader.GetString(0).Replace(" ", "").ToLowerInvariant());
+        }
+
+        return definitions;
+    }
+
+    private async Task ExecuteAsync(ScopedIdentityConnectionFactory connectionFactory, string sql,
+        params (string Name, object Value)[] parameters)
+    {
+        await using var cn = await connectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.AddParameter("@identityId", DbType.Binary, IdentityId);
+        foreach (var (name, value) in parameters)
+        {
+            switch (value)
+            {
+                case Guid g:
+                    cmd.AddParameter(name, DbType.Binary, g);
+                    break;
+                case byte[] b:
+                    cmd.AddParameter(name, DbType.Binary, b);
+                    break;
+                case long l:
+                    cmd.AddParameter(name, DbType.Int64, l);
+                    break;
+                default:
+                    throw new ArgumentException($"unsupported parameter {name}");
+            }
+        }
+
+        Assert.That(await cmd.ExecuteNonQueryAsync(), Is.EqualTo(1), sql);
+    }
+}

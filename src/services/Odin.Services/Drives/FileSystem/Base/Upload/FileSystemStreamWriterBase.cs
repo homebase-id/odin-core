@@ -319,6 +319,12 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     }
 
     /// <summary>
+    /// Whether this file system's new files may carry shares (<see cref="UploadFileDescriptor.Shares"/>): standard files
+    /// only, as a comment follows its file's shares.
+    /// </summary>
+    protected virtual bool TakesShares => false;
+
+    /// <summary>
     /// Validates the uploaded data is correct before mapping to its final form.
     /// </summary>
     /// <param name="uploadDescriptor"></param>
@@ -465,6 +471,17 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 OdinClientErrorCode.InvalidKeyHeader);
         }
 
+        if (uploadDescriptor.Shares is { Count: > 0 })
+        {
+            // A new file only: an overwrite keeps the file key (decision 7), so its shares stay valid as they are
+            if (!TakesShares || package.IsUpdateOperation)
+            {
+                throw new OdinClientException("Only a new file's upload carries shares", OdinClientErrorCode.ArgumentError);
+            }
+
+            package.Shares = uploadDescriptor.Shares;
+        }
+
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
             ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
                 odinContext)
@@ -493,6 +510,11 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(
         FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
+        if (uploadDescriptor.Shares is { Count: > 0 })
+        {
+            throw new OdinClientException("Only a new file's upload carries shares", OdinClientErrorCode.ArgumentError);
+        }
+
         var keyHeader = KeyHeader.Empty();
 
         if (uploadDescriptor.FileMetadata.IsEncrypted)
@@ -602,6 +624,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
                 OdinClientErrorCode.DriveSecurityAndAclMismatch);
         }
+
+        SelectiveShareDrives.AssertAclFits(drive, serverMetadata.AccessControlList);
 
         // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
         PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);

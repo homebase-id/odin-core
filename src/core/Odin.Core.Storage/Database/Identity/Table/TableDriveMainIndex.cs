@@ -540,6 +540,55 @@ public class TableDriveMainIndex(
 
 
     /// <summary>
+    /// The file's row, locked until the caller's transaction ends (FOR UPDATE on Postgres; SQLite serialises writers
+    /// anyway), or null when there is none: for a write that must see the row stay as it read it, such as a share, which
+    /// a hard delete running alongside mustn't outlive (docs/selective-share-pr3-plan.md, section 3).
+    /// </summary>
+    internal async Task<DriveMainIndexRecord> GetLockedAsync(Guid driveId, Guid fileId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var lockCommand = cn.CreateCommand();
+        var forUpdate = _scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite ? "" : "FOR UPDATE";
+        lockCommand.CommandText =
+            $"SELECT 1 FROM driveMainIndex WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
+        lockCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        lockCommand.AddParameter("@driveId", DbType.Binary, driveId);
+        lockCommand.AddParameter("@fileId", DbType.Binary, fileId);
+        if (await lockCommand.ExecuteScalarAsync() == null)
+        {
+            return null;
+        }
+
+        return await GetAsync(driveId, fileId);
+    }
+
+    /// <summary>
+    /// Moves the file's modified and keeps its version tag: a change to who may see the file, not to the file (decision
+    /// 6 of docs/selective-share-plan.md). With <paramref name="requiredSecurityGroup"/>, also sets the file's group, in
+    /// the column the query filters on and in the header's server data the readers take it from.
+    /// </summary>
+    internal async Task<int> TouchKeepingVersionTagAsync(Guid driveId, Guid fileId, int? requiredSecurityGroup = null,
+        string hdrServerData = null)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var touchCommand = cn.CreateCommand();
+        var group = requiredSecurityGroup.HasValue ? ", requiredSecurityGroup = @requiredSecurityGroup, hdrServerData = @hdrServerData" : "";
+        touchCommand.CommandText =
+            $"UPDATE driveMainIndex SET modified = {touchCommand.SqlMax()}(driveMainIndex.modified+1,{touchCommand.SqlNow()}){group} " +
+            "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+        touchCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        touchCommand.AddParameter("@driveId", DbType.Binary, driveId);
+        touchCommand.AddParameter("@fileId", DbType.Binary, fileId);
+        if (requiredSecurityGroup.HasValue)
+        {
+            touchCommand.AddParameter("@requiredSecurityGroup", DbType.Int32, requiredSecurityGroup.Value);
+            touchCommand.AddParameter("@hdrServerData", DbType.String, hdrServerData);
+        }
+
+        return await touchCommand.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
     /// For testing only. Updates the updatedTimestamp for the supplied item.
     /// </summary>
     /// <param name="fileId">Item to touch</param>

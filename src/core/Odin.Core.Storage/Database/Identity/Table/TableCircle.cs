@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -13,6 +14,9 @@ public class TableCircle(
     : TableCircleCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
+
+    /// <summary>The bound of <c>appKeyLockedShareKey</c> (TableCircleCRUD).</summary>
+    public const int MaxShareKeyLength = 512;
 
     internal async Task<CircleRecord> GetAsync(Guid circleId)
     {
@@ -25,10 +29,50 @@ public class TableCircle(
         return await base.InsertAsync(item);
     }
 
+    /// <remarks>Never writes the share key: the generated upsert leaves it out (keepOnUpsert).</remarks>
     internal new async Task<int> UpsertAsync(CircleRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
+    }
+
+    /// <summary>
+    /// Sets the circle's share key, once: 1 when it was set, 0 when the circle has one already or doesn't
+    /// exist.  Two devices sharing with a new circle at the same moment can't each set a different key; the
+    /// loser reads the winner's.  Touches no other column.
+    /// </summary>
+    internal async Task<int> SetShareKeyAsync(Guid circleId, byte[] appKeyLockedShareKey)
+    {
+        // Never empty: an empty key would count as set.
+        if (appKeyLockedShareKey == null || appKeyLockedShareKey.Length == 0 || appKeyLockedShareKey.Length > MaxShareKeyLength)
+        {
+            throw new OdinDatabaseValidationException(
+                $"appKeyLockedShareKey must be 1 to {MaxShareKeyLength} bytes, was {appKeyLockedShareKey?.Length.ToString() ?? "null"}");
+        }
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            "UPDATE Circle SET appKeyLockedShareKey = @appKeyLockedShareKey " +
+            "WHERE identityId = @identityId AND circleId = @circleId AND appKeyLockedShareKey IS NULL;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@circleId", DbType.Binary, circleId);
+        cmd.AddParameter("@appKeyLockedShareKey", DbType.Binary, appKeyLockedShareKey);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Clears the circle's share key, so a new one can be set: the developer's way out of a key stored by
+    /// mistake (<c>CircleShareKeyService.ResetShareKeyAsync</c>).  Touches no other column.
+    /// </summary>
+    internal async Task<int> ClearShareKeyAsync(Guid circleId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "UPDATE Circle SET appKeyLockedShareKey = NULL WHERE identityId = @identityId AND circleId = @circleId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@circleId", DbType.Binary, circleId);
+        return await cmd.ExecuteNonQueryAsync();
     }
 
     internal async Task<int> DeleteAsync(Guid circleId)
@@ -42,25 +86,7 @@ public class TableCircle(
     /// </summary>
     internal async Task<List<CircleRecord>> GetByGrantOnAsync(int grantOn)
     {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
-
-        cmd.CommandText =
-            "SELECT rowId,identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji FROM Circle " +
-            "WHERE identityId = @identityId AND GrantOn = @grantOn;";
-
-        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-        cmd.AddParameter("@grantOn", DbType.Int32, grantOn);
-
-        var results = new List<CircleRecord>();
-
-        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
-        while (await rdr.ReadAsync())
-        {
-            results.Add(ReadRecordFromReaderAll(rdr));
-        }
-
-        return results;
+        return await base.GetByGrantOnAsync(odinIdentity, grantOn);
     }
 
     /// <summary>
