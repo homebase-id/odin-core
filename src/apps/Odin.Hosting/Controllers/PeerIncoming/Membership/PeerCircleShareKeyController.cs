@@ -16,6 +16,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership;
 /// the circle grants the caller, and only the caller's copy (<see cref="CircleShareKeyService"/>).
 /// </summary>
 [ApiController]
+[ApiExplorerSettings(GroupName = "peer-v1")]
 [Route(PeerApiPathConstants.CirclesV1)]
 [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCapiAuthScheme)]
 public class PeerCircleShareKeyController(CircleShareKeyService shareKeys) : OdinControllerBase

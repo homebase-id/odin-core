@@ -45,6 +45,8 @@ public class PeerCircleShareKeyService(
             PeerRequestIssueType.ServiceUnavailable or PeerRequestIssueType.SocketError or PeerRequestIssueType.HttpRequestFailed
                 or PeerRequestIssueType.OperationCancelled =>
                 throw new OdinClientException($"{odinId} is unavailable", OdinClientErrorCode.RemoteServerReturnedUnavailable),
+            PeerRequestIssueType.BadRequest => throw new OdinClientException(
+                $"{odinId} refused the request for circle {circleId}", OdinClientErrorCode.ArgumentError),
             // No copy is an empty answer, so a 404 is a server that doesn't serve the route (an older one)
             _ when result.Response?.StatusCode == HttpStatusCode.NotFound =>
                 throw new OdinClientException($"{odinId} doesn't serve circle share keys", OdinClientErrorCode.RemoteServerReturnedNotFound),

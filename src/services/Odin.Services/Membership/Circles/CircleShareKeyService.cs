@@ -74,9 +74,11 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
         odinContext.Caller.AssertHasMasterKey();
         await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "reset the share key of", odinContext);
 
+        // The key first: on Postgres that locks the circle's row, so a seal running meanwhile either finds no key or
+        // has committed its copy before the copies are cleared (TableCircleMember.SetSealedShareKeyAsync)
         await using var tx = await db.BeginStackedTransactionAsync();
-        await db.CircleMemberCached.ClearSealedShareKeysAsync(circleId);
         await db.CircleCached.ClearShareKeyAsync(circleId);
+        await db.CircleMemberCached.ClearSealedShareKeysAsync(circleId);
         tx.Commit();
     }
 
@@ -151,10 +153,13 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
                     OdinClientErrorCode.NotACircleMember);
             }
 
-            // Checked again in the same statement: a reset meanwhile leaves nothing written
+            // Checked again in the same statement: a reset meanwhile leaves nothing written.  Nothing written is also
+            // a member who left since the read above, which no re-seal can fix
             if (await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey, sealedFrom) == 0)
             {
-                throw keyChanged;
+                throw await db.CircleMemberCached.GetAsync(circleId, memberId) == null
+                    ? new OdinClientException($"{odinId} is not a member of circle {circleId}", OdinClientErrorCode.NotACircleMember)
+                    : keyChanged;
             }
         }
 

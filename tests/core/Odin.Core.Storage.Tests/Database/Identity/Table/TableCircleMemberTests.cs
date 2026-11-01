@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
@@ -151,6 +152,76 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         }
 
         /// <summary>A circle row holding a share key, as sealed copies need.</summary>
+#if RUN_POSTGRES_TESTS
+        [Test]
+        [TestCase(true)]
+        [TestCase(false)]
+        // Postgres runs a seal and a reset at the same time (SQLite has one writer). Whichever takes the circle's
+        // row first, no member is left with a copy of the reset key: CircleShareKeyService.ResetShareKeyAsync's order
+        public async Task AnOverlappingSealAndResetLeaveNoCopyOfTheResetKey(bool resetLocksFirst)
+        {
+            await RegisterServicesAsync(DatabaseType.Postgres);
+            await using var setupScope = Services.BeginLifetimeScope();
+            var c1 = Guid.NewGuid();
+            var m1 = Guid.NewGuid();
+            var key = await CircleWithKeyAsync(setupScope, c1);
+            await setupScope.Resolve<TableCircleMember>().UpsertAsync(new CircleMemberRecord { circleId = c1, memberId = m1, data = [1] });
+
+            // Two scopes: two connections, as two requests have
+            await using var resetScope = Services.BeginLifetimeScope();
+            await using var sealScope = Services.BeginLifetimeScope();
+
+            async Task<int> Reset()
+            {
+                var factory = resetScope.Resolve<ScopedIdentityConnectionFactory>();
+                await using var cn = await factory.CreateScopedConnectionAsync();
+                await using var tx = await cn.BeginStackedTransactionAsync();
+                await resetScope.Resolve<TableCircle>().ClearShareKeyAsync(c1);
+                var cleared = await resetScope.Resolve<TableCircleMember>().ClearSealedShareKeysAsync(c1);
+                tx.Commit();
+                return cleared;
+            }
+
+            if (resetLocksFirst)
+            {
+                var factory = resetScope.Resolve<ScopedIdentityConnectionFactory>();
+                Task<int> seal;
+                await using (var cn = await factory.CreateScopedConnectionAsync())
+                await using (var tx = await cn.BeginStackedTransactionAsync())
+                {
+                    await resetScope.Resolve<TableCircle>().ClearShareKeyAsync(c1);
+                    seal = Task.Run(() => sealScope.Resolve<TableCircleMember>().SetSealedShareKeyAsync(c1, m1, [2, 1], key));
+                    await Task.Delay(500);
+                    Assert.That(seal.IsCompleted, Is.False, "the seal didn't wait for the reset's lock on the circle");
+                    await resetScope.Resolve<TableCircleMember>().ClearSealedShareKeysAsync(c1);
+                    tx.Commit();
+                }
+
+                Assert.That(await seal.WaitAsync(TimeSpan.FromSeconds(10)), Is.EqualTo(0), "a copy of the reset key was stored");
+            }
+            else
+            {
+                var factory = sealScope.Resolve<ScopedIdentityConnectionFactory>();
+                Task<int> reset;
+                await using (var cn = await factory.CreateScopedConnectionAsync())
+                await using (var tx = await cn.BeginStackedTransactionAsync())
+                {
+                    Assert.That(await sealScope.Resolve<TableCircleMember>().SetSealedShareKeyAsync(c1, m1, [2, 1], key), Is.EqualTo(1));
+                    reset = Task.Run(Reset);
+                    await Task.Delay(500);
+                    Assert.That(reset.IsCompleted, Is.False, "the reset didn't wait for the seal's lock on the circle");
+                    tx.Commit();
+                }
+
+                Assert.That(await reset.WaitAsync(TimeSpan.FromSeconds(10)), Is.EqualTo(1), "the reset didn't clear the copy sealed meanwhile");
+            }
+
+            await using var readScope = Services.BeginLifetimeScope();
+            Assert.That((await readScope.Resolve<TableCircleMember>().GetAsync(c1, m1)).sealedShareKey, Is.Null);
+            Assert.That((await readScope.Resolve<TableCircle>().GetAsync(c1)).appKeyLockedShareKey, Is.Null);
+        }
+#endif
+
         private static async Task<byte[]> CircleWithKeyAsync(ILifetimeScope scope, Guid circleId)
         {
             var key = new byte[] { 2, (byte)circleId.ToByteArray()[0], 3 };

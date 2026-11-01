@@ -6,6 +6,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
@@ -44,6 +45,12 @@ public class TableCircleMember(
     /// statement, so a key reset or replaced meanwhile can't be left with copies of the old one.  Touches no
     /// other column.
     /// </summary>
+    /// <remarks>
+    /// On Postgres the check share-locks the circle's row: under READ COMMITTED a plain read would see the old key
+    /// while a reset that has cleared the copies but not yet committed goes on to clear it, leaving this copy behind.
+    /// Locked, a seal either waits for the reset and finds no key, or the reset waits for it and clears the copy
+    /// (it clears the key first, <c>CircleShareKeyService.ResetShareKeyAsync</c>).  SQLite has one writer at a time.
+    /// </remarks>
     internal async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey, byte[] circleShareKey)
     {
         // Never empty: an empty copy would count as sealed.
@@ -53,13 +60,15 @@ public class TableCircleMember(
                 $"sealedShareKey must be 1 to {MaxSealedShareKeyLength} bytes, was {sealedShareKey?.Length.ToString() ?? "null"}");
         }
 
+        var forShare = _scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite ? "" : " FOR SHARE";
+
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
         cmd.CommandText =
             "UPDATE CircleMember SET sealedShareKey = @sealedShareKey " +
             "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId " +
             "AND EXISTS (SELECT 1 FROM Circle WHERE Circle.identityId = @identityId AND Circle.circleId = @circleId " +
-            "AND Circle.appKeyLockedShareKey = @circleShareKey);";
+            $"AND Circle.appKeyLockedShareKey = @circleShareKey{forShare});";
         cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
         cmd.AddParameter("@circleId", DbType.Binary, circleId);
         cmd.AddParameter("@memberId", DbType.Binary, memberId);
