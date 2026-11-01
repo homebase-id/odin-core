@@ -18,8 +18,8 @@ namespace Odin.Services.Authorization.Acl
         private SecurityGroupType _requiredSecurityGroup = SecurityGroupType.Owner;
 
         /// <summary>
-        /// The lowest caller level that may see the file.  Missing, or a value that isn't a rung of the ladder (0, which a
-        /// client sends when it leaves the group out, or any other undefined number), means <see cref="SecurityGroupType.Owner"/>:
+        /// The lowest caller level that may see the file.  Missing, or undefined (0, which a client sends when it leaves the
+        /// group out, or any other number that names no rung), means <see cref="SecurityGroupType.Owner"/>:
         /// an ACL that names no group lets no one outside the identity in.  Set here, so every reader sees it, a stored header
         /// included (docs/file-access.md, "Writing").
         /// </summary>

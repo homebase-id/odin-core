@@ -185,10 +185,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         {
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along
-            var targetAcl = new AccessControlList()
-            {
-                RequiredSecurityGroup = SecurityGroupType.Owner
-            };
+            var targetAcl = AccessControlList.OwnerOnly;
 
             var drive = await driveManager.GetDriveAsync(file.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
@@ -205,10 +202,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 //
                 if (isCollaborationChannel)
                 {
-                    targetAcl = instructionSet.OriginalAcl ?? new AccessControlList()
-                    {
-                        RequiredSecurityGroup = SecurityGroupType.Owner
-                    };
+                    targetAcl = instructionSet.OriginalAcl ?? AccessControlList.OwnerOnly;
                 }
             }
 
