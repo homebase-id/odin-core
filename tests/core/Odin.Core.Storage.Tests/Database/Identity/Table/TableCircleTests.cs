@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
@@ -39,6 +40,31 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[1].circleId, c2) == 0);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[1].data, d2) == 0);
+        }
+
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // The hand-written GrantOn query reads every column through the generated reader, so it must select them all.
+        public async Task GetByGrantOnReadsEveryColumn(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblCircle = scope.Resolve<TableCircle>();
+
+            var shareKey = new byte[] { 1, 2, 3, 4 };
+            var c1 = SequentialGuid.CreateGuid();
+            await tblCircle.InsertAsync(new CircleRecord
+                { circleName = "enrolling", circleId = c1, CircleSlug = "c1", GrantOn = 1, appKeyLockedShareKey = shareKey });
+            await tblCircle.InsertAsync(new CircleRecord { circleName = "other", circleId = SequentialGuid.CreateGuid(), CircleSlug = "c2" });
+
+            var r = await tblCircle.GetByGrantOnAsync(1);
+
+            Assert.That(r.Select(c => (c.circleId, c.circleName, c.appKeyLockedShareKey)),
+                Is.EqualTo(new[] { (c1, "enrolling", shareKey) }));
         }
 
 

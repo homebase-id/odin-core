@@ -215,13 +215,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var n = 0;
             n = await driveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord, useThisNewVersionTag);
 
-            await driveAclIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-            await driveAclIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+            // The ACL rows are reconciled, not rewritten: a row whose circle or identity stays keeps what it holds
+            // (docs/selective-share-plan.md). The tags hold nothing else, so they are simply rewritten.
+            await driveAclIndex.ReconcileRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
             await driveTagIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
-
-            // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags" rather than always deleting them
-            //
 
             tx.Commit();
 

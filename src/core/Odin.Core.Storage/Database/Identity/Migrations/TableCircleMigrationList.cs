@@ -12,6 +12,7 @@ public class TableCircleMigrationList : MigrationListBase
             new TableCircleMigrationV202608040942(0),
             new TableCircleMigrationV202608261644(202608040942),
             new TableCircleMigrationV202610140701(202608261644),
+            new TableCircleMigrationV202610301200(202610140701),
             // AUTO-INSERT-MARKER
         };
     }

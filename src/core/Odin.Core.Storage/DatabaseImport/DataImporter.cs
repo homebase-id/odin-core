@@ -302,9 +302,12 @@ public static class DataImporter
         totalRows += await ImportTableAsync(sourceIdentityDatabase.DriveTransferHistory.PagingByRowIdAsync,
             r => targetIdentityDatabase.DriveTransferHistory.InsertAsync(r), logger, sourceIdentityDatabase.DriveTransferHistory.TableName);
 
-        // DriveAclIndex
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.DriveAclIndex.PagingByRowIdAsync,
-            r => targetIdentityDatabase.DriveAclIndex.InsertAsync(r), logger, sourceIdentityDatabase.DriveAclIndex.TableName);
+        // DriveAclIndex: a Selective Share row keeps its own times, the cursor a member syncs by
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.DriveAclIndex.PagingByRowIdAsync,
+            r => targetIdentityDatabase.DriveAclIndex.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.DriveAclIndex.TableName);
 
         // DriveTagIndex
         totalRows += await ImportTableAsync(sourceIdentityDatabase.DriveTagIndex.PagingByRowIdAsync,
