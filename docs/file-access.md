@@ -6,9 +6,10 @@ permission check, a file's ACL, the `DriveAclIndex` rows or the query's ACL filt
 names of the keys), [zero-knowledge-drives.md](zero-knowledge-drives.md) (the drive sharing models) and
 [selective-share-plan.md](selective-share-plan.md) (how shares are built, PR by PR).
 
-**Status:** "Today" describes `main` plus Selective Share PR 1 and PR 2 (the share columns and circle keys), read in
-the code on 2026-11-01, partly by subagents. "With Selective Share" is the plan for PR 3 (which took in what was planned as PR 4), not built.
-Markers follow security-model.md: **(V)** read in the code (file named), **(I)** inferred.
+**Status:** "Today" describes `main` plus Selective Share PR 1 (the share columns and the index, #2053), read in the
+code on 2026-11-01, partly by subagents. "With Selective Share" is the plan: circle keys (PR 2, #2056) are built and in
+review, PR 3 (shares and members, which took in what was planned as PR 4) is not built. Markers follow security-model.md: **(V)**
+read in the code (file named), **(I)** inferred.
 
 ## Terms
 
@@ -28,7 +29,7 @@ Each term below means one thing everywhere in this document.
 | Term | Means |
 |---|---|
 | **level** | where a caller stands on the ladder `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 < `Owner` 999 (`CallerContext.SecurityLevel`) **(V)**. An unreviewed connection's level counts as `Authenticated` wherever content is judged (`ReviewedSecurityTier.EffectiveLevel`) **(V)** |
-| **required group** | the rung a file asks for: the ACL's `RequiredSecurityGroup`, on the same ladder **(V)** |
+| **required group** | the rung a file asks for: the ACL's `RequiredSecurityGroup`, on the same ladder **(V)**. A group that is missing or undefined (0, or any other number that names no rung) means `Owner` (`AccessControlList.RequiredSecurityGroup`); `System` is defined, and refused as a file's group by the ACL check |
 
 **Drives**
 
@@ -62,7 +63,7 @@ writes "collaborative channel" for the second.
 | **index row** | a `DriveAclIndex` row: one per named circle or named identity of a file (an identity as its OdinId's hash), so the query can find "files my circles may see" **(V)** |
 | **share row** | on a Selective Share drive, the index row *is* the share: it adds permission bits, an expiry, the **locked file key** (`lockedFileKey`: the file key locked with the circle key, no IV), and its own `created` and `modified` (columns from PR 1 **(V)**; written from PR 3) |
 | **live row** | a row with `Read` that hasn't expired |
-| **withdrawn share** | a share row kept with no bits and no locked file key, so members syncing see it go |
+| **withdrawn share** | a share row kept with no bits and no locked file key, so members syncing see it go: to a share what a soft-deleted file's tombstone is to a file |
 | **member** | an identity in a circle |
 
 ## Who each check applies to
@@ -125,7 +126,9 @@ Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → 
    storage key for the drive.
 
 **The SQL may only leave files out; the per-result read rule is the authority.** The two agree because the index
-rows are made from the ACL (below); the SQL keeps pages full, and security doesn't depend on it **(I)**.
+rows and the group column are made from the ACL on each header write (below); the SQL keeps pages full, and security
+doesn't depend on it **(I)**. Where they disagree, as for a file stored with a group of 0 before it meant `Owner`,
+the page comes back short.
 
 ### Writing
 
@@ -140,10 +143,17 @@ rows are made from the ACL (below); the SQL keeps pages full, and security doesn
   - a required group of `Anonymous` or `Owner` with named circles or identities is refused;
   - named identities are made canonical and de-duplicated;
   - named circles are allowed from `Authenticated` up, since an `Authenticated` caller can hold circles (a YouAuth
-    domain) (`AccessControlList.cs:85-92`);
+    domain) (`AccessControlList.cs:97-104`);
   - an encrypted file can't have a required group of `Anonymous` or `Authenticated` (`FileSystemStreamWriterBase.cs:565-576`);
   - on an `OwnerOnly` drive every file's required group must be `Owner` (`:599`; `FileSystemUpdateWriterBase.cs:485`);
-  - an upload that names no ACL gets a required group of `Owner` (`UploadFileMetadata.cs:19`).
+  - an upload that names no ACL gets a required group of `Owner` (`UploadFileMetadata.cs:19`); so does one whose ACL
+    leaves the group out (`AccessControlList.RequiredSecurityGroup`). An upload or update that sends an undefined
+    value, such as 0 or 778, is refused with a 400 (`AssertGivenGroupIsDefined`), and one that leaves the group out but
+    names circles or identities is refused saying so: `Owner` can't name them. A stored header isn't refused for an
+    undefined value: it reads as `Owner`. The
+    rule lives on the ACL itself, so every reader of the header sees `Owner`, a header already stored with 0
+    included. The query's group column keeps 0 for such a file until its next header write; the SQL then still
+    returns it to every caller, and the per-result read rule leaves it out ("A query").
 - Comments, reactions and read receipts have rules of their own ("Special cases").
 
 ### What else widens access, on purpose
@@ -157,17 +167,18 @@ rule. All in "Special cases".
 **They follow the header.** Every header write (about 50 call sites, soft delete included) ends in
 `DriveQuery.SaveFileHeaderAsync`. It turns the ACL into a member list (the named circles, plus each named identity's
 OdinId hash) and reconciles the file's index rows in the header's transaction: rows of members no longer named are
-deleted, new ones inserted, and a row that stays isn't touched (`MainIndexMeta.BaseUpsertEntryZapZapAsync`,
-`TableDriveAclIndex.ReconcileRowsAsync`) **(V)**. A new row means read: `permissions` 1, no expiry, the columns'
-defaults **(V)**. A hard delete and a drive purge delete the rows **(V)**. Nothing else writes them **(V)**.
+deleted, new ones inserted, and a row that stays isn't touched, so a share row's columns survive it
+(`MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync`) **(V)**. A new row means read:
+`permissions` 1, no expiry, the columns' defaults **(V)**. A hard delete and a drive purge delete the rows **(V)**.
+Nothing else writes them **(V)**.
 
 **Who gets the ACL back:** owner callers only. Outside callers get the header without its server metadata
 (`DriveFileUtility.CreateClientFileHeader`, `:113-116`) **(V)**.
 
 **Peers' contexts are cached** for up to an hour (`OdinContextCache`): their level, enabled circles and whether they
 are reviewed (`TransitAuthenticationService`) **(V)**. The cache is reset when a connection is finalized, blocked or
-deleted, not when a circle is disabled **(V)**, so a check that must see a disable asks at the time (as the circle
-share key read does, `CircleShareKeyService`) **(V)**.
+deleted, not when a circle is disabled **(V)**, so a check that must see a disable asks at the time (as PR 2's
+circle share key read does).
 
 ## Copies sent to others
 
@@ -179,7 +190,7 @@ share key read does, `CircleShareKeyService`) **(V)**.
 - **A sent copy carries the ACL without its named identities**, so a recipient never learns who else was named
   (`SendFileOutboxWorkerAsync`, `UpdateRemoteFileOutboxWorker`) **(V)**.
 - **The recipient's copy gets a required group of `Owner`**, except: a comment takes the ACL of the file it comments
-  on (`IncomingCommentAcl`), and a collaborative channel keeps the sender's ACL (`PeerFileWriter.cs:76-100`) **(V)**.
+  on (`IncomingCommentAcl`), and a collaborative channel keeps the sender's ACL (`PeerFileWriter.cs:75-94`) **(V)**.
 - **A zero-knowledge drive sends nothing** (`ZkDriveFiles.AssertNotSent`) **(V)**.
 
 ## Special cases
@@ -211,9 +222,9 @@ channels move to Selective Share drives (not planned yet).
 
 The attribute `IsCollaborativeChannel` is set by the community app, by collaborative feed channels and on the built-in
 Lists drive (`BuiltinDrives.cs:146`) **(V)**. On such a drive **(V)**:
-1. a peer may update a file another identity sent; elsewhere only the original sender may (`PeerFileWriter.cs:285`);
+1. a peer may update a file another identity sent; elsewhere only the original sender may (`PeerFileWriter.cs:279`);
 2. a peer's delete takes the direct soft-delete path (`PeerDriveIncomingTransferService.cs:226`);
-3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter.cs:94-100`);
+3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter.cs:88-94`);
 4. files received from others are distributed on to the members (`AllowDistribution`,
    `FeedDriveDistributionRouter.ShouldDistribute`);
 5. an upload may name recipients for app notifications (`FileSystemStreamWriterBase.cs:431`).
@@ -230,13 +241,13 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 | | Other drives | Selective Share drive |
 |---|---|---|
 | The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused. Required group `Owner` (owner callers only; the default) or `Connected` (shareable); the first share lifts `Owner` to `Connected`, keeping the version tag |
-| The index rows | made from the ACL on every header write; `Read`, no expiry | share rows, written on their own by the share API; a header write leaves them alone (PR 3) |
+| The index rows | made from the ACL on every header write; each means read | share rows, written on their own by the share API; a header write leaves them alone (PR 3) |
 | A file with no rows | open to every caller who reaches the required group | owner callers only, whatever its group (PR 3) |
 | Which rows count in a query | every row | live rows (PR 3; every row on other drives is live, so nothing changes there) |
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere (PR 3) |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 3) |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
-| How others learn of it | by `modified` | owner callers' other devices by `modified`; members by the share rows' own `modified`, which also shows a withdrawn share (PR 3) |
+| How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" (PR 3) |
 
 **What builds it** (the share API, shares in the upload, the query and the read rule, `includeShares`, members'
 reads, writes, sync and socket events): [selective-share-pr3-plan.md](selective-share-pr3-plan.md).

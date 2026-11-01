@@ -271,6 +271,7 @@ The full description, today's and Selective Share's, is [file-access.md](file-ac
 - Each file carries an `AccessControlList`: `RequiredSecurityGroup` + optional `CircleIdList` and `OdinIdList` **(V)**.
 - Security groups are a ladder: `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 <
   `Owner` 999. A caller passes every rung at or below their own (`DriveAclAuthorizationService.Allows`) **(V)**.
+  A group that is missing or undefined (0, or any other number that names no rung) means `Owner` (`AccessControlList`) **(V)**.
 - Named circles and named identities narrow further, together: the caller must be in at least one listed circle **or**
   be one of the listed identities, and still meet the security group, so a named identity that is unconnected or
   unreviewed does not pass a `Connected` ACL **(V)**. Queries apply the same rule in SQL (`aclAnyOf`) **(V)**.
