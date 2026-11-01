@@ -60,9 +60,9 @@ writes "collaborative channel" for the second.
 | Term | Means |
 |---|---|
 | **index row** | a `DriveAclIndex` row: one per named circle or named identity of a file (an identity as its OdinId's hash), so the query can find "files my circles may see" **(V)** |
-| **share row** | on a Selective Share drive, the index row *is* the share: it adds permission bits, an expiry, the file key locked with the circle key, and its own `created` and `modified` (columns from PR 1 **(V)**; written from PR 3) |
+| **share row** | on a Selective Share drive, the index row *is* the share: it adds permission bits, an expiry, the **locked file key** (`lockedFileKey`: the file key locked with the circle key, no IV), and its own `created` and `modified` (columns from PR 1 **(V)**; written from PR 3) |
 | **live row** | a row with `Read` that hasn't expired |
-| **withdrawn share** | a share row kept with no bits and no locked key, so members syncing see it go |
+| **withdrawn share** | a share row kept with no bits and no locked file key, so members syncing see it go |
 | **member** | an identity in a circle |
 
 ## Who each check applies to
@@ -246,9 +246,9 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 - **The query's ACL filter as `EXISTS`:** only live rows count, and a file with no rows is the owner callers' on these
   drives.
 - **`includeShares`** on the query and on the read by id: owner callers get each file's live rows (circle, bits,
-  expiry, `modified`; no locked keys), so a client can show what is shared without one call per file.
+  expiry, `modified`; no locked file keys), so a client can show what is shared without one call per file.
 - **Members:** the read rule's ACL part reads the caller's live row; `ZkDriveFiles.VisibleTo` lets a member with a
-  live row see the client-locked file and get their row's locked key; a member's write needs `Write` on their live
+  live row see the client-locked file and get their row's locked file key; a member's write needs `Write` on their live
   row; members sync their shares by the share rows' `modified`; socket events for shares.
 
 **Is the collaborative channel attribute still needed?** On a Selective Share drive, no. Its edit rules (1 and 2

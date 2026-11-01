@@ -21,14 +21,14 @@ inferred.
 - **A share is the file's ACL index row.** Today `DriveAclIndex` has one row per circle or person a file's ACL
   names, so a query can find "files Family may read" **(V)**. On a Selective Share drive that row is the share:
   it says who may do what with the file (`permissions`), until when (`expiresAt`) and how to decrypt it
-  (`lockedKeyHeader`, the file's key header locked with that circle's key), and it keeps its own `created` and
+  (`lockedFileKey`, the file key locked with that circle's key), and it keeps its own `created` and
   `modified`. The file's content, its own key header (locked with the drive key) and its payloads are not
   touched.
 - **A member reads** by opening their sealed copy of the circle key on their own device, then their circle's
   share row, then the file. Neither server opens anything.
 
 Example: three files, two shared with Family (two members). The two files each have a Family row in
-`DriveAclIndex`, with the file's key header locked with Family's key. The Family circle row has the circle key
+`DriveAclIndex`, with the file key locked with Family's key. The Family circle row has the circle key
 locked with Filesync's key. Each of the 2 member rows has the circle key sealed to that member. No new table.
 
 ### Why the ACL index rows, not the ACL in the header and not a table of its own
@@ -60,7 +60,7 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 | `aclMemberId` | Guid | the circle (and later a link's id, decision 4) |
 | `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), narrowing the drive grant per file: Read, and Write to update it or, on a folder, add files to it (see "Who may write"). No bits = a withdrawn share. Every row before Selective Share means read, hence the default |
 | `expiresAt` | UnixTimeUtc (ms), null | when this share of this file ends, so queries skip expired shares. NULL = never |
-| `lockedKeyHeader` | ByteArray (≤ 128), null | the file's key header locked with the circle key: key header version 2, the file key only, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
+| `lockedFileKey` | ByteArray (≤ 128), null | the file key locked with the circle key: AES-GCM, format 2, no IV, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
 | `created`, `modified` | UnixTimeUtc (ms), not null | the share's own times, apart from the file's (the generator's `FinallyAddCreatedModified`): the cursor a member syncs their shares by. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
 
 - **Each reader sees only their own circle's row.** When a file's ACL is returned, the server builds its circle
@@ -76,11 +76,10 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
   once every read and query checks the Read bit, which must happen before such a row is written (PR 1, below).
   Something still has to remove withdrawn rows in the end, and a member offline longer than they are kept needs a
   full resync (open, PR 3).
-- **A file with no rows is open to its whole security group:** a query lists a file with no `DriveAclIndex` rows
-  to every caller in its `RequiredSecurityGroup` (`QueryBatch.SharedWhereAnd`, `cir.fileId IS NULL`) **(V)**. So
-  when a file's last share is withdrawn and its row later removed, a shared file (Connected) would open to every
-  connection. PR 3 must close that: on a Selective Share drive, either no rows means owner only, or removing the
-  last row sets the file back to Owner.
+- **Today a file with no rows is open to every caller who reaches its required group:** the query lists it
+  (`QueryBatch.SharedWhereAnd`, `cir.fileId IS NULL`) **(V)**. On a Selective Share drive PR 3 closes that: a file
+  with no live row for the caller is the owner callers' alone, in the query and in the read rule alike
+  ([selective-share-pr3-plan.md](selective-share-pr3-plan.md), section 2).
 
 ## Changing a share: `modified` moves, the version tag doesn't
 
@@ -121,7 +120,7 @@ time (none of the existing rows is a share yet).
 |---|---|---|---|
 | `Circle` | `appKeyLockedShareKey` | ByteArray (≤ 512), null | the circle key locked with the owning app's `AppZkK`. NULL until the app first shares with the circle |
 | `CircleMember` | `sealedShareKey` | ByteArray (≤ 2048), null | the circle key sealed to this member. NULL until a device of the owning app seals it (a new member waits for the app's next sign-in, like the app-key backfill) |
-| `DriveAclIndex` | `permissions`, `expiresAt`, `lockedKeyHeader`, `created`, `modified` | | see "The share row" |
+| `DriveAclIndex` | `permissions`, `expiresAt`, `lockedFileKey`, `created`, `modified` | | see "The share row" |
 
 **`DriveAclIndex` gets an index for a member's "my shares changed since"** (decided 2026-11-01): `(identityId,
 driveId, aclMemberId, modified, rowId)`, the rows of one circle on one drive in their own `modified` order. It is in
@@ -156,7 +155,7 @@ Nothing writes them yet **(V)**.
 The share rows' key headers are new, so they use key header version 2 (#2024) for the locking from day one; there is no
 version 1 to stay compatible with.
 
-- **`lockedKeyHeader`:** AES-GCM under the circle key, a random 12-byte nonce, and the plaintext
+- **`lockedFileKey`:** AES-GCM under the circle key, a random 12-byte nonce, and the plaintext
   `FileKey` alone, no IV. Laid out as `version (1) ‖ nonce (12) ‖ ciphertext (16) ‖ tag (16)`, 45 bytes.
   - **The IV is the file's own:** a member decrypts `appData.content` with the visible `Iv` of the file's own
     key header, which a zero-knowledge drive returns as stored **(V)**. So a row stays valid across every update
@@ -220,8 +219,9 @@ version 1 to stay compatible with.
      (…)`, under a `SELECT DISTINCT` that exists only for the join **(V)**. Once the Read bit and expiry join the
      filter, `NOT EXISTS (any row) OR EXISTS (a live row for my circles)` says plainly that a file whose rows are
      all expired is not "rowless", and drops the `DISTINCT`. Check the plan on SQLite and Postgres (`EXPLAIN`).
-   - **A shared file requires `Connected`** as its security group, with the share row naming the circle; never
-     `Authenticated` plus the circle (decided 2026-10-31). `Authenticated` plus circles is allowed for YouAuth
+   - **A shared file's required group is `Connected`**, and the share row names the circle; never `Authenticated`
+     plus the circle (decided 2026-10-31; a file starts `Owner` and its first share lifts it, decision A of the PR 3
+     plan). `Authenticated` plus circles is allowed for YouAuth
      (`AccessControlList.Validate`) **(V)**, and would let an unreviewed member read a file whose circle key PR 2
      refuses them. With `Connected`, the file and the key follow one rule: a reviewed connection the circle grants.
 4. **Member reads and writes** (merged into PR 3 on 2026-11-01; the two aren't released apart; [selective-share-pr3-plan.md](selective-share-pr3-plan.md)). The read rule lets a member read a client-locked file with a share row for one
@@ -233,7 +233,7 @@ version 1 to stay compatible with.
 
 The app's circles have Read and Write on the whole drive (decision 1). The drive grant is generic; the ACL
 narrows it per file, as it already does for reading **(V)**. Today nothing narrows writing per file **(V)**
-(`AccessControlList`: security group, circles, identities), so the Write bit in a share row's `permissions` is new:
+(`AccessControlList`: required group, named circles, named identities), so the Write bit in a share row's `permissions` is new:
 
 - **Updating or deleting a file** needs a share row for one of the writer's circles with Write.
 - **Adding a file to a folder** needs that on the folder (Filesync's folders are files, and a file names its
@@ -250,7 +250,7 @@ app does all of it in the upload, with no help from Michael's devices:
 2. **The file's own key header, `sealed` to Michael's drive's write-only public key.** John has no DrvK, so
    he deposits, as senders do today **(V)** (design doc, "One write rule"). Michael's devices may later
    transform it to `zkDrive`.
-3. **Family's share:** the key header locked with the Family circle key, which John's device opened
+3. **Family's share:** the file key locked with the Family circle key, which John's device opened
    from his own sealed copy. Every Family member can read the file at once.
 
 **When the folder is shared with more than one circle** (Family and Friends, John only in Family), John
@@ -266,8 +266,8 @@ content with it and leaves the key headers alone. Two things are needed:
   header. Updating content while keeping the stored key header is new, and a security decision (decision 5).
 - **The member's own server must be able to find the file** (design doc, "Known limit" **(V)**): when John
   updates or deletes, the lookup on Michael's server runs as John, and today's read rule lets only the owner
-  read a client-locked file, so John's update finds nothing. PR 4 widens the read rule to a member whose
-  circle has a share row for the file; that should make the same lookup find it **(I)**, to be checked when PR 4
+  read a client-locked file, so John's update finds nothing. PR 3 widens the read rule to a member whose
+  circle has a share row for the file; that should make the same lookup find it **(I)**, to be checked when PR 3
   is built.
 
 ## Decisions for the user
@@ -329,10 +329,10 @@ Nothing below is built. Each key in Selective Share has a copy somewhere that ro
   - `SetShareKeyAsync` is set-once by design; rotation needs a replace that a second racing device can't
     win with a different key (e.g. guarded by the old key's hash);
   - every remaining member needs a new sealed copy, and every share row of the circle a new
-    `lockedKeyHeader`: a client bulk job, as sharing existing files is;
+    `lockedFileKey`: a client bulk job, as sharing existing files is;
   - members' devices must keep the old circle key until every row is rewritten, or files they could read
     become unreadable mid-job.
 - **The owning app's key** (`AppZkK`): `appKeyLockedShareKey` on each of the app's circles must be locked again
   with the new key, in the same step that re-locks the app's drives.
-- **A file's key**: the file's own key header and every share row's `lockedKeyHeader` change together; an
+- **A file's key**: the file's own key header and every share row's `lockedFileKey` change together; an
   ordinary update keeps the key (decision 7).
