@@ -114,7 +114,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            AppendKeyHeader(encryptedKeyHeader64);
             return PayloadResult(payloadStream, "application/octet-stream");
         }
 
@@ -142,7 +142,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            AppendKeyHeader(encryptedKeyHeader64);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
             return StoredStreamResult(thumb, "application/octet-stream");
         }
@@ -249,7 +249,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            AppendKeyHeader(encryptedKeyHeader64);
             return PayloadResult(payloadStream, "application/octet-stream");
         }
 
@@ -267,7 +267,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            AppendKeyHeader(encryptedKeyHeader64);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
             return StoredStreamResult(thumb, "application/octet-stream");
         }
@@ -524,6 +524,16 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             return new PeerTemporalDriveQueryService(driveManager, fileSystem, mediator, temporalCache);
+        }
+
+        // A client-locked file's payload has no key header: the client opens it with the file key and the payload's IV
+        // (docs/zero-knowledge-drives.md), so none is sent, and the caller's server reads none
+        private void AppendKeyHeader(string encryptedKeyHeader64)
+        {
+            if (encryptedKeyHeader64 != null)
+            {
+                HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            }
         }
     }
 }

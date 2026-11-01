@@ -897,11 +897,11 @@ public class PeerDriveQueryService(
 
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
-        if (encryptedKeyHeader.IsLockedByClient())
+        if (encryptedKeyHeader.IsLockedByClient() || encryptedKeyHeader.IsShare())
         {
             // A client-locked key header comes from the peer as stored: only a device holding that drive's keys
-            // opens it.  A peer shows one only to a caller its read rule admits; passed on rather than failing
-            // the whole read
+            // opens it; a share's comes locked with the member's circle key (Selective Share).  A peer shows one only
+            // to a caller its read rule admits; passed on rather than failing the whole read
             return encryptedKeyHeader;
         }
 
@@ -1016,17 +1016,20 @@ public class PeerDriveQueryService(
         }
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-        if (payloadIsEncrypted)
+        if (!payloadIsEncrypted)
         {
-            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
-            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            sharedSecretEncryptedKeyHeader = ReEncrypt(
-                icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret,
-                icrEncryptedKeyHeader, odinContext);
+            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        }
+        else if (!response.Headers.TryGetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, out var ssHeaders))
+        {
+            sharedSecretEncryptedKeyHeader = null; // a client-locked file's: the client opens it with the file key
         }
         else
         {
-            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeaders.Single());
+            sharedSecretEncryptedKeyHeader = ReEncrypt(
+                icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret,
+                icrEncryptedKeyHeader, odinContext);
         }
 
         var stream = await response!.Content!.ReadAsStreamAsync();
@@ -1082,18 +1085,20 @@ public class PeerDriveQueryService(
         }
 
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (payloadIsEncrypted)
+        if (!payloadIsEncrypted)
         {
-            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
-
-            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
-                icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
-                icrEncryptedKeyHeader, odinContext);
+            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        }
+        else if (!response.Headers.TryGetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, out var ssHeaders))
+        {
+            ownerSharedSecretEncryptedKeyHeader = null; // a client-locked file's: the client opens it with the file key
         }
         else
         {
-            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeaders.Single());
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
+                icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
+                icrEncryptedKeyHeader, odinContext);
         }
 
         var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");

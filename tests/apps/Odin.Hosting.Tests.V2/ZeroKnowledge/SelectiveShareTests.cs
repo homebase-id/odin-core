@@ -12,6 +12,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Peer;
@@ -299,6 +300,56 @@ public class SelectiveShareTests : V2Fixture
         return query.Content!.SearchResults.ToDictionary(h => h.FileId, h => (List<ShareRow>?)h.Shares);
     }
 
+    [Test]
+    public async Task AMemberReadsAClientLockedFileWithTheirSharesKey()
+    {
+        var s = await ArrangeAsync();
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var (fileId, locked) = await s.UploadClientLockedAsync(payload);
+        await AssertSamSeesAsync(s, fileId, false, "before any share");
+
+        // Sam is in a second circle of the app that shares the file too: every read takes the lowest circle id's share
+        var second = await s.CircleWithKeyAsync(DrivePermission.Read | DrivePermission.Write);
+        await AppCircles.AddMemberAsync(s.App, second, Identities.Sam);
+        var keys = new Dictionary<Guid, byte[]> { [s.CircleId] = LockedFileKey(), [second] = LockedFileKey() };
+        var write = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = keys.Select(k => s.Share(fileId, DrivePermission.Read, null, k.Value, k.Key)).ToList()
+        });
+        Assert.That(write.StatusCode, Is.EqualTo(HttpStatusCode.OK), write.Error?.Content);
+        var circle = keys.Keys.Min();
+
+        var byId = await s.Sam.Drives.Peer.GetFileHeaderAsync(s.Frodo.Identity, s.Drive.Alias, fileId);
+        Assert.That(byId.StatusCode, Is.EqualTo(HttpStatusCode.OK), byId.Error?.Content);
+        var query = await s.Sam.Drives.Peer.QueryBatchAsync(s.Frodo.Identity, s.Drive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = s.Drive },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, IncludeMetadataHeader = true }
+        });
+        Assert.That(query.StatusCode, Is.EqualTo(HttpStatusCode.OK), query.Error?.Content);
+
+        foreach (var (header, how) in new[] { (byId.Content!, "by id"), (query.Content!.SearchResults.Single(h => h.FileId == fileId), "in a query") })
+        {
+            var key = header.SharedSecretEncryptedKeyHeader;
+            Assert.That((key.Type, key.EncryptedAesKey, key.Iv), Is.EqualTo((EncryptionType.Share, keys[circle], locked.Iv)),
+                $"{how}: the share's locked file key with the file's IV, never the drive-locked key header");
+            Assert.That(header.Shares?.Select(r => (r.CircleId, r.Permissions)), Is.EqualTo(new[] { (circle, DrivePermission.Read) }),
+                $"{how}: his own share, and only it");
+            Assert.That(header.ServerMetadata, Is.Null, $"{how}: no ACL for an outside caller");
+        }
+
+        // A payload carries no key header: the member opens it with the file key and the payload's IV
+        var read = await s.Sam.Drives.Peer.GetPayloadAsync(s.Frodo.Identity, s.Drive.Alias, fileId, payload.Key);
+        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.OK), read.Error?.Content);
+        Assert.That(read.Headers.Contains(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64), Is.False, "no key header for the payload");
+
+        // The owner still gets the file's own key header, and no shares unless asked
+        var owners = (await s.HeaderAsync(fileId));
+        Assert.That((owners.SharedSecretEncryptedKeyHeader.Type, owners.SharedSecretEncryptedKeyHeader.EncryptedAesKey),
+            Is.EqualTo((EncryptionType.ZkDrive, locked.EncryptedAesKey)));
+        Assert.That(owners.Shares, Is.Null);
+    }
+
     private static async Task AssertSamSeesAsync(Arranged s, Guid fileId, bool sees, string when) =>
         await AssertSeesAsync(s.Sam, s, fileId, sees, when);
 
@@ -407,6 +458,19 @@ public class SelectiveShareTests : V2Fixture
                 transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: ZkBrowser.LockFileKey(fileKey, driveKey), shares: shares);
             Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
             return upload.Content!.FileId;
+        }
+
+        /// <summary>A client-locked file with a payload, as an owner device writes one; its key header as sent.</summary>
+        public async Task<(Guid FileId, EncryptedKeyHeader Locked)> UploadClientLockedAsync(TestPayloadDefinition payload)
+        {
+            var fileKey = KeyHeader.NewRandom16();
+            var locked = ZkBrowser.LockFileKey(fileKey, driveKey);
+            payload.Iv = ByteArrayUtil.GetRndByteArray(16);
+            var (upload, _, _, _) = await Frodo.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(SecurityGroupType.Owner),
+                transitOptions: null!, new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload],
+                keyHeader: fileKey, lockedKeyHeader: locked);
+            Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+            return (upload.Content!.FileId, locked);
         }
 
         public ShareRequest Share(Guid fileId, DrivePermission permissions, UnixTimeUtc? expiresAt = null, byte[]? lockedFileKey = null,

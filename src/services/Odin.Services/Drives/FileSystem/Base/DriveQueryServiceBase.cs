@@ -361,7 +361,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 bool forceIncludeServerMetadata = false,
                 bool logAclFailuresAsErrors = false)
         {
-            var (visible, aclFailures) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
+            var (visible, aclFailures, sharedWithCaller) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
 
             var results = new List<SharedSecretEncryptedFileHeader>();
             foreach (var serverFileHeader in visible)
@@ -369,7 +369,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var header = DriveFileUtility.CreateClientFileHeader(
                     serverFileHeader,
                     odinContext,
-                    forceIncludeServerMetadata);
+                    forceIncludeServerMetadata,
+                    sharedWithCaller?.GetValueOrDefault(serverFileHeader.FileMetadata.File.FileId));
 
                 if (header?.FileMetadata?.AppData != null)
                 {
@@ -418,9 +419,11 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <summary>
         /// The rows of <paramref name="recordList"/> the caller may receive, in order, and the ones its ACL denied.
-        /// Every result shape goes through here, so none of them can show a file another would hide.
+        /// Every result shape goes through here, so none of them can show a file another would hide.  On a Selective
+        /// Share drive, also the share each visible file reached an outside caller through (null otherwise).
         /// </summary>
-        private async Task<(List<ServerFileHeader> visible, List<ServerFileHeader> aclFailures)> FilterVisibleAsync(
+        private async Task<(List<ServerFileHeader> visible, List<ServerFileHeader> aclFailures,
+            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller)> FilterVisibleAsync(
             Guid driveId,
             List<DriveMainIndexRecord> recordList,
             IOdinContext odinContext,
@@ -524,7 +527,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return (visible, aclFailures);
+            return (visible, aclFailures, sharedWithCaller);
         }
 
         /// <summary>
@@ -565,7 +568,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (options.ResultShape == FileResultShape.Minimal)
             {
-                var (visible, _) = await FilterVisibleAsync(driveId, records, odinContext);
+                var (visible, _, _) = await FilterVisibleAsync(driveId, records, odinContext);
                 result.FileRefs = visible.Select(FileRef.FromHeader).ToList();
             }
             else

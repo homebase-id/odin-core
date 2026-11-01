@@ -142,6 +142,12 @@ public static class ZkDriveFiles
     /// </summary>
     public static void AssertDriveTakes(StorageDrive drive, EncryptionType type)
     {
+        if (type == EncryptionType.Share)
+        {
+            throw new OdinClientException("A share's key goes only to a member: it is never a file's key header",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+
         if (type == EncryptionType.Sealed)
         {
             Deposits.AssertCanHold(drive);

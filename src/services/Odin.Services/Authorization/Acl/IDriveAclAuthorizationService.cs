@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 
@@ -21,15 +22,17 @@ namespace Odin.Services.Authorization.Acl
         /// the system pass (a drive event without one).
         /// </summary>
         /// <param name="sharedWithCaller">On a Selective Share drive, the files of the page the caller holds a live
-        /// share row for (<see cref="FilesSharedWithCallerAsync"/>), so a page costs one read; read for this file when
-        /// not given.</param>
-        Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext, IReadOnlySet<Guid> sharedWithCaller = null);
+        /// share row for, with the row (<see cref="FilesSharedWithCallerAsync"/>), so a page costs one read; read for
+        /// this file when not given.</param>
+        Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext,
+            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller = null);
 
         /// <summary>
         /// On a Selective Share drive, which of <paramref name="fileIds"/> the caller holds a live share row for, in one
-        /// read (docs/file-access.md, "live row").  Null when the caller's reads don't depend on rows: an owner caller,
-        /// the System, or any other drive.
+        /// read (docs/file-access.md, "live row"), each with the row their reads go by (the lowest circle id's).  Null
+        /// when the caller's reads don't depend on rows: an owner caller, the System, or any other drive.
         /// </summary>
-        Task<IReadOnlySet<Guid>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds, IOdinContext odinContext);
+        Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
+            IOdinContext odinContext);
     }
 }

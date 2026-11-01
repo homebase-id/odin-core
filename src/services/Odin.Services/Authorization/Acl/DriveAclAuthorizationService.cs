@@ -66,17 +66,13 @@ namespace Odin.Services.Authorization.Acl
         }
 
         public async Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext,
-            IReadOnlySet<Guid> sharedWithCaller = null)
+            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller = null)
         {
-            if (!ZkDriveFiles.VisibleTo(header, odinContext))
-            {
-                return false;
-            }
-
+            var visible = ZkDriveFiles.VisibleTo(header, odinContext);
             var caller = odinContext.Caller;
             if (PassesEveryAcl(caller))
             {
-                return true;
+                return visible;
             }
 
             var acl = header?.ServerMetadata?.AccessControlList;
@@ -89,24 +85,27 @@ namespace Odin.Services.Authorization.Acl
             var file = header.FileMetadata.File;
             if (await IsSelectiveShareAsync(file.DriveId))
             {
-                // The share rows say who, not the ACL's names (docs/file-access.md, "With Selective Share")
+                // The share rows say who, not the ACL's names (docs/file-access.md, "With Selective Share"); a live
+                // share also opens a client-locked file to the member, who gets the share's locked file key (section 6)
                 sharedWithCaller ??= await FilesSharedWithCallerAsync(file.DriveId, [file.FileId], odinContext);
-                return sharedWithCaller.Contains(file.FileId) && ReachesGroup(acl, level);
+                return sharedWithCaller.ContainsKey(file.FileId) && ReachesGroup(acl, level);
             }
 
-            return Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId);
+            return visible && Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId);
         }
 
-        public async Task<IReadOnlySet<Guid>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
-            IOdinContext odinContext)
+        public async Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId,
+            IReadOnlyCollection<Guid> fileIds, IOdinContext odinContext)
         {
             if (PassesEveryAcl(odinContext.Caller) || !await IsSelectiveShareAsync(driveId))
             {
                 return null;
             }
 
+            // With live shares in more than one of the caller's circles, the lowest circle id's, so every read of the
+            // file picks the same one (section 6)
             var rows = await driveAclIndex.GetLiveRowsAsync(driveId, fileIds, CallerMemberIds(odinContext), UnixTimeUtc.Now());
-            return rows.Select(r => r.fileId).ToHashSet();
+            return rows.GroupBy(r => r.fileId).ToDictionary(g => g.Key, g => g.MinBy(r => r.aclMemberId)!);
         }
 
         /// <summary>

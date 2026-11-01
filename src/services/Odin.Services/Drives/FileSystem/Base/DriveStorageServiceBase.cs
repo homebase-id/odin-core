@@ -5,6 +5,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -79,7 +80,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext);
+            // A member reading through a share gets that share's locked file key (section 6)
+            var shared = await FilesSharedWithCallerAsync(file.DriveId, [file.FileId], odinContext);
+            var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext,
+                callerShare: shared?.GetValueOrDefault(file.FileId));
             return result;
         }
 
@@ -739,12 +743,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <inheritdoc cref="IDriveAclAuthorizationService.FilesSharedWithCallerAsync"/>
-        public Task<IReadOnlySet<Guid>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
+        public Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
             IOdinContext odinContext) =>
             driveAclAuthorizationService.FilesSharedWithCallerAsync(driveId, fileIds, odinContext);
 
         public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext,
-            IReadOnlySet<Guid> sharedWithCaller = null)
+            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller = null)
         {
             await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
             return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext, sharedWithCaller);

@@ -188,6 +188,18 @@ The header's ACL names no one on these drives. The `GET` lists one file's share 
   passed through as stored today (`PeerDriveQueryService`, zero-knowledge-drives.md) **(V)**; the row's locked file key goes
   the same way **(I, to check when built)**.
 
+**Built (2026-11-01):**
+- The member's key header is a new type, `share` (`EncryptionType.Share`): the row's locked file key with the file's
+  own IV. It is only ever sent: every write refuses it (`ZkDriveFiles.AssertDriveTakes`), and the member's own server
+  passes it on as it does a client-locked one (`PeerDriveQueryService.ReEncrypt`).
+- The member's header carries their row in `shares` (circle, bits, expiry), so their client knows which circle key
+  opens it. The read rule hands each file's chosen row to the header (`FilesSharedWithCallerAsync`), one read a page.
+- A payload or thumbnail of a client-locked file has no key header, and now crosses the Peer API without one: the
+  owner's server sends none, the member's server reads none and forwards none. Before, the member's server expected
+  one and failed (I: not tested before; tested now).
+- Sockets: a client-locked file still reaches only a socket holding the drive's key; members hear of shares in
+  section 9.
+
 ## 7. Members write
 
 The rules from selective-share-plan.md, "Who may write" and "A member adds a file to a shared folder":
