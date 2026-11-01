@@ -234,8 +234,8 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
     copy (`CircleShareKeyService.ResetShareKeyAsync`) **(V)**.
   - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles and only
     once the owner has reviewed the connection (`ReviewedSecurityTier`: the circle key opens content, which an
-    unreviewed connection may not see). The row is looked up by the caller's identity, never by anything they send
-    **(V)**.
+    unreviewed connection may not see); a copy sealed before the review is served after it. The row is looked up by
+    the caller's identity, never by anything they send **(V)**.
   - On the member's side, any app with `UseTransitRead` may fetch this identity's copy from a peer
     (`PeerCircleShareKeyService`), whichever app owns that circle **(V)**. By design: the copy is sealed to the
     member's matching drive, so only an app holding that drive's key can open it (the plan; the server can't check

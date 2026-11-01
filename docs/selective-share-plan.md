@@ -63,17 +63,18 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 | `lockedFileKey` | ByteArray (≤ 128), null | the file key locked with the circle key: AES-GCM, format 2, no IV, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
 | `created`, `modified` | UnixTimeUtc (ms), not null | the share's own times, apart from the file's (the generator's `FinallyAddCreatedModified`): the cursor a member syncs their shares by. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
 
-- **Each reader sees only their own circle's row.** When a file's ACL is returned, the server builds its circle
-  list from the rows: all of them for the owner, only the caller's own for a member. The server already clears
-  `OdinIdList` before a file goes to a peer, so a recipient never learns who else was named **(V)**; the rows are
-  cut the same way.
-- **What `expiresAt` can and can't do:** the server enforces it, so after it a member can no longer fetch the
-  file through that row, and a query skips it (filtered in SQL), so a query never lists what a read refuses. A
+- **Each reader sees only their own share row.** The file's ACL names no one on these drives. Owner callers get a
+  file's live rows when they ask (`includeShares`); a member gets only their own row with the header, and outside
+  callers never get the header's server metadata **(V)** ([selective-share-pr3-plan.md](selective-share-pr3-plan.md),
+  sections 5 and 6).
+- **What `expiresAt` can and can't do:** the server enforces it in the query and the read rule alike, so after it a
+  member can no longer fetch the file through that row, and a query never lists what a read refuses. A
   member who already read the file keeps what they read, and their device may have kept the file key: expiry
   stops access, it doesn't take back what was opened.
-- **Withdrawing a share leaves the row:** no key header, no permission bits, `modified` moved. A member syncing by
+- **Withdrawing a share leaves the row:** no locked file key, no permission bits, `modified` moved. A member syncing by
   `modified` sees it go; a deleted row would vanish without a trace. A row with no bits grants nothing on any drive,
-  once every read and query checks the Read bit, which must happen before such a row is written (PR 1, below).
+  once every read and query checks the Read bit, which must happen before such a row is written (PR 3; see "Before
+  any row is written without Read", below).
   Something still has to remove withdrawn rows in the end, and a member offline longer than they are kept needs a
   full resync (open, PR 3).
 - **Today a file with no rows is open to every caller who reaches its required group:** the query lists it
@@ -133,7 +134,7 @@ unnamed one is ambiguous.
 **A header write reconciles the file's rows** instead of deleting all of them and inserting them again from the
 ACL, in the same transaction as the header (`MainIndexMeta.BaseUpsertEntryZapZapAsync`,
 `TableDriveAclIndex.ReconcileRowsAsync`) **(V)**: rows of circles and identities no longer named go, new ones are
-added, and a row that stays is not touched, so it keeps its times (and would keep its key header, bits and
+added, and a row that stays is not touched, so it keeps its times (and would keep its locked file key, bits and
 expiry). A member named twice gets one row; before, the write failed on the unique key. On a Selective Share drive
 the header's ACL names no circles, so reconciling against it would delete every share: there a header write must
 leave the rows alone entirely (PR 3).
@@ -150,10 +151,11 @@ other drive the header's ACL is the record, and the delete-and-insert used to re
 if anything ever narrows a row there, the header write must reset it, or the header and the index disagree.
 Nothing writes them yet **(V)**.
 
-## Blob formats: key header version 2 from the start
+## Blob formats: AES-GCM, format 2, from the start
 
-The share rows' key headers are new, so they use key header version 2 (#2024) for the locking from day one; there is no
-version 1 to stay compatible with.
+The share rows' locked file keys, the circle keys and their sealed copies are new, so they are locked with AES-GCM
+from day one (format byte 2, as planned for the file's own key header in #2024); there is no format 1 to stay
+compatible with.
 
 - **`lockedFileKey`:** AES-GCM under the circle key, a random 12-byte nonce, and the plaintext
   `FileKey` alone, no IV. Laid out as `version (1) ‖ nonce (12) ‖ ciphertext (16) ‖ tag (16)`, 45 bytes.
@@ -164,8 +166,8 @@ version 1 to stay compatible with.
     already **(V)**.
   - **Fixes the equality problem of version 1 for these rows:** the random nonce means two rows with the
     same file key don't look alike.
-  - **AAD binds the key header to its row:** `driveId ‖ fileId ‖ circleId`, ids that never change for the
-    row. A key header that ends up on the wrong row, by a bug, fails to open with an error instead of
+  - **AAD binds the locked file key to its row:** `driveId ‖ fileId ‖ circleId`, ids that never change for the
+    row. A locked file key that ends up on the wrong row, by a bug, fails to open with an error instead of
     handing out a wrong key that decrypts to garbage.
 - **`appKeyLockedShareKey`:** the same AES-GCM layout under `AppZkK`, AAD `circleId`.
 - **`sealedShareKey`:** the `sealed` key header's ECDH and HKDF (P-384) with AES-GCM, AAD
@@ -173,11 +175,8 @@ version 1 to stay compatible with.
 - **No AAD on the leading format byte:** it is the blob's layout number (2), not the file's version tag, and
   a wrong one already fails to parse. Covering it would only guard against tampering, which is out of the
   threat model (next point).
-- **No content integrity, by decision (2026-11-01):** the file's content (`appData.content`, payloads,
-  thumbnails) stays AES-CBC with no MAC. Tampering by whoever stores the data is out of the threat model:
-  they could as well delete it or hold it for ransom. If anything, file encryption later moves to GCM, which
-  brings most of it. The file's own key header (locked with the drive key) stays version 1 until #2024 is
-  built.
+- **No content integrity:** out of the threat model ([security-model.md](security-model.md), section 8). The file's
+  own key header (locked with the drive key) stays version 1 until #2024 is built.
 - One golden vector for all three, checked in odin-core, odin-js, chat-kmp and filesync, as
   `ClientLockedKeyHeaderVectorTests` **(V)**.
 
@@ -189,45 +188,23 @@ version 1 to stay compatible with.
      none, with the locked key they were sealed from: refused when the circle no longer holds it). A member:
      `GET /api/v2/peer/{odinId}/circles/{circleId}/share-key`, which asks the circle owner's server
      (`PeerCircleShareKeyController`, `GET /api/peer/v1/host/circles/{circleId}/my-share-key`).
-   - **Rules:** only the owning app or the owner console, never an owner circle; a copy only for an identity
-     member and only once the circle has its key; a member reads only their own copy, once the owner has reviewed
-     the connection, while the circle grants them and is enabled (asked at the time: a peer's cached context
-     doesn't see a disable). An unreviewed connection is judged as a stranger wherever content is
-     (`ReviewedSecurityTier`), and the circle key opens content; a copy sealed before the review is served after it.
+   - **Rules** (who may set and read the key, store and fetch copies, and why the keys survive other writes):
+     [security-model.md](security-model.md), section 4, "Circle share keys".
    - **No copy yet is an empty answer** (`200` with no key), so a `404` always means a server that doesn't serve
      the route.
-   - **The keys survive other writes:** the generator's `keepOnUpsert` leaves both columns out of the generated
-     upsert's and update's SET, and saving a connection reconciles the member's rows
-     (`ReconcileMemberCirclesAsync`) instead of deleting and re-inserting them. Only the set-once update writes
-     the key, and only the targeted update writes a copy.
    - **The member's public key** comes from #2045's endpoint and cache (`GET /api/v2/peer/{odinId}/apps/{appSlug}/
      drives/{driveSlug}/public-key`): `PublicKeyJwk`, `PublicKeyCrc32` (the key hint in the sealed copy) and
-     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. The client must not seal to a drive that
-     isn't zero knowledge, whose server could open it, nor to a Collaborative (community) drive, whose members all
-     hold its key; the server may refuse both later.
+     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. The client must not seal to a drive whose
+     sharing model is `Collaborative`: its server and its members hold its key (file-access.md, "Terms"). The server
+     may refuse it later.
    - **A developer's reset** (`DELETE .../share-key`, owner console only, no UI): clears the key and every member's
      copy, so a key stored by mistake (a client bug, the wrong app key) can be replaced. Not for ordinary users:
      files already shared under the old key can't be opened with the new one.
    - **Moved to PR 3:** "the circle must grant the drive", which is about sharing files from a drive.
-3. **Shares as ACL index rows.** The share writes (see "Changing a share") and their validation (no share
-   without bits from a client; only a circle that grants the drive); a header write on a Selective Share drive
-   leaving the rows alone, and its ACL holding no circles; shares carried in an upload so sharing a new file is
-   one request; the ACL returned built from the rows, a reader seeing only their own; the Read bit and expiry
-   checked by every read and query; a member's "shares changed since" query by the rows' `modified`; when
-   withdrawn rows are removed; and a file with no rows left staying owner-only (see "The share row").
-   - **The query's ACL filter as `EXISTS`:** today a `LEFT JOIN` with `cir.fileId IS NULL OR cir.aclMemberId IN
-     (…)`, under a `SELECT DISTINCT` that exists only for the join **(V)**. Once the Read bit and expiry join the
-     filter, `NOT EXISTS (any row) OR EXISTS (a live row for my circles)` says plainly that a file whose rows are
-     all expired is not "rowless", and drops the `DISTINCT`. Check the plan on SQLite and Postgres (`EXPLAIN`).
-   - **A shared file's required group is `Connected`**, and the share row names the circle; never `Authenticated`
-     plus the circle (decided 2026-10-31; a file starts `Owner` and its first share lifts it, decision A of the PR 3
-     plan). `Authenticated` plus circles is allowed for YouAuth
-     (`AccessControlList.Validate`) **(V)**, and would let an unreviewed member read a file whose circle key PR 2
-     refuses them. With `Connected`, the file and the key follow one rule: a reviewed connection the circle grants.
-4. **Member reads and writes** (merged into PR 3 on 2026-11-01; the two aren't released apart; [selective-share-pr3-plan.md](selective-share-pr3-plan.md)). The read rule lets a member read a client-locked file with a share row for one
-   of their circles; the write rules in "Who may write". The Peer API passes it all through as stored.
-5. **Clients.** odin-js, chat-kmp and filesync crypto against the golden vector; Filesync's share UI.
-6. **Links**, once decision 4 is made.
+3. **Shares and members**, one PR (what was planned as PR 3 and PR 4, merged 2026-11-01: they aren't released
+   apart): [selective-share-pr3-plan.md](selective-share-pr3-plan.md).
+4. **Clients.** odin-js, chat-kmp and filesync crypto against the golden vector; Filesync's share UI.
+5. **Links**, once decision 4 is made.
 
 ## Who may write
 

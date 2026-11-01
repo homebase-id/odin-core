@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
-        // Selective Share: the row is the share, so it holds the file's key header locked with the circle key,
+        // Selective Share: the row is the share, so it holds the file key locked with the circle key,
         // and keeps its own created and modified apart from the file's
         public async Task ARowHoldsItsLockedFileKeyAndItsOwnTimes(DatabaseType databaseType)
         {
@@ -83,7 +83,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
             var fileId = Guid.NewGuid();
             var circleId = Guid.NewGuid();
-            var lockedFileKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
+            var lockedFileKey = Enumerable.Range(0, 45).Select(i => (byte)i).ToArray();
             var before = UnixTimeUtc.Now();
             await tblDriveAclIndex.InsertAsync(new DriveAclIndexRecord
                 { driveId = driveId, fileId = fileId, aclMemberId = circleId, lockedFileKey = lockedFileKey });
@@ -272,7 +272,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
-        // A header write reconciles the file's ACL rows: a member that stays keeps its row as it was, key header
+        // A header write reconciles the file's ACL rows: a member that stays keeps its row as it was, locked file key
         // and times included; a member taken off loses its row; a new one gets a row; a member listed twice, one
         public async Task AHeaderWriteKeepsTheRowsOfMembersThatStay(DatabaseType databaseType)
         {
@@ -294,7 +294,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, otherFileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
                 UnixTimeUtc.Now(), 1, [leaves], null, 1);
 
-            var lockedFileKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
+            var lockedFileKey = Enumerable.Range(0, 45).Select(i => (byte)i).ToArray();
             await tbl.InsertAsync(new DriveAclIndexRecord { driveId = driveId, fileId = fileId, aclMemberId = stays, lockedFileKey = lockedFileKey });
 
             var before = await tbl.GetAsync(driveId, fileId, stays);
