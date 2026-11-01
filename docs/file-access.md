@@ -62,7 +62,7 @@ writes "collaborative channel" for the second.
 | **index row** | a `DriveAclIndex` row: one per named circle or named identity of a file (an identity as its OdinId's hash), so the query can find "files my circles may see" **(V)** |
 | **share row** | on a Selective Share drive, the index row *is* the share: it adds permission bits, an expiry, the **locked file key** (`lockedFileKey`: the file key locked with the circle key, no IV), and its own `created` and `modified` (columns from PR 1 **(V)**; written from PR 3) |
 | **live row** | a row with `Read` that hasn't expired |
-| **withdrawn share** | a share row kept with no bits and no locked file key, so members syncing see it go |
+| **withdrawn share** | a share row kept with no bits and no locked file key, so members syncing see it go: to a share what a soft-deleted file's tombstone is to a file |
 | **member** | an identity in a circle |
 
 ## Who each check applies to
@@ -236,7 +236,7 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere (PR 3) |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 3) |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
-| How others learn of it | by `modified` | owner callers' other devices by `modified`; members by the share rows' own `modified`, which also shows a withdrawn share (PR 3) |
+| How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" (PR 3) |
 
 **What builds it** (the share API, shares in the upload, the query and the read rule, `includeShares`, members'
 reads, writes, sync and socket events): [selective-share-pr3-plan.md](selective-share-pr3-plan.md).
