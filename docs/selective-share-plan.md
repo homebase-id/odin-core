@@ -60,7 +60,7 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 | `aclMemberId` | Guid | the circle (and later a link's id, decision 4) |
 | `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), narrowing the drive grant per file: Read, and Write to update it or, on a folder, add files to it (see "Who may write"). No bits = a withdrawn share. Every row before Selective Share means read, hence the default |
 | `expiresAt` | UnixTimeUtc (ms), null | when this share of this file ends, so queries skip expired shares. NULL = never |
-| `lockedKeyHeader` | ByteArray (≤ 128), null | the file's key header locked with the circle key: key header version 2, 61 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
+| `lockedKeyHeader` | ByteArray (≤ 128), null | the file's key header locked with the circle key: key header version 2, the file key only, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
 | `created`, `modified` | UnixTimeUtc (ms), not null | the share's own times, apart from the file's (the generator's `FinallyAddCreatedModified`): the cursor a member syncs their shares by. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
 
 - **Each reader sees only their own circle's row.** When a file's ACL is returned, the server builds its circle
@@ -146,10 +146,14 @@ The share rows' key headers are new, so they use key header version 2 (#2024) fo
 version 1 to stay compatible with.
 
 - **`lockedKeyHeader`:** AES-GCM under the circle key, a random 12-byte nonce, and the plaintext
-  `IV ‖ FileKey`. Laid out as `version (1) ‖ nonce (12) ‖ ciphertext (32) ‖ tag (16)`.
-  - **Fixes the IV problem of version 1 for these rows:** the random nonce means two rows with the same
-    file key don't look alike, and the tag covers the IV inside, so whoever stores the row can't change it.
-    A member must use the IV from the row, never the file's visible `Iv` field.
+  `FileKey` alone, no IV. Laid out as `version (1) ‖ nonce (12) ‖ ciphertext (16) ‖ tag (16)`, 45 bytes.
+  - **The IV is the file's own:** a member decrypts `appData.content` with the visible `Iv` of the file's own
+    key header, which a zero-knowledge drive returns as stored **(V)**. So a row stays valid across every update
+    that keeps the file key (decision 7). The IV was never secret: in version 1 it cancels out of the key header, so the visible `Iv`
+    is what every reader has always used **(V, #2024)**. `localAppData` and payloads carry IVs of their own
+    already **(V)**.
+  - **Fixes the equality problem of version 1 for these rows:** the random nonce means two rows with the
+    same file key don't look alike.
   - **AAD binds the key header to its row:** `version ‖ driveId ‖ fileId ‖ circleId`. The server can't move it
     to another file or another circle without the tag failing.
 - **`appKeyLockedShareKey`:** the same AES-GCM layout under `AppZkK`, AAD `version ‖ circleId`.
@@ -246,19 +250,17 @@ content with it and leaves the key headers alone. Two things are needed:
    key header, and on which drives (see "A member adds a file").
 6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31):** no; a share is its `DriveAclIndex` row,
    with times of its own (see "Changing a share").
-7. **A share row's IV after the file changes (open, found in review 2026-11-01).** The row locks `IV ‖ FileKey`
-   and a member must use that IV (Blob formats). But every update of an encrypted file must carry a new IV: a
-   metadata-only update is refused without one (`FileSystemStreamWriterBase`, "You must specify a new IV") **(V)**,
-   and on a zero-knowledge drive the client-locked key header is stored as sent **(V)**. So after the file's next
-   update every share row holds the old IV, and members decrypt the new content with it (inferred: nothing writes
-   the rows yet). Options:
-   - **Re-lock every share row in the update.** The owning app's devices can (they open every circle key through
-     `AppZkK`); a member writer can only re-lock their own circles' rows, so the others go stale until a device of
-     the owning app catches up, the same job as "A member adds a file".
-   - **Lock only the file key in the row**, and take the IV from somewhere every reader can see and trust: today the
-     visible `Iv` is not authenticated, the very gap version 2 closes (#2024).
-   - **Keep the IV with the content** rather than the key: an IV per version of the content, authenticated with it,
-     which is the content half of #2024.
+7. ~~A share row's IV after the file changes.~~ **Decided (2026-11-01):** the row locks the file key only, and
+   a member takes the IV from the file (Blob formats). Every update of an encrypted file must carry a new IV: a
+   metadata-only update is refused without one (`FileSystemStreamWriterBase`, "You must specify a new IV") **(V)**.
+   A row that locked `IV ‖ FileKey` would go stale on the file's next update.
+   - **The rule that comes with it:** on a Selective Share drive an update keeps the file key and changes only the
+     IV. A client that changes the key must re-lock every share row. The server can't check it: on a
+     zero-knowledge drive the client-locked key header is stored as sent **(V)**. Inferred, not read in the
+     clients: they already keep the key on update.
+   - **Not chosen:** re-locking every share row on each update (a member writer can only re-lock their own
+     circles' rows); keeping the IV inside the content blob (a new content format in every client, for nothing
+     over the visible `Iv` once tampering by whoever stores the data is out of scope).
 
 ## Out of scope
 
