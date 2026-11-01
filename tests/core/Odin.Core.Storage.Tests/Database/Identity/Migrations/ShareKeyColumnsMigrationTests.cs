@@ -74,8 +74,14 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         Assert.That(aclRows[0].created.milliseconds,
             Is.InRange(beforeMigration.milliseconds - 1000, UnixTimeUtc.Now().milliseconds + 1000), "created is the migration's time");
 
+        // A member syncs "my shares changed since" by their circles' rows in modified order (a new database replays the
+        // migrations too, so this is the only path)
+        Assert.That(await AclIndexDefinitionsAsync(connectionFactory, databaseType),
+            Has.Some.Contains("(identityid,driveid,aclmemberid,modified,rowid)"));
+
         // The new columns hold what is written and read back through the generated records.
         var lockedKey = Enumerable.Range(0, 61).Select(i => (byte)i).ToArray();
+        var lockedFileKey = Enumerable.Range(0, 45).Select(i => (byte)(100 + i)).ToArray();
         var sealedKey = Enumerable.Range(0, 200).Select(i => (byte)(255 - i)).ToArray();
         var expiresAt = new UnixTimeUtc(1_900_000_000_000);
         await ExecuteAsync(connectionFactory, "UPDATE Circle SET appKeyLockedShareKey=@value WHERE identityId=@identityId;",
@@ -85,14 +91,14 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         await ExecuteAsync(connectionFactory, "UPDATE DriveAclIndex SET expiresAt=@value WHERE identityId=@identityId;",
             ("@value", expiresAt.milliseconds));
         await ExecuteAsync(connectionFactory, "UPDATE DriveAclIndex SET lockedFileKey=@value WHERE identityId=@identityId;",
-            ("@value", lockedKey));
+            ("@value", lockedFileKey));
 
         Assert.That((await scope.Resolve<TableCircle>().PagingByRowIdAsync(10, null)).Item1[0].appKeyLockedShareKey,
             Is.EqualTo(lockedKey));
         Assert.That((await scope.Resolve<TableCircleMember>().PagingByRowIdAsync(10, null)).Item1[0].sealedShareKey,
             Is.EqualTo(sealedKey));
         var aclRow = (await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1[0];
-        Assert.That((aclRow.expiresAt, aclRow.lockedFileKey), Is.EqualTo((expiresAt, lockedKey)));
+        Assert.That((aclRow.expiresAt, aclRow.lockedFileKey), Is.EqualTo((expiresAt, lockedFileKey)));
 
         // Writing the circle or the membership again keeps both keys: the generated upsert leaves them out of its SET
         var circle = circles[0];
@@ -109,42 +115,23 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
             Is.EqualTo(sealedKey));
     }
 
-    [Test]
-    [TestCase(DatabaseType.Sqlite, false)]
-    [TestCase(DatabaseType.Sqlite, true)]
-#if RUN_POSTGRES_TESTS
-    [TestCase(DatabaseType.Postgres, false)]
-    [TestCase(DatabaseType.Postgres, true)]
-#endif
-    // A member syncs "my shares changed since" by their circles' rows in modified order: the index exists whether the
-    // table was made new or by the migration
-    public async Task TheAclIndexHasTheMemberSyncIndex(DatabaseType databaseType, bool migrated)
+    /// <summary>The index definitions on DriveAclIndex, without spaces and in lower case.</summary>
+    private static async Task<List<string>> AclIndexDefinitionsAsync(ScopedIdentityConnectionFactory connectionFactory,
+        DatabaseType databaseType)
     {
-        await RegisterServicesAsync(databaseType, createDatabases: !migrated);
-        await using var scope = Services.BeginLifetimeScope();
-        if (migrated)
-        {
-            var migrator = scope.Resolve<IdentityMigrator>();
-            await migrator.MigrateAsync(VersionBeforeShareKeys);
-            await migrator.MigrateAsync();
-        }
-
-        var connectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
         await using var cn = await connectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
         cmd.CommandText = databaseType == DatabaseType.Sqlite
             ? "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'DriveAclIndex' AND sql IS NOT NULL;"
             : "SELECT indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'driveaclindex';";
         var definitions = new List<string>();
-        await using (var reader = await cmd.ExecuteReaderAsync())
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
         {
-            while (await reader.ReadAsync())
-            {
-                definitions.Add(reader.GetString(0).Replace(" ", "").ToLowerInvariant());
-            }
+            definitions.Add(reader.GetString(0).Replace(" ", "").ToLowerInvariant());
         }
 
-        Assert.That(definitions, Has.Some.Contains("(identityid,driveid,aclmemberid,modified,rowid)"));
+        return definitions;
     }
 
     private async Task ExecuteAsync(ScopedIdentityConnectionFactory connectionFactory, string sql,
