@@ -154,14 +154,20 @@ version 1 to stay compatible with.
     already **(V)**.
   - **Fixes the equality problem of version 1 for these rows:** the random nonce means two rows with the
     same file key don't look alike.
-  - **AAD binds the key header to its row:** `version ‖ driveId ‖ fileId ‖ circleId`. The server can't move it
-    to another file or another circle without the tag failing.
-- **`appKeyLockedShareKey`:** the same AES-GCM layout under `AppZkK`, AAD `version ‖ circleId`.
+  - **AAD binds the key header to its row:** `driveId ‖ fileId ‖ circleId`, ids that never change for the
+    row. A key header that ends up on the wrong row, by a bug, fails to open with an error instead of
+    handing out a wrong key that decrypts to garbage.
+- **`appKeyLockedShareKey`:** the same AES-GCM layout under `AppZkK`, AAD `circleId`.
 - **`sealedShareKey`:** the `sealed` key header's ECDH and HKDF (P-384) with AES-GCM, AAD
-  `version ‖ circleId ‖ memberId`, plus the hint of the drive key it was sealed to.
-- **Not fixed by this:** the second half of #2024, integrity of the file's content (`appData.content`,
-  payloads), which stay AES-CBC with no MAC. The file's own key header (locked with the drive key) also
-  stays version 1 until #2024 is built.
+  `circleId ‖ memberId`, plus the hint of the drive key it was sealed to.
+- **No AAD on the leading format byte:** it is the blob's layout number (2), not the file's version tag, and
+  a wrong one already fails to parse. Covering it would only guard against tampering, which is out of the
+  threat model (next point).
+- **No content integrity, by decision (2026-11-01):** the file's content (`appData.content`, payloads,
+  thumbnails) stays AES-CBC with no MAC. Tampering by whoever stores the data is out of the threat model:
+  they could as well delete it or hold it for ransom. If anything, file encryption later moves to GCM, which
+  brings most of it. The file's own key header (locked with the drive key) stays version 1 until #2024 is
+  built.
 - One golden vector for all three, checked in odin-core, odin-js, chat-kmp and filesync, as
   `ClientLockedKeyHeaderVectorTests` **(V)**.
 

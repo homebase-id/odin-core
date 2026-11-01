@@ -46,8 +46,11 @@ merged 2026-10-27); the reasons, alternatives and work are in
   place), and a hidden "waiting" file on the drive (updates would hide files that were already
   readable).
 - **Known weakness of key header version 1:** the CBC format lets the IV cancel out, so the server sees
-  which key headers share a FileKey and could flip bits in the first block of `appData.content`. Version
-  2 fixes it with per-file integrity ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
+  which key headers share a FileKey. Version 2 fixes it
+  ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
+- **No content integrity, by decision (2026-11-01):** content is AES-CBC with no MAC, so whoever stores it
+  could change it undetected. That is out of the threat model: they could as well delete it or hold it for
+  ransom. A later move of file encryption to GCM would bring most of it.
 
 ## Goal
 
