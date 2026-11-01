@@ -238,18 +238,8 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by the share rows' own `modified`, which also shows a withdrawn share (PR 3) |
 
-**PR 3** ([selective-share-pr3-plan.md](selective-share-pr3-plan.md)):
-- **The share API**, for the owner console or the app that owns both the drive and the circle: list a file's share
-  rows, write a batch (all or none; `Read` required, an expiry in the future, the file key locked with the circle
-  key: 45 bytes, format 2), withdraw a share.
-- **Shares in a new file's upload**, written with its header.
-- **The query's ACL filter as `EXISTS`:** only live rows count, and a file with no rows is the owner callers' on these
-  drives.
-- **`includeShares`** on the query and on the read by id: owner callers get each file's live rows (circle, bits,
-  expiry, `modified`; no locked file keys), so a client can show what is shared without one call per file.
-- **Members:** the read rule's ACL part reads the caller's live row; `ZkDriveFiles.VisibleTo` lets a member with a
-  live row see the client-locked file and get their row's locked file key; a member's write needs `Write` on their live
-  row; members sync their shares by the share rows' `modified`; socket events for shares.
+**What builds it** (the share API, shares in the upload, the query and the read rule, `includeShares`, members'
+reads, writes, sync and socket events): [selective-share-pr3-plan.md](selective-share-pr3-plan.md).
 
 **Is the collaborative channel attribute still needed?** On a Selective Share drive, no. Its edit rules (1 and 2
 above) are what a share row's `Write` bit says, per file; its other effects (3 to 5) move copies, and a
@@ -266,15 +256,13 @@ community and feed drives, which work by copies, it stays.
 | `QueryModifiedAsync` (V1's change query) | **obsolete**, V1 only; the query batch does the same. Left as it is (it ignores its `MaxDate`) until V1 goes |
 | `FileUpdateInstructionSetV2` | **unused**; removed in PR 3 |
 | The drive option `IsReadonly` | documented but **not enforced**: no write path reads it (security-model.md, section 3) **(V)**. Open: enforce or remove |
-| Key header version 1 (AES-CBC; the IV cancels out) | **to be replaced** by version 2 (#2024); share rows use version 2 from the start |
+| Key header version 1 (AES-CBC; the IV cancels out) | **to be replaced** by version 2 (#2024); share rows use AES-GCM, format 2, from the start |
 
 ## Open
 
-- **Withdrawn shares:** when the rows are removed.
-- **A deleted circle's share rows** let no one in (a reader must be a member), and **a reset circle key** leaves rows
-  nobody can open: what to do with both is decided in PR 3 (decision D of its plan).
-- **Sharing with one identity, and links** (selective-share-plan.md, decisions 3 and 4).
-- **Reactions and the read rule** (#2058).
+Selective Share's open decisions are in [selective-share-pr3-plan.md](selective-share-pr3-plan.md), "To decide", and
+[selective-share-plan.md](selective-share-plan.md), "Decisions for the user". Beyond them: reactions and the read rule
+(#2058).
 
 ## Where in the code
 

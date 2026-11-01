@@ -976,6 +976,4 @@ it as it is (read 2026-10-26) **(V)**.
 - **chat-kmp:** comes with consent. Two small bugs found on the way, both harmless today:
   - `EncryptedKeyHeader.toBase64()` writes the version big-endian, but has no production caller;
   - the `MissingEncryptedHeader` check compares by reference, so it never fires.
-- **Per-file integrity: dropped (2026-11-01).** CBC has none, so zero knowledge means confidential from the
-  server, not tamper-proof. Tampering by whoever stores the data is out of the threat model; a later move of
-  file encryption to GCM would bring most of it.
+- **Per-file integrity: dropped (2026-11-01):** out of the threat model (`security-model.md`, section 8).

@@ -161,7 +161,7 @@ The header's ACL names no one on these drives. The `GET` lists one file's share 
 - **What a member gets:** the header with their live row's locked file key in place of the key header: they can't open the
   file's own `sealed` or `zkDrive` key header, and the locked file key opens with their circle key. With live rows in more
   than one of their circles, the row of the lowest circle id, so every read picks the same one. Payload and thumbnail
-  reads carry no key header for a client-locked file **(V, file-access.md)**: the client uses the file key and the
+  reads carry no key header for a client-locked file **(V, zero-knowledge-drives.md)**: the client uses the file key and the
   payload's IV, unchanged.
 - **Nothing about other shares:** outside callers never get the header's server metadata (`CreateClientFileHeader`)
   **(V)**, so a member sees only their own row: its bits and expiry come with the header, for the client to show.
@@ -193,6 +193,9 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   (withdrawn shares included, with no locked file key), using the PR 1 index (`identityId, driveId, aclMemberId, modified,
   rowId`). Paged by `(modified, rowId)`, holding back rows at or after now, as the file feed does (`QueryBatch`)
   **(V for the feed's rule)**.
+- **One query per circle**, merged in C#: with `aclMemberId IN (…)` neither database can return one `(modified,
+  rowId)` order from the index, so every page would scan each circle past the cursor and sort (I). Each circle's
+  query reads the index in order with `LIMIT`.
 
 ## 9. Socket events
 
