@@ -246,6 +246,7 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 | Which rows count in a query | every row | live rows (PR 3; every row on other drives is live, so nothing changes there) |
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere (PR 3) |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 3) |
+| Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member whose live row has `React` or `Comment`, without the drive permission; a comment is read by whoever may read its file (PR 3) |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" (PR 3) |
 
@@ -271,9 +272,9 @@ community and feed drives, which work by copies, it stays.
 
 ## Open
 
-Selective Share's open decisions are in [selective-share-pr3-plan.md](selective-share-pr3-plan.md), "To decide", and
+Selective Share's decisions are in [selective-share-pr3-plan.md](selective-share-pr3-plan.md), "Decided", and
 [selective-share-plan.md](selective-share-plan.md), "Decisions for the user". Beyond them: reactions and the read rule
-(#2058).
+on other drives (#2058).
 
 ## Where in the code
 

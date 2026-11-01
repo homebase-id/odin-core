@@ -58,7 +58,7 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 | Column | Type | Meaning |
 |---|---|---|
 | `aclMemberId` | Guid | the circle (and later a link's id, decision 4) |
-| `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), narrowing the drive grant per file: Read, and Write to update it or, on a folder, add files to it (see "Who may write"). No bits = a withdrawn share. Every row before Selective Share means read, hence the default |
+| `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), per file: Read and Write narrow the drive grant (Write to update the file or, on a folder, add files to it; see "Who may write"); React and Comment are granted by the row alone (PR 3 plan, section 10). No bits = a withdrawn share. Every row before Selective Share means read, hence the default |
 | `expiresAt` | UnixTimeUtc (ms), null | when this share of this file ends, so queries skip expired shares. NULL = never |
 | `lockedFileKey` | ByteArray (≤ 128), null | the file key locked with the circle key: AES-GCM, format 2, no IV, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
 | `created`, `modified` | UnixTimeUtc (ms), not null | the share's own times, apart from the file's (the generator's `FinallyAddCreatedModified`): the cursor a member syncs their shares by. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
@@ -242,7 +242,7 @@ content with it and leaves the key headers alone. Two things are needed:
 
 - **A rule to update content without the key header.** Today a `sealed` header replaces only a `sealed` one
   **(V)** (design doc), so once Michael's device has transformed John's file, John can't send a new key
-  header. Updating content while keeping the stored key header is new, and a security decision (decision 5).
+  header. Updating content while keeping the stored key header is new: decision 5, decided below.
 - **The member's own server must be able to find the file** (design doc, "Known limit" **(V)**): when John
   updates or deletes, the lookup on Michael's server runs as John, and today's read rule lets only the owner
   read a client-locked file, so John's update finds nothing. PR 3 widens the read rule to a member whose
@@ -270,8 +270,10 @@ content with it and leaves the key headers alone. Two things are needed:
 4. **Links**, for someone not on Homebase (design doc, "Links"): a row with the link's id and the key
    header locked with the link's key. Still open: where the link's own record lives (its expiry, the app's
    copy of its key), a small table of its own or a hidden app circle with no members.
-5. **Members editing existing files:** whether a writer may update a file's content while keeping its stored
-   key header, and on which drives (see "A member adds a file").
+5. ~~Members editing existing files.~~ **Decided (2026-11-01):** a member with a `Write` row updates a file's
+   content keeping the file key and the stored key header, sending a new IV only (PR 3 plan, section 7). The server
+   can't check the member kept the file key; a member with `Write` can write garbage either way, which follows
+   from zero knowledge.
 6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31), amended 2026-11-01:** a share is its
    `DriveAclIndex` row, with times of its own, and writing it moves the file's `modified` but not its version
    tag (see "Changing a share").
