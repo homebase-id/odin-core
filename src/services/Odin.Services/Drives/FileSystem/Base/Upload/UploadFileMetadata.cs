@@ -16,7 +16,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         public bool IsEncrypted { get; set; }
 
-        public AccessControlList AccessControlList { get; set; } = new() { RequiredSecurityGroup = SecurityGroupType.Owner };
+        public AccessControlList AccessControlList { get; set; } = AccessControlList.OwnerOnly;
 
         public UploadAppFileMetaData AppData { get; set; } = new();
 

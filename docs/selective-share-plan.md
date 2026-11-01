@@ -44,7 +44,7 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 - **What it buys:**
   - Two devices sharing the same file with different circles at the same moment don't conflict.
   - No size limit: the header's server data is at most 16 KB **(V)**; rows have none.
-  - A member asks "which of my shares changed since X" by the rows' own `modified`.
+  - A share has times of its own, so a withdrawn one can be kept and seen, as a soft-deleted file is.
 - **Cleanup comes free:** a hard delete already clears the file's `DriveAclIndex` rows (`MainIndexMeta`) **(V)**.
 - **A header write keeps the rows it doesn't change** (PR 1, below).
 - **Moves with the identity:** the identity move's export and import carry `DriveAclIndex` rows column by column,
@@ -71,8 +71,9 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
   member can no longer fetch the file through that row, and a query never lists what a read refuses. A
   member who already read the file keeps what they read, and their device may have kept the file key: expiry
   stops access, it doesn't take back what was opened.
-- **Withdrawing a share leaves the row:** no locked file key, no permission bits, `modified` moved. A member syncing by
-  `modified` sees it go; a deleted row would vanish without a trace. A row with no bits grants nothing on any drive,
+- **Withdrawing a share leaves the row**, as a soft delete leaves a file's tombstone: no locked file key, no
+  permission bits, `modified` moved, and the file's `modified` with it. A member's next sync sees it go; a deleted
+  row would vanish without a trace. A row with no bits grants nothing on any drive,
   once every read and query checks the Read bit, which must happen before such a row is written (PR 3; see "Before
   any row is written without Read", below).
   Something still has to remove withdrawn rows in the end, and a member offline longer than they are kept needs a
@@ -92,8 +93,8 @@ moves the file's `modified`, but not its version tag. It changes who may read th
   their ordinary sync by `modified` is how they learn anything. They read the shares with the query's
   `includeShares` flag (PR 3 plan, section 5). A bulk share of a folder makes each device re-fetch those headers,
   not their payloads (I). A member's file feed lists a newly shared file the same way.
-- **Members still sync by the rows' own `modified`** for what the file feed can't show: a withdrawn share, whose
-  file they can no longer see.
+- **Members sync with the query batch, as every client does:** a newly shared file comes back in their next page; a
+  withdrawn share comes back as "no longer shared" (decision E of the PR 3 plan, section 8).
 
 **What today's code does:** every ACL change gives the file a new version tag and moves `modified`. There
 is no way to change only the ACL.
@@ -123,9 +124,10 @@ time (none of the existing rows is a share yet).
 | `CircleMember` | `sealedShareKey` | ByteArray (≤ 2048), null | the circle key sealed to this member. NULL until a device of the owning app seals it (a new member waits for the app's next sign-in, like the app-key backfill) |
 | `DriveAclIndex` | `permissions`, `expiresAt`, `lockedFileKey`, `created`, `modified` | | see "The share row" |
 
-**`DriveAclIndex` gets an index for a member's "my shares changed since"** (decided 2026-11-01): `(identityId,
-driveId, aclMemberId, modified, rowId)`, the rows of one circle on one drive in their own `modified` order. It is in
-the generated table and in the same unreleased migration, so the table is copied once.
+**`DriveAclIndex` gets an index on a circle's rows** (decided 2026-11-01): `(identityId, driveId, aclMemberId,
+modified, rowId)`. A member's query batch on a Selective Share drive starts from their circles' rows (PR 3 plan,
+section 2), which its prefix finds. It is in the generated table and in the same unreleased migration, so the table is
+copied once.
 
 **The query batch names `driveMainIndex` on every column it uses.** It joins `DriveAclIndex` when the caller's
 circles are filtered (`QueryBatch.SharedWhereAnd`) **(V)**, and with `created` and `modified` in both tables an

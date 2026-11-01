@@ -12,7 +12,7 @@ Owner callers write a file's shares: one share row per circle, with its permissi
 locked with the circle key. A new file's upload can carry its shares. On a Selective Share drive a header write leaves
 the share rows alone, and both the query and the read rule let an outside caller in only through a live row of one of
 their circles; a file with no rows is the owner callers' alone. Members then read a shared file with their row's
-locked file key, write where their row has `Write`, sync their shares by the rows' `modified`, and hear of changes on their
+locked file key, write where their row has `Write`, sync with the query batch like every client, and hear of changes on their
 sockets (sections 6 to 9, what was planned as PR 4).
 
 **Changed from the first draft** (2026-11-01, after file-access.md):
@@ -89,6 +89,27 @@ reaches no member.
   fileId, aclMemberId)` prefix serves both subqueries **(V for the index)**.
 - **Expiry and the query cache:** a cached page can outlive a share's expiry by up to 2 hours (`QueryBatchCached`,
   `DefaultTtl`) **(V)**. On a Selective Share drive an outside caller's query isn't cached.
+
+**On a Selective Share drive an outside caller's query starts from their share rows** (decided 2026-11-01). A
+Selective Share drive shares a few of many files; a drive whose files are mostly shared is a `Collaborative`
+(community) drive. So the query doesn't walk the drive's files checking each for a row: it takes the files with a row
+for one of the caller's circles, then pages them as any query batch does:
+
+```sql
+SELECT … FROM driveMainIndex m
+WHERE m.identityId = @identityId AND m.driveId = @driveId AND <the query's other filters>
+  AND m.fileId IN (SELECT r.fileId FROM driveAclIndex r
+                   WHERE r.identityId = @identityId AND r.driveId = @driveId AND r.aclMemberId IN (@circles…))
+  AND (m.modified, m.rowId) > @cursor
+ORDER BY m.modified, m.rowId LIMIT @n
+```
+
+- **The cost follows the caller's shares, not the drive:** the PR 1 index finds the circles' rows by its
+  `(identityId, driveId, aclMemberId)` prefix, each file is found by its key, and only those files are sorted (I:
+  `EXPLAIN` on seeded data, both databases, is a test step).
+- **Every row counts here, live or not.** A file with a live row for the caller comes back whole; a file with only a
+  withdrawn or expired row, or one an owner caller set back to `Owner`, comes back as "no longer shared" (section 8).
+- **The query batch is unchanged for clients:** same request, same modified cursor, same pages.
 
 ## 3. Writing shares
 
@@ -184,18 +205,21 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   member, and today's read rule refused them (zero-knowledge-drives.md, "Known limit") **(V)**. The read rule of section
   2 plus section 6 should let it find the file **(I, test it)**.
 
-## 8. Members sync their shares
+## 8. Members sync with the query batch
 
-- **A newly shared file** reaches a member's ordinary file feed, since the share write moves the file's `modified`
-  (section 3).
-- **A withdrawn or expired share** can't: the member no longer passes the read rule for that file. So a member asks
-  "my shares changed since" over the Peer API: the share rows of their circles on a drive, by the rows' `modified`
-  (withdrawn shares included, with no locked file key), using the PR 1 index (`identityId, driveId, aclMemberId, modified,
-  rowId`). Paged by `(modified, rowId)`, holding back rows at or after now, as the file feed does (`QueryBatch`)
-  **(V for the feed's rule)**.
-- **One query per circle**, merged in C#: with `aclMemberId IN (…)` neither database can return one `(modified,
-  rowId)` order from the index, so every page would scan each circle past the cursor and sort (I). Each circle's
-  query reads the index in order with `LIMIT`.
+**A member syncs a shared drive the way every client syncs a drive: the query batch with a modified cursor**, over
+the Peer API (decided 2026-11-01). A member with access to 7 files on the owner's Filesync drive pages through those 7
+and sees them appear in their own Filesync; nothing else is built for them.
+- **A new share** reaches them because the share write moves the file's `modified` (section 3).
+- **A withdrawn share is its own signal** (decision E): what a soft delete's tombstone is to a file, a withdrawn row
+  is to a share. The row stays with no bits and no locked file key, and the withdrawal moves the file's `modified`, so the member's next page holds that file as **"no longer shared"**: its ids
+  and `modified`, no content, no key. Proposed form: the tombstone a deleted file already gets (`FileState.Deleted`),
+  which sync clients already remove locally (I: to check against Filesync and odin-js). The same answer when an owner
+  caller sets the file back to `Owner`.
+- **Expiry needs no signal:** the member's client holds the share's `expiresAt` (it comes with their row) and drops the
+  file when it passes; the server refuses it from then on (section 2).
+- **No separate "my shares changed since" query** until a client needs one (decided 2026-11-01). The PR 1 index serves
+  the query batch above.
 
 ## 9. Socket events
 
@@ -220,8 +244,8 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   upload to a Selective Share drive; the last withdrawal leaves `Connected` and the file owner-only.
 - **Members (V2 and Peer API):** a member reads a client-locked file with their row's locked file key, and is refused with no
   live row; with two circles' rows they always get the same one; a member updates a file with a `Write` row and is
-  refused without; adds a file to a folder with a `Write` row; their own server finds the file for an update; "my
-  shares changed since" returns new and withdrawn shares in order; a share write reaches the owner's devices and the
+  refused without; adds a file to a folder with a `Write` row; their own server finds the file for an update; the
+  member's query batch pages exactly their shared files, and a withdrawn share comes back as "no longer shared"; a share write reaches the owner's devices and the
   member's peer socket.
 - **V2 integration:** who may write shares (the owner console and the owning app; refused: another app, an app's circle
   on another app's drive, an owner circle, a circle without a key, an archived drive, a drive that isn't Selective
@@ -235,8 +259,10 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   `Connected`, keeping its version tag (sections 1 and 3).
 - **No rows without `Read`** from the V2 share API; V1's index rows always mean `Read`.
 - **Shares in results only when asked** (`includeShares`); the `GET` lists one file's share rows.
-- **The index for a member's "shares changed since"** (`identityId, driveId, aclMemberId, modified, rowId`) goes into
-  PR 1's unreleased migration, before PR 1 merges; section 8 uses it.
+- **An index on a circle's rows** (`identityId, driveId, aclMemberId, modified, rowId`), in PR 1's unreleased
+  migration: a member's query batch starts from those rows (section 2).
+- **E. Members sync with the query batch; a withdrawn share row is the withdrawal signal**, as a tombstone is a
+  file's (section 8). The member's client holds `expiresAt`. No separate share feed until a client needs one.
 - **A share write moves the file's `modified`, not its version tag** (decision 6, amended).
 - **One PR.**
 - **Dead code goes:** `FileUpdateInstructionSetV2`, never used by the V2 update (it reads `FileUpdateInstructionSet`)
