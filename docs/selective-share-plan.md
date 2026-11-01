@@ -119,6 +119,10 @@ time (none of the existing rows is a share yet).
 | `CircleMember` | `sealedShareKey` | ByteArray (≤ 2048), null | the circle key sealed to this member. NULL until a device of the owning app seals it (a new member waits for the app's next sign-in, like the app-key backfill) |
 | `DriveAclIndex` | `permissions`, `expiresAt`, `lockedKeyHeader`, `created`, `modified` | | see "The share row" |
 
+**`DriveAclIndex` gets an index for a member's "my shares changed since"** (decided 2026-11-01): `(identityId,
+driveId, aclMemberId, modified, rowId)`, the rows of one circle on one drive in their own `modified` order. It is in
+the generated table and in the same unreleased migration, so the table is copied once.
+
 **The query batch names `driveMainIndex` on every column it uses.** It joins `DriveAclIndex` when the caller's
 circles are filtered (`QueryBatch.SharedWhereAnd`) **(V)**, and with `created` and `modified` in both tables an
 unnamed one is ambiguous.
