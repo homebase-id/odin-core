@@ -4,7 +4,10 @@ using System.Linq;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Services.Tests.Authorization;
 
@@ -117,5 +120,55 @@ public class AclDecisionTests
         var acl = Acl(SecurityGroupType.Connected);
         acl.OdinIdList = ["not a domain"];
         Assert.Throws<OdinClientException>(() => acl.Validate());
+    }
+
+    // A group that isn't a rung of the ladder means Owner: 0 is what a client sends when it leaves the group out
+    [TestCase(0)]
+    [TestCase(5)]
+    [TestCase(1000)]
+    public void AGroupThatIsNotARungMeansOwner(int value)
+    {
+        var acl = Acl((SecurityGroupType)value);
+        Assert.That(acl.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner));
+        Assert.That(Allows(acl, SecurityGroupType.Connected), Is.False);
+        Assert.That(Allows(acl, SecurityGroupType.Anonymous), Is.False);
+    }
+
+    [Test]
+    public void AnAclWithNoGroupMeansOwner()
+    {
+        Assert.That(new AccessControlList().RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner));
+    }
+
+    // The two ways an ACL reaches the server as JSON: an upload's or update's metadata, and a header read from the
+    // database.  Missing, 0 and an undefined number all read as Owner.
+    [TestCase("{}")]
+    [TestCase("{\"requiredSecurityGroup\":0}")]
+    [TestCase("{\"requiredSecurityGroup\":12}")]
+    public void AnAclReadWithoutARungMeansOwner(string aclJson)
+    {
+        var upload = OdinSystemSerializer.Deserialize<UploadFileDescriptor>($"{{\"fileMetadata\":{{\"accessControlList\":{aclJson}}}}}");
+        Assert.That(upload!.FileMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner), "an upload");
+
+        var stored = OdinSystemSerializer.Deserialize<ServerMetadataDto>($"{{\"accessControlList\":{aclJson}}}");
+        Assert.That(stored!.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner), "a stored header");
+    }
+
+    [Test]
+    public void ARungStillReadsAsItself()
+    {
+        var upload = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(
+            "{\"fileMetadata\":{\"accessControlList\":{\"requiredSecurityGroup\":\"connected\"}}}");
+        Assert.That(upload!.FileMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+        Assert.That(Acl(SecurityGroupType.Anonymous).RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Anonymous));
+    }
+
+    [Test]
+    public void CirclesWithNoGroupAreRefused()
+    {
+        // Before, an ACL naming circles without a group let those circles in at any level; it is Owner now, which
+        // can't name circles.
+        var acl = OdinSystemSerializer.Deserialize<AccessControlList>($"{{\"circleIdList\":[\"{Friends}\"]}}");
+        Assert.Throws<OdinClientException>(() => acl!.Validate());
     }
 }

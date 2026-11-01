@@ -29,7 +29,7 @@ Each term below means one thing everywhere in this document.
 | Term | Means |
 |---|---|
 | **level** | where a caller stands on the ladder `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 < `Owner` 999 (`CallerContext.SecurityLevel`) **(V)**. An unreviewed connection's level counts as `Authenticated` wherever content is judged (`ReviewedSecurityTier.EffectiveLevel`) **(V)** |
-| **required group** | the rung a file asks for: the ACL's `RequiredSecurityGroup`, on the same ladder **(V)** |
+| **required group** | the rung a file asks for: the ACL's `RequiredSecurityGroup`, on the same ladder **(V)**. A group that is missing or isn't a rung (0, or any other number) means `Owner` (`AccessControlList.RequiredSecurityGroup`) |
 
 **Drives**
 
@@ -105,7 +105,8 @@ Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → 
 **The ACL check (step 5)**, in order (`DriveAclAuthorizationService.Allows`, `:101-123`) **(V)**:
 1. A missing ACL refuses.
 2. A required group of `System` refuses: it is a caller level, never a file's.
-3. The caller's level must reach the required group.
+3. The caller's level must reach the required group. A group that isn't a rung was already made `Owner` when the ACL
+   was read, so only owner callers pass it (step 5's bypass).
 4. If the ACL names no circles and no identities, the caller passes.
 5. Otherwise the caller must be in a named circle **or** be a named identity.
 
@@ -144,7 +145,11 @@ rows are made from the ACL (below); the SQL keeps pages full, and security doesn
     domain) (`AccessControlList.cs:85-92`);
   - an encrypted file can't have a required group of `Anonymous` or `Authenticated` (`FileSystemStreamWriterBase.cs:565-576`);
   - on an `OwnerOnly` drive every file's required group must be `Owner` (`:599`; `FileSystemUpdateWriterBase.cs:485`);
-  - an upload that names no ACL gets a required group of `Owner` (`UploadFileMetadata.cs:19`).
+  - an upload that names no ACL gets a required group of `Owner` (`UploadFileMetadata.cs:19`); so does one whose ACL
+    leaves the group out or sends a value that isn't a rung, such as 0 (`AccessControlList.RequiredSecurityGroup`).
+    The rule lives on the ACL itself, so every reader sees `Owner`: the checks above, the read rule, feed
+    distribution, and the group column written from the header. A header already stored with 0 is read as `Owner`
+    too.
 - Comments, reactions and read receipts have rules of their own ("Special cases").
 
 ### What else widens access, on purpose

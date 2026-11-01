@@ -15,7 +15,19 @@ namespace Odin.Services.Authorization.Acl
         public static AccessControlList Connected => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected };
         public static AccessControlList Anonymous => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Anonymous };
 
-        public SecurityGroupType RequiredSecurityGroup { get; set; }
+        private SecurityGroupType _requiredSecurityGroup = SecurityGroupType.Owner;
+
+        /// <summary>
+        /// The lowest caller level that may see the file.  Missing, or a value that isn't a rung of the ladder (0, which a
+        /// client sends when it leaves the group out, or any other undefined number), means <see cref="SecurityGroupType.Owner"/>:
+        /// an ACL that names no group lets no one outside the identity in.  Set here, so every reader sees it, a stored header
+        /// included (docs/file-access.md, "Writing").
+        /// </summary>
+        public SecurityGroupType RequiredSecurityGroup
+        {
+            get => _requiredSecurityGroup;
+            set => _requiredSecurityGroup = Enum.IsDefined(value) ? value : SecurityGroupType.Owner;
+        }
 
         /// <summary>
         /// A list of circles which can access this file.  The caller must below to at least one circle. To retrieve the list, use <see cref="GetRequiredCircles"/>.
