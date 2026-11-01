@@ -7,7 +7,7 @@ names of the keys), [zero-knowledge-drives.md](zero-knowledge-drives.md) (the dr
 [selective-share-plan.md](selective-share-plan.md) (how shares are built, PR by PR).
 
 **Status:** "Today" describes `main` plus Selective Share PR 1 and PR 2 (the share columns and circle keys), read in
-the code on 2026-11-01, partly by subagents. "With Selective Share" is the plan for PR 3 and PR 4, not built.
+the code on 2026-11-01, partly by subagents. "With Selective Share" is the plan for PR 3 (which took in what was planned as PR 4), not built.
 Markers follow security-model.md: **(V)** read in the code (file named), **(I)** inferred.
 
 ## Terms
@@ -229,14 +229,14 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 
 | | Other drives | Selective Share drive |
 |---|---|---|
-| The ACL | the record: required group, named circles, named identities | required group always `Connected`, set by the server; named circles and identities refused (PR 3) |
+| The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused; the required group: decision A of the PR 3 plan |
 | The index rows | made from the ACL on every header write; `Read`, no expiry | share rows, written on their own by the share API; a header write leaves them alone (PR 3) |
 | A file with no rows | open to every caller who reaches the required group | owner callers only (PR 3) |
 | Which rows count in a query | every row | live rows (PR 3; every row on other drives is live, so nothing changes there) |
-| The read rule's ACL part | the ACL's names | the caller's live row (PR 4) |
-| Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 4) |
+| The read rule's ACL part | the ACL's names | the caller's live row (PR 3) |
+| Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 3) |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
-| How others learn of it | by `modified` | owner callers' other devices by `modified`; members by the share rows' own `modified`, which also shows a withdrawn share (PR 4) |
+| How others learn of it | by `modified` | owner callers' other devices by `modified`; members by the share rows' own `modified`, which also shows a withdrawn share (PR 3) |
 
 **PR 3** ([selective-share-pr3-plan.md](selective-share-pr3-plan.md)):
 - **The share API**, for the owner console or the app that owns both the drive and the circle: list a file's share
@@ -247,10 +247,9 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
   drives.
 - **`includeShares`** on the query and on the read by id: owner callers get each file's live rows (circle, bits,
   expiry, `modified`; no locked keys), so a client can show what is shared without one call per file.
-
-**PR 4, members:** the read rule's ACL part reads the caller's live row; `ZkDriveFiles.VisibleTo` lets a member with a
-live row see the client-locked file and get their row's locked key; a member's write needs `Write` on their live row;
-members sync their shares by the share rows' `modified`; socket events for shares.
+- **Members:** the read rule's ACL part reads the caller's live row; `ZkDriveFiles.VisibleTo` lets a member with a
+  live row see the client-locked file and get their row's locked key; a member's write needs `Write` on their live
+  row; members sync their shares by the share rows' `modified`; socket events for shares.
 
 **Is the collaborative channel attribute still needed?** On a Selective Share drive, no. Its edit rules (1 and 2
 above) are what a share row's `Write` bit says, per file; its other effects (3 to 5) move copies, and a
@@ -273,7 +272,7 @@ community and feed drives, which work by copies, it stays.
 
 - **Withdrawn shares:** when the rows are removed.
 - **A deleted circle's share rows** let no one in (a reader must be a member), and **a reset circle key** leaves rows
-  nobody can open: what to do with both is decided in PR 4.
+  nobody can open: what to do with both is decided in PR 3 (decision D of its plan).
 - **Sharing with one identity, and links** (selective-share-plan.md, decisions 3 and 4).
 - **Reactions and the read rule** (#2058).
 

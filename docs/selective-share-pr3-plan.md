@@ -1,184 +1,252 @@
-# Selective Share PR 3: shares as ACL index rows
+# Selective Share PR 3: shares as index rows, and members
 
-**Status:** plan, not built. Part of [selective-share-plan.md](selective-share-plan.md) ("Later PRs", item 3),
-which has the model; this says how PR 3 builds it. Code facts were read on `selective-share-circle-keys`
-(PR 2, which carries PR 1) on 2026-11-01. Markers: **(V)** read in the code (file named), **(I)** inferred.
+**Status:** plan, not built. Part of [selective-share-plan.md](selective-share-plan.md) ("Later PRs", items 3 and 4,
+merged into one PR on 2026-11-01: they aren't released apart), which has the model. How a file's access works today, and the terms used here (owner callers, outside callers, required
+group, index row, share row, live row, withdrawn share, the read rule), are in [file-access.md](file-access.md); read
+it first. Code facts were read on `selective-share-circle-keys` (PR 2, which carries PR 1) on 2026-11-01. Markers:
+**(V)** read in the code (file named), **(I)** inferred.
 
-## What PR 3 does, in one paragraph
+## What PR 3 does
 
-The owner, or the drive's owning app, writes a file's shares: one `DriveAclIndex` row per circle, with its
-permission bits, expiry and the file key locked with the circle key. Sharing a new file can ride in its upload. A
-header write on a Selective Share drive leaves the rows alone, and the query honours the rows' Read bit and
-expiry and treats a file with no rows as the owner's. Nothing a member does changes: members still can't open a
-client-locked file (`ZkDriveFiles.VisibleTo`) **(V)**, so their reads, their "shares changed since" and their
-socket events are PR 4.
+Owner callers write a file's shares: one share row per circle, with its permission bits, expiry and the file key
+locked with the circle key. A new file's upload can carry its shares. On a Selective Share drive a header write leaves
+the share rows alone, and both the query and the read rule let an outside caller in only through a live row of one of
+their circles; a file with no rows is the owner callers' alone. Members then read a shared file with their row's
+locked key, write where their row has `Write`, sync their shares by the rows' `modified`, and hear of changes on their
+sockets (sections 6 to 9, what was planned as PR 4).
 
-## Where things stand
-
-- **A drive knows it is Selective Share** by `StorageDrive.SharingModel == DriveSharingModel.SelectiveShare`
-  (`DriveSharingModel.cs:20-23`, stored in `Drives.SharingModel`) **(V)**. No code tests that value yet; zero
-  knowledge is tested by `StorageDrive.IsZeroKnowledge` (no stored drive key) **(V)**. PR 3 adds
-  `StorageDrive.IsSelectiveShare`.
-- **Every header write knows the drive:** `DriveQuery.SaveFileHeaderAsync(StorageDrive drive, …)` builds the
-  rows' member list from the header's ACL (circles plus the named identities' hash ids) and calls
-  `MainIndexMeta.BaseUpsertEntryZapZapAsync`, which reconciles the rows in the header's transaction
-  (`DriveQuery.cs:221-246`, `MainIndexMeta.cs:205-229`) **(V)**. All about 50 header-writing call sites go through
-  it, soft delete included **(V)**.
-- **The query and the read rule read different things.** The query filters by rows
-  (`cir.fileId IS NULL OR cir.aclMemberId IN (…)`, `QueryBatch.cs:83-95`); the read rule reads the header's
-  ACL (`DriveAclAuthorizationService.Allows`, `:101-123`) **(V)**. They agree today because the rows are made from
-  the header. On a Selective Share drive they won't: the header names no circles.
-- **The owner and apps get the header's ACL; nobody else does:** `DriveFileUtility.CreateClientFileHeader` adds
-  `ServerMetadata` only for the owner (`:113-116`) **(V)**.
-- **Query results are cached** per `aclAnyOf` for up to 2 hours, cleared by the drive's invalidation tag
-  (`QueryBatchCached.cs`, `TableDriveMainIndexCacheKeys.InvalidateDriveAsync`) **(V)**.
+**Changed from the first draft** (2026-11-01, after file-access.md):
+- **The read rule belongs to the share half, not the member half.** Without it, the query and the read rule disagree on a Selective Share
+  drive: a file the query hides would still be readable by id. That matters for any file `VisibleTo` doesn't block: an
+  unencrypted file, which a zero-knowledge drive doesn't refuse (I: no check found). The app's circles grant drive
+  `Read` (selective-share-plan.md, decision 1) **(V)**, so their members pass steps 1 to 4 of a read by id.
+- **The required group, decision A below:** Filesync's drives are already Selective Share (`filesync`
+  `hbsync-homebase/src/app.rs:70`) **(V)**, in production since v0.1.974, and Filesync uploads every file with a
+  required group of `Owner` (`drive/wire.rs:601`) **(V)**. "The server sets `Connected`" applies only to files written
+  after PR 3, so every existing file would stay unshareable: the query's `requiredSecurityGroup` range hides an
+  `Owner` file from every outside caller.
 
 ## 1. The header on a Selective Share drive
 
-- **Its security group is always `Connected`, set by the server** whatever the client sends (decided
-  2026-11-01). The rows say who; the header says only "a reviewed connection, at least" (decided 2026-10-31). A
-  share change never touches the header, so the group can't depend on whether a file is shared. It is safe for a
-  file nobody shares: with no rows it is the owner's alone (section 4). Clients change nothing: an upload that
-  names no ACL gets `Owner` today (`UploadFileMetadata.cs:19`) **(V)**, and is stored as `Connected` here.
-- **Refused on upload and update:** any circle or identity in the ACL, since the rows say who
-  (`FileSystemStreamWriterBase.ValidateUploadCoreAsync`, `FileSystemUpdateWriterBase.ValidateUploadCore`) **(V
-  for the places)**. Only on Selective Share drives (I: Filesync's drive is one; to check that its uploads name
-  none).
-- **No `IsCollaborativeChannel` attribute on a Selective Share drive:** refused at creation and when attributes are
-  set. Its edit rule is what a row's `Write` bit says per file (PR 4), and its other effects move copies, which a
-  zero-knowledge drive never sends ([file-access.md](file-access.md), "Is the collaborative attribute still
-  needed?").
-- **The header write leaves the rows alone:** `SaveFileHeaderAsync` tells `BaseUpsertEntryZapZapAsync` not to
-  reconcile on a Selective Share drive (a `reconcileAcl` flag rather than a null list, so null can't come to mean
-  two things). A soft delete keeps the rows, so a member syncing sees the tombstone; a hard delete still clears
-  them (`MainIndexMeta.cs:50`) **(V)**, and so does the drive purge **(V)**.
+- **The ACL names no one:** named circles and named identities are refused on upload and update
+  (`FileSystemStreamWriterBase.ValidateUploadCoreAsync`, `FileSystemUpdateWriterBase.ValidateUploadCore`) **(V for the
+  places)**: the share rows say who. Filesync names none today **(V, `wire.rs:601`)**.
+- **The required group** (decision A): either it is set to `Connected` by the server and existing files are moved
+  once, or it isn't used on these drives at all.
+- **A header write leaves the share rows alone:** `SaveFileHeaderAsync` tells `BaseUpsertEntryZapZapAsync` not to
+  reconcile on a Selective Share drive (a `reconcileAcl` flag, so a null list can't come to mean two things). A soft
+  delete keeps the rows, so a member syncing sees the tombstone; a hard delete and the drive purge still delete them
+  (`MainIndexMeta.cs:50`, `DeleteFilesAsync`) **(V)**.
+- **No `IsCollaborativeChannel` attribute and no `OwnerOnly` option on a Selective Share drive:** both refused at
+  creation and when changed. The attribute's edit rule is what a share row's `Write` bit says, and its other effects
+  move copies, which a zero-knowledge drive never sends (file-access.md, "Collaborative channels"). `OwnerOnly`
+  requires a required group of `Owner` on every file (`FileSystemStreamWriterBase.cs:599`) **(V)**, so such a drive
+  could share nothing. A zero-knowledge drive is already never public, CDN-enabled or subscribable
+  (`CreateDriveRequest.AssertSharingModel`) **(V)**.
 
-## 2. Writing shares
+## 2. The read rule and the query on a Selective Share drive
 
-**API** (V2, owner console or the drive's owning app):
+**One rule, in both places:** an owner caller or `System` passes, as today; an outside caller passes only with a
+**live row** (`Read` set, not expired) for one of their circles or for their OdinId's hash, and only at the
+`Connected` level (an unreviewed connection counts as `Authenticated` and doesn't pass) **(V for the level rule,
+`ReviewedSecurityTier`)**. A file with no live row for the caller is refused. On every other drive nothing changes.
 
-| Method and route | Does |
-|---|---|
-| `GET /api/v2/drives/{driveId}/files/{fileId}/shares` | the file's rows, withdrawn ones included |
-| `PUT /api/v2/drives/{driveId}/shares` | a batch of `{fileId, circleId, permissions, expiresAt, lockedKeyHeader}`, all or none, up to 100 |
-| `DELETE /api/v2/drives/{driveId}/files/{fileId}/shares/{circleId}` | withdraws one: bits 0, no key header, `modified` moved |
+**The read rule** (`DriveAclAuthorizationService.CallerMayReadAsync`): on a Selective Share drive its ACL part reads the
+caller's share rows instead of the ACL's names. It is synchronous on the header today **(V)**; it becomes async and
+reads the rows. For a page of query results the rows are read once for the page (`… WHERE fileId IN (page) AND
+aclMemberId IN (caller's circles)`), not per file. `VisibleTo` is unchanged in PR 3, so a client-locked file still
+reaches no member.
 
-One `PUT` for one share or a hundred: the bulk job that shares a folder's existing files is the same call.
-
-**Who may:** the master key (owner console), or an app whose client token's app id is the drive's `AppId` and
-the circle's `AppId` **(V for both columns)**. That mirrors PR 2's "owning app or owner console" check
-(`CircleMembershipService.GetCircleCallerMayManageAsync`, `:650-688`) **(V)**, but judged by the drive: a share is
-about the drive's file. A member writer is PR 4.
-
-**Checked for each entry, before anything is written:**
-- The drive is Selective Share; the file exists on it and isn't deleted.
-- The circle is the app's, enabled, grants the drive Read and Write (decision 1 of the plan), and holds its share
-  key: the locked key header is locked with that key, so a circle without one can't have shares
-  (`CircleShareKeyNotSet`).
-- `permissions` is not 0 (0 is a withdrawal, written only by `DELETE`), holds only Read, Write, React and
-  Comment, and includes Read: no upload-only rows yet (decided 2026-11-01). The rows V1 makes from a header's ACL
-  on other drives always mean Read, as today; V1 gets no share API.
-- `expiresAt` is null or later than now.
-- `lockedKeyHeader` is exactly 45 bytes and starts with format byte 2 (decision 7), when the file is encrypted;
-  absent when it isn't.
-
-**Stored** with one upsert per row in one transaction (insert, or update bits, expiry and key header; the
-generated `modified = MAX(modified + 1, now)`) **(V for the generated rule)**. The file's existence is checked in
-the same transaction, with the file's row locked on Postgres as `TableDriveMainIndex` already does (`:391`) **(V)**,
-so a hard delete running alongside can't leave a share behind. Then the drive's caches are cleared, after commit,
-through a new `MainIndexMetaCached` method, as every header write does (`MainIndexMetaCached.cs:24-84`) **(V)**.
-
-**The file's `modified` moves, its version tag doesn't** (decision 6, amended 2026-11-01): a targeted update of
-`driveMainIndex.modified` (`MAX(modified + 1, now)`, as the generated tables do) in the same transaction, for each
-file the batch touches, once. The owner's other devices see the file in their ordinary sync and read the shares
-with `includeShares`. No `DriveFileChangedNotification` in PR 3: a socket event for a share is PR 4's, with the
-members' (I: the owner's devices then catch up at their next sync, not at once).
-
-## 3. Shares in the upload
-
-- A new file's upload may carry `shares`, the same entries as the `PUT`, on `UploadFileDescriptor` next to
-  `EncryptedKeyHeader` (key material travels together, encrypted with the shared secret) **(V for the
-  descriptor)**, not in `UploadFileMetadata`, which the header owns.
-- Checked with the upload's other checks, before any file is moved, and written in the transaction that writes
-  the header, so a file is never visible half-shared.
-- Updates and overwrites carry no shares: they keep the file key (decision 7), so the rows stay valid.
-
-## 4. The query honours the rows
-
-The ACL filter, used whenever the caller isn't the owner (`DriveQuery.GetAcl`) **(V)**, becomes:
+**The query's ACL filter** becomes, on every drive:
 
 ```sql
--- rowless: only on drives where no rows means "the whole security group"
 ( (@rowlessIsOpen AND NOT EXISTS (SELECT 1 FROM driveAclIndex r WHERE <same file>))
   OR EXISTS (SELECT 1 FROM driveAclIndex r WHERE <same file>
              AND r.aclMemberId IN (…) AND (r.permissions & 1) = 1
              AND (r.expiresAt IS NULL OR r.expiresAt > @now)) )
 ```
 
-- `@rowlessIsOpen` is false on a Selective Share drive, true elsewhere: the drive's model is known in `DriveQuery`
-  (I: passed down like the other query parameters).
-- On every other drive the answer is the same as today's: their rows all have bit 1 and no expiry, written by
-  the reconcile with the record's defaults **(V)**.
-- The `LEFT JOIN` and the `SELECT DISTINCT` that exists only for it go (`QueryBatch.cs:369`) **(V)**. `EXPLAIN` on
-  SQLite and Postgres, before and after, for a drive of 100,000 files: the `UNIQUE(identityId, driveId, fileId,
-  aclMemberId)` prefix serves both subqueries **(V for the index)**.
-- **Expiry and the query cache:** a cached page can outlive a share's expiry by up to 2 hours. On Selective Share
-  drives a non-owner query isn't cached (members can't query them before PR 4 anyway, so nothing is lost now).
-- **The read rule doesn't change in PR 3.** On a Selective Share drive a member is still refused by
-  `ZkDriveFiles.VisibleTo` **(V)**; PR 4 makes the read rule read the row.
+- `@rowlessIsOpen` is false on a Selective Share drive and true elsewhere; `DriveQuery` knows the drive (I: passed
+  down like the other parameters).
+- On every other drive the answer is today's: all their index rows are live, made by the reconcile with the columns'
+  defaults **(V)**.
+- The `LEFT JOIN` goes, and with it the `SELECT DISTINCT` that exists only for it (`QueryBatch.cs:369`) **(V)**.
+  `EXPLAIN` on SQLite and Postgres, before and after, on a drive of 100,000 files: the `UNIQUE(identityId, driveId,
+  fileId, aclMemberId)` prefix serves both subqueries **(V for the index)**.
+- **Expiry and the query cache:** a cached page can outlive a share's expiry by up to 2 hours (`QueryBatchCached`,
+  `DefaultTtl`) **(V)**. On a Selective Share drive an outside caller's query isn't cached.
 
-## 5. What the owner sees
+## 3. Writing shares
 
-**Asked for, not sent by default** (proposed 2026-11-01): a query (`QueryBatch`, smart batch, the change feed)
-and a header read by id take `includeShares`. With it, each returned file carries `shares`: its live rows as
-`{circleId, permissions, expiresAt, modified}`, without the locked key headers, which only a member needs. One
-grouped read per page (`… WHERE fileId IN (page)`), only when asked, only for the owner and the owning app, only on
-a Selective Share drive. A client draws whatever it wants from that (shared, editable by others, expiring), and
-nothing is stored that an expiry could make stale. Without the flag nothing changes and nothing is read.
+**API** (V2):
 
-The file header's ACL still says `Connected` and names no one. The `GET` above lists one file's rows, withdrawn
-ones included.
+| Method and route | Does |
+|---|---|
+| `GET /api/v2/drives/{driveId}/files/{fileId}/shares` | the file's share rows, withdrawn shares included |
+| `PUT /api/v2/drives/{driveId}/shares` | a batch of `{fileId, circleId, permissions, expiresAt, lockedKeyHeader}`, all or none, up to 100 |
+| `DELETE /api/v2/drives/{driveId}/files/{fileId}/shares/{circleId}` | withdraws one: no bits, no locked key, `modified` moved |
+
+One `PUT` for one share or a hundred: the job that shares a folder's existing files makes the same call.
+
+**Who may:** the owner console, or the owner's app whose app id is both the drive's `AppId` and the circle's `AppId`
+**(V for both columns)**, as PR 2's circle-key check does (`CircleMembershipService.GetCircleCallerMayManageAsync`)
+**(V)**. The caller also goes through a write's usual drive checks (file-access.md, "Writing"): the drive isn't archived,
+and the caller holds drive `Write`. Members write files (section 7), not shares, except on their own new files.
+
+**Checked for each entry, before anything is written:**
+- The drive is Selective Share; the file exists on it and isn't deleted.
+- The circle belongs to the app, is enabled, grants the drive `Read` and `Write` (decision 1 of the plan), and holds its
+  share key, since the locked key is locked with it (`CircleShareKeyNotSet`).
+- `permissions` isn't 0 (0 is a withdrawn share, written only by `DELETE`), holds only `Read`, `Write`, `React` and
+  `Comment`, and includes `Read`: no upload-only rows yet (decided 2026-11-01). The index rows V1 makes from an ACL on
+  other drives always mean `Read`, as today; V1 gets no share API.
+- `expiresAt` is null or later than now.
+- `lockedKeyHeader` is exactly 45 bytes and starts with format byte 2 (decision 7), when the file is encrypted; absent
+  when it isn't.
+
+**Stored** with one upsert per row, in one transaction (insert, or update bits, expiry and locked key; the generated
+`modified = MAX(modified + 1, now)`) **(V for the generated rule)**. The file's existence is checked in the same
+transaction, with its row locked on Postgres as `TableDriveMainIndex` does (`:391`) **(V)**, so a hard delete running
+alongside can't leave a share behind.
+
+**The file's `modified` moves, its version tag doesn't** (decision 6, amended 2026-11-01): a targeted update of
+`driveMainIndex.modified` (`MAX(modified + 1, now)`), once per file the batch touches, in the same transaction. Owner
+callers' other devices see the file in their ordinary sync and read its shares with `includeShares`. Then the drive's
+caches are cleared after commit, through a new `MainIndexMetaCached` method, as every header write does
+(`MainIndexMetaCached.cs:24-84`) **(V)**. No `DriveFileChangedNotification`: a share raises its own event (section 9).
+
+## 4. Shares in the upload
+
+- A new file's upload may carry `shares`, the same entries as the `PUT`, on `UploadFileDescriptor` next to
+  `EncryptedKeyHeader` (key material together, encrypted with the shared secret) **(V for the descriptor)**, not in
+  `UploadFileMetadata`, which belongs to the header.
+- Checked with the upload's other checks, before any payload is moved, and written in the header's transaction, so a
+  file is never visible half shared.
+- Updates and overwrites carry no shares: they keep the file key (decision 7), so the share rows stay valid.
+
+## 5. What owner callers see
+
+**`includeShares`, asked for, never sent by default:** a query (`QueryBatch`, smart batch, the change feed) and a read
+by id take it. With it, each returned file carries `shares`: its live rows as `{circleId, permissions, expiresAt,
+modified}`, without the locked keys, which only a member needs. One grouped read per page (`… WHERE fileId IN
+(page)`), only when asked, only for owner callers, only on a Selective Share drive; without it nothing changes and
+nothing is read. A client draws what it wants from it (shared, editable by others, expiring), and nothing is stored
+that an expiry could make stale.
+
+The header's ACL names no one on these drives. The `GET` lists one file's share rows, withdrawn shares included.
+
+## 6. Members read
+
+- **`VisibleTo` lets a member in** (`ZkDriveFiles.VisibleTo`): on a Selective Share drive a client-locked file is
+  visible to a caller holding the drive key, as today, **or** to an outside caller with a live row (section 2).
+- **What a member gets:** the header with its key header replaced by their live row's locked key: they can't open the
+  file's own `sealed` or `zkDrive` key header, and the locked key opens with their circle key. With live rows in more
+  than one of their circles, the row of the lowest circle id, so every read picks the same one. Payload and thumbnail
+  reads carry no key header for a client-locked file **(V, file-access.md)**: the client uses the file key and the
+  payload's IV, unchanged.
+- **Nothing about other shares:** outside callers never get the header's server metadata (`CreateClientFileHeader`)
+  **(V)**, so a member sees only their own row: its bits and expiry come with the header, for the client to show.
+- **Through the Peer API:** a member reads via their own server, which asks the owner's. A client-locked key header is
+  passed through as stored today (`PeerDriveQueryService`, zero-knowledge-drives.md) **(V)**; the row's locked key goes
+  the same way **(I, to check when built)**.
+
+## 7. Members write
+
+The rules from selective-share-plan.md, "Who may write" and "A member adds a file to a shared folder":
+- **Updating or deleting a file** needs, besides drive `Write` and passing the read rule, a live row with `Write` for
+  one of the writer's circles. Owner callers need none.
+- **Adding a file to a shared folder** needs that on the folder: Filesync's folders are files, and a file names its
+  folder as its `GroupId` **(I, Filesync's design)**. The new file's own key header is `sealed` to the drive's
+  write-only key, as deposits are today **(V)**; its shares are for circles the writer is in, only on files written in
+  that request. Shares for the folder's other circles are added later by an owner caller's device, the same job as
+  sharing existing files.
+- **Editing an existing file** keeps the file key and leaves the key headers alone: this needs **decision 5** (below).
+- **The member's own server must find the file** when it updates or deletes on their behalf: the lookup runs as the
+  member, and today's read rule refused them (zero-knowledge-drives.md, "Known limit") **(V)**. The read rule of section
+  2 plus section 6 should let it find the file **(I, test it)**.
+
+## 8. Members sync their shares
+
+- **A newly shared file** reaches a member's ordinary file feed, since the share write moves the file's `modified`
+  (section 3).
+- **A withdrawn or expired share** can't: the member no longer passes the read rule for that file. So a member asks
+  "my shares changed since" over the Peer API: the share rows of their circles on a drive, by the rows' `modified`
+  (withdrawn shares included, with no locked key), using the PR 1 index (`identityId, driveId, aclMemberId, modified,
+  rowId`). Paged by `(modified, rowId)`, holding back rows at or after now, as the file feed does (`QueryBatch`)
+  **(V for the feed's rule)**.
+
+## 9. Socket events
+
+- **Today** a header write raises `DriveFileChangedNotification`, which device and peer sockets filter by the read rule
+  (`ClientDriveNotification.VisibleToAsync`, `PeerAppNotificationDispatcher`) **(V)**.
+- **A share write** raises a new `DriveShareChangedNotification` per file: owner callers' devices hear every one; a
+  member's peer socket hears those for their circles' rows, a withdrawal included, judged by the row rather than the
+  read rule (which a withdrawn member no longer passes) **(I, the design; to settle when built)**.
 
 ## Tests
 
-- **Storage, both databases:** the new filter (rowless hidden on Selective Share, shown elsewhere; an expired row
-  and a row without Read hidden; another circle's row hidden); the header write on a Selective Share drive keeps
-  the rows (update, overwrite, soft delete) and a hard delete clears them; the share upsert moves `modified` and
-  keeps `created`; the earlier `AnAclFilterWorksWithEverySortAndFilter` still passes unchanged.
-- **V2 integration:** who may write (owner, owning app; another app, an app's circle on another app's drive, an
-  owner circle, a circle without a key, a non-Selective-Share drive refused); each validation; a batch with one
-  bad entry stores nothing; an upload with shares stores the file and its rows, an upload with a bad share stores
-  neither; a share is seen by the next owner query (cache cleared); a withdrawal keeps the row.
+- **Storage, both databases:** the filter (no rows: hidden on Selective Share, shown elsewhere; an expired row, a row
+  without `Read` and another circle's row: hidden); a header write on a Selective Share drive keeps the share rows
+  (update, overwrite, soft delete) and a hard delete deletes them; the share upsert moves `modified` and keeps
+  `created`; the file's `modified` moves and its version tag doesn't; `AnAclFilterWorksWithEverySortAndFilter` passes
+  unchanged.
+- **The read rule:** on a Selective Share drive, an unencrypted file read by id by a member of a granting circle: refused
+  with no row, with a row without `Read`, with an expired row and when unreviewed; allowed with a live row. On another
+  drive, the same reads answer as today.
+- **Members (V2 and Peer API):** a member reads a client-locked file with their row's locked key, and is refused with no
+  live row; with two circles' rows they always get the same one; a member updates a file with a `Write` row and is
+  refused without; adds a file to a folder with a `Write` row; their own server finds the file for an update; "my
+  shares changed since" returns new and withdrawn shares in order; a share write reaches the owner's devices and the
+  member's peer socket.
+- **V2 integration:** who may write shares (the owner console and the owning app; refused: another app, an app's circle
+  on another app's drive, an owner circle, a circle without a key, an archived drive, a drive that isn't Selective
+  Share); each entry check; a batch with one bad entry stores nothing; an upload with shares stores the file and its
+  rows, one with a bad share stores neither; the next owner query sees a share (cache cleared); a withdrawn share keeps
+  its row; `includeShares` returns the live rows and nothing without it.
 
 ## Decided (2026-11-01)
 
-- **The group** on a Selective Share drive is always `Connected`, set by the server (section 1).
-- **No rows without Read** from the V2 share API; V1's rows always mean Read.
-- **Shares are in query results only when asked** (`includeShares`, section 5); the `GET` lists one file's rows.
-- **The index for a member's "shares changed since"** (`identityId, driveId, aclMemberId, modified, rowId`) goes
-  into PR 1's unreleased migration, before PR 1 merges; PR 4 uses it.
+- **No rows without `Read`** from the V2 share API; V1's index rows always mean `Read`.
+- **Shares in results only when asked** (`includeShares`); the `GET` lists one file's share rows.
+- **The index for a member's "shares changed since"** (`identityId, driveId, aclMemberId, modified, rowId`) goes into
+  PR 1's unreleased migration, before PR 1 merges; section 8 uses it.
+- **A share write moves the file's `modified`, not its version tag** (decision 6, amended).
 - **One PR.**
-- **Dead code goes in PR 3:** `FileUpdateInstructionSetV2`, never used by the V2 update
-  (it reads `FileUpdateInstructionSet`) **(V, read by a subagent)**.
+- **Dead code goes:** `FileUpdateInstructionSetV2`, never used by the V2 update (it reads `FileUpdateInstructionSet`)
+  **(V, read by a subagent)**.
+
+## To decide
+
+- **A. The required group on a Selective Share drive.** Decided earlier: "always `Connected`, set by the server". That
+  holds for new files; existing ones keep `Owner` (above).
+  - **A1. Set `Connected`, and move existing files once:** a version upgrade rewrites every file on a Selective Share
+    drive to `Connected`, the column and the header's JSON, without a new version tag. That needs a header update that
+    keeps the version tag, which doesn't exist today (`UpsertAllButReactionsAndTransferAsync` always sets a new one)
+    **(V)**, and it touches every Filesync user's files in production.
+  - **A2. Don't use the required group on these drives** (recommended): the query skips the `requiredSecurityGroup`
+    range on a Selective Share drive and requires `Connected` of the caller instead; the read rule does the same.
+    Whatever group a client sends is stored and means nothing; Filesync's `Owner` stays as it is. No migration, and
+    "the share rows say who, at `Connected`" is the whole rule, in one place.
+- **B. What a share row's `React` and `Comment` bits mean.** Reactions need drive `React` and never pass the read rule
+  (file-access.md, "Special cases"; #2058), and app circles grant only `Read` and `Write` today. Until that is decided,
+  a circle granting `React` or `Comment` on a Selective Share drive is refused, and so are those bits on a share row.
+
+- **C. Decision 5 of the plan: a member editing an existing file** keeps the file key and leaves the stored key header
+  alone. Today a `sealed` key header replaces only a `sealed` one, and an update must send a key header with a new IV
+  **(V)**. Needed: an update that changes content and the IV but keeps the stored key header, allowed to a member with a
+  `Write` row. A security decision: the server can't check the member kept the file key (zero-knowledge-drives.md).
+- **D. Removing withdrawn shares,** and what a deleted circle's share rows (they let no one in) and a reset circle
+  key's (nobody can open them) become: kept as they are, or withdrawn, or deleted.
 
 ## Not in PR 3
+- Sharing with one identity, and links: decisions 3 and 4 of the plan.
+- The clients: odin-js, chat-kmp and filesync (the plan's item 5).
 
-- Member reads, writes, queries and socket events: PR 4.
-- Cleaning up withdrawn rows (still open), and what deleting a circle or resetting its key does to its rows: a
-  deleted circle's rows grant no one (a reader must be in the circle), and a reset key's rows can't be opened.
-  Listed so PR 4 decides them.
-- Sharing with one person or a link: decisions 3 and 4.
+## Found on the way, not PR 3's
 
-## Found on the way, not PR 3's (for the user to decide)
-
-- **An anonymous caller's query has no SQL ACL filter:** `GetAcl` returns null when the list is empty, so the
-  query lists files that name circles and only the post-filter drops them (`DriveQuery.cs:157-173`,
-  `DriveQueryServiceBase.FilterVisibleAsync`) **(V)**. Nothing leaks (I: the post-filter runs on every result), but
-  a page can come back short.
-- **`QueryModifiedAsync` ignores its `MaxDate`:** it sets `nextBoundaryCursor`, which `QueryBatchAsync` never reads
-  (`QueryBatch.cs:610-647`, `:322-346`) **(V, read by a subagent)**. The user: obsolete, V1 only, the query batch
-  does the same; left alone.
-- **A peer's reaction skips the file's ACL:** the peer path finds the file with `ResolveFileId`, which skips it
-  (`PeerServiceBase.cs:149-163`, `FileSystemResolver.cs:56-72`), and checks only the drive's React permission
-  **(V, read by a subagent)**. Security-relevant; not filed. The user: may be deliberate; to find out before
-  fixing.
+- **Peer reactions skip the read rule:** asked in #2058 (may be deliberate, #1977).
+- **The anonymous home-page cache** runs as its first caller: hardening asked in #2060.
+- **`QueryModifiedAsync` ignores its `MaxDate`:** obsolete, V1 only; left alone (file-access.md, "Kept, retiring,
+  retired").
+- **An anonymous caller's query has no SQL row condition** (`DriveQuery.GetAcl` returns null for an empty list); the
+  per-result read rule drops what they may not see, so only a page can come back short **(V)**.

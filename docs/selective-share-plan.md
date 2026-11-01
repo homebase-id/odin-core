@@ -220,7 +220,7 @@ version 1 to stay compatible with.
      `Authenticated` plus the circle (decided 2026-10-31). `Authenticated` plus circles is allowed for YouAuth
      (`AccessControlList.Validate`) **(V)**, and would let an unreviewed member read a file whose circle key PR 2
      refuses them. With `Connected`, the file and the key follow one rule: a reviewed connection the circle grants.
-4. **Member reads and writes.** The read rule lets a member read a client-locked file with a share row for one
+4. **Member reads and writes** (merged into PR 3 on 2026-11-01; the two aren't released apart; [selective-share-pr3-plan.md](selective-share-pr3-plan.md)). The read rule lets a member read a client-locked file with a share row for one
    of their circles; the write rules in "Who may write". The Peer API passes it all through as stored.
 5. **Clients.** odin-js, chat-kmp and filesync crypto against the golden vector; Filesync's share UI.
 6. **Links**, once decision 4 is made.
