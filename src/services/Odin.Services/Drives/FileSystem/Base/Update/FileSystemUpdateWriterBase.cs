@@ -445,6 +445,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             throw new OdinClientException("Access control list must be specified", OdinClientErrorCode.MissingUploadData);
         }
 
+        serverMetadata.AccessControlList.AssertGivenGroupIsDefined();
         serverMetadata.AccessControlList.Validate();
 
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.IsEncrypted)
