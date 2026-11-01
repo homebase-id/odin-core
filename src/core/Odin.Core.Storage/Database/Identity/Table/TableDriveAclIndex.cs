@@ -40,6 +40,34 @@ public class TableDriveAclIndex(
         return await base.InsertAsync(item);
     }
 
+    /// <summary>Inserts the row, or updates its permissions, expiry and locked file key; created stays, modified moves.</summary>
+    internal new async Task<int> UpsertAsync(DriveAclIndexRecord item)
+    {
+        item.identityId = odinIdentity;
+        return await base.UpsertAsync(item);
+    }
+
+    /// <summary>Every row of the file, whole: on a Selective Share drive, its shares, withdrawn ones included.</summary>
+    public async Task<List<DriveAclIndexRecord>> GetFileRowsAsync(Guid driveId, Guid fileId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt,permissions,lockedFileKey,created,modified " +
+                          "FROM DriveAclIndex WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId ORDER BY rowId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+
+        var rows = new List<DriveAclIndexRecord>();
+        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
+        while (await rdr.ReadAsync())
+        {
+            rows.Add(ReadRecordFromReaderAll(rdr));
+        }
+
+        return rows;
+    }
+
     /// <summary>
     /// Makes the file's rows match the list, in one transaction: deletes the rows of members no longer in it and
     /// inserts the new ones. A row whose member stays is not touched, so its created and modified stay put, and so

@@ -194,6 +194,39 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
         /// <summary>
+        /// Writes a file's share rows (docs/selective-share-pr3-plan.md, section 3), in one transaction with the file's row
+        /// locked, so a hard delete alongside can't leave a share behind. <paramref name="checkFile"/> sees the locked row
+        /// first: it may refuse by throwing, and may return a new required group with the header's server data to match
+        /// (the first share lifts an Owner file to Connected). The file's modified moves and its version tag stays.
+        /// Returns the file's row as it was read, or null, writing nothing, when there is no file.
+        /// </summary>
+        internal async Task<DriveMainIndexRecord> WriteSharesAsync(Guid driveId, Guid fileId, IEnumerable<DriveAclIndexRecord> shares,
+            Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> checkFile)
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var tx = await cn.BeginStackedTransactionAsync();
+
+            var file = await driveMainIndex.GetLockedAsync(driveId, fileId);
+            if (file == null)
+            {
+                tx.Commit();
+                return null;
+            }
+
+            var group = checkFile(file);
+            foreach (var share in shares)
+            {
+                share.driveId = driveId;
+                share.fileId = fileId;
+                await driveAclIndex.UpsertAsync(share);
+            }
+
+            await driveMainIndex.TouchKeepingVersionTagAsync(driveId, fileId, group?.requiredSecurityGroup, group?.hdrServerData);
+            tx.Commit();
+            return file;
+        }
+
+        /// <summary>
         /// By design does NOT update the TransferHistory and ReactionSummary fields, even when 
         /// they are specified in the record.
         /// </summary>

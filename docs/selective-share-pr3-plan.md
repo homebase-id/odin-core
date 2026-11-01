@@ -115,11 +115,14 @@ One `PUT` for one share or a hundred: the job that shares a folder's existing fi
 
 **Who may:** the owner console, or the owner's app whose app id is both the drive's `AppId` and the circle's `AppId`
 **(V for both columns)**, as PR 2's circle-key check does (`CircleMembershipService.GetCircleCallerMayManageAsync`)
-**(V)**. The caller also goes through a write's usual drive checks (file-access.md, "Writing"): the drive isn't archived,
-and the caller holds drive `Write`. Members write files (section 7), not shares, except on their own new files.
+**(V)**. The circle is always the drive's app's own, for the owner console too: its members' copies of the circle key
+are sealed to their matching drive of that app (built 2026-11-01). The caller also goes through a write's usual drive
+checks (file-access.md, "Writing"): the drive isn't archived, and the caller holds drive `Write`; listing a file's shares
+needs drive `Read`. Members write files (section 7), not shares, except on their own new files.
 
 **Checked for each entry, before anything is written:**
-- The drive is Selective Share; the file exists on it and isn't deleted.
+- The drive is Selective Share; the file exists on it, isn't deleted and is a file, not a comment (a comment follows its
+  file's shares, section 10).
 - The circle belongs to the app, is enabled, grants the drive `Read` and `Write` (decision 1 of the plan), and holds its
   share key, since the file key is locked with it (`CircleShareKeyNotSet`).
 - `permissions` isn't 0 (0 is a withdrawn share, written only by `DELETE`), holds only `Read`, `Write`, `React` and

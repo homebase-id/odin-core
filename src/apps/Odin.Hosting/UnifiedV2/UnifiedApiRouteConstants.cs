@@ -16,6 +16,8 @@ public static class UnifiedApiRouteConstants
     public const string FilesRoot = ByDriveId + "/files";
     public const string ByFileId = FilesRoot + "/{fileId:guid}";
     public const string ReactionsByFileId = FilesRoot + "/{fileId:guid}/reactions";
+    public const string SharesByDriveId = ByDriveId + "/shares";
+    public const string SharesByFileId = ByFileId + "/shares";
     public const string GroupReactionsByFileId = FilesRoot + "/{fileId:guid}/group-reactions";
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
     public const string ByGtid = FilesRoot + "/by-gtid/{gtid:guid}";
