@@ -33,6 +33,45 @@ Two different things are called collaborative: the **sharing model** `Collaborat
 key; every drive that isn't zero knowledge counts as one) and the **attribute** `IsCollaborativeChannel` (V1
 community and feed channels: members may edit each other's files, below).
 
+## How the checks combine
+
+**Every check must pass; any refusal ends the request.** No later step can grant what an earlier one refused,
+and nothing "allows over" a deny. The only ways round a step are named bypasses, listed under each step. **(V)**
+for the order: `DriveStorageServiceBase.GetServerFileHeader`, `GetServerFileHeaderInternal`,
+`GetServerFileHeaderForWriting`, `DriveAclAuthorizationService.CallerMayReadAsync`.
+
+**Reading a file by id**, in order:
+
+| # | Check | Refused as | Bypassed by |
+|---|---|---|---|
+| 1 | the drive isn't archived | an error | the owner |
+| 2 | drive `Read` (`AssertCanReadDriveAsync`) | 403 | a `System` context; skipped on an `AllowAnonymousReads` drive (the file's ACL still applies) |
+| 3 | the file exists and its TTL hasn't passed | not found | a delete, which must still see an expired file |
+| 4 | a client-locked file only for a holder of the drive key (`ZkDriveFiles.VisibleTo`) | 403 | `System`; files on the transient drive |
+| 5 | the file's ACL (`CallerPassesAcl` → `Allows`) | 403 | the owner and apps acting for the owner; `System` |
+
+**Inside step 5**, in order: a missing ACL refuses; a `System` group refuses; the caller's level (an unreviewed
+connection counts as `Authenticated`) must reach the group; then, only if the ACL names circles or people, the
+caller must be in one of the circles **or** be one of the people. **The group is a floor and the names only
+narrow it**: naming a circle never lets in someone below the group, and naming no one leaves the group alone.
+
+**A query** runs the same steps in two places: the SQL drops what the security group and the rows rule out
+(steps 2 and 5, roughly), then every result goes through steps 1, 3, 4 and 5 again (`FilterVisibleAsync`). **The
+SQL may only drop; the per-result check is the authority.** A client-locked file a caller may not see is left out as
+missing, not reported as refused.
+
+**Writing:** an upload needs drive `Write`. An update, overwrite or delete runs: drive not archived, drive `Write`,
+then **loads the existing header through steps 3 to 5**, so the writer must also be able to see the file. Then the
+new ACL is validated (`AccessControlList.Validate`, the encrypted-file and `OwnerOnly` rules below). Comments, reactions
+and read receipts have their own rules ("The special cases").
+
+**What else can widen access**, each on purpose: `UpgradeToByPassAclCheck` makes a caller the owner for one job;
+the CDN reads CDN-enabled drives as `System`; three callers read headers skipping the file's ACL; a public drive
+skips drive-permission checks (not the file's ACL). All in "The special cases".
+
+**With Selective Share** the order stays. Step 5 on a Selective Share drive reads the caller's live row instead of the
+header's circles (PR 4), and the SQL counts a row only with `Read` and before its expiry (PR 3).
+
 ## Today: reading a file
 
 A read needs both: the **drive permission** (`Read`), and the **file's ACL** (`DriveAclAuthorizationService`)
