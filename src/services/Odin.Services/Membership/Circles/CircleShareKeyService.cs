@@ -75,7 +75,7 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
         await GetCircleCallerMayHandleShareKeysOfAsync(circleId, "reset the share key of", odinContext);
 
         // The key first: on Postgres that locks the circle's row, so a seal running meanwhile either finds no key or
-        // has committed its copy before the copies are cleared (TableCircleMember.SetSealedShareKeyAsync)
+        // has committed its copies before they are cleared (TableCircleMember.SetSealedShareKeysAsync)
         await using var tx = await db.BeginStackedTransactionAsync();
         await db.CircleCached.ClearShareKeyAsync(circleId);
         await db.CircleMemberCached.ClearSealedShareKeysAsync(circleId);
@@ -142,25 +142,32 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
             throw keyChanged;
         }
 
+        OdinClientException NotAMember(string odinId) =>
+            new($"{odinId} is not a member of circle {circleId}", OdinClientErrorCode.NotACircleMember);
+
         // Read in the transaction, so from the database, not the cache: one query for the batch
         await using var tx = await db.BeginStackedTransactionAsync();
         var rows = (await db.CircleMemberCached.GetCircleMembersAsync(circleId)).ToDictionary(r => r.memberId);
-        foreach (var (memberId, odinId, sealedKey) in members)
+        foreach (var (memberId, odinId, _) in members)
         {
             if (!rows.TryGetValue(memberId, out var row) || !IsIdentityMember(CircleMemberStorageData.From(row)))
             {
-                throw new OdinClientException($"{odinId} is not a member of circle {circleId}",
-                    OdinClientErrorCode.NotACircleMember);
+                throw NotAMember(odinId);
             }
+        }
 
-            // Checked again in the same statement: a reset meanwhile leaves nothing written.  Nothing written is also
-            // a member who left since the read above, which no re-seal can fix
-            if (await db.CircleMemberCached.SetSealedShareKeyAsync(circleId, memberId, sealedKey, sealedFrom) == 0)
-            {
-                throw await db.CircleMemberCached.GetAsync(circleId, memberId) == null
-                    ? new OdinClientException($"{odinId} is not a member of circle {circleId}", OdinClientErrorCode.NotACircleMember)
-                    : keyChanged;
-            }
+        // The key is checked again with the circle's row locked: a reset meanwhile leaves nothing written.  A member
+        // with no row is one who left since the read above, which no re-seal can fix
+        var notMembers = await db.CircleMemberCached.SetSealedShareKeysAsync(circleId,
+            members.Select(m => (m.MemberId, m.SealedKey)).ToList(), sealedFrom);
+        if (notMembers == null)
+        {
+            throw keyChanged;
+        }
+
+        if (notMembers.Count > 0)
+        {
+            throw NotAMember(members.First(m => m.MemberId == notMembers[0]).OdinId);
         }
 
         tx.Commit();

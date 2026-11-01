@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -53,20 +52,9 @@ public class TableDriveAclIndex(
         await using var tx = await cn.BeginStackedTransactionAsync();
 
         var existing = await GetAsync(driveId, fileId);
-        var gone = existing.Where(m => !wanted.Contains(m)).ToList();
-        if (gone.Count > 0)
+        foreach (var memberId in existing.Where(m => !wanted.Contains(m)))
         {
-            await using var deleteCommand = cn.CreateCommand();
-            for (var i = 0; i < gone.Count; i++)
-                deleteCommand.AddParameter($"@member{i}", DbType.Binary, gone[i]);
-
-            deleteCommand.CommandText = "DELETE FROM DriveAclIndex " +
-                                        "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId " +
-                                        $"AND aclMemberId IN ({string.Join(",", gone.Select((_, i) => $"@member{i}"))});";
-            deleteCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-            deleteCommand.AddParameter("@driveId", DbType.Binary, driveId);
-            deleteCommand.AddParameter("@fileId", DbType.Binary, fileId);
-            await deleteCommand.ExecuteNonQueryAsync();
+            await base.DeleteAsync(odinIdentity, driveId, fileId, memberId);
         }
 
         // permissions keeps the record's default, 1 (DrivePermission.Read): until Selective Share writes its own,

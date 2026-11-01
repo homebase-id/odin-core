@@ -64,7 +64,7 @@ public class CircleShareKeyTests : V2Fixture
 
         Assert.That(await StoredKeyAsync(keys, circleId), Is.Null, "a new circle has no key");
 
-        var key = Blob(61, 1);
+        var key = TheKey;
         Assert.That((await keys.SetShareKey(circleId, Key(key))).StatusCode,
             Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key));
@@ -88,7 +88,7 @@ public class CircleShareKeyTests : V2Fixture
         var othersKeys = other.RefitFor<ICircleShareKeyHttpClient>();
 
         Assert.That((await othersKeys.GetShareKey(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-        Assert.That((await othersKeys.SetShareKey(circleId, Key(Blob(61, 1))))
+        Assert.That((await othersKeys.SetShareKey(circleId, Key(TheKey)))
             .StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await othersKeys.GetUnsealedMembers(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await othersKeys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 1)))).StatusCode,
@@ -98,7 +98,7 @@ public class CircleShareKeyTests : V2Fixture
         var ownerCircleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(ownerCircleId, "the owner's", new PermissionSetGrantRequest { Drives = [AppCircles.WriteOn(MeshDrive)] });
         var ownersKeys = owner.RefitFor<ICircleShareKeyHttpClient>();
-        Assert.That((await ownersKeys.SetShareKey(ownerCircleId, Key(Blob(61, 1)))).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That((await ownersKeys.SetShareKey(ownerCircleId, Key(TheKey))).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await ownersKeys.ResetShareKey(ownerCircleId)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
 
         // Only the owner console is told a circle doesn't exist
@@ -118,7 +118,7 @@ public class CircleShareKeyTests : V2Fixture
         var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
 
-        var wrongVersion = Blob(61, 1);
+        var wrongVersion = TheKey;
         wrongVersion[0] = 1;
         DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key(wrongVersion)),
             OdinClientErrorCode.InvalidShareKey);
@@ -152,7 +152,7 @@ public class CircleShareKeyTests : V2Fixture
         DriveAsserts.AssertRejected(await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7))),
             OdinClientErrorCode.CircleShareKeyNotSet);
 
-        await keys.SetShareKey(circleId, Key(Blob(61, 1)));
+        await keys.SetShareKey(circleId, Key(TheKey));
 
         // All or none: Pippin is no member, so Sam's copy in the same batch isn't stored either
         var withPippin = await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7), (Identities.Pippin, 8)));
@@ -197,7 +197,7 @@ public class CircleShareKeyTests : V2Fixture
         Assert.That(whileDisabled.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), whileDisabled.Error?.Content);
 
         Assert.That((await network.EnableCircle(circleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        await AssertSamKeepsCopyAsync(sam, owner, keys, circleId, Blob(61, 1), Copy(7), "disable and enable");
+        await AssertSamKeepsCopyAsync(sam, owner, keys, circleId, TheKey, Copy(7), "disable and enable");
     }
 
     /// <summary>
@@ -213,7 +213,7 @@ public class CircleShareKeyTests : V2Fixture
 
         var byTheApp = await keys.ResetShareKey(circleId);
         Assert.That(byTheApp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), byTheApp.Error?.Content);
-        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(Blob(61, 1)));
+        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(TheKey));
 
         var reset = await owner.RefitFor<ICircleShareKeyHttpClient>().ResetShareKey(circleId);
         Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.OK), reset.Error?.Content);
@@ -273,7 +273,7 @@ public class CircleShareKeyTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var (app, circleId, keys) = await CircleWithSamsCopyAsync(owner);
         var network = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
-        var key = Blob(61, 1);
+        var key = TheKey;
 
         var ownerNetwork = owner.RefitFor<IConnectionNetworkHttpClientApiV2>();
         Assert.That((await ownerNetwork.Block(new OdinIdRequest { OdinId = Identities.Sam })).StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -314,14 +314,14 @@ public class CircleShareKeyTests : V2Fixture
 
     // -------------------------------------------------------------------------------------------
 
-    /// <summary>An app's circle with Sam in it, its key <c>Blob(61, 1)</c>, and Sam's copy <c>Copy(7)</c> stored.</summary>
+    /// <summary>An app's circle with Sam in it, its key <see cref="TheKey"/>, and Sam's copy <c>Copy(7)</c> stored.</summary>
     private static async Task<(AppSession App, Guid CircleId, ICircleShareKeyHttpClient Keys)> CircleWithSamsCopyAsync(
         OwnerSession owner)
     {
         var (app, circleId, _) = await AppCircles.AppWithItsOwnCircleAsync(owner);
         var keys = app.RefitFor<ICircleShareKeyHttpClient>();
         await AppCircles.AddMemberAsync(app, circleId, Identities.Sam);
-        var key = await keys.SetShareKey(circleId, Key(Blob(61, 1)));
+        var key = await keys.SetShareKey(circleId, Key(TheKey));
         Assert.That(key.StatusCode, Is.EqualTo(HttpStatusCode.OK), key.Error?.Content);
         var copy = await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7)));
         Assert.That(copy.StatusCode, Is.EqualTo(HttpStatusCode.OK), copy.Error?.Content);
@@ -353,8 +353,11 @@ public class CircleShareKeyTests : V2Fixture
     /// <summary>A stand-in for a member's sealed copy.</summary>
     private static byte[] Copy(byte fill) => Blob(200, fill);
 
-    /// <summary>Copies sealed from the key every test sets first, <c>Blob(61, 1)</c>.</summary>
-    private static SetSealedShareKeysRequest Sealed(params (string Identity, byte Fill)[] members) => SealedFrom(Blob(61, 1), members);
+    /// <summary>The key every test sets first; a new array each time, so no test can change another's.</summary>
+    private static byte[] TheKey => Blob(61, 1);
+
+    /// <summary>Copies sealed from the key every test sets first, <see cref="TheKey"/>.</summary>
+    private static SetSealedShareKeysRequest Sealed(params (string Identity, byte Fill)[] members) => SealedFrom(TheKey, members);
 
     private static SetSealedShareKeysRequest SealedFrom(byte[] key, params (string Identity, byte Fill)[] members) => new()
     {

@@ -86,12 +86,14 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
 
     //
 
-    /// <summary>Stores a member's sealed copy of the circle key (<see cref="TableCircleMember.SetSealedShareKeyAsync"/>).</summary>
-    public async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey, byte[] circleShareKey)
+    /// <summary>Stores members' sealed copies of the circle key (<see cref="TableCircleMember.SetSealedShareKeysAsync"/>).</summary>
+    public async Task<List<Guid>> SetSealedShareKeysAsync(Guid circleId,
+        IReadOnlyCollection<(Guid MemberId, byte[] SealedShareKey)> copies, byte[] circleShareKey)
     {
-        var result = await table.SetSealedShareKeyAsync(circleId, memberId, sealedShareKey, circleShareKey);
+        var result = await table.SetSealedShareKeysAsync(circleId, copies, circleShareKey);
 
-        await InvalidateAsync(circleId, memberId);
+        // Many members' rows, as the other many-row writes here do
+        await Cache.InvalidateAllAsync();
 
         return result;
     }

@@ -217,9 +217,7 @@ public class CircleMembershipService(
     {
         var records =
             await db.CircleMemberCached.GetMemberCirclesAndDataAsync(OdinId.ToHashId(domainName));
-        var circleMemberRecords = records.Select(d =>
-            CircleMemberStorageData.From(d)
-        );
+        var circleMemberRecords = records.Select(CircleMemberStorageData.From);
         return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
 

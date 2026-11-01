@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
@@ -63,7 +62,7 @@ public class V2CircleShareKeyController(CircleShareKeyService shareKeys) : OdinC
     public async Task<List<string>> GetUnsealedMembers([FromRoute] Guid circleId)
     {
         var members = await shareKeys.GetMembersWithoutSealedShareKeyAsync(new GuidId(circleId), WebOdinContext);
-        return members.Select(m => m.DomainName).ToList();
+        return members.ToDomainNames();
     }
 
     /// <summary>Stores members' sealed copies of the circle's key, all or none.</summary>

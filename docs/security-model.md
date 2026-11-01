@@ -228,9 +228,9 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
     an owner circle and another app's circle; only the owner console is told a circle doesn't exist **(V)**.
   - The key is set once; a member's copy may be replaced. A copy is stored only for a member, and only while the circle
     holds the key the app says it sealed from (`SealedFrom`), checked again in the same statement, so a reset
-    meanwhile can't leave copies of the old key (`CircleShareKeyChanged`) **(V)**. On Postgres that check share-locks
-    the circle's row and the reset clears the key before the copies (`TableCircleMember.SetSealedShareKeyAsync`)
-    **(V; the locking order is inferred from Postgres' READ COMMITTED rules, not run concurrently)**. The one way back is a developer's reset, owner console only: it clears the key and every
+    meanwhile can't leave copies of the old key (`CircleShareKeyChanged`) **(V)**. The check locks the circle's row,
+    and the reset clears the key before the copies (`TableCircleMember.SetSealedShareKeysAsync`) **(V; on Postgres a
+    test overlaps a seal and a reset in both orders)**. The one way back is a developer's reset, owner console only: it clears the key and every
     copy (`CircleShareKeyService.ResetShareKeyAsync`) **(V)**.
   - A member fetches only their own copy, over the Peer API, while the circle is one of their enabled circles and only
     once the owner has reviewed the connection (`ReviewedSecurityTier`: the circle key opens content, which an

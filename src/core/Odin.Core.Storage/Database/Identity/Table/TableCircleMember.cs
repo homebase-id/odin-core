@@ -6,7 +6,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
@@ -39,42 +38,70 @@ public class TableCircleMember(
     }
 
     /// <summary>
-    /// Stores a member's sealed copy of the circle key, replacing any earlier one (the app re-seals when the
-    /// member's drive key changes): 1 when stored, 0 when they are not a member of the circle or the circle no
-    /// longer holds <paramref name="circleShareKey"/>, the key the copy was sealed from.  Checked in the same
-    /// statement, so a key reset or replaced meanwhile can't be left with copies of the old one.  Touches no
-    /// other column.
+    /// Stores members' sealed copies of the circle key, all or none, replacing earlier ones (the app re-seals when
+    /// a member's drive key changes).  Null when the circle no longer holds <paramref name="circleShareKey"/>, the
+    /// key the copies were sealed from; otherwise the members with no row in the circle, and nothing is stored
+    /// unless that list is empty.  Touches no other column.
     /// </summary>
     /// <remarks>
-    /// On Postgres the check share-locks the circle's row: under READ COMMITTED a plain read would see the old key
-    /// while a reset that has cleared the copies but not yet committed goes on to clear it, leaving this copy behind.
-    /// Locked, a seal either waits for the reset and finds no key, or the reset waits for it and clears the copy
-    /// (it clears the key first, <c>CircleShareKeyService.ResetShareKeyAsync</c>).  SQLite has one writer at a time.
+    /// The circle's row is locked first, by an update that changes nothing and matches only while the circle holds
+    /// the key.  A reset clears the key before the copies (<c>CircleShareKeyService.ResetShareKeyAsync</c>), so it
+    /// either committed first and the match fails, or it waits for these copies and then clears them.  On Postgres
+    /// a waiting update re-checks the committed row; SQLite has one writer at a time.
     /// </remarks>
-    internal async Task<int> SetSealedShareKeyAsync(Guid circleId, Guid memberId, byte[] sealedShareKey, byte[] circleShareKey)
+    internal async Task<List<Guid>> SetSealedShareKeysAsync(Guid circleId,
+        IReadOnlyCollection<(Guid MemberId, byte[] SealedShareKey)> copies, byte[] circleShareKey)
     {
-        // Never empty: an empty copy would count as sealed.
-        if (sealedShareKey == null || sealedShareKey.Length == 0 || sealedShareKey.Length > MaxSealedShareKeyLength)
+        foreach (var (_, sealedShareKey) in copies)
         {
-            throw new OdinDatabaseValidationException(
-                $"sealedShareKey must be 1 to {MaxSealedShareKeyLength} bytes, was {sealedShareKey?.Length.ToString() ?? "null"}");
+            // Never empty: an empty copy would count as sealed.
+            if (sealedShareKey == null || sealedShareKey.Length == 0 || sealedShareKey.Length > MaxSealedShareKeyLength)
+            {
+                throw new OdinDatabaseValidationException(
+                    $"sealedShareKey must be 1 to {MaxSealedShareKeyLength} bytes, was {sealedShareKey?.Length.ToString() ?? "null"}");
+            }
         }
 
-        var forShare = _scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite ? "" : " FOR SHARE";
-
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
-        cmd.CommandText =
-            "UPDATE CircleMember SET sealedShareKey = @sealedShareKey " +
-            "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId " +
-            "AND EXISTS (SELECT 1 FROM Circle WHERE Circle.identityId = @identityId AND Circle.circleId = @circleId " +
-            $"AND Circle.appKeyLockedShareKey = @circleShareKey{forShare});";
-        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-        cmd.AddParameter("@circleId", DbType.Binary, circleId);
-        cmd.AddParameter("@memberId", DbType.Binary, memberId);
-        cmd.AddParameter("@sealedShareKey", DbType.Binary, sealedShareKey);
-        cmd.AddParameter("@circleShareKey", DbType.Binary, circleShareKey);
-        return await cmd.ExecuteNonQueryAsync();
+        await using var tx = await cn.BeginStackedTransactionAsync();
+
+        await using (var lockCommand = cn.CreateCommand())
+        {
+            lockCommand.CommandText =
+                "UPDATE Circle SET appKeyLockedShareKey = appKeyLockedShareKey " +
+                "WHERE identityId = @identityId AND circleId = @circleId AND appKeyLockedShareKey = @circleShareKey;";
+            lockCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+            lockCommand.AddParameter("@circleId", DbType.Binary, circleId);
+            lockCommand.AddParameter("@circleShareKey", DbType.Binary, circleShareKey);
+            if (await lockCommand.ExecuteNonQueryAsync() == 0)
+            {
+                return null;
+            }
+        }
+
+        var notMembers = new List<Guid>();
+        foreach (var (memberId, sealedShareKey) in copies)
+        {
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText =
+                "UPDATE CircleMember SET sealedShareKey = @sealedShareKey " +
+                "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId;";
+            cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+            cmd.AddParameter("@circleId", DbType.Binary, circleId);
+            cmd.AddParameter("@memberId", DbType.Binary, memberId);
+            cmd.AddParameter("@sealedShareKey", DbType.Binary, sealedShareKey);
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+            {
+                notMembers.Add(memberId);
+            }
+        }
+
+        if (notMembers.Count == 0)
+        {
+            tx.Commit();
+        }
+
+        return notMembers;
     }
 
     /// <summary>Clears every member's sealed copy in a circle: the number cleared.  Touches no other column.</summary>
