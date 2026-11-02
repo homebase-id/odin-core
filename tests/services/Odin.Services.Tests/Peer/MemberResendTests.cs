@@ -19,14 +19,14 @@ public class MemberResendTests
     public void TheSameDeliveryAgainIsARetry()
     {
         var sent = Sent();
-        Assert.That(PeerFileWriter.IsSameDelivery(Stored(sent), Sent(sent)), Is.True);
+        Assert.That(PeerFileWriter.IsSameDelivery(Copy(sent), Copy(sent)), Is.True);
     }
 
     [Test]
     public void AnythingElseSentAgainIsAChange()
     {
         var sent = Sent();
-        var stored = Stored(sent);
+        var stored = Copy(sent);
         var changes = new (string what, Action<FileMetadata> change)[]
         {
             ("new content", m => m.AppData.Content = "changed"),
@@ -39,18 +39,17 @@ public class MemberResendTests
 
         foreach (var (what, change) in changes)
         {
-            var again = Sent(sent);
+            var again = Copy(sent);
             change(again);
             Assert.That(PeerFileWriter.IsSameDelivery(stored, again), Is.False, what);
         }
 
         stored.SenderOdinId = null!;
-        Assert.That(PeerFileWriter.IsSameDelivery(stored, Sent(sent)), Is.False, "a stored file with no sender");
+        Assert.That(PeerFileWriter.IsSameDelivery(stored, Copy(sent)), Is.False, "a stored file with no sender");
     }
 
-    private static FileMetadata Sent(FileMetadata? copyOf = null) => copyOf != null
-        ? OdinSystemSerializer.Deserialize<FileMetadata>(OdinSystemSerializer.Serialize(copyOf))!
-        : new FileMetadata
+    private static FileMetadata Sent() =>
+        new()
         {
             GlobalTransitId = Guid.NewGuid(),
             SenderOdinId = "sam.dotyou.cloud",
@@ -58,11 +57,6 @@ public class MemberResendTests
             Payloads = new List<PayloadDescriptor> { new() { Key = "first", Uid = UnixTimeUtcUnique.Now(), BytesWritten = 10 } }
         };
 
-    // As the index gives it back: the header's AppData through its JSON column
-    private static FileMetadata Stored(FileMetadata sent)
-    {
-        var stored = Sent(sent);
-        stored.AppData = OdinSystemSerializer.Deserialize<AppFileMetaData>(OdinSystemSerializer.Serialize(sent.AppData))!;
-        return stored;
-    }
+    // Through JSON, as the index gives a header back and a peer's delivery arrives
+    private static FileMetadata Copy(FileMetadata metadata) => OdinSystemSerializer.SlowDeepCloneObject(metadata)!;
 }

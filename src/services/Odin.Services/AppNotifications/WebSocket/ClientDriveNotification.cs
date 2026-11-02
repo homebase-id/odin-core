@@ -119,17 +119,19 @@ public sealed class DriveEventMessage(
     }
 
     /// <summary>
-    /// The event for a dispatcher's <paramref name="sockets"/> on the drive, or null when its drive can't be read: then
-    /// every one of them misses it and is aborted, so each reconnects and catches up (#1966).
+    /// A dispatcher's drive event, sent to each of its <paramref name="sockets"/> on the drive that gets it (#1966): when
+    /// the drive can't be read, every one of them misses it and is aborted, so each reconnects and catches up; when one
+    /// socket's message can't be built, that socket alone (<see cref="TryMessageForAsync"/>).
     /// </summary>
-    public static async Task<DriveEventMessage?> TryCreateAsync(Guid driveId, ClientNotificationType notificationType,
-        ServerFileHeader? header, ServerFileHeader? previousHeader, IEnumerable<DeviceSocket> sockets, IDriveManager driveManager,
-        ILogger logger)
+    public static async Task PublishAsync(Guid driveId, ClientNotificationType notificationType, ServerFileHeader? header,
+        ServerFileHeader? previousHeader, IReadOnlyList<DeviceSocket> sockets, IDriveManager driveManager,
+        IDriveAclAuthorizationService aclService, Func<DeviceSocket, string, Task> send, ILogger logger)
     {
+        DriveEventMessage driveEvent;
         try
         {
             var drive = await driveManager.GetDriveAsync(driveId);
-            return new DriveEventMessage(notificationType, drive?.TargetDriveInfo, header, previousHeader);
+            driveEvent = new DriveEventMessage(notificationType, drive?.TargetDriveInfo, header, previousHeader);
         }
         catch (Exception e)
         {
@@ -139,7 +141,15 @@ public sealed class DriveEventMessage(
                 deviceSocket.Abort(logger, "drive event could not be prepared", e);
             }
 
-            return null;
+            return;
+        }
+
+        foreach (var deviceSocket in sockets)
+        {
+            if (await driveEvent.TryMessageForAsync(deviceSocket, aclService, logger) is { } json)
+            {
+                await send(deviceSocket, json);
+            }
         }
     }
 
@@ -147,7 +157,7 @@ public sealed class DriveEventMessage(
     /// <see cref="MessageForAsync"/> for a dispatcher's loop: when the message can't be built, that socket alone misses the
     /// event and is aborted, so its client reconnects and catches up, and the others still get it (#1966).
     /// </summary>
-    public async Task<string?> TryMessageForAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService, ILogger logger)
+    private async Task<string?> TryMessageForAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService, ILogger logger)
     {
         try
         {

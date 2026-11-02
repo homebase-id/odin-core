@@ -35,9 +35,9 @@ namespace Odin.Services.Authorization.Acl
 
         /// <summary>
         /// On a Selective Share drive, whether the caller may do what <paramref name="permission"/> names to the file of
-        /// <paramref name="header"/>: an owner caller, or a member with a live share with that bit, whose level reaches
-        /// the file's group as for a read.  A share's <c>React</c> and <c>Comment</c> bits grant by the row alone, with
-        /// no drive permission (section 10); a comment goes by the file it comments on.
+        /// <paramref name="header"/>: an owner caller, or a member with that bit both on the drive and in a live share,
+        /// whose level reaches the file's group as for a read: a share row narrows its circles' grant (docs/file-access.md,
+        /// "A share row narrows its circle's grant").  A comment goes by the file it comments on.
         /// </summary>
         Task<bool> CallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext);
     }

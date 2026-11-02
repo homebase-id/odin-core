@@ -2109,9 +2109,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <summary>
         /// On a Selective Share drive an outside caller writes only their own comment, on a file shared with them with
-        /// <c>Comment</c>, which the comment's group names: adding, editing and deleting it alike, in place of drive
-        /// <c>Comment</c> (docs/selective-share-pr3-plan.md, section 10).  Asked where every header is written, so no
-        /// path that writes a comment skips it.
+        /// <c>Comment</c>, which the comment's group names, and which they may read: adding, editing and deleting it
+        /// alike, as well as drive <c>Comment</c> (docs/file-access.md, "A share row narrows its circle's grant").  Asked
+        /// where every header is written, so no path that writes a comment skips it.
         /// </summary>
         private async Task AssertMayWriteSharedCommentAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
         {
@@ -2129,6 +2129,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("A comment's group names the file it comments on", OdinClientErrorCode.InvalidReferenceFile);
             }
 
+            // A comment is on a file its writer may read, as a peer's comment on any drive (IncomingCommentAcl); every
+            // live share holds Read, so the drive's is what is left to ask
+            odinContext.PermissionsContext.AssertCanReadDrive(drive.Id);
             if (!await driveAclAuthorizationService.CallerHoldsShareAsync(header, DrivePermission.Comment, odinContext))
             {
                 throw new OdinSecurityException("No share with Comment on the file");

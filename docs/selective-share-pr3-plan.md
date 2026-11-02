@@ -348,7 +348,7 @@ comment on it (a photo, a document).
   rest is asked where every header is written (`DriveStorageServiceBase.AssertMayWriteSharedCommentAsync`), for an
   outside caller: the comment's author, then and before (`SenderOdinId`); an active comment's group naming its
   referenced file; drive `Comment` and a live row with `Comment` on that file, and the file readable to them: drive
-  `Read` (`CallerHoldsShareAsync`, which asks the drive grant for each bit it asks of the row). That covers adding, editing,
+  `Read`, asked there; `CallerHoldsShareAsync` asks the drive grant for the bit it asks of the row. That covers adding, editing,
   overwriting and deleting, local or from a peer. A member's comment update skips section 7's `Write` row check.
 - **A shared file's group is the server's** (decided 2026-11-02): a write to a stored file keeps its group, whatever
   the client sends (`DriveQuery.SaveFileHeaderAsync`, which every header write goes through), so an owner client that sends `Owner` with an edit

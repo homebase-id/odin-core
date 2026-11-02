@@ -168,27 +168,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            var driveEvent = await DriveEventMessage.TryCreateAsync(notification.File.DriveId, notification.NotificationType,
-                notification.ServerFileHeader, notification.PreviousServerFileHeader, sockets, scope.Resolve<IDriveManager>(), _logger);
-            if (driveEvent == null)
-            {
-                return;
-            }
-
-            var aclService = scope.Resolve<IDriveAclAuthorizationService>();
-            foreach (var deviceSocket in sockets)
-            {
-                var json = await driveEvent.TryMessageForAsync(deviceSocket, aclService, _logger);
-                if (json == null)
-                {
-                    continue;
-                }
-
-                await SendMessageAsync(
-                    deviceSocket,
-                    json,
-                    encrypt: true);
-            }
+            await DriveEventMessage.PublishAsync(notification.File.DriveId, notification.NotificationType,
+                notification.ServerFileHeader, notification.PreviousServerFileHeader, sockets, scope.Resolve<IDriveManager>(),
+                scope.Resolve<IDriveAclAuthorizationService>(), (socket, json) => SendMessageAsync(socket, json, encrypt: true), _logger);
         }
 
         //

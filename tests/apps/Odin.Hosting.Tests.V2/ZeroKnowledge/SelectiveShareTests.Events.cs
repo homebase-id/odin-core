@@ -219,14 +219,9 @@ public partial class SelectiveShareTests
     /// <summary>Sam adds or removes his reaction on Frodo's file, through his own server.</summary>
     private static async Task ReactAsync(Arranged s, GlobalTransitIdFileIdentifier file, bool add)
     {
-        var reactions = s.Sam.RefitFor<IRefitOwnerTransitReaction>();
         var response = add
-            ? await reactions.AddReaction(new PeerAddReactionRequest
-            {
-                OdinId = s.Frodo.Identity,
-                Request = new AddRemoteReactionRequest { File = file, Reaction = Thumbsup }
-            })
-            : await reactions.DeleteReactionContent(new PeerDeleteReactionRequest
+            ? await SamAddsReactionAsync(s, file, Thumbsup)
+            : await s.Sam.RefitFor<IRefitOwnerTransitReaction>().DeleteReactionContent(new PeerDeleteReactionRequest
             {
                 OdinId = s.Frodo.Identity,
                 Request = new DeleteReactionRequestByGlobalTransitId { File = file, Reaction = Thumbsup }

@@ -272,22 +272,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (fs.Storage.GetFileSystemType() == FileSystemType.Standard && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
             {
                 var stored = await fs.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(targetDriveId,
-                    newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
-                if (stored == null && (!newMetadata.AppData.UniqueId.HasValue ||
-                                       await fs.Query.GetFileByClientUniqueIdForWriting(targetDriveId, newMetadata.AppData.UniqueId.Value,
-                                           odinContext) == null))
+                                 newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext) ??
+                             (newMetadata.AppData.UniqueId is { } uniqueId
+                                 ? await fs.Query.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(targetDriveId, uniqueId, odinContext)
+                                 : null);
+                if (stored == null)
                 {
                     return await WriteNewFile(fs, file, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, sourceArea,
                         markComplete);
                 }
 
-                if (stored != null && IsSameDelivery(stored.FileMetadata, newMetadata))
-                {
-                    return (true, []);
-                }
-
-                throw new OdinClientException("A member changes a shared file with an update, not by sending it again",
-                    OdinClientErrorCode.ArgumentError);
+                return IsSameDelivery(stored.FileMetadata, newMetadata)
+                    ? (true, [])
+                    : throw new OdinClientException("A member changes a shared file with an update, not by sending it again",
+                        OdinClientErrorCode.ArgumentError);
             }
 
             // First we check if we can match the gtid to an existing file on disk.
@@ -418,14 +416,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         internal static bool IsSameDelivery(FileMetadata stored, FileMetadata sent)
         {
-            static string PayloadsOf(FileMetadata m) =>
-                string.Join(",", (m.Payloads ?? []).Select(p => $"{p.Key}:{p.Uid.uniqueTime}"));
-
+            List<PayloadDescriptor> storedPayloads = stored.Payloads ?? [], sentPayloads = sent.Payloads ?? [];
             return stored.GlobalTransitId == sent.GlobalTransitId &&
                    stored.SenderOdinId != null && sent.SenderOdinId != null &&
                    new OdinId(stored.SenderOdinId) == new OdinId(sent.SenderOdinId) &&
-                   OdinSystemSerializer.Serialize(stored.AppData) == OdinSystemSerializer.Serialize(sent.AppData) &&
-                   PayloadsOf(stored) == PayloadsOf(sent);
+                   storedPayloads.Count == sentPayloads.Count &&
+                   storedPayloads.Zip(sentPayloads).All(p => p.First.SharesStorageWith(p.Second)) &&
+                   OdinSystemSerializer.Serialize(stored.AppData) == OdinSystemSerializer.Serialize(sent.AppData);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId,

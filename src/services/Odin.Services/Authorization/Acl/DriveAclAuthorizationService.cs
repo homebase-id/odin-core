@@ -122,12 +122,9 @@ namespace Odin.Services.Authorization.Acl
 
             // A share row narrows its circles' grant, for every bit: the caller needs the bit on the drive too, so a change
             // of a circle's grant changes its shares at once (docs/file-access.md, "A share row narrows its circle's
-            // grant").  A comment also needs the file readable.  The group asked is the shared file's (CallerShares holds
-            // the rows back), as for a read
+            // grant").  The group asked is the shared file's (CallerShares holds the rows back), as for a read
             var file = header.FileMetadata.File;
-            var pc = odinContext.PermissionsContext;
-            return pc.HasDrivePermission(file.DriveId, permission) &&
-                   (permission != DrivePermission.Comment || pc.HasDrivePermission(file.DriveId, DrivePermission.Read)) &&
+            return odinContext.PermissionsContext.HasDrivePermission(file.DriveId, permission) &&
                    (await SharesOfAsync(file.DriveId, [header], odinContext)).Grants(file.FileId, permission);
         }
 
