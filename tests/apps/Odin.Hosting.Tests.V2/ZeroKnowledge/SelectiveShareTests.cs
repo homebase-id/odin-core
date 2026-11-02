@@ -33,6 +33,11 @@ using Odin.Services.Drives.Shares;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Reactions;
+using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
+using Odin.Core.Storage;
 using Refit;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
@@ -471,6 +476,214 @@ public class SelectiveShareTests : V2Fixture
         }
     }
 
+    [Test]
+    public async Task AFileNoShareNamesAMemberOnIsMissingNotATombstone()
+    {
+        var s = await ArrangeAsync();
+        var fileId = await s.UploadAsync(SecurityGroupType.Connected);
+        var gtid = (await s.HeaderAsync(fileId)).FileMetadata.GlobalTransitId!.Value;
+
+        var byGtid = await s.Sam.Drives.Peer.GetFileHeaderByGtidAsync(s.Frodo.Identity, s.Drive.Alias, gtid);
+        Assert.That(byGtid.StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
+            $"nothing of a file never shared with him, not even its tombstone: {byGtid.StatusCode} {byGtid.Content?.FileState}");
+    }
+
+    [TestCase(DrivePermission.Read | DrivePermission.React, true, TestName = "AMemberReactsWithAShareWithReact")]
+    [TestCase(DrivePermission.Read | DrivePermission.Write, false, TestName = "AMemberCantReactWithoutReactWhateverElseTheShareHolds")]
+    public async Task AMemberReactsOnlyWithAShareWithReact(DrivePermission permissions, bool reacts)
+    {
+        var s = await ArrangeAsync();
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
+        var file = await s.GtidOfAsync(fileId);
+
+        var add = await s.Sam.RefitFor<IRefitOwnerTransitReaction>().AddReaction(new PeerAddReactionRequest
+        {
+            OdinId = s.Frodo.Identity,
+            Request = new AddRemoteReactionRequest { File = file, Reaction = ":thumbsup:" }
+        });
+        Assert.That(add.IsSuccessStatusCode, Is.EqualTo(reacts), $"the reaction answered {add.StatusCode}: {add.Error?.Content}");
+
+        var reactions = await s.Frodo.Drives.Reactions.GetAllReactionsAsync(s.Drive.Alias, fileId);
+        Assert.That(reactions.StatusCode, Is.EqualTo(HttpStatusCode.OK), reactions.Error?.Content);
+        Assert.That(reactions.Content!.Reactions.Select(r => (r.OdinId.ToString(), r.ReactionContent)),
+            Is.EqualTo(reacts ? new[] { (Identities.Sam.ToString(), ":thumbsup:") } : []), "what Frodo's file holds");
+    }
+
+    [Test]
+    public async Task AMemberSeesAFilesReactionsOnlyWhileTheyMayReadIt()
+    {
+        var s = await ArrangeAsync();
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read)]);
+        var file = await s.GtidOfAsync(fileId);
+        var react = await s.Frodo.Drives.Reactions.AddReactionAsync(s.Drive.Alias, fileId, ":heart:");
+        Assert.That(react.StatusCode, Is.EqualTo(HttpStatusCode.OK), react.Error?.Content);
+
+        async Task<HttpStatusCode> SamListsAsync() => (await s.Sam.RefitFor<IRefitOwnerTransitReaction>().GetAllReactions(
+            new PeerGetReactionsRequest
+            {
+                OdinId = s.Frodo.Identity,
+                Request = new GetRemoteReactionsRequest { File = file, Cursor = "", MaxRecords = 10 }
+            })).StatusCode;
+
+        Assert.That(await SamListsAsync(), Is.EqualTo(HttpStatusCode.OK), "while shared with him");
+        var withdraw = await s.Shares.WithdrawShare(s.Drive.Alias, fileId, s.CircleId);
+        Assert.That(withdraw.StatusCode, Is.EqualTo(HttpStatusCode.OK), withdraw.Error?.Content);
+        Assert.That(await SamListsAsync(), Is.Not.EqualTo(HttpStatusCode.OK), "once withdrawn");
+    }
+
+    [Test]
+    public async Task AMembersCommentIsEncryptedWithTheFilesKeyAndReadWithTheirShare()
+    {
+        var s = await ArrangeAsync();
+        var (fileId, _, fileKey) = await s.UploadClientLockedAsync();
+        var lockedFileKey = LockedFileKey();
+        var share = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read | DrivePermission.Comment, lockedFileKey: lockedFileKey)]
+        });
+        Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
+        var file = await s.GtidOfAsync(fileId);
+
+        var commentIv = await SendCommentAsync(s, s.Sam, file, fileKey, "Sam's comment");
+
+        // Frodo's console holds the drive's key: the comment as stored, its own IV and no key
+        var frodos = await CommentsAsync(s.Frodo.Drives.Reader, s, file);
+        var stored = frodos.Single();
+        Assert.That((stored.SharedSecretEncryptedKeyHeader.Type, stored.SharedSecretEncryptedKeyHeader.Iv,
+                stored.SharedSecretEncryptedKeyHeader.EncryptedAesKey?.Length ?? 0),
+            Is.EqualTo((EncryptionType.FileKey, commentIv, 0)), "a file key header: the comment's IV only");
+        Assert.That(new KeyHeader { AesKey = fileKey.AesKey, Iv = commentIv }
+            .Decrypt(stored.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes(), Is.EqualTo("Sam's comment"));
+        Assert.That(stored.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected),
+            "its file's ACL, naming no one");
+
+        // Sam reads it as he reads the file: the share's locked file key, with the comment's IV
+        var sams = await SamsCommentsAsync(s, file);
+        var key = sams.Single().SharedSecretEncryptedKeyHeader;
+        Assert.That((sams.Single().FileState, key.Type, key.EncryptedAesKey, key.Iv),
+            Is.EqualTo((FileState.Active, EncryptionType.Share, lockedFileKey, commentIv)));
+        Assert.That(sams.Single().Shares, Is.Null, "the file's share is shown with the file, not its comments");
+        var byId = await s.Sam.Drives.Peer.GetFileHeaderAsync(s.Frodo.Identity, s.Drive.Alias, stored.FileId, FileSystemType.Comment);
+        Assert.That(byId.StatusCode, Is.EqualTo(HttpStatusCode.OK), byId.Error?.Content);
+
+        // Pippin, connected and in no circle of the app, never; and once the share is withdrawn, the comment goes with the file
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var pippins = await pippin.Drives.Peer.GetFileHeaderAsync(s.Frodo.Identity, s.Drive.Alias, stored.FileId, FileSystemType.Comment);
+        Assert.That(pippins.IsSuccessStatusCode, Is.False, "Pippin reads no comment");
+        var withdraw = await s.Shares.WithdrawShare(s.Drive.Alias, fileId, s.CircleId);
+        Assert.That(withdraw.StatusCode, Is.EqualTo(HttpStatusCode.OK), withdraw.Error?.Content);
+        Assert.That((await SamsCommentsAsync(s, file)).Select(c => c.FileState), Is.EqualTo(new[] { FileState.Deleted }),
+            "the tombstone, as for the file");
+    }
+
+    [TestCase(DrivePermission.Read | DrivePermission.Write | DrivePermission.React, true,
+        TestName = "AMemberCantCommentWithoutCommentWhateverElseTheShareHolds")]
+    [TestCase(DrivePermission.Read | DrivePermission.Comment, false, TestName = "AMembersCommentOnAnEncryptedFileMustUseItsKey")]
+    public async Task AMembersCommentIsRefused(DrivePermission permissions, bool withTheFilesKey)
+    {
+        var s = await ArrangeAsync();
+        var (fileId, _, fileKey) = await s.UploadClientLockedAsync();
+        var share = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, permissions, lockedFileKey: LockedFileKey())]
+        });
+        Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
+        var file = await s.GtidOfAsync(fileId);
+
+        await SendCommentAsync(s, s.Sam, file, fileKey, "Sam's comment", withTheFilesKey);
+
+        Assert.That(await CommentsAsync(s.Frodo.Drives.Reader, s, file), Is.Empty, "no comment stored");
+    }
+
+    [Test]
+    public async Task OnlyACommentsAuthorDeletesIt()
+    {
+        var s = await ArrangeAsync();
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Comment)]);
+        var file = await s.GtidOfAsync(fileId);
+        await SendCommentAsync(s, s.Sam, file, null, "Sam's comment");
+        var comment = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Single();
+        var commentGtid = comment.FileMetadata.GlobalTransitId!.Value;
+
+        // Pippin, in the circle too, may comment on the file, not delete Sam's comment
+        await AppCircles.AddMemberAsync(s.App, s.CircleId, Identities.Pippin);
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var pippins = await CommentWriter(pippin).SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, commentGtid);
+        Assert.That(pippins.StatusCode, Is.EqualTo(HttpStatusCode.OK), pippins.Error?.Content);
+        await pippin.Sync.DrainOutboxAsync();
+        Assert.That((await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Single().FileState, Is.EqualTo(FileState.Active),
+            "another member's delete");
+
+        var sams = await CommentWriter(s.Sam).SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, commentGtid);
+        Assert.That(sams.StatusCode, Is.EqualTo(HttpStatusCode.OK), sams.Error?.Content);
+        await s.Sam.Sync.DrainOutboxAsync();
+        Assert.That((await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Single().FileState, Is.EqualTo(FileState.Deleted),
+            "its author's");
+    }
+
+    private static DrivePeerWriterV2Client CommentWriter(OwnerSession caller) =>
+        new(caller.Identity, caller.Factory, FileSystemType.Comment);
+
+    /// <summary>
+    /// A member's comment on Frodo's file, sent through their own server's transient drive: on an encrypted file,
+    /// encrypted with the file's key and a new IV, which its key header holds alone (fileKey) unless
+    /// <paramref name="withTheFilesKey"/> is false; on an unencrypted file (<paramref name="fileKey"/> null), as it is.
+    /// Returns the comment's IV.
+    /// </summary>
+    private static async Task<byte[]?> SendCommentAsync(Arranged s, OwnerSession member, GlobalTransitIdFileIdentifier file,
+        KeyHeader? fileKey, string content, bool withTheFilesKey = true)
+    {
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 101, content, AccessControlList.Connected);
+        metadata.AllowDistribution = true;
+        metadata.ReferencedFile = file;
+        var transit = new TransitOptions
+        {
+            IsTransient = true,
+            Recipients = [s.Frodo.Identity.DomainName],
+            RemoteTargetDrive = s.Drive
+        };
+
+        var writer = new DriveWriterV2Client(member.Identity, member.Factory, FileSystemType.Comment);
+        if (fileKey == null)
+        {
+            var plain = await writer.CreateNewUnencryptedFile(SystemDriveConstants.TransientTempDrive.Alias, metadata,
+                new UploadManifest { PayloadDescriptors = [] }, [], transitOptions: transit);
+            Assert.That(plain.StatusCode, Is.EqualTo(HttpStatusCode.OK), plain.Error?.Content);
+            await member.Sync.DrainOutboxAsync();
+            return null;
+        }
+
+        var iv = ByteArrayUtil.GetRndByteArray(16);
+        var (upload, _, _, _) = await writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias, metadata, transit,
+            keyHeader: new KeyHeader { AesKey = new SensitiveByteArray(fileKey.AesKey.GetKey()), Iv = iv },
+            lockedKeyHeader: withTheFilesKey ? new EncryptedKeyHeader { EncryptionVersion = 1, Type = EncryptionType.FileKey, Iv = iv } : null);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        await member.Sync.DrainOutboxAsync();
+        return iv;
+    }
+
+    private static async Task<List<SharedSecretEncryptedFileHeader>> CommentsAsync(DriveReaderV2Client reader, Arranged s,
+        GlobalTransitIdFileIdentifier file)
+    {
+        var query = await reader.GetBatchAsync(s.Drive.Alias, CommentsQuery(s, file), FileSystemType.Comment);
+        Assert.That(query.StatusCode, Is.EqualTo(HttpStatusCode.OK), query.Error?.Content);
+        return query.Content!.SearchResults.ToList();
+    }
+
+    private static async Task<List<SharedSecretEncryptedFileHeader>> SamsCommentsAsync(Arranged s, GlobalTransitIdFileIdentifier file)
+    {
+        var query = await s.Sam.Drives.Peer.QueryBatchAsync(s.Frodo.Identity, s.Drive.Alias, CommentsQuery(s, file), FileSystemType.Comment);
+        Assert.That(query.StatusCode, Is.EqualTo(HttpStatusCode.OK), query.Error?.Content);
+        return query.Content!.SearchResults.ToList();
+    }
+
+    // A file's comments, as clients ask for them: by the group that names it
+    private static QueryBatchRequest CommentsQuery(Arranged s, GlobalTransitIdFileIdentifier file) => new()
+    {
+        QueryParams = new FileQueryParamsV1 { TargetDrive = s.Drive, GroupId = [file.GlobalTransitId] },
+        ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, IncludeMetadataHeader = true }
+    };
+
     private static UploadFileMetadata FolderMetadata(Arranged s, Guid uniqueId)
     {
         var metadata = s.Metadata(SecurityGroupType.Owner);
@@ -686,6 +899,9 @@ public class SelectiveShareTests : V2Fixture
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
             return response.Content!;
         }
+
+        public async Task<GlobalTransitIdFileIdentifier> GtidOfAsync(Guid fileId) =>
+            new() { TargetDrive = Drive, GlobalTransitId = (await HeaderAsync(fileId)).FileMetadata.GlobalTransitId!.Value };
 
         public async Task<SharedSecretEncryptedFileHeader> HeaderAsync(Guid fileId)
         {

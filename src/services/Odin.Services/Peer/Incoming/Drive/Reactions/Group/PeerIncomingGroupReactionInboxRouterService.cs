@@ -7,6 +7,8 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
+using Odin.Services.Drives.Reactions;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -24,7 +26,9 @@ public class PeerIncomingGroupReactionInboxRouterService(
     CircleNetworkService circleNetworkService,
     IMediator mediator,
     FileSystemResolver fileSystemResolver,
-    OdinConfiguration odinConfiguration)
+    OdinConfiguration odinConfiguration,
+    IDriveManager driveManager,
+    ReactionContentService reactionContentService)
     : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
     public async Task<PeerResponseCode> AddReaction(RemoteReactionRequestRedux request, IOdinContext odinContext)
@@ -33,6 +37,11 @@ public class PeerIncomingGroupReactionInboxRouterService(
         OdinValidationUtils.AssertNotNull(request.Payload, nameof(request.Payload));
         OdinValidationUtils.AssertNotNull(request.File, nameof(request.File));
         request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
+
+        if (await TryApplyToSelectiveShareDriveAsync(TransferInstructionType.AddReaction, request, odinContext))
+        {
+            return PeerResponseCode.AcceptedDirectWrite;
+        }
 
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive.Alias, DrivePermission.React);
 
@@ -47,10 +56,38 @@ public class PeerIncomingGroupReactionInboxRouterService(
         OdinValidationUtils.AssertNotNull(request.File, nameof(request.File));
         request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
+        if (await TryApplyToSelectiveShareDriveAsync(TransferInstructionType.DeleteReaction, request, odinContext))
+        {
+            return PeerResponseCode.AcceptedDirectWrite;
+        }
+
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive.Alias, DrivePermission.React);
 
         await RouteReactionActionToInboxAsync(TransferInstructionType.DeleteReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
+    }
+
+    /// <summary>
+    /// No inbox on a Selective Share drive: a member's reaction is applied at once, as the member, by a share's
+    /// <c>React</c> bit in place of the drive's (docs/selective-share-pr3-plan.md, sections 7 and 10).  False for any
+    /// other drive.
+    /// </summary>
+    private async Task<bool> TryApplyToSelectiveShareDriveAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request,
+        IOdinContext odinContext)
+    {
+        var drive = await driveManager.GetDriveAsync(request.File.TargetDrive.Alias);
+        if (drive?.IsSelectiveShare != true)
+        {
+            return false;
+        }
+
+        var file = await ResolveInternalFile(request.File.ToGlobalTransitIdFileIdentifier(), odinContext, failIfNull: true);
+        var reaction = await DecryptUsingSharedSecretAsync<string>(request.Payload, odinContext);
+        var sender = odinContext.GetCallerOdinIdOrFail();
+        _ = instruction == TransferInstructionType.AddReaction
+            ? await reactionContentService.AddReactionAsync(file!.Value, reaction, sender, odinContext, null)
+            : await reactionContentService.DeleteReactionAsync(file!.Value, reaction, sender, odinContext, null);
+        return true;
     }
 
     private async Task RouteReactionActionToInboxAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request,

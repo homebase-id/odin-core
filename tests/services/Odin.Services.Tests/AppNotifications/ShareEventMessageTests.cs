@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
@@ -70,15 +71,16 @@ public class ShareEventMessageTests
     private static async Task<string?> Message(bool shared, bool mayRead, bool named)
     {
         var aclService = Substitute.For<IDriveAclAuthorizationService>();
-        IReadOnlyDictionary<Guid, DriveAclIndexRecord>? shares = shared
-            ? new Dictionary<Guid, DriveAclIndexRecord>
-            {
-                [FileId] = new() { driveId = DriveId, fileId = FileId, aclMemberId = CircleId, permissions = 1, lockedFileKey = LockedFileKey }
-            }
-            : null;
+        var rows = new List<DriveAclIndexRecord>();
+        if (named)
+        {
+            // A withdrawn share (no bits) still names them; a live one is what reading needs, which the read rule decides
+            rows.Add(new() { driveId = DriveId, fileId = FileId, aclMemberId = CircleId, permissions = mayRead ? 1 : 0, lockedFileKey = LockedFileKey });
+        }
+
+        CallerShares? shares = shared ? new CallerShares(new Dictionary<Guid, List<DriveAclIndexRecord>> { [FileId] = rows }, UnixTimeUtc.Now()) : null;
         aclService.FilesSharedWithCallerAsync(default, default!, default!).ReturnsForAnyArgs(Task.FromResult(shares));
         aclService.CallerMayReadAsync(default!, default!, default).ReturnsForAnyArgs(Task.FromResult(mayRead));
-        aclService.CallerIsNamedAsync(default, default!).ReturnsForAnyArgs(Task.FromResult(named));
 
         var message = new DriveEventMessage(ClientNotificationType.FileModified, null, Header(), null);
         return await message.MessageForAsync(MemberSocket(), aclService);

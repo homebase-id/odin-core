@@ -46,9 +46,10 @@ namespace Odin.Services.Peer.Encryption
                 return false;
             }
 
+            // A comment on its file's key holds its IV alone (EncryptionType.FileKey)
             var isValid = this.TargetDrive.IsValid() &&
                           this.SharedSecretEncryptedKeyHeader.Iv?.Length > 0 &&
-                          this.SharedSecretEncryptedKeyHeader.EncryptedAesKey?.Length > 0;
+                          (this.SharedSecretEncryptedKeyHeader.EncryptedAesKey?.Length > 0 || this.SharedSecretEncryptedKeyHeader.IsFileKey());
 
             return isValid;
         }

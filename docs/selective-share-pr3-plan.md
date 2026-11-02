@@ -315,6 +315,34 @@ comment on it (a photo, a document).
 - **Writing a comment** needs a live row with `Comment` on the commented file, in place of drive `Comment` **(I: the
   rules for editing and deleting a comment are read when built, and keep their meaning)**.
 
+**How it was built (2026-11-02):**
+- **One lookup for the rows**, `IDriveAclAuthorizationService.FilesSharedWithCallerAsync`. It returns `CallerShares`: for
+  each file, the rows naming the caller, live or not. A comment's rows are those of the file its group names (the
+  global transit id `CommentStreamWriter` puts there). One read per page, by `TableDriveAclIndex.GetRowsAsync`, a join
+  on the main index; `TableDriveAclIndex.IsLive` replaces the SQL's own test of a live row. The read rule asks
+  `LiveRowOf`. A refused file comes back as a tombstone only when a row `Names` the caller; otherwise it is missing. Before,
+  any outside caller looking up any file by id got its tombstone.
+- **The query** for comments, on these drives: `groupId IN` the global transit ids of the standard files whose rows name
+  the caller (`QueryBatch`, `aclRowsRequired`). A comment on a comment reaches no row: on these drives a comment
+  comments on a file **(I: replies not supported yet)**.
+- **A member reads a comment** with their share of its file: the key header is that file's locked file key with the
+  comment's IV (`CreateClientFileHeader`). The share row itself is shown with the file, not its comments.
+- **`EncryptionType.FileKey = 15`**: version 1, a strong IV, no key (`AssertValidFileKey`). It counts as locked by a
+  client, so the server never opens it and an owner caller needs the drive key to see it, as for a zkDrive one.
+  `AssertDriveTakes` takes a file system: on a Selective Share drive an encrypted comment takes only `fileKey`, and
+  `fileKey` goes nowhere else but the transient drive, where a member's comment waits to be sent. It travels as sent
+  (`DecryptOrPassSealed`, `EncryptKeyHeaderAes`, `Deposits.OpenWithDriveKey`), may have no key in the transfer's
+  instruction set, and is written directly, like a deposit (`IsStoredAsSent`).
+- **Writing a comment** on these drives needs drive `Read` (`CommentFileStorageService.AssertCanWriteToDrive`). The
+  rest is asked where every header is written (`DriveStorageServiceBase.AssertMayWriteSharedCommentAsync`), for an
+  outside caller: the comment's author, then and before (`SenderOdinId`); an active comment's group naming its
+  referenced file; a live row with `Comment` on that file (`CallerHoldsShareAsync`). That covers adding, editing,
+  overwriting and deleting, local or from a peer. A member's comment update skips section 7's `Write` row check.
+- **Reactions**: `ReactionContentService.AssertMayAsync` in place of each drive check, and `GroupReactionService` uses
+  it too. On these drives an outside caller needs a live row with `React` to react, or a live row to see reactions. A
+  group reaction from a peer is applied directly, as the member, not through the inbox. Not covered by a test: a
+  member has no copy of the file to react to through their own server.
+
 ## Tests
 
 - **Storage, both databases:** the filter (no rows: hidden on Selective Share, shown elsewhere; an expired row, a row

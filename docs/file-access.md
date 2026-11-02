@@ -243,10 +243,10 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 | The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused. Required group `Owner` (owner callers only; the default) or `Connected` (shareable); the first share lifts `Owner` to `Connected`, keeping the version tag |
 | The index rows | made from the ACL on every header write; each means read | share rows, written on their own by the share API; a header write leaves them alone (PR 3) |
 | A file with no rows | open to every caller who reaches the required group | owner callers only, whatever its group (PR 3) |
-| Which rows count in a query | a row naming the caller, or no row at all | a row naming the caller, live or not, so a withdrawn share reaches their sync; the read rule then lets through only a file with a live row (PR 3) |
+| Which rows count in a query | a row naming the caller, or no row at all | a row naming the caller, live or not, so a withdrawn share reaches their sync; the read rule then lets through only a file with a live row, and turns the rest into tombstones. A file no row names the caller on is missing, by query and by id. A comment goes by the rows of the file its group names (PR 3) |
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere (PR 3) |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 3) |
-| Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member whose live row has `React` or `Comment`, without the drive permission; a comment is read by whoever may read its file (PR 3) |
+| Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member whose live row has `React` or `Comment`, without the drive permission. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it (PR 3) |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" (PR 3) |
 

@@ -8,6 +8,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -371,7 +372,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     serverFileHeader,
                     odinContext,
                     forceIncludeServerMetadata,
-                    sharedWithCaller?.GetValueOrDefault(serverFileHeader.FileMetadata.File.FileId));
+                    sharedWithCaller?.LiveRowOf(serverFileHeader.FileMetadata.File.FileId));
 
                 if (header?.FileMetadata?.AppData != null)
                 {
@@ -424,7 +425,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Share drive, also the share each visible file reached an outside caller through (null otherwise).
         /// </summary>
         private async Task<(List<ServerFileHeader> visible, List<ServerFileHeader> aclFailures,
-            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller)> FilterVisibleAsync(
+            CallerShares sharedWithCaller)> FilterVisibleAsync(
             Guid driveId,
             List<DriveMainIndexRecord> recordList,
             IOdinContext odinContext,
@@ -433,26 +434,27 @@ namespace Odin.Services.Drives.FileSystem.Base
             var visible = new List<ServerFileHeader>();
             var aclFailures = new List<ServerFileHeader>();
 
-            // On a Selective Share drive, the page's share rows in one read rather than one per file
-            var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(driveId,
-                recordList.Select(r => r.fileId).ToList(), odinContext);
-
+            var headers = new List<ServerFileHeader>();
             foreach (var record in recordList)
             {
-                var file = new InternalDriveFileId()
-                {
-                    DriveId = driveId,
-                    FileId = record.fileId
-                };
-
                 var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
                 if (null == serverFileHeader)
                 {
                     _logger.LogError("File {file} on drive {drive} was found in index but was not returned from disk",
-                        file.FileId,
-                        file.DriveId);
+                        record.fileId,
+                        driveId);
                     continue;
                 }
+
+                headers.Add(serverFileHeader);
+            }
+
+            // On a Selective Share drive, the page's share rows in one read rather than one per file
+            var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(driveId, headers, odinContext);
+
+            foreach (var serverFileHeader in headers)
+            {
+                var file = serverFileHeader.FileMetadata.File;
 
                 // The index has no expiry column (deliberately - see FileTtl), so a file whose TTL has
                 // come due can still be sitting in query results until its job runs. Drop it here for the
@@ -465,14 +467,20 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var isClientLocked = ZkDriveFiles.IsClientLocked(serverFileHeader);
                 if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext, sharedWithCaller))
                 {
-                    // On a Selective Share drive the query only finds an outside caller's files through a row naming
-                    // them: one they may no longer read (withdrawn, expired, set back to Owner) comes back as a deleted
-                    // file's tombstone, so their sync removes it, without a key (docs/selective-share-pr3-plan.md, section 8)
+                    // On a Selective Share drive, a file a row names the caller on that they may no longer read
+                    // (withdrawn, expired, set back to Owner) comes back as a deleted file's tombstone, so their sync
+                    // removes it, without a key (docs/selective-share-pr3-plan.md, section 8); a file no row names them
+                    // on is missing, as a client-locked one is below
                     if (sharedWithCaller != null)
                     {
-                        var noLongerShared = DriveStorageServiceBase.TombstoneOf(serverFileHeader, serverFileHeader.FileMetadata.Updated.milliseconds);
-                        noLongerShared.EncryptedKeyHeader = EncryptedKeyHeader.Empty();
-                        visible.Add(noLongerShared);
+                        if (sharedWithCaller.Names(file.FileId))
+                        {
+                            var noLongerShared = DriveStorageServiceBase.TombstoneOf(serverFileHeader,
+                                serverFileHeader.FileMetadata.Updated.milliseconds);
+                            noLongerShared.EncryptedKeyHeader = EncryptedKeyHeader.Empty();
+                            visible.Add(noLongerShared);
+                        }
+
                         continue;
                     }
 

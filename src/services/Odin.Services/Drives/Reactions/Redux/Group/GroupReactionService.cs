@@ -42,7 +42,7 @@ public class GroupReactionService(
 
         var localFile = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
+        await reactionContentService.AssertMayAsync(localFile, DrivePermission.React, odinContext);
 
         var result = new AddReactionResult();
 
@@ -87,7 +87,7 @@ public class GroupReactionService(
 
         var localFile = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
+        await reactionContentService.AssertMayAsync(localFile, DrivePermission.React, odinContext);
 
         var result = new DeleteReactionResult();
 
@@ -126,7 +126,7 @@ public class GroupReactionService(
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
+        await reactionContentService.AssertMayAsync(file, DrivePermission.Read, odinContext);
 
         return await reactionContentService.GetReactionCountsByFileAsync(file, odinContext);
     }
@@ -140,7 +140,7 @@ public class GroupReactionService(
 
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
+        await reactionContentService.AssertMayAsync(file, DrivePermission.Read, odinContext);
 
         return await reactionContentService.GetReactionsByIdentityAndFileAsync(identity, file, odinContext);
     }
@@ -150,7 +150,7 @@ public class GroupReactionService(
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
+        await reactionContentService.AssertMayAsync(file, DrivePermission.Read, odinContext);
 
         return await reactionContentService.GetReactionsAsync(file, cursor, maxCount, odinContext);
     }
@@ -161,7 +161,7 @@ public class GroupReactionService(
         FileSystemType fileSystemType)
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
+        await reactionContentService.AssertMayAsync(file, DrivePermission.React, odinContext);
 
         var caller = odinContext.Caller.OdinId.GetValueOrDefault();
         var reactions = await reactionContentService.GetReactionsByIdentityAndFileAsync(caller, file, odinContext);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
+using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
@@ -65,8 +66,7 @@ namespace Odin.Services.Authorization.Acl
             return Allows(acl, ReviewedSecurityTier.For(tenantContext.DataVersionNumber, icr), circles, odinId);
         }
 
-        public async Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext,
-            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller = null)
+        public async Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext, CallerShares sharedWithCaller = null)
         {
             var visible = ZkDriveFiles.VisibleTo(header, odinContext);
             var caller = odinContext.Caller;
@@ -87,25 +87,40 @@ namespace Odin.Services.Authorization.Acl
             {
                 // The share rows say who, not the ACL's names (docs/file-access.md, "With Selective Share"); a live
                 // share also opens a client-locked file to the member, who gets the share's locked file key (section 6)
-                sharedWithCaller ??= await FilesSharedWithCallerAsync(file.DriveId, [file.FileId], odinContext);
-                return sharedWithCaller.ContainsKey(file.FileId) && ReachesGroup(acl, level);
+                sharedWithCaller ??= await SharesOfAsync(file.DriveId, [header], odinContext);
+                return sharedWithCaller.LiveRowOf(file.FileId) != null && ReachesGroup(acl, level);
             }
 
             return visible && Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId);
         }
 
-        public async Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId,
-            IReadOnlyCollection<Guid> fileIds, IOdinContext odinContext)
+        public async Task<CallerShares> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<ServerFileHeader> headers,
+            IOdinContext odinContext)
         {
             if (PassesEveryAcl(odinContext.Caller) || !await IsSelectiveShareAsync(driveId))
             {
                 return null;
             }
 
-            // With live shares in more than one of the caller's circles, the lowest circle id's, so every read of the
-            // file picks the same one (section 6)
-            var rows = await driveAclIndex.GetLiveRowsAsync(driveId, fileIds, CallerMemberIds(odinContext), UnixTimeUtc.Now());
-            return rows.GroupBy(r => r.fileId).ToDictionary(g => g.Key, g => g.MinBy(r => r.aclMemberId)!);
+            return await SharesOfAsync(driveId, headers, odinContext);
+        }
+
+        public async Task<bool> CallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext)
+        {
+            if (PassesEveryAcl(odinContext.Caller))
+            {
+                return true;
+            }
+
+            var acl = header?.ServerMetadata?.AccessControlList;
+            if (acl == null || odinContext.Caller == null)
+            {
+                return false;
+            }
+
+            var file = header.FileMetadata.File;
+            var shares = await SharesOfAsync(file.DriveId, [header], odinContext);
+            return shares.Grants(file.FileId, permission) && ReachesGroup(acl, ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller));
         }
 
         public async Task<bool> CallerMayChangeSharedFileAsync(InternalDriveFileId file, IOdinContext odinContext)
@@ -115,15 +130,37 @@ namespace Odin.Services.Authorization.Acl
                 return true;
             }
 
-            var rows = await driveAclIndex.GetLiveRowsAsync(file.DriveId, [file.FileId], CallerMemberIds(odinContext), UnixTimeUtc.Now());
-            return rows.Any(r => ((DrivePermission)r.permissions).HasFlag(DrivePermission.Write));
+            var rows = await driveAclIndex.GetRowsAsync(file.DriveId, [file.FileId], [], CallerMemberIds(odinContext));
+            var now = UnixTimeUtc.Now();
+            return rows.Any(r => TableDriveAclIndex.IsLive(r.Row, now) && ((DrivePermission)r.Row.permissions).HasFlag(DrivePermission.Write));
         }
 
-        public async Task<bool> CallerIsNamedAsync(InternalDriveFileId file, IOdinContext odinContext)
+        /// <summary>
+        /// The rows naming the caller, live or not, that decide each of <paramref name="headers"/>: a file's own, and a
+        /// comment's those of the file it comments on, which its group names (docs/selective-share-pr3-plan.md,
+        /// section 10).  One read.
+        /// </summary>
+        private async Task<CallerShares> SharesOfAsync(Guid driveId, IReadOnlyCollection<ServerFileHeader> headers, IOdinContext odinContext)
         {
-            var members = CallerMemberIds(odinContext).ToHashSet();
-            return (await driveAclIndex.GetFileRowsAsync(file.DriveId, file.FileId)).Any(r => members.Contains(r.aclMemberId));
+            var commentedFiles = headers.Select(h => (h.FileMetadata.File.FileId, CommentedFile: CommentedFileOf(h))).ToList();
+            var rows = await driveAclIndex.GetRowsAsync(driveId,
+                commentedFiles.Where(f => f.CommentedFile == null).Select(f => f.FileId).ToList(),
+                commentedFiles.Where(f => f.CommentedFile != null).Select(f => f.CommentedFile.Value).Distinct().ToList(),
+                CallerMemberIds(odinContext));
+
+            return new CallerShares(commentedFiles.ToDictionary(f => f.FileId,
+                f => rows.Where(r => f.CommentedFile == null ? r.Row.fileId == f.FileId : r.GlobalTransitId == f.CommentedFile)
+                    .Select(r => r.Row).ToList()), UnixTimeUtc.Now());
         }
+
+        /// <summary>
+        /// A comment's file, by the global transit id its group holds (CommentStreamWriter); null for any other file.  A
+        /// comment without a group comments on nothing a row can reach.
+        /// </summary>
+        private static Guid? CommentedFileOf(ServerFileHeader header) =>
+            header.ServerMetadata?.FileSystemType == FileSystemType.Comment
+                ? header.FileMetadata.AppData?.GroupId ?? Guid.Empty
+                : null;
 
         /// <summary>
         /// Who a file's index rows may name for this caller: their circles and their own OdinId's hash (none when

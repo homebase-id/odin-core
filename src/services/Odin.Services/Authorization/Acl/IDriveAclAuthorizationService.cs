@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Authorization.Acl
@@ -21,19 +21,25 @@ namespace Odin.Services.Authorization.Acl
         /// storage key it needs) is answered where it is returned.  No header has no ACL, which only the owner and
         /// the system pass (a drive event without one).
         /// </summary>
-        /// <param name="sharedWithCaller">On a Selective Share drive, the files of the page the caller holds a live
-        /// share row for, with the row (<see cref="FilesSharedWithCallerAsync"/>), so a page costs one read; read for
-        /// this file when not given.</param>
-        Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext,
-            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller = null);
+        /// <param name="sharedWithCaller">On a Selective Share drive, the caller's share rows for the page
+        /// (<see cref="FilesSharedWithCallerAsync"/>), so a page costs one read; read for this file when not given.</param>
+        Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext, CallerShares sharedWithCaller = null);
 
         /// <summary>
-        /// On a Selective Share drive, which of <paramref name="fileIds"/> the caller holds a live share row for, in one
-        /// read (docs/file-access.md, "live row"), each with the row their reads go by (the lowest circle id's).  Null
+        /// On a Selective Share drive, the share rows naming the caller for <paramref name="headers"/>, in one read: a
+        /// file's own, a comment's those of the file it comments on (docs/selective-share-pr3-plan.md, section 10).  Null
         /// when the caller's reads don't depend on rows: an owner caller, the System, or any other drive.
         /// </summary>
-        Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
+        Task<CallerShares> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<ServerFileHeader> headers,
             IOdinContext odinContext);
+
+        /// <summary>
+        /// On a Selective Share drive, whether the caller may do what <paramref name="permission"/> names to the file of
+        /// <paramref name="header"/>: an owner caller, or a member with a live share with that bit, whose level reaches
+        /// the file's group as for a read.  A share's <c>React</c> and <c>Comment</c> bits grant by the row alone, with
+        /// no drive permission (section 10); a comment goes by the file it comments on.
+        /// </summary>
+        Task<bool> CallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext);
 
         /// <summary>
         /// On a Selective Share drive, whether the caller may update or delete <paramref name="file"/>: an owner caller,
@@ -41,11 +47,5 @@ namespace Odin.Services.Authorization.Acl
         /// section 7).  Drive <c>Write</c> and the read rule are asked where the write is.
         /// </summary>
         Task<bool> CallerMayChangeSharedFileAsync(Drives.InternalDriveFileId file, IOdinContext odinContext);
-
-        /// <summary>
-        /// Whether a row of <paramref name="file"/> names the caller, live or not: on a Selective Share drive, a member a
-        /// file was shared with, who hears when that ends (docs/selective-share-pr3-plan.md, sections 8 and 9).
-        /// </summary>
-        Task<bool> CallerIsNamedAsync(Drives.InternalDriveFileId file, IOdinContext odinContext);
     }
 }

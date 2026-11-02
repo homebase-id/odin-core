@@ -2646,13 +2646,70 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Assert.That(nobody, Is.Empty, "a caller no row can name");
 
             var all = new[] { live, mine, withdrawn, expired, noRead, others, none };
-            Assert.That((await tblAcl.GetLiveRowsAsync(driveId, all, [circle, me], UnixTimeUtc.Now())).Select(r => r.fileId).OrderBy(id => id),
-                Is.EqualTo(new[] { live, mine }.OrderBy(id => id)), "the live rows: Read set, not expired");
-            Assert.That((await tblAcl.GetLiveRowsAsync(driveId, all, null, UnixTimeUtc.Now())).Select(r => r.fileId).OrderBy(id => id),
-                Is.EqualTo(new[] { live, mine, others }.OrderBy(id => id)), "every member's live rows");
-            Assert.That(await tblAcl.GetLiveRowsAsync(driveId, all, [], UnixTimeUtc.Now()), Is.Empty, "no members");
-            Assert.That(await tblAcl.GetLiveRowsAsync(Guid.NewGuid(), all, [circle, me], UnixTimeUtc.Now()), Is.Empty,
-                "another drive");
+            var now = UnixTimeUtc.Now();
+            async Task<IEnumerable<Guid>> LiveFiles(Guid drive, List<Guid> members) =>
+                (await tblAcl.GetRowsAsync(drive, all, [], members)).Where(r => TableDriveAclIndex.IsLive(r.Row, now))
+                .Select(r => r.Row.fileId).OrderBy(id => id);
+            Assert.That(await LiveFiles(driveId, [circle, me]), Is.EqualTo(new[] { live, mine }.OrderBy(id => id)),
+                "the live rows: Read set, not expired");
+            Assert.That((await tblAcl.GetRowsAsync(driveId, all, [], [circle, me])).Select(r => r.Row.fileId).OrderBy(id => id),
+                Is.EqualTo(new[] { live, mine, withdrawn, expired, noRead }.OrderBy(id => id)), "the rows naming them, live or not");
+            Assert.That(await LiveFiles(driveId, null), Is.EqualTo(new[] { live, mine, others }.OrderBy(id => id)), "every member's live rows");
+            Assert.That(await tblAcl.GetRowsAsync(driveId, all, [], []), Is.Empty, "no members");
+            Assert.That(await tblAcl.GetRowsAsync(Guid.NewGuid(), all, [], [circle, me]), Is.Empty, "another drive");
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // A comment has no rows of its own: on a Selective Share drive it comes back through the rows of the file its
+        // group names, live or not, and never without one (docs/selective-share-pr3-plan.md, section 10)
+        public async Task WithRowsRequiredACommentComesBackThroughItsFilesRows(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var queryBatch = scope.Resolve<QueryBatch>();
+            var tblAcl = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var (circle, other) = (Guid.NewGuid(), Guid.NewGuid());
+            var files = new (Guid FileId, Guid Gtid, Guid? Member, int Permissions, Guid Comment)[]
+            {
+                (SequentialGuid.CreateGuid(), Guid.NewGuid(), circle, 1, SequentialGuid.CreateGuid()), // live
+                (SequentialGuid.CreateGuid(), Guid.NewGuid(), circle, 0, SequentialGuid.CreateGuid()), // withdrawn
+                (SequentialGuid.CreateGuid(), Guid.NewGuid(), other, 1, SequentialGuid.CreateGuid()),  // another circle's
+                (SequentialGuid.CreateGuid(), Guid.NewGuid(), null, 0, SequentialGuid.CreateGuid())    // no row
+            };
+            foreach (var f in files)
+            {
+                await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f.FileId, f.Gtid, 1, 1, "sam", null, null, 0,
+                    UnixTimeUtc.Now(), 1, null, null, 1);
+                await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f.Comment, Guid.NewGuid(), 1, 1, "sam", f.Gtid, null, 0,
+                    UnixTimeUtc.Now(), 1, null, null, 1, fileSystemType: (int)FileSystemType.Comment);
+                if (f.Member is { } m)
+                {
+                    await tblAcl.InsertAsync(new DriveAclIndexRecord
+                        { driveId = driveId, fileId = f.FileId, aclMemberId = m, permissions = f.Permissions });
+                }
+            }
+
+            var (comments, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, null, requiredSecurityGroup: allIntRange,
+                fileSystemType: (int)FileSystemType.Comment, aclAnyOf: [circle], aclRowsRequired: true);
+            Assert.That(comments.Select(r => r.fileId).OrderBy(id => id), Is.EqualTo(new[] { files[0].Comment, files[1].Comment }.OrderBy(id => id)),
+                "the comments on the files the caller's rows name, live or not");
+
+            var (standard, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, null, requiredSecurityGroup: allIntRange,
+                aclAnyOf: [circle], aclRowsRequired: true);
+            Assert.That(standard.Select(r => r.fileId).OrderBy(id => id), Is.EqualTo(new[] { files[0].FileId, files[1].FileId }.OrderBy(id => id)),
+                "the files themselves, not their comments");
+
+            var rows = await tblAcl.GetRowsAsync(driveId, [], files.Select(f => f.Gtid).Append(files[0].Comment).ToList(), [circle]);
+            Assert.That(rows.Select(r => (r.GlobalTransitId, r.Row.fileId)).OrderBy(r => r.fileId),
+                Is.EqualTo(new[] { ((Guid?)files[0].Gtid, files[0].FileId), (files[1].Gtid, files[1].FileId) }.OrderBy(r => r.Item2)),
+                "the rows of the files those global transit ids name, each with it");
         }
 
         [Test]

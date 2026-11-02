@@ -7,6 +7,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.Management;
@@ -24,14 +25,38 @@ public class ReactionContentService(
     IdentityDatabase database,
     IDriveManager driveManager,
     DriveQuery driveQuery,
+    IDriveAclAuthorizationService driveAclAuthorizationService,
     IMediator mediator)
 {
+    /// <summary>
+    /// Whether the caller may <paramref name="permission"/> (React, or Read to see the reactions) on
+    /// <paramref name="file"/>: its drive permission, as always; on a Selective Share drive, for an outside caller, a
+    /// live share of the file with that bit in its place, so whoever may read a file sees its reactions, and a share's
+    /// <c>React</c> bit lets them react (docs/selective-share-pr3-plan.md, section 10).  A comment goes by its file's
+    /// shares.
+    /// </summary>
+    public async Task<StorageDrive> AssertMayAsync(InternalDriveFileId file, DrivePermission permission, IOdinContext odinContext)
+    {
+        var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
+        if (!drive.IsSelectiveShare || DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller))
+        {
+            odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, permission);
+            return drive;
+        }
+
+        var header = await driveQuery.GetFileHeaderAsync(drive, file.FileId);
+        if (header == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(header, permission, odinContext))
+        {
+            throw new OdinSecurityException($"No share with {permission} on the file");
+        }
+
+        return drive;
+    }
+
     public async Task<bool> AddReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext,
         WriteSecondDatabaseRowBase markComplete)
     {
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
-
-        var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
+        var drive = await AssertMayAsync(file, DrivePermission.React, odinContext);
         await driveQuery.AddReactionAsync(drive, senderId, file.FileId, reactionContent, markComplete);
 
         try
@@ -61,9 +86,7 @@ public class ReactionContentService(
     public async Task<bool> DeleteReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext,
         WriteSecondDatabaseRowBase markComplete)
     {
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
-
-        var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
+        var drive = await AssertMayAsync(file, DrivePermission.React, odinContext);
 
         await using (var tx = await database.BeginStackedTransactionAsync())
         {
@@ -111,9 +134,7 @@ public class ReactionContentService(
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFileAsync(InternalDriveFileId file, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
-
-        var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
+        var drive = await AssertMayAsync(file, DrivePermission.Read, odinContext);
         var (reactions, total) = await driveQuery.GetReactionSummaryByFileAsync(drive, file.FileId);
 
         return new GetReactionCountsResponse()
@@ -125,18 +146,14 @@ public class ReactionContentService(
 
     public async Task<List<string>> GetReactionsByIdentityAndFileAsync(OdinId identity, InternalDriveFileId file, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
-
-        var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
+        var drive = await AssertMayAsync(file, DrivePermission.Read, odinContext);
         return await driveQuery.GetReactionsByIdentityAndFileAsync(drive.Id, identity, file.FileId);
     }
 
     public async Task DeleteAllReactionsAsync(InternalDriveFileId file, IOdinContext odinContext)
     {
         var context = odinContext;
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
-
-        var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
+        var drive = await AssertMayAsync(file, DrivePermission.React, odinContext);
         await driveQuery.DeleteReactionsAsync(drive, context.GetCallerOdinIdOrFail(), file.FileId);
 
         await mediator.Publish(new AllReactionsByFileDeleted
@@ -148,9 +165,7 @@ public class ReactionContentService(
 
     public async Task<GetReactionsResponse> GetReactionsAsync(InternalDriveFileId file, int cursor, int maxCount, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
-
-        var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
+        var drive = await AssertMayAsync(file, DrivePermission.Read, odinContext);
         var (list, nextCursor) = await driveQuery.GetReactionsByFileAsync(drive, maxCount, cursor, file.FileId);
 
         return new GetReactionsResponse()

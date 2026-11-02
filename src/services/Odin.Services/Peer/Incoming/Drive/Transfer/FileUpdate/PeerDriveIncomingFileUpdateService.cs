@@ -60,10 +60,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
             if (fileMetadata.IsEncrypted)
             {
-                ZkDriveFiles.AssertPeerMayUpdate(drive, transferInstructionSet.EncryptedKeyHeader);
+                ZkDriveFiles.AssertPeerMayUpdate(drive, transferInstructionSet.EncryptedKeyHeader, transferInstructionSet.FileSystemType);
             }
 
-            if (drive.IsSelectiveShare)
+            // A comment's is asked where its header is written: the author, with a share's Comment bit (section 10)
+            if (drive.IsSelectiveShare && transferInstructionSet.FileSystemType == FileSystemType.Standard)
             {
                 await AssertMemberMayChangeAsync(transferInstructionSet.Request.File, odinContext);
             }

@@ -100,7 +100,8 @@ namespace Odin.Services.Peer.Encryption
     /// an owner device (<see cref="EncryptionType.ZkDrive"/>).  Writes store <see cref="Locked"/> as it is.  It
     /// has no AES key; <see cref="KeyHeader.Iv"/> is the IV it shows.  Also a member's update that keeps a shared
     /// file's key (<see cref="EncryptionType.Share"/>, the new IV only), which the owner's server turns into the
-    /// file's own key header with that IV (<see cref="Drives.ZkDriveFiles.KeepFileKey"/>).
+    /// file's own key header with that IV (<see cref="Drives.ZkDriveFiles.KeepFileKey"/>).  A comment's on its file's key
+    /// (<see cref="EncryptionType.FileKey"/>) is one too.
     /// </summary>
     public sealed class ClientLockedKeyHeader : KeyHeader
     {

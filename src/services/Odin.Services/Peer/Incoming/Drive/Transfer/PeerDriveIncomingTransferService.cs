@@ -76,7 +76,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (metadata.IsEncrypted)
             {
-                ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.SharedSecretEncryptedKeyHeader);
+                ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.SharedSecretEncryptedKeyHeader,
+                    transferInstructionSet.FileSystemType);
             }
 
             if (drive.IsSelectiveShare && transferInstructionSet.FileSystemType == FileSystemType.Standard)
@@ -465,8 +466,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 // Next determine if we can direct write the file
                 var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(stateItem.File.DriveId, out _);
 
-                //S1200 - a deposit needs no key: it is stored sealed, as it came
-                if (hasStorageKey || IsDeposit(metadata, stateItem.TransferInstructionSet))
+                //S1200 - a deposit needs no key: it is stored sealed, as it came; so is a comment on its file's key
+                if (hasStorageKey || IsStoredAsSent(metadata, stateItem.TransferInstructionSet))
                 {
                     //S1205
                     await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
@@ -610,6 +611,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private static bool IsDeposit(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>
             Deposits.IsDeposit(metadata.IsEncrypted, instructionSet.SharedSecretEncryptedKeyHeader);
 
+        // A deposit, or a member's comment on a Selective Share drive, encrypted with its file's key (section 10): the
+        // key header is stored as it came, so no storage key is needed and the comment goes in directly
+        private static bool IsStoredAsSent(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>
+            IsDeposit(metadata, instructionSet) ||
+            (metadata.IsEncrypted && instructionSet.SharedSecretEncryptedKeyHeader?.IsFileKey() == true);
+
         private async Task<bool> CanDirectWriteFile(Guid driveId, FileMetadata metadata,
             EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)
         {
@@ -633,7 +640,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 return true;
             }
 
-            if (IsDeposit(metadata, transferInstructionSet))
+            if (IsStoredAsSent(metadata, transferInstructionSet))
             {
                 return true;
             }

@@ -106,31 +106,57 @@ public class TableDriveAclIndex(
     }
 
     /// <summary>
-    /// The live rows of <paramref name="fileIds"/>: the Read bit set (DrivePermission.Read, 1) and not expired at
-    /// <paramref name="now"/> (docs/file-access.md, "live row"); only those of <paramref name="memberIds"/> when given.
-    /// One read for a page of files, whatever its size.
+    /// A live row: the Read bit set (DrivePermission.Read, 1) and not expired at <paramref name="now"/>
+    /// (docs/file-access.md, "live row").
     /// </summary>
-    public async Task<List<DriveAclIndexRecord>> GetLiveRowsAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
-        IReadOnlyCollection<Guid> memberIds, UnixTimeUtc now)
+    public static bool IsLive(DriveAclIndexRecord row, UnixTimeUtc now) =>
+        (row.permissions & 1) == 1 && (row.expiresAt == null || row.expiresAt.Value.milliseconds > now.milliseconds);
+
+    /// <summary>
+    /// The rows of <paramref name="fileIds"/>, and of the standard files whose global transit ids are
+    /// <paramref name="globalTransitIds"/> (the file a comment's group names, docs/selective-share-pr3-plan.md, section
+    /// 10), each with its file's global transit id; only those of <paramref name="memberIds"/> when given.  Live or not
+    /// (<see cref="IsLive"/>).  One read for a page of files, whatever its size.
+    /// </summary>
+    public async Task<List<(DriveAclIndexRecord Row, Guid? GlobalTransitId)>> GetRowsAsync(Guid driveId,
+        IReadOnlyCollection<Guid> fileIds, IReadOnlyCollection<Guid> globalTransitIds, IReadOnlyCollection<Guid> memberIds)
     {
-        if (fileIds.Count == 0 || memberIds?.Count == 0)
+        if ((fileIds.Count == 0 && globalTransitIds.Count == 0) || memberIds?.Count == 0)
         {
             return [];
         }
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
-        var members = memberIds == null ? "" : $"AND aclMemberId IN ({string.Join(",", memberIds.Select((_, i) => $"@m{i}"))}) ";
-        cmd.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId,expiresAt,permissions,lockedFileKey,created,modified " +
-                          "FROM DriveAclIndex WHERE identityId = @identityId AND driveId = @driveId " +
-                          $"AND fileId IN ({string.Join(",", fileIds.Select((_, i) => $"@f{i}"))}) {members}" +
-                          "AND (permissions & 1) = 1 AND (expiresAt IS NULL OR expiresAt > @now) ORDER BY rowId;";
+        var files = new List<string>();
+        if (fileIds.Count > 0)
+        {
+            files.Add($"r.fileId IN ({string.Join(",", fileIds.Select((_, i) => $"@f{i}"))})");
+        }
+
+        if (globalTransitIds.Count > 0)
+        {
+            files.Add($"(m.globalTransitId IN ({string.Join(",", globalTransitIds.Select((_, i) => $"@g{i}"))}) " +
+                      "AND m.fileSystemType = @standard)");
+        }
+
+        var members = memberIds == null ? "" : $"AND r.aclMemberId IN ({string.Join(",", memberIds.Select((_, i) => $"@m{i}"))}) ";
+        cmd.CommandText = "SELECT r.rowId,r.identityId,r.driveId,r.fileId,r.aclMemberId,r.expiresAt,r.permissions,r.lockedFileKey," +
+                          "r.created,r.modified,m.globalTransitId FROM DriveAclIndex r JOIN DriveMainIndex m " +
+                          "ON m.identityId = r.identityId AND m.driveId = r.driveId AND m.fileId = r.fileId " +
+                          $"WHERE r.identityId = @identityId AND r.driveId = @driveId {members}" +
+                          $"AND ({string.Join(" OR ", files)}) ORDER BY r.rowId;";
         cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
         cmd.AddParameter("@driveId", DbType.Binary, driveId);
-        cmd.AddParameter("@now", DbType.Int64, now.milliseconds);
+        cmd.AddParameter("@standard", DbType.Int32, (int)FileSystemType.Standard);
         foreach (var (fileId, i) in fileIds.Select((f, i) => (f, i)))
         {
             cmd.AddParameter($"@f{i}", DbType.Binary, fileId);
+        }
+
+        foreach (var (globalTransitId, i) in globalTransitIds.Select((g, i) => (g, i)))
+        {
+            cmd.AddParameter($"@g{i}", DbType.Binary, globalTransitId);
         }
 
         foreach (var (memberId, i) in (memberIds ?? []).Select((m, i) => (m, i)))
@@ -138,7 +164,14 @@ public class TableDriveAclIndex(
             cmd.AddParameter($"@m{i}", DbType.Binary, memberId);
         }
 
-        return await ReadRowsAsync(cmd);
+        var rows = new List<(DriveAclIndexRecord, Guid?)>();
+        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
+        while (await rdr.ReadAsync())
+        {
+            rows.Add((ReadRecordFromReaderAll(rdr), rdr.IsDBNull(10) ? null : new Guid((byte[])rdr[10])));
+        }
+
+        return rows;
     }
 
     public async Task<(List<DriveAclIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)

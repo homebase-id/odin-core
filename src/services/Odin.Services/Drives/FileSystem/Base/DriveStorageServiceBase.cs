@@ -81,9 +81,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             // A member reading through a share gets that share's locked file key (section 6)
-            var shared = await FilesSharedWithCallerAsync(file.DriveId, [file.FileId], odinContext);
+            var shared = await FilesSharedWithCallerAsync(file.DriveId, [serverFileHeader], odinContext);
             var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext,
-                callerShare: shared?.GetValueOrDefault(file.FileId));
+                callerShare: shared?.LiveRowOf(file.FileId));
             return result;
         }
 
@@ -704,11 +704,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (keyHeader is ClientLockedKeyHeader locked)
             {
                 // Stored as the client locked it
-                ZkDriveFiles.AssertDriveTakes(drive, locked.Type);
+                ZkDriveFiles.AssertDriveTakes(drive, locked.Type, GetFileSystemType());
                 return locked.Locked;
             }
 
-            ZkDriveFiles.AssertDriveTakes(drive, EncryptionType.Aes);
+            ZkDriveFiles.AssertDriveTakes(drive, EncryptionType.Aes, GetFileSystemType());
 
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
             drive.AssertValidStorageKey(storageKey);
@@ -734,8 +734,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return;
             }
 
-            var rows = await db.DriveAclIndex.GetLiveRowsAsync(driveId, headers.Select(h => h.FileId).ToList(), null, UnixTimeUtc.Now());
-            var byFile = rows.ToLookup(r => r.fileId);
+            var now = UnixTimeUtc.Now();
+            var rows = await db.DriveAclIndex.GetRowsAsync(driveId, headers.Select(h => h.FileId).ToList(), [], null);
+            var byFile = rows.Select(r => r.Row).Where(r => TableDriveAclIndex.IsLive(r, now)).ToLookup(r => r.fileId);
             foreach (var header in headers)
             {
                 header.Shares = byFile[header.FileId].Select(ShareRow.From).ToList();
@@ -747,12 +748,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             driveAclAuthorizationService.CallerMayChangeSharedFileAsync(file, odinContext);
 
         /// <inheritdoc cref="IDriveAclAuthorizationService.FilesSharedWithCallerAsync"/>
-        public Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
+        public Task<CallerShares> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<ServerFileHeader> headers,
             IOdinContext odinContext) =>
-            driveAclAuthorizationService.FilesSharedWithCallerAsync(driveId, fileIds, odinContext);
+            driveAclAuthorizationService.FilesSharedWithCallerAsync(driveId, headers, odinContext);
 
         public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext,
-            IReadOnlyDictionary<Guid, DriveAclIndexRecord> sharedWithCaller = null)
+            CallerShares sharedWithCaller = null)
         {
             await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
             return await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext, sharedWithCaller);
@@ -2077,9 +2078,44 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.Validate(odinContext);
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
+            if (GetFileSystemType() == FileSystemType.Comment && drive.IsSelectiveShare &&
+                !DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller))
+            {
+                await AssertMayWriteSharedCommentAsync(drive, header, odinContext);
+            }
 
             // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
             await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag);
+        }
+
+        /// <summary>
+        /// On a Selective Share drive an outside caller writes only their own comment, on a file shared with them with
+        /// <c>Comment</c>, which the comment's group names: adding, editing and deleting it alike, in place of drive
+        /// <c>Comment</c> (docs/selective-share-pr3-plan.md, section 10).  Asked where every header is written, so no
+        /// path that writes a comment skips it.
+        /// </summary>
+        private async Task AssertMayWriteSharedCommentAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
+        {
+            var caller = odinContext.GetCallerOdinIdOrFail();
+            var metadata = header.FileMetadata;
+            var stored = await longTermStorageManager.GetServerFileHeader(drive, metadata.File.FileId, GetFileSystemType());
+            if (!IsFrom(metadata, caller) || (stored != null && !IsFrom(stored.FileMetadata, caller)))
+            {
+                throw new OdinSecurityException("Only a comment's author writes it");
+            }
+
+            // A tombstone keeps the group, not the referenced file
+            if (metadata.FileState == FileState.Active && metadata.ReferencedFile?.GlobalTransitId != metadata.AppData?.GroupId)
+            {
+                throw new OdinClientException("A comment's group names the file it comments on", OdinClientErrorCode.InvalidReferenceFile);
+            }
+
+            if (!await driveAclAuthorizationService.CallerHoldsShareAsync(header, DrivePermission.Comment, odinContext))
+            {
+                throw new OdinSecurityException("No share with Comment on the file");
+            }
+
+            static bool IsFrom(FileMetadata m, OdinId caller) => m.SenderOdinId != null && new OdinId(m.SenderOdinId) == caller;
         }
 
         /// <summary>

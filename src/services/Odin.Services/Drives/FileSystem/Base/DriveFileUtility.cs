@@ -53,7 +53,8 @@ public static class DriveFileUtility
     /// </summary>
     /// <param name="callerShare">On a Selective Share drive, the live share the read rule let an outside caller in
     /// through: the header comes with that share, and an encrypted file's key header is the share's locked file key
-    /// with the file's IV (docs/selective-share-pr3-plan.md, section 6), never the file's own.</param>
+    /// with the file's IV (docs/selective-share-pr3-plan.md, section 6), never the file's own.  For a comment, the share
+    /// of the file it comments on: its key header is that file's locked file key with the comment's own IV (section 10).</param>
     public static SharedSecretEncryptedFileHeader CreateClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
         bool forceIncludeServerMetadata = false, DriveAclIndexRecord callerShare = null)
     {
@@ -126,8 +127,9 @@ public static class DriveFileUtility
             clientFileHeader.ServerMetadata = header.ServerMetadata;
         }
 
-        // The member sees only their own share: its bits and expiry, for the client to show
-        if (callerShare != null)
+        // The member sees only their own share: its bits and expiry, for the client to show.  A comment's share is its
+        // file's (section 10), shown with the file
+        if (callerShare != null && callerShare.fileId == header.FileMetadata.File.FileId)
         {
             clientFileHeader.Shares = [ShareRow.From(callerShare)];
         }

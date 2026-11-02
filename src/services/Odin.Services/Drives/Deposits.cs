@@ -31,12 +31,13 @@ public static class Deposits
     /// <summary>
     /// A stored file's key header, opened with the drive key the caller holds; a deposit's comes back
     /// sealed, as stored, and needs no drive key.  Any other file needs the caller to hold the drive
-    /// key, even an unencrypted one (sending a file always has).  Re-lock it with
-    /// <see cref="EncryptedKeyHeader.EncryptKeyHeaderAes"/>, which passes a sealed one on as it is.
+    /// key, even an unencrypted one (sending a file always has).  So does a member's comment on its file's key
+    /// (<see cref="EncryptionType.FileKey"/>), staged on the transient drive on its way to a Selective Share drive.
+    /// Re-lock it with <see cref="EncryptedKeyHeader.EncryptKeyHeaderAes"/>, which passes either on as it is.
     /// </summary>
     public static KeyHeader OpenWithDriveKey(ServerFileHeader header, IOdinContext odinContext)
     {
-        if (IsDeposit(header))
+        if (IsDeposit(header) || (header.FileMetadata.IsEncrypted && header.EncryptedKeyHeader?.IsFileKey() == true))
         {
             return new ClientLockedKeyHeader(header.EncryptedKeyHeader);
         }

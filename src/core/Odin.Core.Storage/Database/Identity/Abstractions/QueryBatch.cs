@@ -86,11 +86,23 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 // A Selective Share drive: a file comes back only through a row naming the caller, live or not, so a
                 // withdrawn or expired share still reaches the caller's sync; the read rule decides what it shows
                 // (docs/selective-share-pr3-plan.md, section 2). The rows are found by the circle's index, not by
-                // walking the drive's files. A caller no row can name gets nothing.
-                listWhere.Add(IsSet(aclAnyOf)
-                    ? $"driveMainIndex.fileId IN (SELECT r.fileId FROM driveAclIndex r WHERE r.identityId = {odinIdentity.BytesToSql(_databaseType)} " +
-                      $"AND r.driveId = {driveId.BytesToSql(_databaseType)} AND r.aclMemberId IN ({HexList(aclAnyOf)}))"
-                    : "1 = 0");
+                // walking the drive's files. A caller no row can name gets nothing. A comment comes back through the rows
+                // of the file it comments on, which its group names (section 10).
+                if (!IsSet(aclAnyOf))
+                {
+                    listWhere.Add("1 = 0");
+                }
+                else
+                {
+                    var identity = odinIdentity.BytesToSql(_databaseType);
+                    var drive = driveId.BytesToSql(_databaseType);
+                    var sharedFiles = $"SELECT r.fileId FROM driveAclIndex r WHERE r.identityId = {identity} " +
+                                      $"AND r.driveId = {drive} AND r.aclMemberId IN ({HexList(aclAnyOf)})";
+                    listWhere.Add(fileSystemType == (int)FileSystemType.Comment
+                        ? $"driveMainIndex.groupId IN (SELECT p.globalTransitId FROM driveMainIndex p WHERE p.identityId = {identity} " +
+                          $"AND p.driveId = {drive} AND p.fileSystemType = {(int)FileSystemType.Standard} AND p.fileId IN ({sharedFiles}))"
+                        : $"driveMainIndex.fileId IN ({sharedFiles})");
+                }
             }
             else if (IsSet(aclAnyOf))
             {

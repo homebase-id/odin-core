@@ -134,20 +134,20 @@ public sealed class DriveEventMessage(
         var fileId = file?.FileMetadata?.File;
         var shares = deviceOdinContext == null || fileId is not { } id
             ? null
-            : await aclService.FilesSharedWithCallerAsync(id.DriveId, [id.FileId], deviceOdinContext);
+            : await aclService.FilesSharedWithCallerAsync(id.DriveId, [file!], deviceOdinContext);
         if (shares == null)
         {
             return await VisibleToAsync(socket, aclService) ? JsonFor(socket) : null;
         }
 
         var target = fileId!.Value;
-        if (await aclService.CallerMayReadAsync(file, deviceOdinContext!, shares))
+        if (await aclService.CallerMayReadAsync(file!, deviceOdinContext!, shares))
         {
             return Json(notificationType, ClientDriveNotification.For(socket.ResultShape, deviceOdinContext, targetDrive, header,
-                previousHeader, shares.GetValueOrDefault(target.FileId)), socket.ResultShape);
+                previousHeader, shares.LiveRowOf(target.FileId)), socket.ResultShape);
         }
 
-        if (!await aclService.CallerIsNamedAsync(target, deviceOdinContext!))
+        if (!shares.Names(target.FileId))
         {
             return null;
         }

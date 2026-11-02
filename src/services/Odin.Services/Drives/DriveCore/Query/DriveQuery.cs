@@ -341,14 +341,15 @@ public class DriveQuery(
 
     public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
     {
+        var header = await GetFileHeaderAsync(drive, fileId);
+        return header?.ServerMetadata.FileSystemType == fileSystemType ? header : null;
+    }
+
+    /// <summary>The file's header, of whichever file system it is.</summary>
+    public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId)
+    {
         var record = await tblDriveMainIndex.GetAsync(drive.Id, fileId);
-
-        if (null == record || record.fileSystemType != (int)fileSystemType)
-        {
-            return null;
-        }
-
-        return ServerFileHeader.FromDriveMainIndexRecord(record);
+        return record == null ? null : ServerFileHeader.FromDriveMainIndexRecord(record);
     }
 
     /// <summary>
