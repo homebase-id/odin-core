@@ -176,20 +176,9 @@ namespace Odin.Services.AppNotifications.WebSocket
             var aclService = scope.Resolve<IDriveAclAuthorizationService>();
             foreach (var deviceSocket in sockets)
             {
-                string? json;
-                try
+                var json = await driveEvent.TryMessageForAsync(deviceSocket, aclService, _logger);
+                if (json == null)
                 {
-                    json = await driveEvent.MessageForAsync(deviceSocket, aclService);
-                    if (json == null)
-                    {
-                        continue;
-                    }
-                }
-                catch (Exception e)
-                {
-                    // This socket misses the event; the others still get it (#1966), as AppNotificationDispatcher does
-                    _logger.LogError(e, "Drive event for peer socket {key}: {error}", deviceSocket.Key, e.Message);
-                    deviceSocket.Abort(_logger, "drive event could not be prepared", e);
                     continue;
                 }
 

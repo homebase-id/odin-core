@@ -290,8 +290,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // (DriveStorageServiceBase checks the author and the share)
             if (fs.Storage.GetFileSystemType() == FileSystemType.Standard && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
             {
-                if (header.FileMetadata.GlobalTransitId == newMetadata.GlobalTransitId &&
-                    header.FileMetadata.SenderOdinId == newMetadata.SenderOdinId)
+                if (header.FileMetadata.GlobalTransitId == newMetadata.GlobalTransitId && newMetadata.SenderOdinId != null &&
+                    header.IsOriginalSender((OdinId)newMetadata.SenderOdinId))
                 {
                     return (true, []);
                 }

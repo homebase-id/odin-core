@@ -725,10 +725,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// Whether the caller may see <paramref name="header"/> (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>),
-        /// on a drive that isn't archived
-        /// </summary>
-        /// <summary>
         /// Gives each of <paramref name="headers"/> its live shares, in one read, on a Selective Share drive, for the
         /// callers who manage its shares (<c>includeShares</c>, docs/selective-share-pr3-plan.md, section 5;
         /// <see cref="SelectiveShareDrives.CallerManagesShares"/>); any other caller or drive gets none, and nothing is
@@ -772,6 +768,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext) =>
             driveAclAuthorizationService.FilesSharedWithCallerAsync(driveId, headers, odinContext);
 
+        /// <summary>
+        /// Whether the caller may see <paramref name="header"/> (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>),
+        /// on a drive that isn't archived; <paramref name="sharedWithCaller"/> as that takes it.
+        /// </summary>
         public async Task<bool> CallerMayReadFileOnLiveDrive(ServerFileHeader header, IOdinContext odinContext,
             CallerShares sharedWithCaller = null)
         {
@@ -2103,34 +2103,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await AssertMayWriteSharedCommentAsync(drive, header, odinContext);
             }
 
-            if (GetFileSystemType() == FileSystemType.Standard && drive.IsSelectiveShare)
-            {
-                // The group read and the write in one transaction, the row locked, so a share written meanwhile waits
-                await using var tx = await db.BeginStackedTransactionAsync();
-                await KeepSharedGroupAsync(header);
-                await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag);
-                tx.Commit();
-                return;
-            }
-
             // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
             await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag);
-        }
-
-        /// <summary>
-        /// On a Selective Share drive a stored file keeps its group whatever a write sends: the server decides it, Owner
-        /// until the first share lifts it to Connected (decision A), so an owner client that sends Owner with an edit
-        /// doesn't close a shared file to its members.  Shares are withdrawn to un-share; with no live share a file is
-        /// the owner callers' alone whatever its group (decided 2026-11-02).
-        /// </summary>
-        private async Task KeepSharedGroupAsync(ServerFileHeader header)
-        {
-            var file = header.FileMetadata.File;
-            if (await db.MainIndexMetaCached.GetLockedRequiredSecurityGroupAsync(file.DriveId, file.FileId) is { } group &&
-                header.ServerMetadata?.AccessControlList is { } acl)
-            {
-                acl.RequiredSecurityGroup = (SecurityGroupType)group;
-            }
         }
 
         /// <summary>

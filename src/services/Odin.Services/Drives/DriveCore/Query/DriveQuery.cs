@@ -220,6 +220,30 @@ public class DriveQuery(
 
     public async Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag = null)
     {
+        if (!drive.IsSelectiveShare || header.ServerMetadata.FileSystemType != FileSystemType.Standard)
+        {
+            await SaveFileHeaderCoreAsync(drive, header, useThisVersionTag);
+            return;
+        }
+
+        // On a Selective Share drive a stored file keeps its group, whatever the write sends: the server decides it,
+        // Owner until the first share lifts it to Connected (decision A), so an owner client that sends Owner with an
+        // edit doesn't close a shared file to its members; withdrawing the shares un-shares it (decided 2026-11-02).
+        // Read with the row locked, in the write's transaction, so a share written meanwhile waits rather than being
+        // written back.  Every header write comes here, so none skips it
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var file = header.FileMetadata.File;
+        if (await db.MainIndexMetaCached.GetLockedRequiredSecurityGroupAsync(drive.Id, file.FileId) is { } group)
+        {
+            header.ServerMetadata.AccessControlList.RequiredSecurityGroup = (SecurityGroupType)group;
+        }
+
+        await SaveFileHeaderCoreAsync(drive, header, useThisVersionTag);
+        tx.Commit();
+    }
+
+    private async Task SaveFileHeaderCoreAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag)
+    {
         var fileMetadata = header.FileMetadata;
 
         //sanity in case something higher up didnt set the drive properly for any crazy reason

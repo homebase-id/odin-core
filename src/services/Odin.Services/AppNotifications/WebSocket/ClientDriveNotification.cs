@@ -1,5 +1,7 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -121,6 +123,24 @@ public sealed class DriveEventMessage(
     /// section 9): the file with their share's key while they may read it, and once a share naming them ends, the
     /// tombstone their sync gets (section 8).  Every other socket: <see cref="VisibleToAsync"/>, then <see cref="JsonFor"/>.
     /// </summary>
+    /// <summary>
+    /// <see cref="MessageForAsync"/> for a dispatcher's loop: when the message can't be built, that socket alone misses the
+    /// event and is aborted, so its client reconnects and catches up, and the others still get it (#1966).
+    /// </summary>
+    public async Task<string?> TryMessageForAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService, ILogger logger)
+    {
+        try
+        {
+            return await MessageForAsync(socket, aclService);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Drive event for socket {key}: {error}", socket.Key, e.Message);
+            socket.Abort(logger, "drive event could not be prepared", e);
+            return null;
+        }
+    }
+
     public async Task<string?> MessageForAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
     {
         var deviceOdinContext = socket.DeviceOdinContext;

@@ -80,10 +80,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     transferInstructionSet.FileSystemType);
             }
 
-            if (drive.IsSelectiveShare && transferInstructionSet.FileSystemType == FileSystemType.Standard)
-            {
-                await AssertMemberMayAddToFolderAsync(drive, metadata, odinContext);
-            }
+            await AssertMemberMayAddToFolderAsync(drive, metadata, transferInstructionSet.FileSystemType, odinContext);
 
             if (transferInstructionSet.Shares is { Count: > 0 } sentShares)
             {
@@ -232,10 +229,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// A member adds a file to a shared folder on a Selective Share drive (docs/selective-share-pr3-plan.md, section
         /// 7): Filesync names a file's folder by the folder's unique id in <c>GroupId</c>, and the member needs a live
-        /// share with <c>Write</c> on that folder file, found as the member.  Refused before anything is staged.
+        /// share with <c>Write</c> on that folder file, found as the member.  Asked when the file arrives, before anything is
+        /// staged, and again when it is written, after its payloads streamed in.  Nothing to ask for a comment or on any
+        /// other drive.
         /// </summary>
-        private async Task AssertMemberMayAddToFolderAsync(StorageDrive drive, FileMetadata metadata, IOdinContext odinContext)
+        private async Task AssertMemberMayAddToFolderAsync(StorageDrive drive, FileMetadata metadata, FileSystemType fileSystemType,
+            IOdinContext odinContext)
         {
+            if (!drive.IsSelectiveShare || fileSystemType != FileSystemType.Standard)
+            {
+                return;
+            }
+
             var folder = metadata.AppData?.GroupId is { } groupId
                 ? await fileSystem.Query.GetFileByClientUniqueIdForWriting(drive.Id, groupId, odinContext)
                 : null;
@@ -439,10 +444,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             // Asked again now the payloads are in: a share withdrawn while they streamed stops the write
             var drive = await driveManager.GetDriveAsync(stateItem.File.DriveId);
-            if (drive.IsSelectiveShare && stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Standard)
-            {
-                await AssertMemberMayAddToFolderAsync(drive, metadata, odinContext);
-            }
+            await AssertMemberMayAddToFolderAsync(drive, metadata, stateItem.TransferInstructionSet.FileSystemType, odinContext);
 
             //TODO: check if any apps are online and we can snag the storage key
 

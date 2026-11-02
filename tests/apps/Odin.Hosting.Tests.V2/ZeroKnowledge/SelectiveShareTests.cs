@@ -99,12 +99,7 @@ public partial class SelectiveShareTests : V2Fixture
         Assert.That(rewritten.Modified.milliseconds, Is.GreaterThan(share.Modified.milliseconds));
 
         // A header write leaves the share alone (section 1)
-        var update = await s.Frodo.Drives.Writer.UpdateFileByFileId(s.Drive.Alias, fileId, new FileUpdateInstructionSetV2
-        {
-            Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16), Manifest = new UploadManifest { PayloadDescriptors = [] }
-        },
-            s.Metadata(SecurityGroupType.Connected, after.FileMetadata.VersionTag), []);
-        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        await s.OwnerEditAsync(fileId, SecurityGroupType.Connected);
         Assert.That((await s.SharesAsync(fileId)).Single().Permissions, Is.EqualTo(DrivePermission.Read), "the share after an update");
     }
 
@@ -123,12 +118,9 @@ public partial class SelectiveShareTests : V2Fixture
         await AssertSeesAsync(pippin, s, shared, false, "Pippin, in no circle of the app", hasDriveAccess: false);
 
         // An unreviewed connection counts as Authenticated, below the file's Connected
-        var tenant = Host.GetTenantScope(s.Frodo.Identity.DomainName);
-        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(s.Sam.Identity, ConnectionStatus.Connected, null);
-        await tenant.Resolve<OdinContextCache>().ResetAsync();
+        await UnreviewSamAsync(s);
         await AssertSamSeesAsync(s, shared, false, "unreviewed");
-        var review = await new V2ConnectionNetworkClient(s.Frodo.Identity, s.Frodo.Factory).MarkReviewedAsync(s.Sam.Identity);
-        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+        await ReviewSamAsync(s);
         await AssertSamSeesAsync(s, shared, true, "reviewed again");
 
         Assert.That((await s.Shares.WithdrawShare(s.Drive.Alias, shared, s.CircleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -149,20 +141,10 @@ public partial class SelectiveShareTests : V2Fixture
         var s = await ArrangeAsync();
         var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
         var file = await s.GtidOfAsync(fileId);
-        var comment = new UploadFileMetadata
-        {
-            AppData = new UploadAppFileMetaData { FileType = 101, Content = "Frodo's comment" },
-            AccessControlList = AccessControlList.Connected,
-            ReferencedFile = file
-        };
-        var commented = await new DriveWriterV2Client(s.Frodo.Identity, s.Frodo.Factory, Odin.Core.Storage.FileSystemType.Comment)
-            .CreateNewUnencryptedFile(s.Drive.Alias, comment, new UploadManifest { PayloadDescriptors = [] }, []);
-        Assert.That(commented.StatusCode, Is.EqualTo(HttpStatusCode.OK), commented.Error?.Content);
+        await OwnerCommentAsync(s, file, null, null);
         await AssertSamSeesAsync(s, fileId, true, "reviewed");
 
-        var tenant = Host.GetTenantScope(s.Frodo.Identity.DomainName);
-        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(s.Sam.Identity, ConnectionStatus.Connected, null);
-        await tenant.Resolve<OdinContextCache>().ResetAsync();
+        await UnreviewSamAsync(s);
         try
         {
             await AssertSamSeesAsync(s, fileId, false, "unreviewed");
@@ -173,13 +155,7 @@ public partial class SelectiveShareTests : V2Fixture
             // His socket hears of Frodo's next change as the file's tombstone, without the share or its key
             await using (var sockets = await ShareSockets.OpenAsync(s, memberReviewed: false))
             {
-                var header = await s.HeaderAsync(fileId);
-                var update = await s.Frodo.Drives.Writer.UpdateFileByFileId(s.Drive.Alias, fileId, new FileUpdateInstructionSetV2
-                {
-                    Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16),
-                    Manifest = new UploadManifest { PayloadDescriptors = [] }
-                }, s.Metadata(SecurityGroupType.Connected, header.FileMetadata.VersionTag), []);
-                Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+                await s.OwnerEditAsync(fileId, SecurityGroupType.Connected);
                 await sockets.Member.WaitForAsync("Sam's unreviewed socket: the tombstone, no share, no key", ClientNotificationType.FileDeleted,
                     h => h.FileId == fileId && h.Shares == null && h.SharedSecretEncryptedKeyHeader.EncryptedAesKey.All(b => b == 0));
                 Assert.That(sockets.Member.Seen.Where(e => e.Header?.FileId == fileId).Select(e => e.Type),
@@ -193,9 +169,22 @@ public partial class SelectiveShareTests : V2Fixture
         }
         finally
         {
-            var review = await new V2ConnectionNetworkClient(s.Frodo.Identity, s.Frodo.Factory).MarkReviewedAsync(s.Sam.Identity);
-            Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+            await ReviewSamAsync(s);
         }
+    }
+
+    // An unreviewed connection counts as Authenticated, below a shared file's Connected
+    private async Task UnreviewSamAsync(Arranged s)
+    {
+        var tenant = Host.GetTenantScope(s.Frodo.Identity.DomainName);
+        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(s.Sam.Identity, ConnectionStatus.Connected, null);
+        await tenant.Resolve<OdinContextCache>().ResetAsync();
+    }
+
+    private static async Task ReviewSamAsync(Arranged s)
+    {
+        var review = await new V2ConnectionNetworkClient(s.Frodo.Identity, s.Frodo.Factory).MarkReviewedAsync(s.Sam.Identity);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
     }
 
     [Test]
@@ -957,6 +946,18 @@ public partial class SelectiveShareTests : V2Fixture
             var response = await Shares.GetShares(Drive.Alias, fileId);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
             return response.Content!;
+        }
+
+        /// <summary>Frodo edits the file's header from his console, sending <paramref name="group"/>; returns it before.</summary>
+        public async Task<SharedSecretEncryptedFileHeader> OwnerEditAsync(Guid fileId, SecurityGroupType group)
+        {
+            var before = await HeaderAsync(fileId);
+            var update = await Frodo.Drives.Writer.UpdateFileByFileId(Drive.Alias, fileId, new FileUpdateInstructionSetV2
+            {
+                Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16), Manifest = new UploadManifest { PayloadDescriptors = [] }
+            }, Metadata(group, before.FileMetadata.VersionTag), []);
+            Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+            return before;
         }
 
         public async Task<GlobalTransitIdFileIdentifier> GtidOfAsync(Guid fileId) =>

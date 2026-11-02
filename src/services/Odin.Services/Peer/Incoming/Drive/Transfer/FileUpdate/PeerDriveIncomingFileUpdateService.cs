@@ -63,11 +63,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 ZkDriveFiles.AssertPeerMayUpdate(drive, transferInstructionSet.EncryptedKeyHeader, transferInstructionSet.FileSystemType);
             }
 
-            // A comment's is asked where its header is written: the author, with a share's Comment bit (section 10)
-            if (drive.IsSelectiveShare && transferInstructionSet.FileSystemType == FileSystemType.Standard)
-            {
-                await AssertMemberMayChangeAsync(transferInstructionSet.Request.File, odinContext);
-            }
+            await AssertMemberMayChangeAsync(drive, transferInstructionSet, odinContext);
 
             _isDirectWrite = await CanDirectWriteFile(driveId, fileMetadata, transferInstructionSet.FileSystemType, odinContext);
 
@@ -207,11 +203,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
 
             // Asked again now the payloads are in: a share withdrawn while they streamed stops the write
-            var drive = await driveManager.GetDriveAsync(_file.DriveId);
-            if (drive.IsSelectiveShare && _updateInstructionSet.FileSystemType == FileSystemType.Standard)
-            {
-                await AssertMemberMayChangeAsync(_updateInstructionSet.Request.File, odinContext);
-            }
+            await AssertMemberMayChangeAsync(await driveManager.GetDriveAsync(_file.DriveId), _updateInstructionSet, odinContext);
 
             PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
@@ -232,12 +224,21 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         }
 
         /// <summary>
-        /// A member's update on a Selective Share drive (docs/selective-share-pr3-plan.md, section 7): the file is found
-        /// as the member, through their live share, and they need a live share with <c>Write</c>; refused before
-        /// anything is staged.  Applied directly afterwards, as the member: no inbox on these drives.
+        /// A member's update of a file on a Selective Share drive (docs/selective-share-pr3-plan.md, section 7): the file is
+        /// found as the member, through their live share, and they need a live share with <c>Write</c>.  Asked when the
+        /// update arrives, before anything is staged, and again when it is applied, after its payloads streamed in;
+        /// applied directly, as the member: no inbox on these drives.  A comment's is asked where its header is written:
+        /// the author, with a share's Comment bit (section 10).  Nothing to ask on any other drive.
         /// </summary>
-        private async Task AssertMemberMayChangeAsync(FileIdentifier target, IOdinContext odinContext)
+        private async Task AssertMemberMayChangeAsync(StorageDrive drive, EncryptedRecipientFileUpdateInstructionSet instructionSet,
+            IOdinContext odinContext)
         {
+            if (!drive.IsSelectiveShare || instructionSet.FileSystemType != FileSystemType.Standard)
+            {
+                return;
+            }
+
+            var target = instructionSet.Request.File;
             var driveId = target.TargetDrive.Alias;
             var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, target.GlobalTransitId.GetValueOrDefault(), odinContext)
                          ?? throw new OdinSecurityException("No share with Write on the file");

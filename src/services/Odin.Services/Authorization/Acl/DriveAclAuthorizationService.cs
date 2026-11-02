@@ -120,10 +120,12 @@ namespace Odin.Services.Authorization.Acl
                 return false;
             }
 
-            // The shared file's group, as for a read (CallerShares holds the rows back)
+            // A share counts only for a caller who may read the drive, as reading the file needs: a share whose circle no
+            // longer grants the drive lets in to nothing.  The group asked is the shared file's (CallerShares holds the
+            // rows back), as for a read
             var file = header.FileMetadata.File;
-            var shares = await SharesOfAsync(file.DriveId, [header], odinContext);
-            return shares.Grants(file.FileId, permission);
+            return odinContext.PermissionsContext.HasDrivePermission(file.DriveId, DrivePermission.Read) &&
+                   (await SharesOfAsync(file.DriveId, [header], odinContext)).Grants(file.FileId, permission);
         }
 
         /// <summary>
@@ -199,7 +201,7 @@ namespace Odin.Services.Authorization.Acl
         /// </remarks>
         public static bool Allows(AccessControlList acl, SecurityGroupType level, IReadOnlyCollection<Guid> circles, OdinId? reader)
         {
-            if (!ReachesGroup(acl, level))
+            if (!ReachesGroup(acl.RequiredSecurityGroup, level))
             {
                 return false;
             }
@@ -215,9 +217,7 @@ namespace Odin.Services.Authorization.Acl
                    (reader.HasValue && requiredIdentities.Any(id => OdinId.IsValid(id) && (OdinId)id == reader.Value));
         }
 
-        /// <summary>Whether <paramref name="level"/> reaches the file's required group, on the ladder.</summary>
-        private static bool ReachesGroup(AccessControlList acl, SecurityGroupType level) => ReachesGroup(acl.RequiredSecurityGroup, level);
-
+        /// <summary>Whether <paramref name="level"/> reaches a file's <paramref name="required"/> group, on the ladder.</summary>
         private static bool ReachesGroup(SecurityGroupType required, SecurityGroupType level) =>
             // System is a caller level, never a file's ACL; refuse it rather than let its value (1) admit everyone.
             required != SecurityGroupType.System && (int)level >= (int)required;

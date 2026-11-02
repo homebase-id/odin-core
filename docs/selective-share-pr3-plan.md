@@ -344,7 +344,7 @@ comment on it (a photo, a document).
   referenced file; a live row with `Comment` on that file (`CallerHoldsShareAsync`). That covers adding, editing,
   overwriting and deleting, local or from a peer. A member's comment update skips section 7's `Write` row check.
 - **A shared file's group is the server's** (decided 2026-11-02): a write to a stored file keeps its group, whatever
-  the client sends (`DriveStorageServiceBase.KeepSharedGroupAsync`), so an owner client that sends `Owner` with an edit
+  the client sends (`DriveQuery.SaveFileHeaderAsync`, which every header write goes through), so an owner client that sends `Owner` with an edit
   (Filesync does, wire.rs:601) doesn't close the file to its members. To un-share, the owner withdraws the shares; with
   no live share a file is the owner callers' alone whatever its group.
 - **A live share whose file's group the member doesn't reach** (an unreviewed connection; found by the tests,

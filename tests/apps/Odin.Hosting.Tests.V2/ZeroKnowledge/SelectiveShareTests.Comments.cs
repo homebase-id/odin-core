@@ -28,7 +28,7 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
 /// <summary>
 /// Comments on a Selective Share drive beyond a member's first one (docs/selective-share-pr3-plan.md, section 10): the
-/// owner's, an edit, a reaction to one, and what an expiry or a file set back to Owner does to them.
+/// owner's, an edit, a reaction to one, and what an expiry or an owner's edit of their file does to them.
 /// </summary>
 public partial class SelectiveShareTests
 {
@@ -167,12 +167,7 @@ public partial class SelectiveShareTests
         var file = await s.GtidOfAsync(fileId);
         await OwnerCommentAsync(s, file, null, null);
 
-        var header = await s.HeaderAsync(fileId);
-        var update = await s.Frodo.Drives.Writer.UpdateFileByFileId(s.Drive.Alias, fileId, new FileUpdateInstructionSetV2
-        {
-            Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16), Manifest = new UploadManifest { PayloadDescriptors = [] }
-        }, s.Metadata(SecurityGroupType.Owner, header.FileMetadata.VersionTag), []);
-        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        var header = await s.OwnerEditAsync(fileId, SecurityGroupType.Owner);
 
         var after = await s.HeaderAsync(fileId);
         Assert.That(after.FileMetadata.VersionTag, Is.Not.EqualTo(header.FileMetadata.VersionTag), "edited");

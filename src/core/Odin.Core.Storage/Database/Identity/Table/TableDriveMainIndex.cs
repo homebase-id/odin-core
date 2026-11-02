@@ -563,6 +563,23 @@ public class TableDriveMainIndex(
     }
 
     /// <summary>
+    /// The file's required security group, its row locked as <see cref="GetLockedAsync"/> locks it, in one statement;
+    /// null when there is no file.
+    /// </summary>
+    internal async Task<int?> GetLockedRequiredSecurityGroupAsync(Guid driveId, Guid fileId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        var forUpdate = _scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite ? "" : "FOR UPDATE";
+        cmd.CommandText = "SELECT requiredSecurityGroup FROM driveMainIndex " +
+                          $"WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+        return await cmd.ExecuteScalarAsync() is { } group and not DBNull ? Convert.ToInt32(group) : null;
+    }
+
+    /// <summary>
     /// Moves the file's modified and keeps its version tag: a change to who may see the file, not to the file (decision
     /// 6 of docs/selective-share-plan.md). With <paramref name="requiredSecurityGroup"/>, also sets the file's group, in
     /// the column the query filters on and in the header's server data the readers take it from.
