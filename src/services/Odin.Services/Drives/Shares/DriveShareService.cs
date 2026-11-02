@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -16,6 +18,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.CircleMembership;
+using Odin.Services.Mediator;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 
@@ -27,7 +30,12 @@ namespace Odin.Services.Drives.Shares;
 /// (docs/selective-share-pr3-plan.md, section 3).  Written by the owner console or by the owner's app that owns both the
 /// drive and the circle.
 /// </summary>
-public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, CircleMembershipService circleMembership)
+public class DriveShareService(
+    IdentityDatabase db,
+    IDriveManager driveManager,
+    CircleMembershipService circleMembership,
+    IMediator mediator,
+    ILogger<DriveShareService> logger)
 {
     public const int MaxSharesPerRequest = 100;
 
@@ -67,6 +75,41 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
         }
 
         tx.Commit();
+        foreach (var fileId in shares!.Select(s => s.FileId).Distinct())
+        {
+            await PublishChangedAsync(new InternalDriveFileId(drive.Id, fileId), odinContext);
+        }
+    }
+
+    /// <summary>
+    /// A share write raises the file's ordinary file-changed event (decided 2026-11-02, section 9): owner callers'
+    /// devices hear it as any change, and a member's socket gets the file through their share or, once it ends, its
+    /// tombstone (<c>DriveEventMessage.MessageForAsync</c>).  A share changes no content, so the feed and the
+    /// reaction previews have nothing to do.  The write stands whatever the event does.
+    /// </summary>
+    private async Task PublishChangedAsync(InternalDriveFileId file, IOdinContext odinContext)
+    {
+        try
+        {
+            var record = await db.DriveMainIndexCached.GetAsync(file.DriveId, file.FileId);
+            if (record == null)
+            {
+                return;
+            }
+
+            await mediator.Publish(new DriveFileChangedNotification
+            {
+                File = file,
+                ServerFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record),
+                OdinContext = odinContext,
+                IgnoreFeedDistribution = true,
+                IgnoreReactionPreviewCalculation = true
+            });
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "The event for a share of file {file} on drive {drive}", file.FileId, file.DriveId);
+        }
     }
 
     /// <summary>
@@ -161,6 +204,7 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
 
         await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, fileId,
             [new DriveAclIndexRecord { aclMemberId = circleId, permissions = 0 }], _ => null);
+        await PublishChangedAsync(new InternalDriveFileId(drive.Id, fileId), odinContext);
     }
 
     /// <summary>The drive, once the caller may write every one of <paramref name="shares"/> on it.</summary>

@@ -119,6 +119,12 @@ namespace Odin.Services.Authorization.Acl
             return rows.Any(r => ((DrivePermission)r.permissions).HasFlag(DrivePermission.Write));
         }
 
+        public async Task<bool> CallerIsNamedAsync(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            var members = CallerMemberIds(odinContext).ToHashSet();
+            return (await driveAclIndex.GetFileRowsAsync(file.DriveId, file.FileId)).Any(r => members.Contains(r.aclMemberId));
+        }
+
         /// <summary>
         /// Who a file's index rows may name for this caller: their circles and their own OdinId's hash (none when
         /// anonymous).  The query (<c>DriveQuery</c>) and the read rule ask the same list.

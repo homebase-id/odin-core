@@ -41,5 +41,11 @@ namespace Odin.Services.Authorization.Acl
         /// section 7).  Drive <c>Write</c> and the read rule are asked where the write is.
         /// </summary>
         Task<bool> CallerMayChangeSharedFileAsync(Drives.InternalDriveFileId file, IOdinContext odinContext);
+
+        /// <summary>
+        /// Whether a row of <paramref name="file"/> names the caller, live or not: on a Selective Share drive, a member a
+        /// file was shared with, who hears when that ends (docs/selective-share-pr3-plan.md, sections 8 and 9).
+        /// </summary>
+        Task<bool> CallerIsNamedAsync(Drives.InternalDriveFileId file, IOdinContext odinContext);
     }
 }

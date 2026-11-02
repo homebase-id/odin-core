@@ -255,15 +255,14 @@ namespace Odin.Services.AppNotifications.WebSocket
             var aclService = scope.Resolve<IDriveAclAuthorizationService>();
             foreach (var deviceSocket in sockets)
             {
-                string json;
+                string? json;
                 try
                 {
-                    if (!await driveEvent.VisibleToAsync(deviceSocket, aclService))
+                    json = await driveEvent.MessageForAsync(deviceSocket, aclService);
+                    if (json == null)
                     {
                         continue;
                     }
-
-                    json = driveEvent.JsonFor(deviceSocket);
                 }
                 catch (Exception e)
                 {

@@ -282,6 +282,12 @@ and sees them appear in their own Filesync; nothing else is built for them.
   get the file-modified event (they read the shares with `includeShares` if they want them); a member's peer socket gets
   file-modified for a live share and the "no longer shared" tombstone (section 8) for a withdrawal, judged by the row
   rather than the read rule, which a withdrawn member no longer passes.
+- **Built (2026-11-02):** a share write and a withdrawal publish `DriveFileChangedNotification` with the file's header
+  (no feed distribution, no reaction previews; a failure to publish leaves the write standing). A socket's message comes
+  from `DriveEventMessage.MessageForAsync`: on a Selective Share drive an outside caller's socket gets the file with
+  their share's key while the read rule passes, and the deleted tombstone once a share naming them ends
+  (`CallerIsNamedAsync`); any other socket is judged as before. Peer sockets have no end-to-end test client in the V2
+  suite, so the message is unit tested.
 
 ## 10. Members react and comment
 

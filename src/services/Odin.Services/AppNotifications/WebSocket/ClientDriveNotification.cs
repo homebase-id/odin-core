@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -8,6 +9,8 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Peer.Encryption;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 
@@ -37,8 +40,9 @@ public class ClientDriveNotification
     /// A context without a shared secret gets neither headers nor refs. The headers are the event's, shared by
     /// every socket, so they are never changed here.
     /// </summary>
+    /// <param name="callerShare">On a Selective Share drive, the share a member reads the file through (section 6).</param>
     public static ClientDriveNotification For(FileResultShape shape, IOdinContext? deviceOdinContext, TargetDrive? targetDrive,
-        ServerFileHeader? header, ServerFileHeader? previousHeader)
+        ServerFileHeader? header, ServerFileHeader? previousHeader, DriveAclIndexRecord? callerShare = null)
     {
         var notification = new ClientDriveNotification { TargetDrive = targetDrive };
         if (deviceOdinContext?.PermissionsContext?.SharedSecretKey == null)
@@ -53,8 +57,9 @@ public class ClientDriveNotification
             return notification;
         }
 
-        notification.Header = DriveFileUtility.CreateClientFileHeader(header, deviceOdinContext);
-        notification.PreviousServerFileHeader = DriveFileUtility.CreateClientFileHeader(previousHeader, deviceOdinContext);
+        notification.Header = DriveFileUtility.CreateClientFileHeader(header, deviceOdinContext, callerShare: callerShare);
+        notification.PreviousServerFileHeader = DriveFileUtility.CreateClientFileHeader(previousHeader, deviceOdinContext,
+            callerShare: callerShare);
 
         if (shape == FileResultShape.NoContent)
         {
@@ -116,6 +121,52 @@ public sealed class DriveEventMessage(
                await aclService.CallerMayReadAsync(file, deviceOdinContext);
     }
 
+    /// <summary>
+    /// The message for <paramref name="socket"/>, or null when it doesn't get this event.  On a Selective Share drive a
+    /// member's socket is judged by their share, not the event's headers alone (docs/selective-share-pr3-plan.md,
+    /// section 9): the file with their share's key while they may read it, and once a share naming them ends, the
+    /// tombstone their sync gets (section 8).  Every other socket: <see cref="VisibleToAsync"/>, then <see cref="JsonFor"/>.
+    /// </summary>
+    public async Task<string?> MessageForAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
+    {
+        var deviceOdinContext = socket.DeviceOdinContext;
+        var file = previousHeader ?? header;
+        var fileId = file?.FileMetadata?.File;
+        var shares = deviceOdinContext == null || fileId is not { } id
+            ? null
+            : await aclService.FilesSharedWithCallerAsync(id.DriveId, [id.FileId], deviceOdinContext);
+        if (shares == null)
+        {
+            return await VisibleToAsync(socket, aclService) ? JsonFor(socket) : null;
+        }
+
+        var target = fileId!.Value;
+        if (await aclService.CallerMayReadAsync(file, deviceOdinContext!, shares))
+        {
+            return Json(notificationType, ClientDriveNotification.For(socket.ResultShape, deviceOdinContext, targetDrive, header,
+                previousHeader, shares.GetValueOrDefault(target.FileId)), socket.ResultShape);
+        }
+
+        if (!await aclService.CallerIsNamedAsync(target, deviceOdinContext!))
+        {
+            return null;
+        }
+
+        var noLongerShared = DriveStorageServiceBase.TombstoneOf(file!, file!.FileMetadata.Updated.milliseconds);
+        noLongerShared.EncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        return Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(socket.ResultShape, deviceOdinContext, targetDrive,
+            noLongerShared, null), socket.ResultShape);
+    }
+
+    private static string Json(ClientNotificationType type, ClientDriveNotification notification, FileResultShape shape) =>
+        OdinSystemSerializer.Serialize(new
+        {
+            NotificationType = type,
+            Data = shape == FileResultShape.Minimal
+                ? OdinSystemSerializer.Serialize(notification, MinimalOptions)
+                : OdinSystemSerializer.Serialize(notification)
+        });
+
     public string JsonFor(DeviceSocket socket)
     {
         // Read once: a handshake may change them while this runs, and the cached message must be what was built
@@ -129,13 +180,7 @@ public sealed class DriveEventMessage(
         }
 
         var notification = ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, header, previousHeader);
-        var json = OdinSystemSerializer.Serialize(new
-        {
-            NotificationType = notificationType,
-            Data = shape == FileResultShape.Minimal
-                ? OdinSystemSerializer.Serialize(notification, MinimalOptions)
-                : OdinSystemSerializer.Serialize(notification)
-        });
+        var json = Json(notificationType, notification, shape);
 
         if (shared)
         {
