@@ -83,7 +83,8 @@ namespace Odin.Services.Authorization.Acl
 
             var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, caller);
             var file = header.FileMetadata.File;
-            if (await IsSelectiveShareAsync(file.DriveId))
+            // Shares given: the caller's on a Selective Share drive, already looked up
+            if (sharedWithCaller != null || await IsSelectiveShareAsync(file.DriveId))
             {
                 // The share rows say who, not the ACL's names (docs/file-access.md, "With Selective Share"); a live
                 // share also opens a client-locked file to the member, who gets the share's locked file key (section 6)
@@ -123,18 +124,6 @@ namespace Odin.Services.Authorization.Acl
             return shares.Grants(file.FileId, permission) && ReachesGroup(acl, ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller));
         }
 
-        public async Task<bool> CallerMayChangeSharedFileAsync(InternalDriveFileId file, IOdinContext odinContext)
-        {
-            if (PassesEveryAcl(odinContext.Caller))
-            {
-                return true;
-            }
-
-            var rows = await driveAclIndex.GetRowsAsync(file.DriveId, [file.FileId], [], CallerMemberIds(odinContext));
-            var now = UnixTimeUtc.Now();
-            return rows.Any(r => TableDriveAclIndex.IsLive(r.Row, now) && ((DrivePermission)r.Row.permissions).HasFlag(DrivePermission.Write));
-        }
-
         /// <summary>
         /// The rows naming the caller, live or not, that decide each of <paramref name="headers"/>: a file's own, and a
         /// comment's those of the file it comments on, which its group names (docs/selective-share-pr3-plan.md,
@@ -151,8 +140,10 @@ namespace Odin.Services.Authorization.Acl
             // A comment is read exactly when its file is: held back, too, when the caller's level doesn't reach the file's
             // group (a file set back to Owner), whatever the comment's own
             var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller);
+            var byFileId = rows.ToLookup(r => r.Row.fileId);
+            var byGlobalTransitId = rows.ToLookup(r => r.GlobalTransitId);
             var byFile = commentedFiles.ToDictionary(f => f.FileId,
-                f => rows.Where(r => f.CommentedFile == null ? r.Row.fileId == f.FileId : r.GlobalTransitId == f.CommentedFile).ToList());
+                f => (f.CommentedFile == null ? byFileId[f.FileId] : byGlobalTransitId[f.CommentedFile]).ToList());
             return new CallerShares(
                 byFile.ToDictionary(f => f.Key, f => f.Value.Select(r => r.Row).ToList()),
                 UnixTimeUtc.Now(),
@@ -187,7 +178,7 @@ namespace Odin.Services.Authorization.Acl
 
         // Owner callers and the server's own work pass every file's ACL part
         public static bool PassesEveryAcl(CallerContext caller) =>
-            (caller?.IsOwner ?? false) || caller?.SecurityLevel == SecurityGroupType.System;
+            (caller?.IsOwner ?? false) || caller?.IsSystem == true;
 
         private async Task<bool> IsSelectiveShareAsync(Guid driveId) =>
             (await driveManager.GetDriveAsync(driveId))?.IsSelectiveShare == true;

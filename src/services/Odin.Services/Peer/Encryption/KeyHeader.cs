@@ -107,7 +107,7 @@ namespace Odin.Services.Peer.Encryption
     {
         public ClientLockedKeyHeader(EncryptedKeyHeader locked)
         {
-            if (!locked.IsLockedByClient() && !locked.IsShare())
+            if (!locked.IsOpaqueToServer())
             {
                 throw new OdinClientException($"A {locked.Type} key header isn't one a client locked", OdinClientErrorCode.InvalidKeyHeader);
             }

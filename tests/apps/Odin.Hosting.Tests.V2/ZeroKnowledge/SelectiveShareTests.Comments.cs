@@ -124,7 +124,7 @@ public partial class SelectiveShareTests
     public async Task AFileSetBackToOwnerIsRefusedToMembersWithLiveShares()
     {
         var s = await ArrangeAsync();
-        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read)]);
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
         var file = await s.GtidOfAsync(fileId);
         await OwnerCommentAsync(s, file, null, null);
         await AssertSamSeesAsync(s, fileId, true, "shared");
@@ -136,7 +136,8 @@ public partial class SelectiveShareTests
             Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16), Manifest = new UploadManifest { PayloadDescriptors = [] }
         }, s.Metadata(SecurityGroupType.Owner, header.FileMetadata.VersionTag), []);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
-        Assert.That((await s.SharesAsync(fileId)).Single().Permissions, Is.EqualTo(DrivePermission.Read), "the share is still live");
+        Assert.That((await s.SharesAsync(fileId)).Single().Permissions, Is.EqualTo(DrivePermission.Read | DrivePermission.Write),
+            "the share is still live");
 
         await sockets.Member.WaitForAsync("Sam's peer socket: no longer shared, with no key and no share", ClientNotificationType.FileDeleted,
             h => h.FileId == fileId && h.Shares == null && h.SharedSecretEncryptedKeyHeader.EncryptedAesKey.All(b => b == 0));
@@ -144,6 +145,12 @@ public partial class SelectiveShareTests
         await AssertSamGetsTheTombstoneAsync(s, fileId, "set back to Owner");
         Assert.That((await SamsCommentsAsync(s, file)).All(c => c.FileState != FileState.Active), Is.True,
             "its comments go with it");
+
+        // Nor may he change it, whatever his share holds
+        var delete = await s.Sam.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, file.GlobalTransitId);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
+        await s.Sam.Sync.DrainOutboxAsync();
+        Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Active), "his delete refused");
     }
 
     /// <summary>

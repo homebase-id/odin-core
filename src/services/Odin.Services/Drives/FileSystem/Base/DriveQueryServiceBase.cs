@@ -363,7 +363,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 bool forceIncludeServerMetadata = false,
                 bool logAclFailuresAsErrors = false)
         {
-            var (visible, aclFailures, shareOf) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
+            var (visible, aclFailures, sharedWithCaller) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
 
             var results = new List<SharedSecretEncryptedFileHeader>();
             foreach (var serverFileHeader in visible)
@@ -372,7 +372,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     serverFileHeader,
                     odinContext,
                     forceIncludeServerMetadata,
-                    shareOf.GetValueOrDefault(serverFileHeader.FileMetadata.File.FileId));
+                    sharedWithCaller?.LiveRowOf(serverFileHeader.FileMetadata.File.FileId));
 
                 if (header?.FileMetadata?.AppData != null)
                 {
@@ -422,11 +422,11 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// The rows of <paramref name="recordList"/> the caller may receive, in order, and the ones its ACL denied.
         /// Every result shape goes through here, so none of them can show a file another would hide.  On a Selective
-        /// Share drive, also the share each file the read rule let an outside caller in to reached them through: a
-        /// tombstone of a file no longer shared with them has none.
+        /// Share drive, also the caller's shares: a file the read rule let them in to has its live row, and a tombstone of
+        /// a file no longer shared with them has none (null otherwise).
         /// </summary>
         private async Task<(List<ServerFileHeader> visible, List<ServerFileHeader> aclFailures,
-            Dictionary<Guid, DriveAclIndexRecord> shareOf)> FilterVisibleAsync(
+            CallerShares sharedWithCaller)> FilterVisibleAsync(
             Guid driveId,
             List<DriveMainIndexRecord> recordList,
             IOdinContext odinContext,
@@ -452,7 +452,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // On a Selective Share drive, the page's share rows in one read rather than one per file
             var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(driveId, headers, odinContext);
-            var shareOf = new Dictionary<Guid, DriveAclIndexRecord>();
 
             foreach (var serverFileHeader in headers)
             {
@@ -477,10 +476,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     {
                         if (sharedWithCaller.Names(file.FileId))
                         {
-                            var noLongerShared = DriveStorageServiceBase.TombstoneOf(serverFileHeader,
-                                serverFileHeader.FileMetadata.Updated.milliseconds);
-                            noLongerShared.EncryptedKeyHeader = EncryptedKeyHeader.Empty();
-                            visible.Add(noLongerShared);
+                            visible.Add(DriveStorageServiceBase.NoLongerSharedTombstoneOf(serverFileHeader));
                         }
 
                         continue;
@@ -523,10 +519,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     if (shouldReceiveFile)
                     {
                         visible.Add(serverFileHeader);
-                        if (sharedWithCaller?.LiveRowOf(file.FileId) is { } share)
-                        {
-                            shareOf[file.FileId] = share;
-                        }
                     }
                     else
                     {
@@ -553,7 +545,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return (visible, aclFailures, shareOf);
+            return (visible, aclFailures, sharedWithCaller);
         }
 
         /// <summary>

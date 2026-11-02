@@ -672,7 +672,7 @@ public class CircleMembershipService(
                ?? throw new OdinSecurityException($"Caller cannot {action} circle {circleId}; it is not an app");
     }
 
-    private static void AssertCircleIsTheApps(GuidId circleId, Guid? circleAppId, Guid callerAppId, string action)
+    internal static void AssertCircleIsTheApps(GuidId circleId, Guid? circleAppId, Guid callerAppId, string action)
     {
         // Both tests are about the circle; the caller is already known to be an app (no master key).
         // A circle the owner owns is never an app's.  That is not implied by the AppId comparison:

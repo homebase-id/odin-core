@@ -40,12 +40,5 @@ namespace Odin.Services.Authorization.Acl
         /// no drive permission (section 10); a comment goes by the file it comments on.
         /// </summary>
         Task<bool> CallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext);
-
-        /// <summary>
-        /// On a Selective Share drive, whether the caller may update or delete <paramref name="file"/>: an owner caller,
-        /// or a member with a live share that has <c>Write</c> in one of their circles (docs/selective-share-pr3-plan.md,
-        /// section 7).  Drive <c>Write</c> and the read rule are asked where the write is.
-        /// </summary>
-        Task<bool> CallerMayChangeSharedFileAsync(Drives.InternalDriveFileId file, IOdinContext odinContext);
     }
 }

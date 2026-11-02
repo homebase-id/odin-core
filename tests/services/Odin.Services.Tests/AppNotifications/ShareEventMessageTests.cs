@@ -61,11 +61,11 @@ public class ShareEventMessageTests
         Assert.That(await Message(shared: true, mayRead: false, named: false), Is.Null);
 
     [Test]
-    public async Task AnyOtherSocketIsJudgedAsBefore()
+    public async Task AnyOtherSocketIsJudgedByTheReadRuleAlone()
     {
-        // No share lookup applies (an owner caller, another drive): the read rule decides, and the drive-locked key
-        // header of a client-locked file still needs the drive's key
-        Assert.That(await Message(shared: false, mayRead: true, named: false), Is.Null, "a client-locked file, no drive key");
+        // No share lookup applies (an owner caller, another drive): the read rule decides, the drive key included
+        // (IDriveAclAuthorizationService.CallerMayReadAsync)
+        Assert.That(await Message(shared: false, mayRead: false, named: false), Is.Null, "refused");
     }
 
     private static async Task<string?> Message(bool shared, bool mayRead, bool named)

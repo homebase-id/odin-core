@@ -67,13 +67,28 @@ public class MainIndexMetaCached : AbstractTableCaching
 
     //
 
-    /// <inheritdoc cref="MainIndexMeta.WriteSharesAsync"/>
-    public async Task<DriveMainIndexRecord?> WriteSharesAsync(Guid driveId, Guid fileId, IEnumerable<DriveAclIndexRecord> shares,
-        Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> checkFile)
+    /// <summary>
+    /// Writes each file's shares (<see cref="MainIndexMeta.WriteSharesAsync"/>), then clears the drive's cache once.
+    /// Returns the first file that doesn't exist, writing nothing after it; null when all were written.
+    /// </summary>
+    public async Task<Guid?> WriteSharesAsync(Guid driveId, IEnumerable<FileShares> files)
     {
-        var file = await _meta.WriteSharesAsync(driveId, fileId, shares, checkFile);
-        await InvalidateDriveAsync(driveId);
-        return file;
+        try
+        {
+            foreach (var file in files)
+            {
+                if (!await _meta.WriteSharesAsync(driveId, file.FileId, file.Rows, file.CheckFile))
+                {
+                    return file.FileId;
+                }
+            }
+
+            return null;
+        }
+        finally
+        {
+            await InvalidateDriveAsync(driveId);
+        }
     }
 
     public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
@@ -94,3 +109,12 @@ public class MainIndexMetaCached : AbstractTableCaching
         return result;
     }
 }
+
+/// <summary>
+/// A file's share rows to write, with the check of its row, read locked, that may refuse it or lift its group
+/// (<see cref="MainIndexMeta.WriteSharesAsync"/>).
+/// </summary>
+public sealed record FileShares(
+    Guid FileId,
+    IReadOnlyCollection<DriveAclIndexRecord> Rows,
+    Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> CheckFile);

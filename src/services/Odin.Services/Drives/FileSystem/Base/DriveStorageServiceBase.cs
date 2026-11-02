@@ -74,17 +74,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            var serverFileHeader = await this.GetServerFileHeader(file, odinContext);
+            await AssertCanReadDriveAsync(file.DriveId, odinContext);
+            var (serverFileHeader, shared) = await ReadForCallerAsync(file, odinContext);
             if (serverFileHeader == null)
             {
                 return null;
             }
 
+            AssertValidFileSystemType(serverFileHeader.ServerMetadata);
+
             // A member reading through a share gets that share's locked file key (section 6)
-            var shared = await FilesSharedWithCallerAsync(file.DriveId, [serverFileHeader], odinContext);
-            var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext,
-                callerShare: shared?.LiveRowOf(file.FileId));
-            return result;
+            return DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext, callerShare: shared?.LiveRowOf(file.FileId));
         }
 
         /// <summary>
@@ -743,9 +743,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        /// <inheritdoc cref="IDriveAclAuthorizationService.CallerMayChangeSharedFileAsync"/>
-        public Task<bool> CallerMayChangeSharedFileAsync(InternalDriveFileId file, IOdinContext odinContext) =>
-            driveAclAuthorizationService.CallerMayChangeSharedFileAsync(file, odinContext);
+        /// <summary>
+        /// On a Selective Share drive, refuses an outside caller without a live share with <paramref name="permission"/> on
+        /// <paramref name="file"/> (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>): a member's update or
+        /// delete, or adding to a folder, needs <c>Write</c> (docs/selective-share-pr3-plan.md, section 7).
+        /// </summary>
+        public async Task AssertCallerHoldsShareAsync(InternalDriveFileId file, DrivePermission permission, IOdinContext odinContext)
+        {
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+            if (header == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(header, permission, odinContext))
+            {
+                throw new OdinSecurityException($"No share with {permission} on the file");
+            }
+        }
 
         /// <inheritdoc cref="IDriveAclAuthorizationService.FilesSharedWithCallerAsync"/>
         public Task<CallerShares> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<ServerFileHeader> headers,
@@ -2078,8 +2089,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.Validate(odinContext);
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
-            if (GetFileSystemType() == FileSystemType.Comment && drive.IsSelectiveShare &&
-                !DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller))
+            if (GetFileSystemType() == FileSystemType.Comment && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
             {
                 await AssertMayWriteSharedCommentAsync(drive, header, odinContext);
             }
@@ -2200,6 +2210,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
+        /// <summary>
+        /// What a Selective Share member's sync and socket get for a file a row names them on that they may no longer read
+        /// (withdrawn, expired, set back to Owner): its tombstone, without a key (docs/selective-share-pr3-plan.md, section 8).
+        /// </summary>
+        public static ServerFileHeader NoLongerSharedTombstoneOf(ServerFileHeader header)
+        {
+            var tombstone = TombstoneOf(header, header.FileMetadata.Updated.milliseconds);
+            tombstone.EncryptedKeyHeader = EncryptedKeyHeader.Empty();
+            return tombstone;
+        }
+
         /// <returns>The tombstone written; null when the delete failed</returns>
         private async Task<ServerFileHeader> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
@@ -2293,14 +2314,22 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext,
-            bool includeExpired = false, bool aclDeniedAsMissing = false)
+            bool includeExpired = false, bool aclDeniedAsMissing = false) =>
+            (await ReadForCallerAsync(file, odinContext, includeExpired, aclDeniedAsMissing)).header;
+
+        /// <summary>
+        /// The stored header the caller may read, and on a Selective Share drive the caller's shares it was read through,
+        /// from the one read the read rule made of them.
+        /// </summary>
+        private async Task<(ServerFileHeader header, CallerShares shares)> ReadForCallerAsync(InternalDriveFileId file,
+            IOdinContext odinContext, bool includeExpired = false, bool aclDeniedAsMissing = false)
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
 
             if (null == header)
             {
-                return null;
+                return (null, null);
             }
 
             // Belt and braces for the window between a TTL coming due and its job actually running.
@@ -2308,16 +2337,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             // The delete paths pass includeExpired so the expiry job can still see what it must remove.
             if (!includeExpired && IsExpired(header))
             {
-                return null;
+                return (null, null);
             }
+
+            var shares = drive.IsSelectiveShare
+                ? await driveAclAuthorizationService.FilesSharedWithCallerAsync(drive.Id, [header], odinContext)
+                : null;
 
             // Left out like a query does, when the caller asks for that
-            if (!await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext))
+            if (!await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext, shares))
             {
-                return aclDeniedAsMissing ? null : throw new OdinSecurityException("No access permitted to the file");
+                return aclDeniedAsMissing ? (null, null) : throw new OdinSecurityException("No access permitted to the file");
             }
 
-            return header;
+            return (header, shares);
         }
 
         /// <summary>An update keeps a file encrypted or unencrypted: its payloads were written that way.</summary>

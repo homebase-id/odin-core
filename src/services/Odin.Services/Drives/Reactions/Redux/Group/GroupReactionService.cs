@@ -126,8 +126,6 @@ public class GroupReactionService(
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        await reactionContentService.AssertMayAsync(file, DrivePermission.Read, odinContext);
-
         return await reactionContentService.GetReactionCountsByFileAsync(file, odinContext);
     }
 
@@ -140,8 +138,6 @@ public class GroupReactionService(
 
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        await reactionContentService.AssertMayAsync(file, DrivePermission.Read, odinContext);
-
         return await reactionContentService.GetReactionsByIdentityAndFileAsync(identity, file, odinContext);
     }
 
@@ -149,8 +145,6 @@ public class GroupReactionService(
         FileSystemType fileSystemType)
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
-
-        await reactionContentService.AssertMayAsync(file, DrivePermission.Read, odinContext);
 
         return await reactionContentService.GetReactionsAsync(file, cursor, maxCount, odinContext);
     }

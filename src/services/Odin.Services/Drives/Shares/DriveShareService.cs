@@ -10,6 +10,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -50,8 +51,7 @@ public class DriveShareService(
         var drive = await GetDriveCallerMayShareOnAsync(driveId, odinContext);
         odinContext.PermissionsContext.AssertCanReadDrive(drive.Id);
 
-        var rows = await db.DriveAclIndex.GetFileRowsAsync(drive.Id, fileId);
-        return rows.Select(ShareRow.From).ToList();
+        return (await RowsOfAsync(drive, fileId)).Select(ShareRow.From).ToList();
     }
 
     /// <summary>
@@ -61,17 +61,15 @@ public class DriveShareService(
     /// </summary>
     public async Task WriteSharesAsync(Guid driveId, List<ShareRequest>? shares, IOdinContext odinContext)
     {
-        var drive = await AssertMayWriteAsync(driveId, shares, odinContext);
+        AssertShapes(shares, s => (s.FileId, s.CircleId), "a file shared with a circle once");
+        var drive = await GetDriveForSharesAsync(driveId, shares!, odinContext);
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        foreach (var file in shares!.GroupBy(s => s.FileId))
+        var missing = await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, shares!.GroupBy(s => s.FileId)
+            .Select(file => new FileShares(file.Key, ToRows(file), record => CheckFileAndLift(record, file.ToList()))));
+        if (missing is { } missingFile)
         {
-            var written = await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, file.Key, ToRows(file),
-                record => CheckFileAndLift(record, file.ToList()));
-            if (written == null)
-            {
-                throw new OdinClientException($"No file {file.Key} on the drive", OdinClientErrorCode.InvalidFile);
-            }
+            throw new OdinClientException($"No file {missingFile} on the drive", OdinClientErrorCode.InvalidFile);
         }
 
         tx.Commit();
@@ -118,13 +116,8 @@ public class DriveShareService(
     /// </summary>
     public async Task AssertUploadMayShareAsync(Guid driveId, List<ShareRequest> shares, bool encrypted, IOdinContext odinContext)
     {
-        if (shares.Any(s => s.FileId != Guid.Empty))
-        {
-            throw new OdinClientException("An upload's shares are for the file uploaded: they name no file", OdinClientErrorCode.ArgumentError);
-        }
-
-        await AssertMayWriteAsync(driveId, shares, odinContext);
-        AssertKeysFit(encrypted, shares, "The file");
+        AssertSentShares(shares, encrypted);
+        await GetDriveForSharesAsync(driveId, shares, odinContext);
     }
 
     /// <summary>
@@ -133,19 +126,12 @@ public class DriveShareService(
     /// </summary>
     public static void AssertSentShares(List<ShareRequest> shares, bool encrypted)
     {
-        if (shares.Count > MaxSharesPerRequest || shares.Any(s => s.FileId != Guid.Empty) ||
-            shares.DistinctBy(s => s.CircleId).Count() != shares.Count)
+        if (shares.Any(s => s.FileId != Guid.Empty))
         {
-            throw new OdinClientException($"Up to {MaxSharesPerRequest} shares, one per circle, naming no file",
-                OdinClientErrorCode.ArgumentError);
+            throw new OdinClientException("A new file's shares are for that file: they name no file", OdinClientErrorCode.ArgumentError);
         }
 
-        var now = UnixTimeUtc.Now();
-        foreach (var share in shares)
-        {
-            AssertShape(share, now);
-        }
-
+        AssertShapes(shares, s => s.CircleId, "one per circle");
         AssertKeysFit(encrypted, shares, "The file");
     }
 
@@ -178,7 +164,7 @@ public class DriveShareService(
         : WriteSecondDatabaseRowBase
     {
         public override async Task<int> ExecuteAsync() =>
-            await db.MainIndexMetaCached.WriteSharesAsync(file.DriveId, file.FileId, rows, _ => null) == null ? 0 : 1;
+            await db.MainIndexMetaCached.WriteSharesAsync(file.DriveId, [new FileShares(file.FileId, rows, _ => null)]) == null ? 1 : 0;
     }
 
     /// <summary>
@@ -191,7 +177,7 @@ public class DriveShareService(
         AssertCallerMayWrite(drive, odinContext);
         await GetCircleCallerMayShareWithAsync(drive, circleId, odinContext);
 
-        var row = (await db.DriveAclIndex.GetFileRowsAsync(drive.Id, fileId)).FirstOrDefault(r => r.aclMemberId == circleId);
+        var row = (await RowsOfAsync(drive, fileId)).FirstOrDefault(r => r.aclMemberId == circleId);
         if (row == null)
         {
             throw new OdinClientException($"File {fileId} isn't shared with circle {circleId}", OdinClientErrorCode.ArgumentError);
@@ -202,29 +188,30 @@ public class DriveShareService(
             return;
         }
 
-        await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, fileId,
-            [new DriveAclIndexRecord { aclMemberId = circleId, permissions = 0 }], _ => null);
+        await db.MainIndexMetaCached.WriteSharesAsync(drive.Id,
+            [new FileShares(fileId, [new DriveAclIndexRecord { aclMemberId = circleId, permissions = 0 }], _ => null)]);
         await PublishChangedAsync(new InternalDriveFileId(drive.Id, fileId), odinContext);
     }
 
-    /// <summary>The drive, once the caller may write every one of <paramref name="shares"/> on it.</summary>
-    private async Task<StorageDrive> AssertMayWriteAsync(Guid driveId, List<ShareRequest>? shares, IOdinContext odinContext)
+    /// <summary>The drive, once the caller may write shares on it for each circle of <paramref name="shares"/>.</summary>
+    private async Task<StorageDrive> GetDriveForSharesAsync(Guid driveId, List<ShareRequest> shares, IOdinContext odinContext)
     {
-        if (shares == null || shares.Count == 0 || shares.Count > MaxSharesPerRequest)
-        {
-            throw new OdinClientException($"Between 1 and {MaxSharesPerRequest} shares per request", OdinClientErrorCode.ArgumentError);
-        }
-
-        if (shares.DistinctBy(s => (s.FileId, s.CircleId)).Count() != shares.Count)
-        {
-            throw new OdinClientException("A file is shared with a circle once per request", OdinClientErrorCode.ArgumentError);
-        }
-
         var drive = await GetDriveCallerMayShareOnAsync(driveId, odinContext);
         AssertCallerMayWrite(drive, odinContext);
         foreach (var circleId in shares.Select(s => s.CircleId).Distinct())
         {
-            await AssertCircleMayShareAsync(drive, circleId, odinContext);
+            AssertCircleFits(drive, await GetCircleCallerMayShareWithAsync(drive, circleId, odinContext));
+        }
+
+        return drive;
+    }
+
+    /// <summary>Between one and <see cref="MaxSharesPerRequest"/> shares, each at most once by <paramref name="key"/>, each well formed.</summary>
+    private static void AssertShapes<TKey>(List<ShareRequest>? shares, Func<ShareRequest, TKey> key, string once)
+    {
+        if (shares == null || shares.Count == 0 || shares.Count > MaxSharesPerRequest || shares.DistinctBy(key).Count() != shares.Count)
+        {
+            throw new OdinClientException($"Between 1 and {MaxSharesPerRequest} shares per request, {once}", OdinClientErrorCode.ArgumentError);
         }
 
         var now = UnixTimeUtc.Now();
@@ -232,9 +219,11 @@ public class DriveShareService(
         {
             AssertShape(share, now);
         }
-
-        return drive;
     }
+
+    // Every row of the file: its shares, withdrawn ones included
+    private async Task<List<DriveAclIndexRecord>> RowsOfAsync(StorageDrive drive, Guid fileId) =>
+        (await db.DriveAclIndex.GetRowsAsync(drive.Id, [fileId], [], null)).Select(r => r.Row).ToList();
 
     private static List<DriveAclIndexRecord> ToRows(IEnumerable<ShareRequest> shares) => shares.Select(s => new DriveAclIndexRecord
     {
@@ -287,16 +276,9 @@ public class DriveShareService(
         return circle;
     }
 
-    private static void AssertIsTheDrivesAppsCircle(StorageDrive drive, CircleRecord circle)
-    {
-        if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != drive.AppId)
-        {
-            throw new OdinSecurityException($"Circle {circle.circleId} isn't the circle of drive {drive.Id}'s app");
-        }
-    }
-
-    private async Task AssertCircleMayShareAsync(StorageDrive drive, Guid circleId, IOdinContext odinContext) =>
-        AssertCircleFits(drive, await GetCircleCallerMayShareWithAsync(drive, circleId, odinContext));
+    private static void AssertIsTheDrivesAppsCircle(StorageDrive drive, CircleRecord circle) =>
+        CircleMembershipService.AssertCircleIsTheApps(new GuidId(circle.circleId), circle.AppId, drive.AppId,
+            $"share drive {drive.Id}'s files with");
 
     /// <summary>
     /// The circle a share is for: enabled, granting the drive Read and Write (decision 1), and holding its key, which
@@ -371,13 +353,11 @@ public class DriveShareService(
 
         AssertKeysFit(header.FileMetadata.IsEncrypted, shares, $"File {record.fileId}");
 
-        var acl = header.ServerMetadata.AccessControlList;
-        if (acl.RequiredSecurityGroup != SecurityGroupType.Owner)
+        if (!SelectiveShareDrives.LiftForShares(header.ServerMetadata.AccessControlList))
         {
             return null;
         }
 
-        acl.RequiredSecurityGroup = SecurityGroupType.Connected;
         return ((int)SecurityGroupType.Connected, OdinSystemSerializer.Serialize(new ServerMetadataDto(header.ServerMetadata)));
     }
 }

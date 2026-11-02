@@ -93,10 +93,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl ?? AccessControlList.OwnerOnly;
                 }
 
-                // A member's file in a shared folder, shared with their circles, is Connected, as a share lifts a file
+                // A member's file in a shared folder, shared with their circles
                 if (drive.IsSelectiveShare && encryptedRecipientTransferInstructionSet.Shares is { Count: > 0 })
                 {
-                    targetAcl = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Connected };
+                    SelectiveShareDrives.LiftForShares(targetAcl);
                 }
             }
 

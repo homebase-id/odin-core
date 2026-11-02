@@ -38,7 +38,7 @@ public class ReactionContentService(
     public async Task<StorageDrive> AssertMayAsync(InternalDriveFileId file, DrivePermission permission, IOdinContext odinContext)
     {
         var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
-        if (!drive.IsSelectiveShare || DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller))
+        if (!SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
         {
             odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, permission);
             return drive;

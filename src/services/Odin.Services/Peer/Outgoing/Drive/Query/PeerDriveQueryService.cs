@@ -895,9 +895,30 @@ public class PeerDriveQueryService(
         return sharedSecretEncryptedFileHeader;
     }
 
+    /// <summary>
+    /// A payload's or thumbnail's key header from the peer's answer, for the caller: empty for an unencrypted one, none
+    /// for a client-locked file's (the client opens it with the file key and its IV), else re-locked for the caller.
+    /// </summary>
+    private EncryptedKeyHeader PayloadKeyHeaderFrom(ApiResponse<HttpContent> response, bool payloadIsEncrypted,
+        IdentityConnectionRegistration icr, IOdinContext odinContext)
+    {
+        if (!payloadIsEncrypted)
+        {
+            return EncryptedKeyHeader.Empty();
+        }
+
+        if (!response.Headers.TryGetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, out var ssHeaders))
+        {
+            return null;
+        }
+
+        return ReEncrypt(icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret,
+            EncryptedKeyHeader.FromBase64(ssHeaders.Single()), odinContext);
+    }
+
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
-        if (encryptedKeyHeader.IsLockedByClient() || encryptedKeyHeader.IsShare())
+        if (encryptedKeyHeader.IsOpaqueToServer())
         {
             // A client-locked key header comes from the peer as stored: only a device holding that drive's keys
             // opens it; a share's comes locked with the member's circle key (Selective Share).  A peer shows one only
@@ -1015,22 +1036,7 @@ public class PeerDriveQueryService(
             logger.LogDebug($"Could not parse remote server response last modified for thumbnail");
         }
 
-        EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-        if (!payloadIsEncrypted)
-        {
-            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-        }
-        else if (!response.Headers.TryGetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, out var ssHeaders))
-        {
-            sharedSecretEncryptedKeyHeader = null; // a client-locked file's: the client opens it with the file key
-        }
-        else
-        {
-            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeaders.Single());
-            sharedSecretEncryptedKeyHeader = ReEncrypt(
-                icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret,
-                icrEncryptedKeyHeader, odinContext);
-        }
+        var sharedSecretEncryptedKeyHeader = PayloadKeyHeaderFrom(response, payloadIsEncrypted, icr, odinContext);
 
         var stream = await response!.Content!.ReadAsStreamAsync();
 
@@ -1059,8 +1065,6 @@ public class PeerDriveQueryService(
         ParsePayloadResponseAsync(
             OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext)
     {
-        var permissionContext = odinContext.PermissionsContext;
-
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             response.Dispose();
@@ -1084,22 +1088,7 @@ public class PeerDriveQueryService(
             logger.LogInformation($"Could not parse last modified for payload (key:{key})");
         }
 
-        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (!payloadIsEncrypted)
-        {
-            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-        }
-        else if (!response.Headers.TryGetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, out var ssHeaders))
-        {
-            ownerSharedSecretEncryptedKeyHeader = null; // a client-locked file's: the client opens it with the file key
-        }
-        else
-        {
-            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeaders.Single());
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
-                icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
-                icrEncryptedKeyHeader, odinContext);
-        }
+        var ownerSharedSecretEncryptedKeyHeader = PayloadKeyHeaderFrom(response, payloadIsEncrypted, icr, odinContext);
 
         var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
 

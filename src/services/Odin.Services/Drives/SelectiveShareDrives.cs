@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Base;
 
 namespace Odin.Services.Drives;
 
@@ -12,6 +13,28 @@ namespace Odin.Services.Drives;
 /// </summary>
 public static class SelectiveShareDrives
 {
+    /// <summary>
+    /// Whether a file's share rows, not its ACL, decide what <paramref name="caller"/> may do on <paramref name="drive"/>:
+    /// a Selective Share drive and anyone but owner callers and the System (docs/file-access.md, "With Selective Share").
+    /// </summary>
+    public static bool RowsDecideFor(StorageDrive drive, CallerContext? caller) =>
+        drive.IsSelectiveShare && !DriveAclAuthorizationService.PassesEveryAcl(caller);
+
+    /// <summary>
+    /// A shared file is Connected, so its members reach its group: a share lifts an Owner file (decision A of
+    /// docs/selective-share-pr3-plan.md).  True when it lifted.
+    /// </summary>
+    public static bool LiftForShares(AccessControlList acl)
+    {
+        if (acl.RequiredSecurityGroup != SecurityGroupType.Owner)
+        {
+            return false;
+        }
+
+        acl.RequiredSecurityGroup = SecurityGroupType.Connected;
+        return true;
+    }
+
     /// <summary>
     /// A drive's settings, when it is created, converted or its attributes change.  <c>OwnerOnly</c> keeps every file
     /// <c>Owner</c>, so such a drive could share nothing; the collaborative channel's edit rule is what a share row's

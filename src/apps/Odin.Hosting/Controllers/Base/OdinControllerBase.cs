@@ -222,6 +222,18 @@ public abstract class OdinControllerBase : ControllerBase
     /// Renders a payload stream retrieved from a peer identity as an HTTP response, populating the
     /// shared-secret / content-type headers the client needs to decrypt the payload.
     /// </summary>
+    /// <summary>
+    /// A payload's or thumbnail's key header, when it has one: a client-locked file's has none, as the client opens it with
+    /// the file key and the payload's IV (docs/zero-knowledge-drives.md), so none is sent.
+    /// </summary>
+    protected void AppendKeyHeader(string headerName, string encryptedKeyHeader64)
+    {
+        if (encryptedKeyHeader64 != null)
+        {
+            HttpContext.Response.Headers.Append(headerName, encryptedKeyHeader64);
+        }
+    }
+
     protected IActionResult HandlePeerPayloadResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted,
         PayloadStream payloadStream)
     {
@@ -236,10 +248,7 @@ public abstract class OdinControllerBase : ControllerBase
         HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
         HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
         HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-        if (encryptedKeyHeader != null) // none for a client-locked file's payload: the client opens it with the file key
-        {
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
-        }
+        AppendKeyHeader(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader?.ToBase64());
         return PayloadResult(payloadStream, "application/octet-stream");
     }
 
@@ -284,10 +293,7 @@ public abstract class OdinControllerBase : ControllerBase
         HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
         HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
         HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
-        if (encryptedKeyHeader != null) // none for a client-locked file's payload: the client opens it with the file key
-        {
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
-        }
+        AppendKeyHeader(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader?.ToBase64());
         return new FileStreamResult(thumb, "application/octet-stream");
     }
 

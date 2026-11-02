@@ -319,12 +319,6 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     }
 
     /// <summary>
-    /// Whether this file system's new files may carry shares (<see cref="UploadFileDescriptor.Shares"/>): standard files
-    /// only, as a comment follows its file's shares.
-    /// </summary>
-    protected virtual bool TakesShares => false;
-
-    /// <summary>
     /// Validates the uploaded data is correct before mapping to its final form.
     /// </summary>
     /// <param name="uploadDescriptor"></param>
@@ -474,8 +468,9 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
         if (uploadDescriptor.Shares is { Count: > 0 })
         {
-            // A new file only: an overwrite keeps the file key (decision 7), so its shares stay valid as they are
-            if (!TakesShares || package.IsUpdateOperation)
+            // A new standard file only: an overwrite keeps the file key (decision 7), so its shares stay valid as they
+            // are, and a comment follows its file's shares
+            if (FileSystem.Storage.GetFileSystemType() != FileSystemType.Standard || package.IsUpdateOperation)
             {
                 throw new OdinClientException("Only a new file's upload carries shares", OdinClientErrorCode.ArgumentError);
             }

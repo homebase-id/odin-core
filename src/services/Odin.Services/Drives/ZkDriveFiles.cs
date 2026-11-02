@@ -211,7 +211,7 @@ public static class ZkDriveFiles
     /// <see cref="EncryptionType.FileKey"/>, the key of the file it comments on, so whoever may read that file reads
     /// its comments; nothing else does (docs/selective-share-pr3-plan.md, section 10).
     /// </summary>
-    public static void AssertDriveTakes(StorageDrive drive, EncryptionType type, FileSystemType fileSystem = FileSystemType.Standard)
+    public static void AssertDriveTakes(StorageDrive drive, EncryptionType type, FileSystemType fileSystem)
     {
         var selectiveShareComment = drive.IsSelectiveShare && fileSystem == FileSystemType.Comment;
         if (type == EncryptionType.FileKey)

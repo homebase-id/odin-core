@@ -159,7 +159,7 @@ public class DriveQuery(
 
     // On a Selective Share drive an outside caller sees a file only through a row naming them (QueryBatch, aclRowsRequired)
     private static bool AclRowsRequired(StorageDrive drive, IOdinContext odinContext) =>
-        drive.IsSelectiveShare && !DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller);
+        SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller);
 
     private List<Guid> GetAcl(IOdinContext odinContext)
     {

@@ -239,11 +239,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var folder = metadata.AppData?.GroupId is { } groupId
                 ? await fileSystem.Query.GetFileByClientUniqueIdForWriting(drive.Id, groupId, odinContext)
                 : null;
-            if (folder == null || !await fileSystem.Storage.CallerMayChangeSharedFileAsync(new InternalDriveFileId(drive.Id, folder.FileId),
-                    odinContext))
+            if (folder == null)
             {
                 throw new OdinSecurityException("A file is added to a folder shared with Write");
             }
+
+            await fileSystem.Storage.AssertCallerHoldsShareAsync(new InternalDriveFileId(drive.Id, folder.FileId), DrivePermission.Write,
+                odinContext);
         }
 
         public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequestAsync(TargetDrive targetDrive, Guid globalTransitId,
@@ -265,12 +267,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // rows stay and members' sync sees the tombstone
             if (drive.IsSelectiveShare && fileSystemType == FileSystemType.Standard)
             {
-                var shared = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
-                var file = new InternalDriveFileId(driveId, shared?.FileId ?? Guid.Empty);
-                if (shared == null || !await fileSystem.Storage.CallerMayChangeSharedFileAsync(file, odinContext))
-                {
-                    throw new OdinSecurityException("No share with Write on the file");
-                }
+                var shared = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext)
+                             ?? throw new OdinSecurityException("No share with Write on the file");
+                var file = new InternalDriveFileId(driveId, shared.FileId);
+                await fileSystem.Storage.AssertCallerHoldsShareAsync(file, DrivePermission.Write, odinContext);
 
                 await fileSystem.Storage.SoftDeleteLongTermFile(file, odinContext, null);
                 return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
@@ -611,11 +611,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private static bool IsDeposit(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>
             Deposits.IsDeposit(metadata.IsEncrypted, instructionSet.SharedSecretEncryptedKeyHeader);
 
-        // A deposit, or a member's comment on a Selective Share drive, encrypted with its file's key (section 10): the
-        // key header is stored as it came, so no storage key is needed and the comment goes in directly
         private static bool IsStoredAsSent(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>
-            IsDeposit(metadata, instructionSet) ||
-            (metadata.IsEncrypted && instructionSet.SharedSecretEncryptedKeyHeader?.IsFileKey() == true);
+            Deposits.IsStoredAsSent(metadata.IsEncrypted, instructionSet.SharedSecretEncryptedKeyHeader);
 
         private async Task<bool> CanDirectWriteFile(Guid driveId, FileMetadata metadata,
             EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)

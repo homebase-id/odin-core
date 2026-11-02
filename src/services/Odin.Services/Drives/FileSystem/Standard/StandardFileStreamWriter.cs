@@ -36,8 +36,6 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
     private readonly DriveShareService _shares;
 
-    protected override bool TakesShares => true;
-
     protected override Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor)
     {
         if (ReservedFileTypes.IsInReservedRange(uploadDescriptor.FileMetadata.AppData.FileType))
@@ -76,8 +74,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
         await _shares.AssertUploadMayShareAsync(package.InternalFile.DriveId, shares, metadata.IsEncrypted, odinContext);
 
-        // A shared file is Connected, as a share lifts an Owner file (decision A)
-        serverMetadata.AccessControlList.RequiredSecurityGroup = SecurityGroupType.Connected;
+        SelectiveShareDrives.LiftForShares(serverMetadata.AccessControlList);
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,

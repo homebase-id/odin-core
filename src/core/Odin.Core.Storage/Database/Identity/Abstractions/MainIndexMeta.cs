@@ -200,7 +200,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// (the first share lifts an Owner file to Connected). The file's modified moves and its version tag stays.
         /// Returns the file's row as it was read, or null, writing nothing, when there is no file.
         /// </summary>
-        internal async Task<DriveMainIndexRecord> WriteSharesAsync(Guid driveId, Guid fileId, IEnumerable<DriveAclIndexRecord> shares,
+        internal async Task<bool> WriteSharesAsync(Guid driveId, Guid fileId, IEnumerable<DriveAclIndexRecord> shares,
             Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> checkFile)
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -210,7 +210,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (file == null)
             {
                 tx.Commit();
-                return null;
+                return false;
             }
 
             var group = checkFile(file);
@@ -223,7 +223,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             await driveMainIndex.TouchKeepingVersionTagAsync(driveId, fileId, group?.requiredSecurityGroup, group?.hdrServerData);
             tx.Commit();
-            return file;
+            return true;
         }
 
         /// <summary>
