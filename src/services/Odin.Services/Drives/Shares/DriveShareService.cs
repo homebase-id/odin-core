@@ -43,7 +43,7 @@ public class DriveShareService(
     /// <summary>AES-GCM under the circle key: format (1) ‖ nonce (12) ‖ file key (16) ‖ tag (16) (decision 7).</summary>
     public const int LockedFileKeyLength = 45;
 
-    /// <summary>The bits a share may hold: React and Comment are granted by the row alone (section 10).</summary>
+    /// <summary>The bits a share may hold, each narrowing the same bit of its circle's drive grant (docs/file-access.md).</summary>
     public const DrivePermission ShareBits = DrivePermission.Read | DrivePermission.Write | DrivePermission.React | DrivePermission.Comment;
 
     public async Task<List<ShareRow>> GetSharesAsync(Guid driveId, Guid fileId, IOdinContext odinContext)

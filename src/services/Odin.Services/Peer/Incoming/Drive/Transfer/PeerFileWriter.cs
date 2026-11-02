@@ -272,20 +272,23 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (fs.Storage.GetFileSystemType() == FileSystemType.Standard && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
             {
                 var stored = await fs.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(targetDriveId,
-                                 newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext) ??
-                             (newMetadata.AppData.UniqueId is { } uniqueId
-                                 ? await fs.Query.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(targetDriveId, uniqueId, odinContext)
-                                 : null);
-                if (stored == null)
+                    newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
+                if (stored != null)
                 {
-                    return await WriteNewFile(fs, file, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, sourceArea,
-                        markComplete);
+                    return IsSameDelivery(stored.FileMetadata, newMetadata)
+                        ? (true, [])
+                        : throw new OdinClientException("A member changes a shared file with an update, not by sending it again",
+                            OdinClientErrorCode.ArgumentError);
                 }
 
-                return IsSameDelivery(stored.FileMetadata, newMetadata)
-                    ? (true, [])
-                    : throw new OdinClientException("A member changes a shared file with an update, not by sending it again",
-                        OdinClientErrorCode.ArgumentError);
+                if (newMetadata.AppData.UniqueId is { } uniqueId &&
+                    await fs.Query.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(targetDriveId, uniqueId, odinContext) != null)
+                {
+                    throw new OdinClientException($"UniqueId [{uniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+                }
+
+                return await WriteNewFile(fs, file, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, sourceArea,
+                    markComplete);
             }
 
             // First we check if we can match the gtid to an existing file on disk.
@@ -412,17 +415,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         /// <summary>
         /// Whether <paramref name="sent"/> is the delivery <paramref name="stored"/> was written from, sent again: the same
-        /// sender, content and payloads (a payload's uid changes with each upload of it).  Anything else is a change.
+        /// sender, payloads (a payload's uid changes with each upload of it) and everything the sender sets of the file
+        /// (content, encryption, referenced file, data source, TTL).  Anything else is a change.  A new key header can't
+        /// come without new content (encrypted content changes with its key), and a member sends shares only with a new file.
         /// </summary>
         internal static bool IsSameDelivery(FileMetadata stored, FileMetadata sent)
         {
+            static string SetBySender(FileMetadata m) => OdinSystemSerializer.Serialize(new
+                { m.AppData, m.IsEncrypted, m.ReferencedFile, m.DataSource, m.Ttl });
+
             List<PayloadDescriptor> storedPayloads = stored.Payloads ?? [], sentPayloads = sent.Payloads ?? [];
             return stored.GlobalTransitId == sent.GlobalTransitId &&
                    stored.SenderOdinId != null && sent.SenderOdinId != null &&
                    new OdinId(stored.SenderOdinId) == new OdinId(sent.SenderOdinId) &&
                    storedPayloads.Count == sentPayloads.Count &&
                    storedPayloads.Zip(sentPayloads).All(p => p.First.SharesStorageWith(p.Second)) &&
-                   OdinSystemSerializer.Serialize(stored.AppData) == OdinSystemSerializer.Serialize(sent.AppData);
+                   SetBySender(stored) == SetBySender(sent);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId,

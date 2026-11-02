@@ -589,6 +589,36 @@ public partial class SelectiveShareTests : V2Fixture
         Assert.That((rowAfter.Permissions, rowAfter.Modified), Is.EqualTo((rowBefore.Permissions, rowBefore.Modified)), "the row untouched");
     }
 
+    [Test]
+    public async Task AWriteOrCommentShareCountsOnlyWhileItsCircleGrantsTheDriveTheSame()
+    {
+        var s = await ArrangeAsync();
+        var (fileId, _, fileKey) = await s.UploadClientLockedAsync();
+        var share = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read | DrivePermission.Write | DrivePermission.Comment, lockedFileKey: LockedFileKey())]
+        });
+        Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
+        var file = await s.GtidOfAsync(fileId);
+
+        await SetCircleGrantAsync(s, DriveShareService.ShareBits & ~DrivePermission.Write);
+        var before = await s.HeaderAsync(fileId);
+        await MemberEditAsync(s, before, fileKey, "edited without the circle's Write");
+        Assert.That((await s.HeaderAsync(fileId)).FileMetadata.VersionTag, Is.EqualTo(before.FileMetadata.VersionTag),
+            "the circle no longer grants Write");
+
+        await SetCircleGrantAsync(s, DriveShareService.ShareBits & ~DrivePermission.Comment);
+        await SendCommentAsync(s, s.Sam, file, fileKey, "a comment without the circle's Comment");
+        Assert.That(await CommentsAsync(s.Frodo.Drives.Reader, s, file), Is.Empty, "the circle no longer grants Comment");
+
+        await SetCircleGrantAsync(s, DriveShareService.ShareBits);
+        await MemberEditAsync(s, before, fileKey, "edited, granted back");
+        Assert.That((await s.HeaderAsync(fileId)).FileMetadata.VersionTag, Is.Not.EqualTo(before.FileMetadata.VersionTag),
+            "Write granted back");
+        await SendCommentAsync(s, s.Sam, file, fileKey, "a comment, granted back");
+        Assert.That(await CommentsAsync(s.Frodo.Drives.Reader, s, file), Has.Count.EqualTo(1), "Comment granted back");
+    }
+
     // Then Frodo's cached peer contexts are reset, as the hour they are cached for would: a change of a circle's grants
     // doesn't reset them today (file-access.md, "Peers' contexts are cached")
     private async Task SetCircleGrantAsync(Arranged s, DrivePermission permission)
@@ -877,8 +907,8 @@ public partial class SelectiveShareTests : V2Fixture
     }
 
     /// <summary>
-    /// Frodo, zero knowledge, with an app owning a Selective Share drive and a circle on it (Read and Write) that holds its
-    /// key and has Sam in it.
+    /// Frodo, zero knowledge, with an app owning a Selective Share drive and a circle on it (every share bit: Read, Write,
+    /// React and Comment) that holds its key and has Sam in it.
     /// </summary>
     private async Task<Arranged> ArrangeAsync()
     {

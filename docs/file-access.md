@@ -268,16 +268,21 @@ added up over the person's groups, and the stricter wins. It is also how other d
 narrows what a circle grants on the drive, never widens it, and each drive check reads the grant of all the caller's
 circles together.
 
+- **The drive grant is all the member's circles together, not the row's circle alone,** as every drive check reads
+  it, and as file servers add up a person's groups: a member whose other circle grants the drive `Write` may edit a
+  file whose row has `Write`, whatever the row's own circle grants. Each row's bits stay within its own circle's grant
+  when written (below).
 - **Changing a circle's grant changes all of its shares at once, both ways.** Take `Read` away and its members stop
-  reading every file shared through it; give it back and every share works again as it was. The rows aren't touched,
+  reading every file shared through it, unless another of their circles grants `Read`; give it back and every share
+  works again as it was. The rows aren't touched,
   so nothing has to go through them. "At once" means when the member's context is next built: a change of a circle's
   grants doesn't reset the cached peer contexts (`CircleNetworkService.UpdateCircleDefinitionAsync`) **(V)**, so it
   takes up to an hour to reach a peer, on every drive, as a disable does (#2054, "Peers' contexts are cached" above).
 - **A share starts within its ceiling:** the share API refuses a row with a bit its circle doesn't grant on the drive.
   A later change of the circle's grant caps the row instead.
-- **A reaction asks only `React`, of both,** as a reaction on other drives asks only drive `React` (#2058): a member
-  whose circles keep `React` but lose `Read` can still react. A comment also needs the file readable, as a peer's
-  comment does on other drives (`IncomingCommentAcl`).
+- **A reaction asks `React` of both,** as a reaction on other drives asks drive `React` (#2058); finding the file
+  first asks drive `Read` or `Write`, as there (`DriveQueryServiceBase.ResolveFileId`) **(V)**. A comment also needs
+  the file readable, drive `Read` included, as a peer's comment does on other drives (`IncomingCommentAcl`).
 - **Owner callers aren't capped:** they hold the drive.
 
 **What builds it** (the share API, shares in the upload, the query and the read rule, `includeShares`, members'

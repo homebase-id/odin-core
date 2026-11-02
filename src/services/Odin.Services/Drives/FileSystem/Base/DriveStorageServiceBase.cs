@@ -987,6 +987,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
+
+            // A hard delete writes no header, so it asks here what every header write asks of a member's comment
+            if (GetFileSystemType() == FileSystemType.Comment && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
+            {
+                await AssertMayWriteSharedCommentAsync(drive, fileHeader, odinContext);
+            }
+
             await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads, expectedVersionTag);
 
             if (await TryShouldRaiseDriveEventAsync(file))
@@ -2111,7 +2118,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// On a Selective Share drive an outside caller writes only their own comment, on a file shared with them with
         /// <c>Comment</c>, which the comment's group names, and which they may read: adding, editing and deleting it
         /// alike, as well as drive <c>Comment</c> (docs/file-access.md, "A share row narrows its circle's grant").  Asked
-        /// where every header is written, so no path that writes a comment skips it.
+        /// where every header is written, and by a hard delete, which writes none, so no path that changes a comment skips
+        /// it.
         /// </summary>
         private async Task AssertMayWriteSharedCommentAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
         {
