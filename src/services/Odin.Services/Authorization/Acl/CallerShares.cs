@@ -13,7 +13,7 @@ namespace Odin.Services.Authorization.Acl;
 /// comment's those of the file it comments on (docs/selective-share-pr3-plan.md, section 10).
 /// </summary>
 /// <param name="heldBack">The files whose rows name the caller but whose shared file's group their level doesn't reach
-/// (a file set back to Owner): named, so they hear it end, never let in.  A comment is held back with its file.</param>
+/// (an unreviewed connection, below a shared file's Connected): named, so they hear it end, never let in.  A comment is held back with its file.</param>
 public sealed class CallerShares(IReadOnlyDictionary<Guid, List<DriveAclIndexRecord>> rowsByFile, UnixTimeUtc now,
     IReadOnlySet<Guid>? heldBack = null)
 {

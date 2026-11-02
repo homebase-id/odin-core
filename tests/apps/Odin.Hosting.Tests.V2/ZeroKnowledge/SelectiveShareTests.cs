@@ -24,6 +24,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -166,7 +167,24 @@ public partial class SelectiveShareTests : V2Fixture
         {
             await AssertSamSeesAsync(s, fileId, false, "unreviewed");
             await AssertSamGetsTheTombstoneAsync(s, fileId, "unreviewed");
-            Assert.That((await SamsCommentsAsync(s, file)).All(c => c.FileState != FileState.Active), Is.True, "its comments go with it");
+            Assert.That((await SamsCommentsAsync(s, file)).Select(c => c.FileState), Is.EqualTo(new[] { FileState.Deleted }),
+                "its comments go with it, as tombstones");
+
+            // His socket hears of Frodo's next change as the file's tombstone, without the share or its key
+            await using (var sockets = await ShareSockets.OpenAsync(s, memberReviewed: false))
+            {
+                var header = await s.HeaderAsync(fileId);
+                var update = await s.Frodo.Drives.Writer.UpdateFileByFileId(s.Drive.Alias, fileId, new FileUpdateInstructionSetV2
+                {
+                    Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                    Manifest = new UploadManifest { PayloadDescriptors = [] }
+                }, s.Metadata(SecurityGroupType.Connected, header.FileMetadata.VersionTag), []);
+                Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+                await sockets.Member.WaitForAsync("Sam's unreviewed socket: the tombstone, no share, no key", ClientNotificationType.FileDeleted,
+                    h => h.FileId == fileId && h.Shares == null && h.SharedSecretEncryptedKeyHeader.EncryptedAesKey.All(b => b == 0));
+                Assert.That(sockets.Member.Seen.Where(e => e.Header?.FileId == fileId).Select(e => e.Type),
+                    Has.None.EqualTo(ClientNotificationType.FileModified), "never the file itself");
+            }
 
             var delete = await s.Sam.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, file.GlobalTransitId);
             Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);

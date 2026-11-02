@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             listWhere.Add($"driveMainIndex.driveid = {driveId.BytesToSql(_databaseType)}");
             listWhere.Add($"(driveMainIndex.fileSystemType = {fileSystemType})");
 
-            // With rows required, not the group: a file set back above the caller's level must still reach their sync,
+            // With rows required, not the group: a file above the caller's level (an unreviewed connection) must still reach their sync,
             // as a tombstone, which the read rule makes (docs/selective-share-pr3-plan.md, section 8)
             if (!aclRowsRequired)
             {

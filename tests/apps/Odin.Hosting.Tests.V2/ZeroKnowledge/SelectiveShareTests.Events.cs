@@ -263,7 +263,7 @@ public partial class SelectiveShareTests
         private readonly AppNotificationDispatcher _ownerDispatcher;
         private readonly PeerAppNotificationDispatcher _peerDispatcher;
 
-        private ShareSockets(ILifetimeScope scope, Arranged s)
+        private ShareSockets(ILifetimeScope scope, Arranged s, bool memberReviewed)
         {
             _ownerSockets = scope.Resolve<SharedDeviceSocketCollection<AppNotificationHandler>>();
             _peerSockets = scope.Resolve<SharedDeviceSocketCollection<PeerAppNotificationHandler>>();
@@ -271,16 +271,17 @@ public partial class SelectiveShareTests
             _peerDispatcher = scope.Resolve<PeerAppNotificationDispatcher>();
             Owner = new KeptSocket(s.Drive, Context(s.Drive, Identities.Frodo, SecurityGroupType.Owner, null, DrivePermission.All,
                 masterKey: true));
-            Member = new KeptSocket(s.Drive,
-                Context(s.Drive, Identities.Sam, SecurityGroupType.Connected, s.CircleId, DrivePermission.Read | DrivePermission.Write));
+            Member = new KeptSocket(s.Drive, Context(s.Drive, Identities.Sam, SecurityGroupType.Connected, s.CircleId,
+                DrivePermission.Read | DrivePermission.Write, reviewed: memberReviewed));
         }
 
         public KeptSocket Owner { get; }
         public KeptSocket Member { get; }
 
-        public static async Task<ShareSockets> OpenAsync(Arranged s)
+        /// <param name="memberReviewed">False for Sam's socket as an unreviewed connection's, which counts as Authenticated.</param>
+        public static async Task<ShareSockets> OpenAsync(Arranged s, bool memberReviewed = true)
         {
-            var sockets = new ShareSockets(s.Frodo.Host.GetTenantScope(s.Frodo.Identity.DomainName), s);
+            var sockets = new ShareSockets(s.Frodo.Host.GetTenantScope(s.Frodo.Identity.DomainName), s, memberReviewed);
             sockets._ownerSockets.AddSocket(sockets.Owner.Device);
             sockets._peerSockets.AddSocket(sockets.Member.Device);
             await sockets._ownerDispatcher.SubscribeAsync();
@@ -297,12 +298,12 @@ public partial class SelectiveShareTests
         }
 
         private static OdinContext Context(TargetDrive drive, string identity, SecurityGroupType level, Guid? circleId,
-            DrivePermission permission, bool masterKey = false)
+            DrivePermission permission, bool masterKey = false, bool reviewed = true)
         {
             var context = new OdinContext
             {
                 Caller = new CallerContext((OdinId)identity, masterKey ? Guid.NewGuid().ToByteArray().ToSensitiveByteArray() : null!, level,
-                    circleIds: circleId is { } c ? [new GuidId(c)] : null) { IsReviewed = true }
+                    circleIds: circleId is { } c ? [new GuidId(c)] : null) { IsReviewed = reviewed }
             };
             var grant = new DriveGrant
             {

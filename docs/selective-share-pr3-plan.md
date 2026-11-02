@@ -39,8 +39,9 @@ query batch like every client, and hear of changes on their sockets (sections 6 
     the owner callers' alone.
   - **Sharing lifts the file:** a share write on an `Owner` file sets it to `Connected` in the same transaction
     (section 3). No migration, and no client change: existing files are shared one by one, when the owner shares them.
-  - **Withdrawing the last share** leaves `Connected`: with no live row the file is owner callers' only anyway. An
-    owner caller who writes the header with `Owner` again makes the file owner-only at once, whatever its rows say.
+  - **Withdrawing the last share** leaves `Connected`: with no live row the file is owner callers' only anyway. A
+    later header write keeps the stored group, whatever it sends (decided 2026-11-02), so withdrawing is how a file is
+    un-shared.
   - `Anonymous`, `Authenticated` and `AutoConnected` are refused for now: a zero-knowledge drive is never public
     (`CreateDriveRequest.AssertSharingModel`) **(V)**, an encrypted file can't take the two lowest anyway
     (`FileSystemStreamWriterBase.cs:565-576`) **(V)**, and below `Connected` an unreviewed connection could read an
@@ -168,7 +169,8 @@ caches are cleared after commit, through a new `MainIndexMetaCached` method, as 
 **`includeShares`, asked for, never sent by default:** a query (`QueryBatch`, smart batch, the change feed) and a read
 by id take it. With it, each returned file carries `shares`: its live rows as `{circleId, permissions, expiresAt,
 modified}`, without the locked file keys, which only a member needs. One grouped read per page (`… WHERE fileId IN
-(page)`), only when asked, only for owner callers, only on a Selective Share drive; without it nothing changes and
+(page)`), only when asked, only for the callers who write the drive's shares (the owner console and the drive's own
+app, as the share API: `SelectiveShareDrives.CallerManagesShares`), only on a Selective Share drive; without it nothing changes and
 nothing is read. A client draws what it wants from it (shared, editable by others, expiring), and nothing is stored
 that an expiry could make stale.
 
@@ -262,8 +264,8 @@ and sees them appear in their own Filesync; nothing else is built for them.
 - **A withdrawn share is its own signal** (decision E): what a soft delete's tombstone is to a file, a withdrawn row
   is to a share. The row stays with no bits and no locked file key, and the withdrawal moves the file's `modified`, so the member's next page holds that file as **"no longer shared"**: its ids
   and `modified`, no content, no key. Proposed form: the tombstone a deleted file already gets (`FileState.Deleted`),
-  which sync clients already remove locally (I: to check against Filesync and odin-js). The same answer when an owner
-  caller sets the file back to `Owner`.
+  which sync clients already remove locally (I: to check against Filesync and odin-js). The same answer when the
+  member's level doesn't reach the file's group (an unreviewed connection).
 - **Decided (2026-11-02): the deleted tombstone** is the "no longer shared" form, so clients need nothing new.
 - **Built (2026-11-02):** a file the member's query finds through a row naming them but they may no longer read
   (withdrawn, expired, or a level below the file's group) comes back as a deleted file's tombstone
@@ -374,9 +376,10 @@ comment on it (a photo, a document).
 - **The read rule:** on a Selective Share drive, an unencrypted file read by id by a member of a granting circle: refused
   with no row, with a row without `Read`, with an expired row and when unreviewed; allowed with a live row. On another
   drive, the same reads answer as today.
-- **The required group:** a share on an `Owner` file lifts it to `Connected` with the version tag unchanged; an
-  `Owner` file with live rows is refused to members; `Anonymous`, `Authenticated` and `AutoConnected` are refused on
-  upload to a Selective Share drive; the last withdrawal leaves `Connected` and the file owner-only.
+- **The required group:** a share on an `Owner` file lifts it to `Connected` with the version tag unchanged; an owner's
+  edit sent with `Owner` keeps a shared file `Connected`; a member below the file's group (unreviewed) is refused through
+  a live row; `Anonymous`, `Authenticated` and `AutoConnected` are refused on upload to a Selective Share drive; the last
+  withdrawal leaves `Connected` and the file owner-only.
 - **Members (V2 and Peer API):** a member reads a client-locked file with their row's locked file key, and is refused with no
   live row; with two circles' rows they always get the same one; a member updates a file with a `Write` row and is
   refused without; adds a file to a folder with a `Write` row; their own server finds the file for an update; the
@@ -423,6 +426,10 @@ Nothing (2026-11-01): A to E are decided. Points marked **(I)** above are settle
 
 ## Not in PR 3
 - Removing withdrawn shares, and the rows of deleted circles and reset keys (decision D).
+- **A withdrawal moves only the file's `modified`, not its comments'**: a member syncing the comment file system by
+  its own cursor gets no tombstones for comments already synced. Their client drops a file's comments with the file
+  (they share its group) **(I: clients not checked)**; touching every comment on a withdrawal waits for a client that
+  needs it.
 - **A hard delete of a shared file** removes its rows before the event goes out, so members' sockets get nothing and
   their sync never sees the file again; their copy stays until they resync. Clients mostly soft-delete, which members
   see as a tombstone. With decision D's cleanup (decided 2026-11-02).

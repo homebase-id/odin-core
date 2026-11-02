@@ -44,6 +44,8 @@ public class ReactionContentService(
             return drive;
         }
 
+        // Drive Read first, as reading the file needs: a share whose circle no longer grants the drive lets in to nothing
+        odinContext.PermissionsContext.AssertCanReadDrive(file.DriveId);
         var header = await driveQuery.GetFileHeaderAsync(drive, file.FileId);
         if (header == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(header, permission, odinContext))
         {

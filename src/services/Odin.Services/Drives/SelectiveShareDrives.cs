@@ -21,6 +21,14 @@ public static class SelectiveShareDrives
         drive.IsSelectiveShare && !DriveAclAuthorizationService.PassesEveryAcl(caller);
 
     /// <summary>
+    /// Who writes and sees a drive's shares: the owner console, or the owner's app that owns the drive
+    /// (docs/selective-share-pr3-plan.md, sections 3 and 5).
+    /// </summary>
+    public static bool CallerManagesShares(StorageDrive drive, CallerContext? caller) =>
+        caller?.HasMasterKey == true ||
+        (caller?.IsOwner == true && caller.OdinClientContext?.AppId?.Value is { } appId && appId == drive.AppId);
+
+    /// <summary>
     /// A shared file is Connected, so its members reach its group: a share lifts an Owner file (decision A of
     /// docs/selective-share-pr3-plan.md).  True when it lifted.
     /// </summary>

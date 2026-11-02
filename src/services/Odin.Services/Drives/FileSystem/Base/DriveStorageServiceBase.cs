@@ -729,14 +729,16 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// on a drive that isn't archived
         /// </summary>
         /// <summary>
-        /// Gives each of <paramref name="headers"/> its live shares, in one read, for an owner caller on a Selective
-        /// Share drive (<c>includeShares</c>, docs/selective-share-pr3-plan.md, section 5); any other caller or drive
-        /// gets none, and nothing is read.
+        /// Gives each of <paramref name="headers"/> its live shares, in one read, on a Selective Share drive, for the
+        /// callers who manage its shares (<c>includeShares</c>, docs/selective-share-pr3-plan.md, section 5;
+        /// <see cref="SelectiveShareDrives.CallerManagesShares"/>); any other caller or drive gets none, and nothing is
+        /// read.
         /// </summary>
         public async Task AttachSharesAsync(Guid driveId, IReadOnlyCollection<SharedSecretEncryptedFileHeader> headers,
             IOdinContext odinContext)
         {
-            if (!odinContext.Caller.IsOwner || headers.Count == 0 || (await DriveManager.GetDriveAsync(driveId))?.IsSelectiveShare != true)
+            var drive = headers.Count == 0 ? null : await DriveManager.GetDriveAsync(driveId);
+            if (drive?.IsSelectiveShare != true || !SelectiveShareDrives.CallerManagesShares(drive, odinContext.Caller))
             {
                 return;
             }
@@ -2103,7 +2105,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (GetFileSystemType() == FileSystemType.Standard && drive.IsSelectiveShare)
             {
-                await KeepSharedGroupAsync(drive, header);
+                // The group read and the write in one transaction, the row locked, so a share written meanwhile waits
+                await using var tx = await db.BeginStackedTransactionAsync();
+                await KeepSharedGroupAsync(header);
+                await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag);
+                tx.Commit();
+                return;
             }
 
             // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
@@ -2116,12 +2123,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// doesn't close a shared file to its members.  Shares are withdrawn to un-share; with no live share a file is
         /// the owner callers' alone whatever its group (decided 2026-11-02).
         /// </summary>
-        private async Task KeepSharedGroupAsync(StorageDrive drive, ServerFileHeader header)
+        private async Task KeepSharedGroupAsync(ServerFileHeader header)
         {
-            var stored = await longTermStorageManager.GetServerFileHeader(drive, header.FileMetadata.File.FileId, FileSystemType.Standard);
-            if (stored?.ServerMetadata?.AccessControlList is { } storedAcl && header.ServerMetadata?.AccessControlList is { } acl)
+            var file = header.FileMetadata.File;
+            if (await db.MainIndexMetaCached.GetLockedRequiredSecurityGroupAsync(file.DriveId, file.FileId) is { } group &&
+                header.ServerMetadata?.AccessControlList is { } acl)
             {
-                acl.RequiredSecurityGroup = storedAcl.RequiredSecurityGroup;
+                acl.RequiredSecurityGroup = (SecurityGroupType)group;
             }
         }
 
@@ -2189,11 +2197,11 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// A deleted file's tombstone: its ids, group, types, dates and ACL, no content, payloads or unique id.  A soft
-        /// delete stores it; a Selective Share member's sync gets one for a file no longer shared with them
-        /// (docs/selective-share-pr3-plan.md, section 8).
+        /// The tombstone a soft delete stores: the file's ids, group, types, dates and ACL, no content, payloads or unique
+        /// id.  Not what a Selective Share member gets for a file no longer shared with them, which holds less
+        /// (<see cref="NoLongerSharedTombstoneOf"/>).
         /// </summary>
-        public static ServerFileHeader TombstoneOf(ServerFileHeader existingHeader, long updated)
+        private static ServerFileHeader TombstoneOf(ServerFileHeader existingHeader)
         {
             var metadata = existingHeader.FileMetadata;
             var appData = existingHeader.FileMetadata.AppData;
@@ -2204,7 +2212,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     FileState = FileState.Deleted,
                     Created = metadata.Created,
-                    Updated = updated,
+                    Updated = UnixTimeUtc.Now().milliseconds,
                     TransitCreated = metadata.TransitCreated,
                     TransitUpdated = metadata.TransitUpdated,
                     SenderOdinId = metadata.SenderOdinId,
@@ -2239,7 +2247,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <summary>
         /// What a Selective Share member's sync and socket get for a file a row names them on that they may no longer read
-        /// (withdrawn, expired, set back to Owner): its tombstone, without a key (docs/selective-share-pr3-plan.md, section 8).
+        /// (withdrawn, expired, a level below its group): its tombstone, without a key (docs/selective-share-pr3-plan.md, section 8).
         /// </summary>
         /// <remarks>
         /// Its ids, types and dates only, enough for a sync to remove it (decided 2026-11-02): it goes to everyone a row
@@ -2281,7 +2289,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var file = existingHeader.FileMetadata.File;
             var payloadsToDelete = existingHeader.FileMetadata.Payloads ?? [];
 
-            var deletedServerFileHeader = TombstoneOf(existingHeader, UnixTimeUtc.Now().milliseconds);
+            var deletedServerFileHeader = TombstoneOf(existingHeader);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
 

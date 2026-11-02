@@ -124,6 +124,7 @@ public sealed class DriveEventMessage(
     public async Task<string?> MessageForAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
     {
         var deviceOdinContext = socket.DeviceOdinContext;
+        var shape = socket.ResultShape; // read once, as JsonFor does: a handshake may change it while this runs
         var file = previousHeader ?? header;
         var fileId = file?.FileMetadata?.File;
         var shares = deviceOdinContext == null || fileId is not { } id
@@ -137,8 +138,8 @@ public sealed class DriveEventMessage(
         var target = fileId!.Value;
         if (await aclService.CallerMayReadAsync(file!, deviceOdinContext!, shares))
         {
-            return Json(notificationType, ClientDriveNotification.For(socket.ResultShape, deviceOdinContext, targetDrive, header,
-                previousHeader, shares.LiveRowOf(target.FileId)), socket.ResultShape);
+            return Json(notificationType, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, header,
+                previousHeader, shares.LiveRowOf(target.FileId)), shape);
         }
 
         if (!shares.Names(target.FileId))
@@ -148,8 +149,8 @@ public sealed class DriveEventMessage(
 
         // From the header as it is now: a change that ended the share announces its own time, which a client goes by
         var noLongerShared = DriveStorageServiceBase.NoLongerSharedTombstoneOf(header ?? file!);
-        return Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(socket.ResultShape, deviceOdinContext, targetDrive,
-            noLongerShared, null), socket.ResultShape);
+        return Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive,
+            noLongerShared, null), shape);
     }
 
     private static string Json(ClientNotificationType type, ClientDriveNotification notification, FileResultShape shape) =>

@@ -175,9 +175,9 @@ public partial class SelectiveShareTests
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
 
         var after = await s.HeaderAsync(fileId);
-        Assert.That((after.FileMetadata.VersionTag, after.ServerMetadata.AccessControlList.RequiredSecurityGroup),
-            Is.Not.EqualTo((header.FileMetadata.VersionTag, SecurityGroupType.Owner)), "edited");
+        Assert.That(after.FileMetadata.VersionTag, Is.Not.EqualTo(header.FileMetadata.VersionTag), "edited");
         Assert.That(after.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected), "still shared");
+        Assert.That((await s.SharesAsync(fileId)).Single().Permissions, Is.EqualTo(DrivePermission.Read), "its share untouched");
         await AssertSamSeesAsync(s, fileId, true, "after Frodo's edit");
         Assert.That((await SamsCommentsAsync(s, file)).Select(c => c.FileState), Is.EqualTo(new[] { FileState.Active }), "and its comments");
     }

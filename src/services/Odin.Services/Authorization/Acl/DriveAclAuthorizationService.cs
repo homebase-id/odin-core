@@ -140,7 +140,7 @@ namespace Odin.Services.Authorization.Acl
                 CallerMemberIds(odinContext));
 
             // A comment is read exactly when its file is: held back, too, when the caller's level doesn't reach the file's
-            // group (a file set back to Owner), whatever the comment's own
+            // group (an unreviewed connection), whatever the comment's own
             var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller);
             var byFileId = rows.ToLookup(r => r.Row.fileId);
             var byGlobalTransitId = rows.ToLookup(r => r.GlobalTransitId);

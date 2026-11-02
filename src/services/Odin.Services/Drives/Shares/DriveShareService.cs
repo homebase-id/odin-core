@@ -65,7 +65,8 @@ public class DriveShareService(
         var drive = await GetDriveForSharesAsync(driveId, shares!, odinContext);
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        var missing = await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, shares!.GroupBy(s => s.FileId)
+        // Files locked in one order, so two batches over the same files can't deadlock
+        var missing = await db.MainIndexMetaCached.WriteSharesAsync(drive.Id, shares!.GroupBy(s => s.FileId).OrderBy(file => file.Key)
             .Select(file => new FileShares(file.Key, ToRows(file), record => CheckFileAndLift(record, file.ToList()))));
         if (missing is { } missingFile)
         {
@@ -241,16 +242,9 @@ public class DriveShareService(
             throw new OdinClientException($"Drive {driveId} isn't a SelectiveShare drive", OdinClientErrorCode.ArgumentError);
         }
 
-        var caller = odinContext.Caller;
-        if (caller.HasMasterKey)
+        if (!SelectiveShareDrives.CallerManagesShares(drive, odinContext.Caller))
         {
-            return drive;
-        }
-
-        caller.AssertCallerIsOwner();
-        if (caller.OdinClientContext?.AppId?.Value is not { } appId || appId != drive.AppId)
-        {
-            throw new OdinSecurityException($"Only the app that owns drive {driveId} may share its files");
+            throw new OdinSecurityException($"Only the owner console or the app that owns drive {driveId} may share its files");
         }
 
         return drive;

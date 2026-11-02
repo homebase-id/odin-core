@@ -194,6 +194,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
         /// <summary>
+        /// The file's required security group, read with its row locked until the caller's transaction ends, so a share
+        /// writing it meanwhile waits (<see cref="WriteSharesAsync"/>); null when there is no file.
+        /// </summary>
+        internal async Task<int?> GetLockedRequiredSecurityGroupAsync(Guid driveId, Guid fileId) =>
+            (await driveMainIndex.GetLockedAsync(driveId, fileId))?.requiredSecurityGroup;
+
+        /// <summary>
         /// Writes a file's share rows (docs/selective-share-pr3-plan.md, section 3), in one transaction with the file's row
         /// locked, so a hard delete alongside can't leave a share behind. <paramref name="checkFile"/> sees the locked row
         /// first: it may refuse by throwing, and may return a new required group with the header's server data to match

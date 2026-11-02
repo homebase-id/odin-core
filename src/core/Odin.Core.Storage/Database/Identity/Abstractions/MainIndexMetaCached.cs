@@ -67,6 +67,10 @@ public class MainIndexMetaCached : AbstractTableCaching
 
     //
 
+    /// <inheritdoc cref="MainIndexMeta.GetLockedRequiredSecurityGroupAsync"/>
+    public Task<int?> GetLockedRequiredSecurityGroupAsync(Guid driveId, Guid fileId) =>
+        _meta.GetLockedRequiredSecurityGroupAsync(driveId, fileId);
+
     /// <summary>
     /// Writes each file's shares (<see cref="MainIndexMeta.WriteSharesAsync"/>), then clears the drive's cache once.
     /// Returns the first file that doesn't exist, writing nothing after it; null when all were written.

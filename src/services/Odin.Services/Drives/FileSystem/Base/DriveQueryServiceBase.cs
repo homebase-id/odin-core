@@ -469,7 +469,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext, sharedWithCaller))
                 {
                     // On a Selective Share drive, a file a row names the caller on that they may no longer read
-                    // (withdrawn, expired, set back to Owner) comes back as a deleted file's tombstone, so their sync
+                    // (withdrawn, expired, a level below its group) comes back as a deleted file's tombstone, so their sync
                     // removes it, without a key (docs/selective-share-pr3-plan.md, section 8); a file no row names them
                     // on is missing, as a client-locked one is below
                     if (sharedWithCaller != null)
