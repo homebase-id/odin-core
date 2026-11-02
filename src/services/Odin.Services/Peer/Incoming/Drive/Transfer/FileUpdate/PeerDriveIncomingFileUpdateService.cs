@@ -57,10 +57,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var driveId = transferInstructionSet.Request.File.TargetDrive.Alias;
 
             // Before anything is staged or the sender is told it was accepted into the inbox
+            var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
             if (fileMetadata.IsEncrypted)
             {
-                var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
-                ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.EncryptedKeyHeader);
+                ZkDriveFiles.AssertPeerMayUpdate(drive, transferInstructionSet.EncryptedKeyHeader);
+            }
+
+            if (drive.IsSelectiveShare)
+            {
+                await AssertMemberMayChangeAsync(transferInstructionSet.Request.File, odinContext);
             }
 
             _isDirectWrite = await CanDirectWriteFile(driveId, fileMetadata, transferInstructionSet.FileSystemType, odinContext);
@@ -216,8 +221,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //S1100
             if (metadata.IsEncrypted)
             {
-                // Next determine if we can direct write the file
-                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(_file.DriveId, out _);
+                // Next determine if we can direct write the file; a Selective Share drive's member always does (section 7)
+                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(_file.DriveId, out _) ||
+                                    (await driveManager.GetDriveAsync(_file.DriveId))?.IsSelectiveShare == true;
 
                 //S1200
                 if (hasStorageKey)
@@ -241,8 +247,24 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         private KeyHeader DecryptKeyHeaderWithSharedSecret(EncryptedKeyHeader sharedSecretEncryptedKeyHeader, IOdinContext odinContext)
         {
             var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-            var decryptedKeyHeader = sharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            var decryptedKeyHeader = sharedSecretEncryptedKeyHeader.DecryptOrPassSealed(ref sharedSecret);
             return decryptedKeyHeader;
+        }
+
+        /// <summary>
+        /// A member's update on a Selective Share drive (docs/selective-share-pr3-plan.md, section 7): the file is found
+        /// as the member, through their live share, and they need a live share with <c>Write</c>; refused before
+        /// anything is staged.  Applied directly afterwards, as the member: no inbox on these drives.
+        /// </summary>
+        private async Task AssertMemberMayChangeAsync(FileIdentifier target, IOdinContext odinContext)
+        {
+            var driveId = target.TargetDrive.Alias;
+            var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, target.GlobalTransitId.GetValueOrDefault(), odinContext);
+            if (header == null || !await fileSystem.Storage.CallerMayChangeSharedFileAsync(new InternalDriveFileId(driveId, header.FileId),
+                    odinContext))
+            {
+                throw new OdinSecurityException("No share with Write on the file");
+            }
         }
 
         /// <summary>
@@ -333,6 +355,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             //S1100
             if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(driveId, out _))
+            {
+                return true;
+            }
+
+            // No inbox on a Selective Share drive: a member's update is applied as the member, who was checked on arrival
+            if ((await driveManager.GetDriveAsync(driveId))?.IsSelectiveShare == true)
             {
                 return true;
             }

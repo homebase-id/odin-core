@@ -55,15 +55,15 @@ namespace Odin.Services.Peer.Encryption
         /// other is decrypted.
         /// </summary>
         public KeyHeader DecryptOrPassSealed(ref SensitiveByteArray key) =>
-            IsSealed() ? new ClientLockedKeyHeader(this) : DecryptAesToKeyHeader(ref key);
+            IsSealed() || IsShare() ? new ClientLockedKeyHeader(this) : DecryptAesToKeyHeader(ref key);
 
         public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)
         {
             if (keyHeader is ClientLockedKeyHeader locked)
             {
-                // A deposit goes on sealed, as it was written.  A zero-knowledge drive's own has no AES key
-                // here: re-locking it would make a key header that opens to nothing
-                return locked.Type == EncryptionType.Sealed
+                // A deposit goes on sealed, as it was written, and a member's "keep the file key" as it was sent.  A
+                // zero-knowledge drive's own has no AES key here: re-locking it would make a key header that opens to nothing
+                return locked.Type is EncryptionType.Sealed or EncryptionType.Share
                     ? locked.Locked
                     : throw new OdinClientException("A zero-knowledge drive's key header can't be re-locked on the server",
                         OdinClientErrorCode.InvalidKeyHeader);
@@ -109,6 +109,19 @@ namespace Odin.Services.Peer.Encryption
 
         /// <summary>A member's key to a file shared with their circle (<see cref="EncryptionType.Share"/>), passed on as it is.</summary>
         public bool IsShare() => Type == EncryptionType.Share;
+
+        /// <summary>
+        /// A member's update keeping a shared file's key (decision C of docs/selective-share-pr3-plan.md): a
+        /// <see cref="EncryptionType.Share"/> key header with the new IV and nothing else.
+        /// </summary>
+        public void AssertKeepsKey()
+        {
+            if (!IsShare() || !ByteArrayUtil.IsStrongKey(Iv) || EncryptedAesKey?.Length > 0)
+            {
+                throw new OdinClientException("A member's update keeps the file key: a share key header with a new IV and no key",
+                    OdinClientErrorCode.InvalidKeyHeader);
+            }
+        }
 
         /// <summary>A member's key to a shared file: the share's locked file key, with the file's own IV.</summary>
         public static EncryptedKeyHeader ForShare(byte[] iv, byte[] lockedFileKey) => new()

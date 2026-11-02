@@ -220,6 +220,27 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   member, and today's read rule refused them (zero-knowledge-drives.md, "Known limit") **(V)**. The read rule of section
   2 plus section 6 should let it find the file **(I, test it)**.
 
+**How it is built (decided 2026-11-02, after reading the peer write paths):**
+- **No inbox on a Selective Share drive** (the user's ruling: a zero-knowledge drive takes sealed writes directly). A
+  member's new file already lands directly, as a deposit (`PeerDriveIncomingTransferService.CanDirectWriteFile`) **(V)**;
+  today an encrypted peer update and every peer delete go to the inbox **(V)**, which runs as whoever drains it, so no
+  check of the member's share could run there. On a Selective Share drive the member's update and delete are applied
+  directly too, as the member: the file is found by its global transit id through the member's live share (the read
+  rule), and refused without a live share with `Write`. Private drives keep their inbox; PR 3 doesn't change them.
+- **The file keeps its ACL:** a peer update today stores the ACL `Owner` (`PeerFileUpdateWriter.DetermineAclAsync`)
+  **(V)**, which would lock out every member; on a Selective Share drive the stored ACL stays.
+- **"Keep the file key" travels as a `share` key header with only the IV** (decision C): the member's new IV, no locked
+  key. The server keeps the stored key header and replaces its IV. That is sound for a key header an owner device
+  locked with the drive's key (`zkDrive`): version 1 locks `IV ‖ key` under the IV itself, so the IV is the visible one
+  **(V, security-model.md)**; key header version 2 (#2024) would need this revisited. A file a member deposited keeps
+  today's rule: a `sealed` key header replaces a `sealed` one, the member sending a new sealed one.
+- **Adding a file to a shared folder** (built in PR 3, decided 2026-11-02): Filesync names a file's folder by the
+  folder's unique id in `GroupId` (filesync `wire.rs:324-338`) **(V)**. A member's deposit to a Selective Share drive
+  may carry payloads when the member has a live share with `Write` on the folder file whose unique id is the new
+  file's `GroupId`; elsewhere a deposit still carries none (`Deposits.AssertValid`) **(V)**. The transfer may carry
+  shares for circles the member is in, written with the file; the file is `Connected` when it has shares, `Owner`
+  otherwise.
+
 ## 8. Members sync with the query batch
 
 **A member syncs a shared drive the way every client syncs a drive: the query batch with a modified cursor**, over

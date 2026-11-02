@@ -108,6 +108,17 @@ namespace Odin.Services.Authorization.Acl
             return rows.GroupBy(r => r.fileId).ToDictionary(g => g.Key, g => g.MinBy(r => r.aclMemberId)!);
         }
 
+        public async Task<bool> CallerMayChangeSharedFileAsync(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            if (PassesEveryAcl(odinContext.Caller))
+            {
+                return true;
+            }
+
+            var rows = await driveAclIndex.GetLiveRowsAsync(file.DriveId, [file.FileId], CallerMemberIds(odinContext), UnixTimeUtc.Now());
+            return rows.Any(r => ((DrivePermission)r.permissions).HasFlag(DrivePermission.Write));
+        }
+
         /// <summary>
         /// Who a file's index rows may name for this caller: their circles and their own OdinId's hash (none when
         /// anonymous).  The query (<c>DriveQuery</c>) and the read rule ask the same list.

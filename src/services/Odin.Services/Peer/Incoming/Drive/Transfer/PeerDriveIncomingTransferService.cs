@@ -223,6 +223,23 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
             var drive = await driveManager.GetDriveAsync(driveId);
+
+            // No inbox on a Selective Share drive: a member deletes a file shared with them through a live share with
+            // Write, at once, as themselves (docs/selective-share-pr3-plan.md, section 7).  A soft delete, so the share
+            // rows stay and members' sync sees the tombstone
+            if (drive.IsSelectiveShare && fileSystemType == FileSystemType.Standard)
+            {
+                var shared = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
+                var file = new InternalDriveFileId(driveId, shared?.FileId ?? Guid.Empty);
+                if (shared == null || !await fileSystem.Storage.CallerMayChangeSharedFileAsync(file, odinContext))
+                {
+                    throw new OdinSecurityException("No share with Write on the file");
+                }
+
+                await fileSystem.Storage.SoftDeleteLongTermFile(file, odinContext, null);
+                return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
+            }
+
             if (fileSystemType == FileSystemType.Comment || drive.IsCollaborationDrive())
             {
                 logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> direct soft-delete path (comment/collab) for gtid:{gtid} driveId:{driveId}",

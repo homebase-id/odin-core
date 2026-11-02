@@ -43,6 +43,12 @@ public static class ZkDriveFiles
         }
 
         AssertDriveTakes(drive, sent.Type);
+        if (sent.IsShare())
+        {
+            sent.AssertKeepsKey();
+            return new ClientLockedKeyHeader(sent);
+        }
+
         if (sent.IsSealed())
         {
             if (drive.IsZeroKnowledge && CallerHoldsDriveKey(drive.Id, odinContext))
@@ -95,6 +101,57 @@ public static class ZkDriveFiles
     }
 
     /// <summary>
+    /// Which key header a peer's update may send to <paramref name="drive"/>: on a Selective Share drive, a member's
+    /// keeping the shared file's key (<see cref="EncryptedKeyHeader.AssertKeepsKey"/>, decision C); otherwise what a
+    /// peer may write (<see cref="AssertPeerMayWrite"/>).
+    /// </summary>
+    public static void AssertPeerMayUpdate(StorageDrive drive, EncryptedKeyHeader? keyHeader)
+    {
+        if (keyHeader?.IsShare() != true)
+        {
+            AssertPeerMayWrite(drive, keyHeader);
+            return;
+        }
+
+        if (!drive.IsSelectiveShare)
+        {
+            throw new OdinClientException("Only a SelectiveShare drive's member keeps a file's key", OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        keyHeader.AssertKeepsKey();
+    }
+
+    /// <summary>
+    /// A member's update keeping a shared file's key (decision C), as the key header to store: the file's own, locked
+    /// with the drive's key by an owner device, with the member's new IV.  Sound for a version 1 key header, which locks
+    /// <c>IV ‖ key</c> under the IV it shows, so the IV it shows is the one that counts (security-model.md); key header
+    /// version 2 (#2024) would need this revisited.  A file the member deposited takes a new sealed key header instead.
+    /// Any other key header is returned as it is.
+    /// </summary>
+    public static KeyHeader KeepFileKey(ServerFileHeader existing, KeyHeader update)
+    {
+        if (update is not ClientLockedKeyHeader { Type: EncryptionType.Share } keepKey)
+        {
+            return update;
+        }
+
+        var stored = existing.EncryptedKeyHeader;
+        if (stored?.IsZkDrive() != true)
+        {
+            throw new OdinClientException("Only a file an owner device locked keeps its key on a member's update; " +
+                                          "a deposit takes a new sealed key header", OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        return new ClientLockedKeyHeader(new EncryptedKeyHeader
+        {
+            EncryptionVersion = stored.EncryptionVersion,
+            Type = EncryptionType.ZkDrive,
+            Iv = keepKey.Iv,
+            EncryptedAesKey = stored.EncryptedAesKey
+        });
+    }
+
+    /// <summary>
     /// A deposit must be sealed to the drive's write-only key, which the seal names by its key id: one sealed to any
     /// other key could never be opened.  Refused rather than stored, so the sender learns its copy of the public key
     /// is out of date (docs/drive-public-keys-plan.md).  Not on the transient drive, where a sender's deposit waits to
@@ -144,8 +201,15 @@ public static class ZkDriveFiles
     {
         if (type == EncryptionType.Share)
         {
-            throw new OdinClientException("A share's key goes only to a member: it is never a file's key header",
-                OdinClientErrorCode.InvalidKeyHeader);
+            // Never a file's key header.  A member's update keeping a shared file's key is staged on the transient
+            // drive on its way to the owner's (AssertPeerMayUpdate)
+            if (!SystemDriveConstants.IsTransientTempDrive(drive.Id))
+            {
+                throw new OdinClientException("A share's key goes only to a member: it is never a file's key header",
+                    OdinClientErrorCode.InvalidKeyHeader);
+            }
+
+            return;
         }
 
         if (type == EncryptionType.Sealed)

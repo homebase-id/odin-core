@@ -50,6 +50,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 incomingMetadata,
                 odinContext);
 
+            // On a Selective Share drive a member edits a file shared with them: never a new one, and the file keeps its
+            // ACL, which an Owner one would close to every member (docs/selective-share-pr3-plan.md, section 7)
+            if ((await driveManager.GetDriveAsync(file.DriveId))?.IsSelectiveShare == true)
+            {
+                targetAcl = existingHeader?.ServerMetadata?.AccessControlList ??
+                            throw new OdinSecurityException("No shared file to update");
+            }
+
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
             incomingMetadata!.SenderOdinId = sender;
 
@@ -216,8 +224,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         {
             var targetDriveId = file.TargetDrive.Alias;
 
+            // With its ACL, which a peer caller isn't shown, so a Selective Share drive's file can keep it
             SharedSecretEncryptedFileHeader header =
-                await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext);
+                await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext,
+                    forceIncludeServerMetadata: true);
 
             if (header == null)
             {

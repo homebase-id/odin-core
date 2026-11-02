@@ -26,6 +26,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Apps;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Shares;
@@ -305,7 +306,7 @@ public class SelectiveShareTests : V2Fixture
     {
         var s = await ArrangeAsync();
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
-        var (fileId, locked) = await s.UploadClientLockedAsync(payload);
+        var (fileId, locked, _) = await s.UploadClientLockedAsync(payload);
         await AssertSamSeesAsync(s, fileId, false, "before any share");
 
         // Sam is in a second circle of the app that shares the file too: every read takes the lowest circle id's share
@@ -348,6 +349,95 @@ public class SelectiveShareTests : V2Fixture
         Assert.That((owners.SharedSecretEncryptedKeyHeader.Type, owners.SharedSecretEncryptedKeyHeader.EncryptedAesKey),
             Is.EqualTo((EncryptionType.ZkDrive, locked.EncryptedAesKey)));
         Assert.That(owners.Shares, Is.Null);
+    }
+
+    [Test]
+    public async Task AMemberWithWriteEditsASharedFileKeepingItsKey()
+    {
+        var s = await ArrangeAsync();
+        var (fileId, locked, fileKey) = await s.UploadClientLockedAsync();
+        var share = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read | DrivePermission.Write, lockedFileKey: LockedFileKey())]
+        });
+        Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
+        var before = await s.HeaderAsync(fileId);
+
+        var newIv = await MemberEditAsync(s, before, fileKey, "edited by Sam");
+
+        var after = await s.HeaderAsync(fileId);
+        var key = after.SharedSecretEncryptedKeyHeader;
+        Assert.That((key.Type, key.EncryptedAesKey, key.Iv), Is.EqualTo((EncryptionType.ZkDrive, locked.EncryptedAesKey, newIv)),
+            "the file's own key header, with Sam's new IV");
+        var content = new KeyHeader { AesKey = fileKey.AesKey, Iv = newIv }.Decrypt(after.FileMetadata.AppData.Content.FromBase64());
+        Assert.That(content.ToStringFromUtf8Bytes(), Is.EqualTo("edited by Sam"));
+        Assert.That(after.FileMetadata.VersionTag, Is.Not.EqualTo(before.FileMetadata.VersionTag), "an edit is a new version");
+        Assert.That(after.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected),
+            "the file keeps its ACL, so its members keep it");
+        Assert.That((await s.SharesAsync(fileId)).Single().Permissions, Is.EqualTo(DrivePermission.Read | DrivePermission.Write));
+        await AssertSamSeesAsync(s, fileId, true, "after his edit");
+    }
+
+    [Test]
+    public async Task AMemberWithoutWriteCantEdit()
+    {
+        var s = await ArrangeAsync();
+        var (fileId, _, fileKey) = await s.UploadClientLockedAsync();
+        var share = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read, lockedFileKey: LockedFileKey())]
+        });
+        Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
+        var before = await s.HeaderAsync(fileId);
+
+        await MemberEditAsync(s, before, fileKey, "edited by Sam");
+
+        var after = await s.HeaderAsync(fileId);
+        Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(before.FileMetadata.VersionTag), "a Read share edits nothing");
+    }
+
+    [TestCase(DrivePermission.Read | DrivePermission.Write, true, TestName = "AMemberWithWriteDeletesASharedFile")]
+    [TestCase(DrivePermission.Read, false, TestName = "AMemberWithoutWriteCantDelete")]
+    public async Task AMemberDeletesASharedFileOnlyWithWrite(DrivePermission permissions, bool deleted)
+    {
+        var s = await ArrangeAsync();
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
+        var gtid = (await s.HeaderAsync(fileId)).FileMetadata.GlobalTransitId!.Value;
+
+        var request = await s.Sam.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, gtid);
+        Assert.That(request.StatusCode, Is.EqualTo(HttpStatusCode.OK), request.Error?.Content);
+        await s.Sam.Sync.DrainOutboxAsync();
+
+        var after = await s.HeaderAsync(fileId);
+        Assert.That(after.FileState, Is.EqualTo(deleted ? FileState.Deleted : FileState.Active));
+        Assert.That((await s.SharesAsync(fileId)).Single().Permissions, Is.EqualTo(permissions),
+            "a soft delete keeps the shares, so members' sync sees the tombstone");
+    }
+
+    /// <summary>
+    /// Sam edits Frodo's file through his own server (V1 update, Locale=Peer, by global transit id), keeping the file
+    /// key: a share key header with a new IV only (decision C).  Returns the new IV.
+    /// </summary>
+    private static async Task<byte[]> MemberEditAsync(Arranged s, SharedSecretEncryptedFileHeader file, KeyHeader fileKey, string content)
+    {
+        var newIv = ByteArrayUtil.GetRndByteArray(16);
+        var metadata = s.Metadata(SecurityGroupType.Connected);
+        metadata.AppData.Content = new KeyHeader { AesKey = fileKey.AesKey, Iv = newIv }.EncryptDataAes(content.ToUtf8ByteArray()).ToBase64();
+        metadata.IsEncrypted = true;
+        metadata.AllowDistribution = true;
+
+        var update = await s.Sam.V1.Drive.UpdateFile(new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Peer,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = new GlobalTransitIdFileIdentifier { TargetDrive = s.Drive, GlobalTransitId = file.FileMetadata.GlobalTransitId!.Value }
+                .ToFileIdentifier(),
+            Recipients = [s.Frodo.Identity],
+            Manifest = new UploadManifest { PayloadDescriptors = [] }
+        }, metadata, [], lockedKeyHeader: new EncryptedKeyHeader { EncryptionVersion = 1, Type = EncryptionType.Share, Iv = newIv });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        await s.Sam.Sync.DrainOutboxAsync();
+        return newIv;
     }
 
     private static async Task AssertSamSeesAsync(Arranged s, Guid fileId, bool sees, string when) =>
@@ -460,17 +550,22 @@ public class SelectiveShareTests : V2Fixture
             return upload.Content!.FileId;
         }
 
-        /// <summary>A client-locked file with a payload, as an owner device writes one; its key header as sent.</summary>
-        public async Task<(Guid FileId, EncryptedKeyHeader Locked)> UploadClientLockedAsync(TestPayloadDefinition payload)
+        /// <summary>A client-locked file, with a payload when given, as an owner device writes one; its key header as sent.</summary>
+        public async Task<(Guid FileId, EncryptedKeyHeader Locked, KeyHeader FileKey)> UploadClientLockedAsync(
+            TestPayloadDefinition? payload = null)
         {
             var fileKey = KeyHeader.NewRandom16();
             var locked = ZkBrowser.LockFileKey(fileKey, driveKey);
-            payload.Iv = ByteArrayUtil.GetRndByteArray(16);
+            if (payload != null)
+            {
+                payload.Iv = ByteArrayUtil.GetRndByteArray(16);
+            }
+
             var (upload, _, _, _) = await Frodo.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(SecurityGroupType.Owner),
-                transitOptions: null!, new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload],
-                keyHeader: fileKey, lockedKeyHeader: locked);
+                transitOptions: null!, new UploadManifest { PayloadDescriptors = payload == null ? [] : [payload.ToPayloadDescriptor()] },
+                payload == null ? [] : [payload], keyHeader: fileKey, lockedKeyHeader: locked);
             Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
-            return (upload.Content!.FileId, locked);
+            return (upload.Content!.FileId, locked, fileKey);
         }
 
         public ShareRequest Share(Guid fileId, DrivePermission permissions, UnixTimeUtc? expiresAt = null, byte[]? lockedFileKey = null,

@@ -742,6 +742,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        /// <inheritdoc cref="IDriveAclAuthorizationService.CallerMayChangeSharedFileAsync"/>
+        public Task<bool> CallerMayChangeSharedFileAsync(InternalDriveFileId file, IOdinContext odinContext) =>
+            driveAclAuthorizationService.CallerMayChangeSharedFileAsync(file, odinContext);
+
         /// <inheritdoc cref="IDriveAclAuthorizationService.FilesSharedWithCallerAsync"/>
         public Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
             IOdinContext odinContext) =>
@@ -1466,6 +1470,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Before any payload is copied: a tombstone has no payload list, and OverwriteMetadataInternal's
             // own state check runs only after the copy (#1904)
             AssertActiveForUpdate(existingHeader);
+
+            // A member's update keeping a shared file's key becomes the file's own key header with the new IV
+            manifest.KeyHeader = ZkDriveFiles.KeepFileKey(existingHeader, manifest.KeyHeader);
 
             if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
             {

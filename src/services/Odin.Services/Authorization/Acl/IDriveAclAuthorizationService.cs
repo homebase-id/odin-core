@@ -34,5 +34,12 @@ namespace Odin.Services.Authorization.Acl
         /// </summary>
         Task<IReadOnlyDictionary<Guid, DriveAclIndexRecord>> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds,
             IOdinContext odinContext);
+
+        /// <summary>
+        /// On a Selective Share drive, whether the caller may update or delete <paramref name="file"/>: an owner caller,
+        /// or a member with a live share that has <c>Write</c> in one of their circles (docs/selective-share-pr3-plan.md,
+        /// section 7).  Drive <c>Write</c> and the read rule are asked where the write is.
+        /// </summary>
+        Task<bool> CallerMayChangeSharedFileAsync(Drives.InternalDriveFileId file, IOdinContext odinContext);
     }
 }

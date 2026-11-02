@@ -98,13 +98,15 @@ namespace Odin.Services.Peer.Encryption
     /// carried through a write unopened: a deposit's, sealed to the drive's write-only public key
     /// (<see cref="EncryptionType.Sealed"/>), or a zero-knowledge drive's own, locked with the drive's key by
     /// an owner device (<see cref="EncryptionType.ZkDrive"/>).  Writes store <see cref="Locked"/> as it is.  It
-    /// has no AES key; <see cref="KeyHeader.Iv"/> is the IV it shows.
+    /// has no AES key; <see cref="KeyHeader.Iv"/> is the IV it shows.  Also a member's update that keeps a shared
+    /// file's key (<see cref="EncryptionType.Share"/>, the new IV only), which the owner's server turns into the
+    /// file's own key header with that IV (<see cref="Drives.ZkDriveFiles.KeepFileKey"/>).
     /// </summary>
     public sealed class ClientLockedKeyHeader : KeyHeader
     {
         public ClientLockedKeyHeader(EncryptedKeyHeader locked)
         {
-            if (!locked.IsLockedByClient())
+            if (!locked.IsLockedByClient() && !locked.IsShare())
             {
                 throw new OdinClientException($"A {locked.Type} key header isn't one a client locked", OdinClientErrorCode.InvalidKeyHeader);
             }
