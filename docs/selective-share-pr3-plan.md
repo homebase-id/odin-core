@@ -245,8 +245,12 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
     payloads to any other drive is refused on arrival, where it used to be refused on the sender's transient drive. On a
     Selective Share drive a peer's new file needs a live `Write` share on the folder its `GroupId` names, found by unique
     id as the member. The file lands `Owner` until an owner device shares it.
-  - **Asked, not built:** the shares a member sends with their new file need a `shares` field on the peer transfer's
-    instruction set, a new field on an existing wire message (the user's rule: ask before a new API or DB change).
+  - **Decided (2026-11-02):** the shares a member sends with their new file travel in a new `shares` field on the peer
+    transfer's instruction set (a new field on an existing message, no new route): only for circles the member is in,
+    checked as the share API checks them, written with the file, which is then `Connected`.
+- **The V2 update route takes a member's edit** (decided 2026-11-02): today it rewrites its target to a local file id
+  or unique id (`V1DriveUploadControllerBase`) **(V)**, so only the V1 route could send a peer update; the V2 route
+  also takes a global transit id with `Locale=Peer`.
 
 ## 8. Members sync with the query batch
 
@@ -259,6 +263,7 @@ and sees them appear in their own Filesync; nothing else is built for them.
   and `modified`, no content, no key. Proposed form: the tombstone a deleted file already gets (`FileState.Deleted`),
   which sync clients already remove locally (I: to check against Filesync and odin-js). The same answer when an owner
   caller sets the file back to `Owner`.
+- **Decided (2026-11-02): the deleted tombstone** is the "no longer shared" form, so clients need nothing new.
 - **Expiry needs no signal:** the member's client holds the share's `expiresAt` (it comes with their row) and drops the
   file when it passes; the server refuses it from then on (section 2).
 - **No separate "my shares changed since" query** until a client needs one (decided 2026-11-01). The PR 1 index serves
@@ -268,9 +273,10 @@ and sees them appear in their own Filesync; nothing else is built for them.
 
 - **Today** a header write raises `DriveFileChangedNotification`, which device and peer sockets filter by the read rule
   (`ClientDriveNotification.VisibleToAsync`, `PeerAppNotificationDispatcher`) **(V)**.
-- **A share write** raises a new `DriveShareChangedNotification` per file: owner callers' devices hear every one; a
-  member's peer socket hears those for their circles' rows, a withdrawal included, judged by the row rather than the
-  read rule (which a withdrawn member no longer passes) **(I, the design; to settle when built)**.
+- **Decided (2026-11-02): a share write reuses the file events**, no new event type for clients: owner callers' devices
+  get the file-modified event (they read the shares with `includeShares` if they want them); a member's peer socket gets
+  file-modified for a live share and the "no longer shared" tombstone (section 8) for a withdrawal, judged by the row
+  rather than the read rule, which a withdrawn member no longer passes.
 
 ## 10. Members react and comment
 
