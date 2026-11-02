@@ -424,6 +424,19 @@ comment on it (a photo, a document).
 
 Nothing (2026-11-01): A to E are decided. Points marked **(I)** above are settled as they are built.
 
+## Kept as built, to revisit
+
+Choices made while building that the user kept as they are without settling them (2026-11-02). Change them here if
+they turn out wrong:
+
+- **Where a member's `Write` share is asked.** Twice, on the peer paths: when a member's update or new folder file
+  arrives, before anything is staged, and again when it is applied, after its payloads streamed in
+  (`PeerDriveIncomingFileUpdateService.AssertMemberMayChangeAsync`,
+  `PeerDriveIncomingTransferService.AssertMemberMayAddToFolderAsync`), and on a member's delete. The alternative is
+  one check where every header is written, as comments have (`DriveStorageServiceBase.AssertMayWriteSharedCommentAsync`):
+  sounder, as no gap is left between the check and the write, but it would also refuse any other outside caller's
+  standard-file writes on these drives, and whether any such caller exists wasn't checked.
+
 ## Not in PR 3
 - Removing withdrawn shares, and the rows of deleted circles and reset keys (decision D).
 - **A withdrawal moves only the file's `modified`, not its comments'**: a member syncing the comment file system by

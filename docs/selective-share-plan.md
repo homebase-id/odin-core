@@ -208,6 +208,12 @@ compatible with.
 4. **Clients.** odin-js, chat-kmp and filesync crypto against the golden vector; Filesync's share UI.
 5. **Links**, once decision 4 is made.
 
+**Distant future, maybe never: converting a drive to Selective Share** (noted 2026-11-02). Not needed now (user). If
+it is ever built, a converted drive's files that name circles in their ACL already have index rows, written as V1
+rows (`Read`, no expiry, no locked file key): on a Selective Share drive those would be live shares, and their
+members would get a share key header with no key. A conversion would have to withdraw or rewrite them, and clear the
+ACLs' names, which `SelectiveShareDrives.AssertAclFits` refuses on any later header write **(I: not checked)**.
+
 ## Who may write
 
 The app's circles have Read and Write on the whole drive (decision 1). The drive grant is generic; the ACL
