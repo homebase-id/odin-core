@@ -16,6 +16,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using NUnit.Framework;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -66,18 +67,27 @@ internal static class ZkTestFiles
     /// Sam's Shard Recovery drive.
     /// </summary>
     public static async Task<(KeyHeader FileKey, EncryptedKeyHeader Sealed)> SendDepositAsync(IV2Caller sender,
-        OwnerSession frodo, OwnerSession sam, string publicKeyJwk, Guid uniqueId, string content)
+        OwnerSession frodo, OwnerSession sam, string publicKeyJwk, Guid uniqueId, string content,
+        TestPayloadDefinition? payload = null, TargetDrive? remoteDrive = null, Guid? groupId = null)
     {
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
         var metadata = Metadata(uniqueId, content);
         metadata.AllowDistribution = true;
+        metadata.AppData.GroupId = groupId;
+        UploadManifest? manifest = null;
+        if (payload != null)
+        {
+            payload.Iv = ByteArrayUtil.GetRndByteArray(16);
+            manifest = new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] };
+        }
+
         var (upload, _, _, _) = await sender.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias, metadata,
             new TransitOptions
             {
                 IsTransient = true,
                 Recipients = [sam.Identity.DomainName],
-                RemoteTargetDrive = Drive
-            }, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
+                RemoteTargetDrive = remoteDrive ?? Drive
+            }, manifest, payload == null ? null : [payload], keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
         await frodo.Sync.DrainOutboxAsync();
         return (fileKey, sealedKeyHeader);

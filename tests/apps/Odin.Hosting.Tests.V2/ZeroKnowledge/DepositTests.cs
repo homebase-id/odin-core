@@ -72,19 +72,21 @@ public class DepositTests : V2Fixture
     }
 
     [Test]
-    public async Task ADepositCarriesNoPayloads()
+    public async Task ADepositToAPrivateDriveCarriesNoPayloads()
     {
-        // On the transient drive, where a deposit is written to be sent
+        // Taken on the transient drive, where a deposit is written to be sent, and refused by the drive it arrives at: only
+        // a Selective Share drive's shared folder takes a deposit's content (docs/selective-share-pr3-plan.md, section 7)
         var frodo = await LoginAsOwner(Identities.Frodo);
-        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(ZkBrowser.MakeKeyPair().PublicKeyJwk);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+        await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
+        var samsPublicKey = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
 
-        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
-        payload.Iv = ByteArrayUtil.GetRndByteArray(16);
-        var manifest = new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] };
+        var uniqueId = Guid.NewGuid();
+        await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, uniqueId, Content, SamplePayloadDefinitions.GetPayloadDefinition1());
 
-        var e = Assert.ThrowsAsync<Exception>(() => frodo.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias,
-            Metadata(Guid.NewGuid()), transitOptions: null!, manifest, [payload], keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader));
-        Assert.That(e!.Message, Does.EndWith(nameof(OdinClientErrorCode.InvalidPayload)));
+        var received = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
+        Assert.That(received.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK), "a private drive takes no deposit with payloads");
     }
 
     [TestCase(true, TestName = "ADepositSentToAPeersZeroKnowledgeDriveArrivesSealed")]

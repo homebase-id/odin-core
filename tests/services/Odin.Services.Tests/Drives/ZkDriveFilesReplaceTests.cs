@@ -41,10 +41,17 @@ public class ZkDriveFilesReplaceTests
     [Test]
     public void ASealedReplacementCarriesNoPayloads()
     {
-        var e = Assert.Throws<OdinClientException>(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: true));
+        var e = Assert.Throws<OdinClientException>(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: true, Drive(DriveSharingModel.Private)));
         Assert.That(e!.ErrorCode, Is.EqualTo(OdinClientErrorCode.InvalidPayload));
-        Assert.DoesNotThrow(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: false));
+        Assert.DoesNotThrow(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: false, Drive(DriveSharingModel.Private)));
     }
+
+    [Test]
+    public void ASealedReplacementCarriesPayloadsOnASelectiveShareDrive() =>
+        // A member's file in a shared folder has its content (docs/selective-share-pr3-plan.md, section 7)
+        Assert.DoesNotThrow(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: true, Drive(DriveSharingModel.SelectiveShare)));
+
+    private static StorageDrive Drive(DriveSharingModel model) => new(null, new StorageDriveData { SharingModel = model });
 
     [TestCase(EncryptionType.Sealed, TestName = "AZkDriveKeyHeaderMayReplaceASealedOne")]
     [TestCase(EncryptionType.ZkDrive, TestName = "AZkDriveKeyHeaderMayReplaceAZkDriveOne")]

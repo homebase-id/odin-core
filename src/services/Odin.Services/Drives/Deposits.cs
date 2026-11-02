@@ -51,20 +51,28 @@ public static class Deposits
         return DriveFileUtility.OpenWithStorageKey(header, odinContext);
     }
 
-    /// <summary>Refuses a malformed deposit, and one that carries payloads.</summary>
-    public static void AssertValid(FileMetadata metadata, EncryptedKeyHeader sealedKeyHeader)
+    /// <summary>Refuses a malformed deposit, and one with payloads for a drive whose deposits carry none.</summary>
+    public static void AssertValid(FileMetadata metadata, EncryptedKeyHeader sealedKeyHeader, StorageDrive drive)
     {
         sealedKeyHeader.AssertValidSealed();
-        if (metadata.Payloads?.Any() == true)
+        if (metadata.Payloads?.Any() == true && !MayCarryPayloads(drive))
         {
             ThrowCarriesNoPayloads();
         }
     }
 
+    /// <summary>
+    /// Where a deposit may carry payloads: a Selective Share drive, where a member adds a file with its content to a
+    /// shared folder (docs/selective-share-pr3-plan.md, section 7), and the transient drive a deposit is sent from,
+    /// where the receiving drive decides.  Anywhere else a deposit is still a header only.
+    /// </summary>
+    public static bool MayCarryPayloads(StorageDrive drive) =>
+        drive.IsSelectiveShare || SystemDriveConstants.IsTransientTempDrive(drive.Id);
+
     /// <summary>Refuses payloads added with a sealed key header, as <see cref="AssertValid"/> does for a new deposit.</summary>
-    public static void AssertTakesNoPayloads(KeyHeader keyHeader, bool addsPayloads)
+    public static void AssertTakesNoPayloads(KeyHeader keyHeader, bool addsPayloads, StorageDrive drive)
     {
-        if (addsPayloads && keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed })
+        if (addsPayloads && keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed } && !MayCarryPayloads(drive))
         {
             ThrowCarriesNoPayloads();
         }

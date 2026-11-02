@@ -66,15 +66,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // Before anything is staged: an aes key header for a zero-knowledge drive would be accepted here and
             // dropped by the inbox, where no storage key can lock it
             var driveId = transferInstructionSet.TargetDrive.Alias;
+            var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
             if (IsDeposit(metadata, transferInstructionSet))
             {
-                Deposits.AssertValid(metadata, transferInstructionSet.SharedSecretEncryptedKeyHeader);
+                Deposits.AssertValid(metadata, transferInstructionSet.SharedSecretEncryptedKeyHeader, drive);
             }
 
             if (metadata.IsEncrypted)
             {
-                var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
                 ZkDriveFiles.AssertPeerMayWrite(drive, transferInstructionSet.SharedSecretEncryptedKeyHeader);
+            }
+
+            if (drive.IsSelectiveShare && transferInstructionSet.FileSystemType == FileSystemType.Standard)
+            {
+                await AssertMemberMayAddToFolderAsync(drive, metadata, odinContext);
             }
 
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
@@ -208,6 +213,23 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             throw new OdinSystemException("Unhandled Routing");
+        }
+
+        /// <summary>
+        /// A member adds a file to a shared folder on a Selective Share drive (docs/selective-share-pr3-plan.md, section
+        /// 7): Filesync names a file's folder by the folder's unique id in <c>GroupId</c>, and the member needs a live
+        /// share with <c>Write</c> on that folder file, found as the member.  Refused before anything is staged.
+        /// </summary>
+        private async Task AssertMemberMayAddToFolderAsync(StorageDrive drive, FileMetadata metadata, IOdinContext odinContext)
+        {
+            var folder = metadata.AppData?.GroupId is { } groupId
+                ? await fileSystem.Query.GetFileByClientUniqueIdForWriting(drive.Id, groupId, odinContext)
+                : null;
+            if (folder == null || !await fileSystem.Storage.CallerMayChangeSharedFileAsync(new InternalDriveFileId(drive.Id, folder.FileId),
+                    odinContext))
+            {
+                throw new OdinSecurityException("A file is added to a folder shared with Write");
+            }
         }
 
         public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequestAsync(TargetDrive targetDrive, Guid globalTransitId,

@@ -1653,7 +1653,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Before any payload is copied; a client-locked key header can't be opened to check its AES key
             ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader);
             Deposits.AssertTakesNoPayloads(manifest.KeyHeader,
-                manifest.PayloadInstruction?.Any(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite) == true);
+                manifest.PayloadInstruction?.Any(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite) == true,
+                await DriveManager.GetDriveAsync(targetFile.DriveId, failIfInvalid: true));
 
             if (!ZkDriveFiles.IsClientLocked(existingHeader) && existingHeader.FileMetadata.IsEncrypted)
             {

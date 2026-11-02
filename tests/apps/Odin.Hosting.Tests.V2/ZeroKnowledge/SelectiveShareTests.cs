@@ -414,6 +414,41 @@ public class SelectiveShareTests : V2Fixture
             "a soft delete keeps the shares, so members' sync sees the tombstone");
     }
 
+    [TestCase(DrivePermission.Read | DrivePermission.Write, true, true, TestName = "AMemberAddsAFileWithItsContentToAFolderSharedWithWrite")]
+    [TestCase(DrivePermission.Read, true, false, TestName = "AMemberCantAddToAFolderSharedWithoutWrite")]
+    [TestCase(DrivePermission.Read | DrivePermission.Write, false, false, TestName = "AMemberCantAddAFileOutsideAFolder")]
+    public async Task AMemberAddsAFileToASharedFolder(DrivePermission folderPermissions, bool inTheFolder, bool added)
+    {
+        var s = await ArrangeAsync();
+        var folderUniqueId = Guid.NewGuid();
+        var folder = await s.Frodo.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, FolderMetadata(s, folderUniqueId),
+            new UploadManifest { PayloadDescriptors = [] }, [], shares: [s.Share(Guid.Empty, folderPermissions)]);
+        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
+
+        // Sam's deposit, sealed to the drive's write-only key, with its content, naming the folder by its unique id
+        var uniqueId = Guid.NewGuid();
+        await SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file",
+            SamplePayloadDefinitions.GetPayloadDefinition1(), s.Drive, inTheFolder ? folderUniqueId : null);
+
+        var received = await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias);
+        Assert.That(received.StatusCode, Is.EqualTo(added ? HttpStatusCode.OK : HttpStatusCode.NotFound), received.Error?.Content);
+        if (added)
+        {
+            Assert.That(received.Content!.FileMetadata.Payloads, Has.Count.EqualTo(1), "its content came with it");
+            Assert.That(received.Content.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Sealed), "a deposit, as sent");
+            Assert.That(received.Content.FileMetadata.AppData.GroupId, Is.EqualTo(folderUniqueId));
+            Assert.That(received.Content.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner),
+                "the owner's until shared");
+        }
+    }
+
+    private static UploadFileMetadata FolderMetadata(Arranged s, Guid uniqueId)
+    {
+        var metadata = s.Metadata(SecurityGroupType.Owner);
+        metadata.AppData.UniqueId = uniqueId;
+        return metadata;
+    }
+
     /// <summary>
     /// Sam edits Frodo's file through his own server (V1 update, Locale=Peer, by global transit id), keeping the file
     /// key: a share key header with a new IV only (decision C).  Returns the new IV.
@@ -485,7 +520,7 @@ public class SelectiveShareTests : V2Fixture
             sharingModel: DriveSharingModel.SelectiveShare, zkKeys: keys.Request);
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.All, [], knownAppId: appId);
 
-        var s = new Arranged(frodo, sam, app, drive, keys.DriveKey);
+        var s = new Arranged(frodo, sam, app, drive, keys.DriveKey) { WriteOnlyPublicKeyJwk = keys.WriteOnlyPublicKeyJwk };
         s.CircleId = await s.CircleWithKeyAsync(DrivePermission.Read | DrivePermission.Write);
         await AppCircles.AddMemberAsync(app, s.CircleId, Identities.Sam);
         return s;
@@ -498,6 +533,7 @@ public class SelectiveShareTests : V2Fixture
         public AppSession App { get; } = app;
         public TargetDrive Drive { get; } = drive;
         public Guid CircleId { get; set; }
+        public string WriteOnlyPublicKeyJwk { get; init; } = "";
         public IDriveSharesHttpClient Shares { get; } = app.RefitFor<IDriveSharesHttpClient>();
 
         public PermissionSetGrantRequest ReadWriteGrant(DrivePermission permission = DrivePermission.Read | DrivePermission.Write) => new()

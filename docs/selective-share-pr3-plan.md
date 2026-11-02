@@ -240,6 +240,13 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   file's `GroupId`; elsewhere a deposit still carries none (`Deposits.AssertValid`) **(V)**. The transfer may carry
   shares for circles the member is in, written with the file; the file is `Connected` when it has shares, `Owner`
   otherwise.
+  - **Built (2026-11-02), without the shares:** a deposit may carry payloads on a Selective Share drive and on the
+    transient drive it is sent from (`Deposits.MayCarryPayloads`); the receiving drive decides, so a deposit with
+    payloads to any other drive is refused on arrival, where it used to be refused on the sender's transient drive. On a
+    Selective Share drive a peer's new file needs a live `Write` share on the folder its `GroupId` names, found by unique
+    id as the member. The file lands `Owner` until an owner device shares it.
+  - **Asked, not built:** the shares a member sends with their new file need a `shares` field on the peer transfer's
+    instruction set, a new field on an existing wire message (the user's rule: ask before a new API or DB change).
 
 ## 8. Members sync with the query batch
 
