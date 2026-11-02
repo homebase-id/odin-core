@@ -30,9 +30,9 @@ public class ReactionContentService(
 {
     /// <summary>
     /// Whether the caller may <paramref name="permission"/> (React, or Read to see the reactions) on
-    /// <paramref name="file"/>: its drive permission, as always; on a Selective Share drive, for an outside caller, a
-    /// live share of the file with that bit in its place, so whoever may read a file sees its reactions, and a share's
-    /// <c>React</c> bit lets them react (docs/selective-share-pr3-plan.md, section 10).  A comment goes by its file's
+    /// <paramref name="file"/>: its drive permission, as always; on a Selective Share drive, for an outside caller, also a
+    /// live share of the file with that bit, so whoever may read a file sees its reactions, and a share's <c>React</c> bit
+    /// lets them react (docs/file-access.md, "A share row narrows its circle's grant").  A comment goes by its file's
     /// shares.
     /// </summary>
     public async Task<StorageDrive> AssertMayAsync(InternalDriveFileId file, DrivePermission permission, IOdinContext odinContext)

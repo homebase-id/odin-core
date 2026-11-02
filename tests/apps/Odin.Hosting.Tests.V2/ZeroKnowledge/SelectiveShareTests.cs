@@ -222,9 +222,12 @@ public partial class SelectiveShareTests : V2Fixture
         DriveAsserts.AssertRejected(await s.Shares.WriteShares(s.Drive.Alias, s.Request(fileId, DrivePermission.Read, keyless)),
             OdinClientErrorCode.CircleShareKeyNotSet);
 
+        // A share asks only what its circle grants the drive: a read-only circle shares read-only
         var readOnly = await s.CircleWithKeyAsync(DrivePermission.Read);
-        DriveAsserts.AssertRejected(await s.Shares.WriteShares(s.Drive.Alias, s.Request(fileId, DrivePermission.Read, readOnly)),
-            OdinClientErrorCode.ArgumentError);
+        DriveAsserts.AssertRejected(await s.Shares.WriteShares(s.Drive.Alias,
+            s.Request(fileId, DrivePermission.Read | DrivePermission.Write, readOnly)), OdinClientErrorCode.ArgumentError);
+        Assert.That((await s.Shares.WriteShares(s.Drive.Alias, s.Request(fileId, DrivePermission.Read, readOnly))).StatusCode,
+            Is.EqualTo(HttpStatusCode.OK), "a read-only share from a read-only circle");
 
         Assert.That((await s.Frodo.RefitFor<IDriveSharesHttpClient>().WriteShares(s.Drive.Alias, request)).StatusCode,
             Is.EqualTo(HttpStatusCode.OK), "the owner console");
@@ -543,27 +546,15 @@ public partial class SelectiveShareTests : V2Fixture
             $"nothing of a file never shared with him, not even its tombstone: {byGtid.StatusCode} {byGtid.Content?.FileState}");
     }
 
-    [TestCase(DrivePermission.Read | DrivePermission.React, true, false, TestName = "AMemberReactsWithAShareWithReact")]
-    [TestCase(DrivePermission.Read | DrivePermission.Write, false, false, TestName = "AMemberCantReactWithoutReactWhateverElseTheShareHolds")]
-    [TestCase(DrivePermission.Read | DrivePermission.React, false, true, TestName = "AShareCountsOnlyWhileItsCircleGrantsTheDriveRead")]
-    public async Task AMemberReactsOnlyWithAShareWithReact(DrivePermission permissions, bool reacts, bool circleLosesRead)
+    [TestCase(DrivePermission.Read | DrivePermission.React, true, TestName = "AMemberReactsWithAShareWithReact")]
+    [TestCase(DrivePermission.Read | DrivePermission.Write, false, TestName = "AMemberCantReactWithoutReactWhateverElseTheShareHolds")]
+    public async Task AMemberReactsOnlyWithAShareWithReact(DrivePermission permissions, bool reacts)
     {
         var s = await ArrangeAsync();
         var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
         var file = await s.GtidOfAsync(fileId);
-        if (circleLosesRead)
-        {
-            var definition = await s.Frodo.Admin.GetCircleDefinition(s.CircleId);
-            definition.DriveGrants.Single().PermissionedDrive.Permission = DrivePermission.Write;
-            var update = await s.Frodo.Admin.TryUpdateCircleDefinition(definition);
-            Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
-        }
 
-        var add = await s.Sam.RefitFor<IRefitOwnerTransitReaction>().AddReaction(new PeerAddReactionRequest
-        {
-            OdinId = s.Frodo.Identity,
-            Request = new AddRemoteReactionRequest { File = file, Reaction = ":thumbsup:" }
-        });
+        var add = await SamAddsReactionAsync(s, file, ":thumbsup:");
         Assert.That(add.IsSuccessStatusCode, Is.EqualTo(reacts), $"the reaction answered {add.StatusCode}: {add.Error?.Content}");
 
         var reactions = await s.Frodo.Drives.Reactions.GetAllReactionsAsync(s.Drive.Alias, fileId);
@@ -571,6 +562,50 @@ public partial class SelectiveShareTests : V2Fixture
         Assert.That(reactions.Content!.Reactions.Select(r => (r.OdinId.ToString(), r.ReactionContent)),
             Is.EqualTo(reacts ? new[] { (Identities.Sam.ToString(), ":thumbsup:") } : []), "what Frodo's file holds");
     }
+
+    [Test]
+    public async Task AShareGrantsOnlyWhatItsCircleGrantsTheDriveAtTheTime()
+    {
+        // A share row narrows its circle's grant, for every bit: changing the circle changes the share at once, both
+        // ways, and the row stays as it is (file-access.md, "A share row narrows its circle's grant")
+        var s = await ArrangeAsync();
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.React)]);
+        var file = await s.GtidOfAsync(fileId);
+        var rowBefore = (await s.SharesAsync(fileId)).Single();
+
+        await SetCircleGrantAsync(s, DriveShareService.ShareBits & ~DrivePermission.React);
+        var withoutReact = await SamAddsReactionAsync(s, file, ":one:");
+        Assert.That(withoutReact.IsSuccessStatusCode, Is.False, $"the circle no longer grants React: {withoutReact.StatusCode}");
+        await AssertSamSeesAsync(s, fileId, true, "the circle still grants Read");
+
+        await SetCircleGrantAsync(s, DriveShareService.ShareBits & ~DrivePermission.Read);
+        await AssertSeesAsync(s.Sam, s, fileId, false, "the circle no longer grants Read", hasDriveAccess: false);
+
+        await SetCircleGrantAsync(s, DriveShareService.ShareBits);
+        await AssertSamSeesAsync(s, fileId, true, "granted back");
+        var granted = await SamAddsReactionAsync(s, file, ":two:");
+        Assert.That(granted.IsSuccessStatusCode, Is.True, $"granted back: {granted.StatusCode} {granted.Error?.Content}");
+        var rowAfter = (await s.SharesAsync(fileId)).Single();
+        Assert.That((rowAfter.Permissions, rowAfter.Modified), Is.EqualTo((rowBefore.Permissions, rowBefore.Modified)), "the row untouched");
+    }
+
+    // Then Frodo's cached peer contexts are reset, as the hour they are cached for would: a change of a circle's grants
+    // doesn't reset them today (file-access.md, "Peers' contexts are cached")
+    private async Task SetCircleGrantAsync(Arranged s, DrivePermission permission)
+    {
+        var definition = await s.Frodo.Admin.GetCircleDefinition(s.CircleId);
+        definition.DriveGrants.Single().PermissionedDrive.Permission = permission;
+        var update = await s.Frodo.Admin.TryUpdateCircleDefinition(definition);
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        await Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<OdinContextCache>().ResetAsync();
+    }
+
+    private static Task<ApiResponse<HttpContent>> SamAddsReactionAsync(Arranged s, GlobalTransitIdFileIdentifier file, string reaction) =>
+        s.Sam.RefitFor<IRefitOwnerTransitReaction>().AddReaction(new PeerAddReactionRequest
+        {
+            OdinId = s.Frodo.Identity,
+            Request = new AddRemoteReactionRequest { File = file, Reaction = reaction }
+        });
 
     [Test]
     public async Task AMemberSeesAFilesReactionsOnlyWhileTheyMayReadIt()
@@ -860,7 +895,8 @@ public partial class SelectiveShareTests : V2Fixture
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.All, [], knownAppId: appId);
 
         var s = new Arranged(frodo, sam, app, drive, keys.DriveKey) { WriteOnlyPublicKeyJwk = keys.WriteOnlyPublicKeyJwk };
-        s.CircleId = await s.CircleWithKeyAsync(DrivePermission.Read | DrivePermission.Write);
+        // As an app whose members react and comment: a share row narrows its circle's grant (file-access.md)
+        s.CircleId = await s.CircleWithKeyAsync(DriveShareService.ShareBits);
         await AppCircles.AddMemberAsync(app, s.CircleId, Identities.Sam);
         return s;
     }

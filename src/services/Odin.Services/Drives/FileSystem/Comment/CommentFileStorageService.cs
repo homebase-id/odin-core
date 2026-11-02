@@ -56,16 +56,9 @@ public class CommentFileStorageService(
 
     public override async Task AssertCanWriteToDrive(Guid driveId, IOdinContext odinContext)
     {
+        // On a Selective Share drive the share's Comment bit is asked too, of each comment where its header is written
+        // (DriveStorageServiceBase.AssertMayWriteSharedCommentAsync)
         var drive = await DriveManager.GetDriveAsync(driveId, true);
-        if (SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
-        {
-            // A share's Comment bit grants it, not the drive (docs/selective-share-pr3-plan.md, section 10): asked of
-            // each comment where its header is written (DriveStorageServiceBase.AssertMayWriteSharedCommentAsync)
-            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
-            return;
-        }
-
-        // Owner callers on a Selective Share drive too, as on any other
         if (!drive.AllowAnonymousReads)
         {
             odinContext.PermissionsContext.AssertHasDrivePermission(driveId, DrivePermission.Comment);

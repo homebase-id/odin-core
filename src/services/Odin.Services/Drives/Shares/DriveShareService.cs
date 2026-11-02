@@ -138,7 +138,8 @@ public class DriveShareService(
 
     /// <summary>
     /// A member's shares for the file they add to a shared folder (docs/selective-share-pr3-plan.md, section 7): only for
-    /// circles they are in, each the drive's app's own, enabled, granting the drive Read and Write and holding its key.
+    /// circles they are in, each the drive's app's own, enabled, granting the drive every bit the share asks and holding its
+    /// key.
     /// </summary>
     public async Task AssertMemberMayShareAsync(StorageDrive drive, List<ShareRequest> shares, bool encrypted, IOdinContext odinContext)
     {
@@ -153,7 +154,7 @@ public class DriveShareService(
             }
 
             AssertIsTheDrivesAppsCircle(drive, circle);
-            AssertCircleFits(drive, circle);
+            AssertCircleFits(drive, circle, share.Permissions);
         }
     }
 
@@ -199,9 +200,10 @@ public class DriveShareService(
     {
         var drive = await GetDriveCallerMayShareOnAsync(driveId, odinContext);
         AssertCallerMayWrite(drive, odinContext);
-        foreach (var circleId in shares.Select(s => s.CircleId).Distinct())
+        foreach (var circleShares in shares.GroupBy(s => s.CircleId))
         {
-            AssertCircleFits(drive, await GetCircleCallerMayShareWithAsync(drive, circleId, odinContext));
+            AssertCircleFits(drive, await GetCircleCallerMayShareWithAsync(drive, circleShares.Key, odinContext),
+                circleShares.Aggregate((DrivePermission)0, (bits, s) => bits | s.Permissions));
         }
 
         return drive;
@@ -275,10 +277,11 @@ public class DriveShareService(
             $"share drive {drive.Id}'s files with");
 
     /// <summary>
-    /// The circle a share is for: enabled, granting the drive Read and Write (decision 1), and holding its key, which
-    /// the file key is locked with.
+    /// The circle a share is for: enabled, granting the drive every bit the share asks, since a share row narrows its
+    /// circle's grant and never widens it (docs/file-access.md, "A share row narrows its circle's grant"), and holding
+    /// its key, which the file key is locked with.
     /// </summary>
-    private static void AssertCircleFits(StorageDrive drive, CircleRecord circle)
+    private static void AssertCircleFits(StorageDrive drive, CircleRecord circle, DrivePermission asked)
     {
         var circleId = circle.circleId;
         var definition = CircleDefinitionService.FromRecord(circle);
@@ -287,11 +290,12 @@ public class DriveShareService(
             throw new OdinClientException($"Circle {circleId} is disabled", OdinClientErrorCode.ArgumentError);
         }
 
-        const DrivePermission readWrite = DrivePermission.Read | DrivePermission.Write;
-        if (definition.DriveGrants?.Any(g => g.PermissionedDrive.Drive == drive.TargetDriveInfo &&
-                                             (g.PermissionedDrive.Permission & readWrite) == readWrite) != true)
+        var granted = definition.DriveGrants?.Where(g => g.PermissionedDrive.Drive == drive.TargetDriveInfo)
+            .Aggregate((DrivePermission)0, (bits, g) => bits | g.PermissionedDrive.Permission) ?? 0;
+        if ((granted & asked) != asked)
         {
-            throw new OdinClientException($"Circle {circleId} doesn't grant the drive Read and Write", OdinClientErrorCode.ArgumentError);
+            throw new OdinClientException($"Circle {circleId} doesn't grant the drive {asked & ~granted}, which a share asks",
+                OdinClientErrorCode.ArgumentError);
         }
 
         if (circle.appKeyLockedShareKey == null)
