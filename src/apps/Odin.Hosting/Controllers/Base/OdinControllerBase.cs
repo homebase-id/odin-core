@@ -219,10 +219,6 @@ public abstract class OdinControllerBase : ControllerBase
     }
 
     /// <summary>
-    /// Renders a payload stream retrieved from a peer identity as an HTTP response, populating the
-    /// shared-secret / content-type headers the client needs to decrypt the payload.
-    /// </summary>
-    /// <summary>
     /// A payload's or thumbnail's key header, when it has one: a client-locked file's has none, as the client opens it with
     /// the file key and the payload's IV (docs/zero-knowledge-drives.md), so none is sent.
     /// </summary>
@@ -234,6 +230,10 @@ public abstract class OdinControllerBase : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Renders a payload stream retrieved from a peer identity as an HTTP response, populating the
+    /// shared-secret / content-type headers the client needs to decrypt the payload.
+    /// </summary>
     protected IActionResult HandlePeerPayloadResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted,
         PayloadStream payloadStream)
     {

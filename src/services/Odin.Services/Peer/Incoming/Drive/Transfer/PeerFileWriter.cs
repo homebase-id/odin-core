@@ -282,6 +282,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             header.AssertFileIsActive();
             var drive = await driveManager.GetDriveAsync(targetDriveId);
+
+            // On a Selective Share drive a member changes a file through an update, which keeps its ACL and checks their
+            // Write share (section 7), never by sending it again: that would reset its ACL and so close it to every
+            // member.  A comment is its author's to send again (DriveStorageServiceBase checks the author and the share)
+            if (fs.Storage.GetFileSystemType() == FileSystemType.Standard && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
+            {
+                throw new OdinClientException("A member changes a shared file with an update, not by sending it again",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
             if (!drive.IsCollaborationDrive())
             {
                 header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);

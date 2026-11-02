@@ -82,11 +82,17 @@ public class DepositTests : V2Fixture
         await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
         var samsPublicKey = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
 
+        // The same deposit without its payload arrives, so the payload alone is what's refused
+        var withoutPayload = Guid.NewGuid();
+        await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, withoutPayload, Content);
+        var control = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(withoutPayload, Drive.Alias);
+        Assert.That(control.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"the deposit without its payload: {control.Error?.Content}");
+
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, uniqueId, Content, SamplePayloadDefinitions.GetPayloadDefinition1());
 
         var received = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
-        Assert.That(received.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK), "a private drive takes no deposit with payloads");
+        Assert.That(received.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "a private drive takes no deposit with payloads");
     }
 
     [TestCase(true, TestName = "ADepositSentToAPeersZeroKnowledgeDriveArrivesSealed")]

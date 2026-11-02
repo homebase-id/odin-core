@@ -58,6 +58,41 @@ public partial class SelectiveShareTests
     }
 
     [Test]
+    public async Task ACommentIsReadWhenItsFileIsWhateverGroupTheCommentNames()
+    {
+        // An owner client may send its comment with the owner's group: the file's group and share decide, not the comment's
+        var s = await ArrangeAsync();
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read)]);
+        var file = await s.GtidOfAsync(fileId);
+        await OwnerCommentAsync(s, file, null, null, AccessControlList.OwnerOnly);
+
+        Assert.That((await SamsCommentsAsync(s, file)).Select(c => c.FileState), Is.EqualTo(new[] { FileState.Active }));
+    }
+
+    [Test]
+    public async Task AMemberCantSendASharedFileAgainOnlyUpdateIt()
+    {
+        // Sending it again would reset its ACL and close it to every member; a member changes a file with an update
+        var s = await ArrangeAsync();
+        var folderUniqueId = Guid.NewGuid();
+        var folder = await s.Frodo.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, FolderMetadata(s, folderUniqueId),
+            new UploadManifest { PayloadDescriptors = [] }, [], shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
+        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
+        var uniqueId = Guid.NewGuid();
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", null, s.Drive,
+            folderUniqueId, [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
+        var before = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
+
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again", null, s.Drive,
+            folderUniqueId);
+
+        var after = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
+        Assert.That((after.FileMetadata.VersionTag, after.ServerMetadata.AccessControlList.RequiredSecurityGroup),
+            Is.EqualTo((before.FileMetadata.VersionTag, SecurityGroupType.Connected)), "unchanged, still shared");
+        await AssertSamSeesAsync(s, after.FileId, true, "after sending it again");
+    }
+
+    [Test]
     public async Task OnlyACommentsAuthorEditsItKeepingTheFilesKey()
     {
         var s = await ArrangeAsync();
@@ -108,11 +143,13 @@ public partial class SelectiveShareTests
     public async Task AnExpiredShareHidesTheFilesComments()
     {
         var s = await ArrangeAsync();
-        var fileId = await s.UploadAsync(SecurityGroupType.Owner);
-        var expiresAt = UnixTimeUtc.Now().AddSeconds(3);
-        await s.ShareAsync(fileId, DrivePermission.Read, expiresAt);
+        var fileId = await s.UploadAsync(SecurityGroupType.Connected);
         var file = await s.GtidOfAsync(fileId);
         await OwnerCommentAsync(s, file, null, null);
+
+        // Shared last, so the time before it expires is only Sam's one query
+        var expiresAt = UnixTimeUtc.Now().AddSeconds(3);
+        await s.ShareAsync(fileId, DrivePermission.Read, expiresAt);
         Assert.That((await SamsCommentsAsync(s, file)).Select(c => c.FileState), Is.EqualTo(new[] { FileState.Active }), "before it expires");
 
         await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, expiresAt.milliseconds - UnixTimeUtc.Now().milliseconds) + 200));
@@ -159,9 +196,9 @@ public partial class SelectiveShareTests
     /// the IV.
     /// </summary>
     private static async Task<byte[]?> OwnerCommentAsync(Arranged s, GlobalTransitIdFileIdentifier file, KeyHeader? fileKey,
-        EncryptionType? type)
+        EncryptionType? type, AccessControlList? acl = null)
     {
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 101, "Frodo's comment", AccessControlList.Connected);
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 101, "Frodo's comment", acl ?? AccessControlList.Connected);
         metadata.ReferencedFile = file;
         var writer = new DriveWriterV2Client(s.Frodo.Identity, s.Frodo.Factory, FileSystemType.Comment);
         if (fileKey == null)

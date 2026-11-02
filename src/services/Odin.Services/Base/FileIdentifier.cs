@@ -52,7 +52,7 @@ public class FileIdentifier
     /// </summary>
     public void AssertIsValidPeerTarget()
     {
-        if (!GlobalTransitIdHasValue || FileIdHasValue || UniqueIdHasValue || TargetDrive == null || !GuidId.IsValid(TargetDrive.Alias))
+        if (!GlobalTransitIdHasValue || FileIdHasValue || UniqueIdHasValue || TargetDrive?.Alias == null || TargetDrive.Alias.Value == Guid.Empty)
         {
             throw new OdinClientException("A peer's file is named by its global transit id and its drive");
         }

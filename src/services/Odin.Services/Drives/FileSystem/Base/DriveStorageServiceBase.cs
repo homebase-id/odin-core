@@ -126,16 +126,21 @@ namespace Odin.Services.Drives.FileSystem.Base
         // temporal flag, so a caller holding only that flag can read exclusively through here.
         // =====================================================================================
 
-        private async Task<ServerFileHeader> GetTemporalServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)
+        private async Task<ServerFileHeader> GetTemporalServerFileHeader(InternalDriveFileId file, IOdinContext odinContext) =>
+            (await GetTemporalServerFileHeaderWithSharesAsync(file, odinContext)).header;
+
+        /// <summary>The temporal read of a header, with the caller's shares on a Selective Share drive (section 6).</summary>
+        private async Task<(ServerFileHeader header, CallerShares shares)> GetTemporalServerFileHeaderWithSharesAsync(
+            InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(file.DriveId);
 
-            // GetServerFileHeaderInternal enforces the per-file ACL.
-            var header = await GetServerFileHeaderInternal(file, odinContext);
+            // ReadForCallerAsync enforces the per-file ACL.
+            var (header, shares) = await ReadForCallerAsync(file, odinContext);
             if (header == null)
             {
-                return null;
+                return (null, null);
             }
 
             AssertValidFileSystemType(header.ServerMetadata);
@@ -146,22 +151,24 @@ namespace Odin.Services.Drives.FileSystem.Base
             var cutoff = TemporalReadPolicy.ResolveCutoff(odinContext, drive);
             if (cutoff != null && header.FileMetadata.Updated < cutoff.Value)
             {
-                return null;
+                return (null, null);
             }
 
-            return header;
+            return (header, shares);
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetTemporalSharedSecretEncryptedHeader(InternalDriveFileId file,
             IOdinContext odinContext)
         {
-            var serverFileHeader = await this.GetTemporalServerFileHeader(file, odinContext);
+            var (serverFileHeader, shares) = await GetTemporalServerFileHeaderWithSharesAsync(file, odinContext);
             if (serverFileHeader == null)
             {
                 return null;
             }
 
-            return DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext);
+            // A member reading through a share gets that share's locked file key, as by the regular read (section 6)
+            return DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext,
+                callerShare: shares?.LiveRowOf(file.FileId));
         }
 
         public async Task<(ServerFileHeader header, PayloadDescriptor payloadDescriptor, EncryptedKeyHeader encryptedKeyHeader, bool

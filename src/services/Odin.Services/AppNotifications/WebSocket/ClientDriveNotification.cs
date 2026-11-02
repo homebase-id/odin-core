@@ -146,7 +146,8 @@ public sealed class DriveEventMessage(
             return null;
         }
 
-        var noLongerShared = DriveStorageServiceBase.NoLongerSharedTombstoneOf(file!);
+        // From the header as it is now: a change that ended the share announces its own time, which a client goes by
+        var noLongerShared = DriveStorageServiceBase.NoLongerSharedTombstoneOf(header ?? file!);
         return Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(socket.ResultShape, deviceOdinContext, targetDrive,
             noLongerShared, null), socket.ResultShape);
     }

@@ -81,17 +81,19 @@ namespace Odin.Services.Authorization.Acl
                 return false;
             }
 
-            var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, caller);
             var file = header.FileMetadata.File;
             // Shares given: the caller's on a Selective Share drive, already looked up
             if (sharedWithCaller != null || await IsSelectiveShareAsync(file.DriveId))
             {
                 // The share rows say who, not the ACL's names (docs/file-access.md, "With Selective Share"); a live
-                // share also opens a client-locked file to the member, who gets the share's locked file key (section 6)
+                // share also opens a client-locked file to the member, who gets the share's locked file key (section 6).
+                // The group asked is the shared file's, which CallerShares holds back when the caller doesn't reach it:
+                // a comment is read exactly when its file is, whatever group the comment itself names (section 10)
                 sharedWithCaller ??= await SharesOfAsync(file.DriveId, [header], odinContext);
-                return sharedWithCaller.LiveRowOf(file.FileId) != null && ReachesGroup(acl, level);
+                return sharedWithCaller.LiveRowOf(file.FileId) != null;
             }
 
+            var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, caller);
             return visible && Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId);
         }
 
@@ -113,15 +115,15 @@ namespace Odin.Services.Authorization.Acl
                 return true;
             }
 
-            var acl = header?.ServerMetadata?.AccessControlList;
-            if (acl == null || odinContext.Caller == null)
+            if (header?.ServerMetadata?.AccessControlList == null || odinContext.Caller == null)
             {
                 return false;
             }
 
+            // The shared file's group, as for a read (CallerShares holds the rows back)
             var file = header.FileMetadata.File;
             var shares = await SharesOfAsync(file.DriveId, [header], odinContext);
-            return shares.Grants(file.FileId, permission) && ReachesGroup(acl, ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller));
+            return shares.Grants(file.FileId, permission);
         }
 
         /// <summary>

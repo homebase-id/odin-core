@@ -198,7 +198,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// locked, so a hard delete alongside can't leave a share behind. <paramref name="checkFile"/> sees the locked row
         /// first: it may refuse by throwing, and may return a new required group with the header's server data to match
         /// (the first share lifts an Owner file to Connected). The file's modified moves and its version tag stays.
-        /// Returns the file's row as it was read, or null, writing nothing, when there is no file.
+        /// False, writing nothing, when there is no file.
         /// </summary>
         internal async Task<bool> WriteSharesAsync(Guid driveId, Guid fileId, IEnumerable<DriveAclIndexRecord> shares,
             Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> checkFile)

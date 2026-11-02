@@ -206,6 +206,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return false;
             }
 
+            // Asked again now the payloads are in: a share withdrawn while they streamed stops the write
+            var drive = await driveManager.GetDriveAsync(_file.DriveId);
+            if (drive.IsSelectiveShare && _updateInstructionSet.FileSystemType == FileSystemType.Standard)
+            {
+                await AssertMemberMayChangeAsync(_updateInstructionSet.Request.File, odinContext);
+            }
+
             PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
