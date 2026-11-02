@@ -12,6 +12,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
+using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -464,6 +465,17 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var isClientLocked = ZkDriveFiles.IsClientLocked(serverFileHeader);
                 if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext, sharedWithCaller))
                 {
+                    // On a Selective Share drive the query only finds an outside caller's files through a row naming
+                    // them: one they may no longer read (withdrawn, expired, set back to Owner) comes back as a deleted
+                    // file's tombstone, so their sync removes it, without a key (docs/selective-share-pr3-plan.md, section 8)
+                    if (sharedWithCaller != null)
+                    {
+                        var noLongerShared = DriveStorageServiceBase.TombstoneOf(serverFileHeader, serverFileHeader.FileMetadata.Updated.milliseconds);
+                        noLongerShared.EncryptedKeyHeader = EncryptedKeyHeader.Empty();
+                        visible.Add(noLongerShared);
+                        continue;
+                    }
+
                     // A client-locked file (sealed or zkDrive) is left out as missing, not reported as refused: a
                     // read by unique id or global transit id answers as for no file, and a write's check for a taken
                     // unique id falls through to the index's

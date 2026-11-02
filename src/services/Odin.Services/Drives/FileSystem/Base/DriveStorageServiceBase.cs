@@ -2115,23 +2115,23 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        /// <returns>The tombstone written; null when the delete failed</returns>
-        private async Task<ServerFileHeader> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
-            WriteSecondDatabaseRowBase markComplete)
+        /// <summary>
+        /// A deleted file's tombstone: its ids, group, types, dates and ACL, no content, payloads or unique id.  A soft
+        /// delete stores it; a Selective Share member's sync gets one for a file no longer shared with them
+        /// (docs/selective-share-pr3-plan.md, section 8).
+        /// </summary>
+        public static ServerFileHeader TombstoneOf(ServerFileHeader existingHeader, long updated)
         {
-            var file = existingHeader.FileMetadata.File;
-            var payloadsToDelete = existingHeader.FileMetadata.Payloads ?? [];
-
             var metadata = existingHeader.FileMetadata;
             var appData = existingHeader.FileMetadata.AppData;
-            var deletedServerFileHeader = new ServerFileHeader()
+            return new ServerFileHeader()
             {
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
                 FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
                 {
                     FileState = FileState.Deleted,
                     Created = metadata.Created,
-                    Updated = UnixTimeUtc.Now().milliseconds,
+                    Updated = updated,
                     TransitCreated = metadata.TransitCreated,
                     TransitUpdated = metadata.TransitUpdated,
                     SenderOdinId = metadata.SenderOdinId,
@@ -2162,6 +2162,16 @@ namespace Odin.Services.Drives.FileSystem.Base
                 },
                 ServerMetadata = existingHeader.ServerMetadata
             };
+        }
+
+        /// <returns>The tombstone written; null when the delete failed</returns>
+        private async Task<ServerFileHeader> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
+            WriteSecondDatabaseRowBase markComplete)
+        {
+            var file = existingHeader.FileMetadata.File;
+            var payloadsToDelete = existingHeader.FileMetadata.Payloads ?? [];
+
+            var deletedServerFileHeader = TombstoneOf(existingHeader, UnixTimeUtc.Now().milliseconds);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
 

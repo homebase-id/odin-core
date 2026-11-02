@@ -264,6 +264,11 @@ and sees them appear in their own Filesync; nothing else is built for them.
   which sync clients already remove locally (I: to check against Filesync and odin-js). The same answer when an owner
   caller sets the file back to `Owner`.
 - **Decided (2026-11-02): the deleted tombstone** is the "no longer shared" form, so clients need nothing new.
+- **Built (2026-11-02):** a file the member's query finds through a row naming them but they may no longer read
+  (withdrawn, expired, or set back to `Owner`) comes back as the tombstone a soft delete stores
+  (`DriveStorageServiceBase.TombstoneOf`, shared by both): ids, group, types and dates, no content, payloads, unique id or
+  key. Filesync treats a header whose state is `deleted` as gone (filesync `drive/mod.rs:569`, `feed.rs:536`) **(V)**;
+  odin-js not checked.
 - **Expiry needs no signal:** the member's client holds the share's `expiresAt` (it comes with their row) and drops the
   file when it passes; the server refuses it from then on (section 2).
 - **No separate "my shares changed since" query** until a client needs one (decided 2026-11-01). The PR 1 index serves

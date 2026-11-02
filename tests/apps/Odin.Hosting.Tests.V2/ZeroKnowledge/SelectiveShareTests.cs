@@ -127,6 +127,7 @@ public class SelectiveShareTests : V2Fixture
 
         Assert.That((await s.Shares.WithdrawShare(s.Drive.Alias, shared, s.CircleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         await AssertSamSeesAsync(s, shared, false, "withdrawn");
+        await AssertSamGetsTheTombstoneAsync(s, shared, "withdrawn");
         var withdrawn = (await s.SharesAsync(shared)).Single();
         Assert.That(withdrawn.Permissions, Is.EqualTo((DrivePermission)0), "a withdrawn share keeps its row");
         Assert.That((await s.HeaderAsync(shared)).ServerMetadata.AccessControlList.RequiredSecurityGroup,
@@ -144,6 +145,7 @@ public class SelectiveShareTests : V2Fixture
 
         await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, expiresAt.milliseconds - UnixTimeUtc.Now().milliseconds) + 200));
         await AssertSamSeesAsync(s, fileId, false, "once it expired");
+        await AssertSamGetsTheTombstoneAsync(s, fileId, "once it expired");
     }
 
     [Test]
@@ -534,7 +536,25 @@ public class SelectiveShareTests : V2Fixture
             ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, IncludeMetadataHeader = true }
         });
         Assert.That(query.IsSuccessStatusCode, Is.EqualTo(hasDriveAccess), $"{when}: the query answered {query.StatusCode}: {query.Error?.Content}");
-        Assert.That(query.Content?.SearchResults.Any(h => h.FileId == fileId) == true, Is.EqualTo(sees), $"{when}: in the query");
+        Assert.That(query.Content?.SearchResults.Any(h => h.FileId == fileId && h.FileState == FileState.Active) == true, Is.EqualTo(sees),
+            $"{when}: in the query");
+    }
+
+    // A file no longer shared with Sam comes back in his query as a deleted file's tombstone: ids and dates, no content,
+    // no key (section 8)
+    private static async Task AssertSamGetsTheTombstoneAsync(Arranged s, Guid fileId, string when)
+    {
+        var query = await s.Sam.Drives.Peer.QueryBatchAsync(s.Frodo.Identity, s.Drive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = s.Drive },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, IncludeMetadataHeader = true }
+        });
+        Assert.That(query.StatusCode, Is.EqualTo(HttpStatusCode.OK), query.Error?.Content);
+        var tombstone = query.Content!.SearchResults.SingleOrDefault(h => h.FileId == fileId);
+        Assert.That(tombstone?.FileState, Is.EqualTo(FileState.Deleted), $"{when}: the tombstone in his query");
+        Assert.That((tombstone!.FileMetadata.AppData.Content, tombstone.FileMetadata.Payloads, tombstone.Shares),
+            Is.EqualTo(("", (List<PayloadDescriptor>?)null, (List<ShareRow>?)null)), $"{when}: nothing of the file");
+        Assert.That(tombstone.SharedSecretEncryptedKeyHeader.EncryptedAesKey, Is.All.EqualTo(0), $"{when}: no key");
     }
 
     /// <summary>A stand-in for a file key locked with the circle's key: format 2, 45 bytes, which the server can't open.</summary>
