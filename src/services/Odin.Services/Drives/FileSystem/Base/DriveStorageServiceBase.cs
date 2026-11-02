@@ -750,8 +750,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <summary>
         /// On a Selective Share drive, refuses an outside caller without a live share with <paramref name="permission"/> on
-        /// <paramref name="file"/> (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>): a member's update or
-        /// delete, or adding to a folder, needs <c>Write</c> (docs/selective-share-pr3-plan.md, section 7).
+        /// <paramref name="file"/> (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>).  The peer paths ask it
+        /// when a member's write arrives, before anything is staged; the header write asks it again
+        /// (<see cref="AssertMemberMayWriteAsync"/>).
         /// </summary>
         public async Task AssertCallerHoldsShareAsync(InternalDriveFileId file, DrivePermission permission, IOdinContext odinContext)
         {
@@ -988,11 +989,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
 
-            // A hard delete writes no header, so it asks here what every header write asks of a member's comment
-            if (GetFileSystemType() == FileSystemType.Comment && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
-            {
-                await AssertMayWriteSharedCommentAsync(drive, fileHeader, odinContext);
-            }
+            // A hard delete writes no header, so it asks here what every header write asks of a member
+            await AssertMemberMayWriteAsync(drive, fileHeader, odinContext);
 
             await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads, expectedVersionTag);
 
@@ -2105,21 +2103,60 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.Validate(odinContext);
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
-            if (GetFileSystemType() == FileSystemType.Comment && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
-            {
-                await AssertMayWriteSharedCommentAsync(drive, header, odinContext);
-            }
+            await AssertMemberMayWriteAsync(drive, header, odinContext);
 
             // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
             await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag);
         }
 
         /// <summary>
+        /// On a Selective Share drive an outside caller writes through their share rows, for a file and a comment alike
+        /// (docs/file-access.md, "A share row narrows its circle's grant").  Asked where every header is written, and by a
+        /// hard delete, which writes none, so no path that changes a shared file skips it: a member's peer write, and a
+        /// member calling the owner's own routes with a YouAuth token, which carries their circles' drive grants
+        /// (<c>CircleNetworkService.TryCreateConnectedYouAuthContextAsync</c>).  Owner callers and the System hold the drive.
+        /// </summary>
+        private async Task AssertMemberMayWriteAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
+        {
+            if (!SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
+            {
+                return;
+            }
+
+            if (GetFileSystemType() == FileSystemType.Comment)
+            {
+                await AssertMayWriteSharedCommentAsync(drive, header, odinContext);
+            }
+            else
+            {
+                await AssertMayWriteSharedFileAsync(drive, header, odinContext);
+            }
+        }
+
+        /// <summary>
+        /// A member edits or deletes a file through a live share with <c>Write</c> on it, and adds a new file to a folder
+        /// through one on the folder: Filesync names a file's folder by the folder's unique id in <c>GroupId</c>
+        /// (docs/selective-share-pr3-plan.md, section 7).  Drive <c>Write</c> is asked too
+        /// (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>).
+        /// </summary>
+        private async Task AssertMayWriteSharedFileAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
+        {
+            var stored = await longTermStorageManager.GetServerFileHeader(drive, header.FileMetadata.File.FileId, GetFileSystemType());
+            var shared = stored ?? (header.FileMetadata.AppData?.GroupId is { } groupId
+                ? await longTermStorageManager.GetServerFileHeaderByClientUniqueId(drive, groupId, GetFileSystemType())
+                : null);
+            if (shared == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(shared, DrivePermission.Write, odinContext))
+            {
+                throw new OdinSecurityException(stored == null
+                    ? "A file is added to a folder shared with Write"
+                    : "No share with Write on the file");
+            }
+        }
+
+        /// <summary>
         /// On a Selective Share drive an outside caller writes only their own comment, on a file shared with them with
         /// <c>Comment</c>, which the comment's group names, and which they may read: adding, editing and deleting it
-        /// alike, as well as drive <c>Comment</c> (docs/file-access.md, "A share row narrows its circle's grant").  Asked
-        /// where every header is written, and by a hard delete, which writes none, so no path that changes a comment skips
-        /// it.
+        /// alike, as well as drive <c>Comment</c> (docs/file-access.md, "A share row narrows its circle's grant").
         /// </summary>
         private async Task AssertMayWriteSharedCommentAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
         {

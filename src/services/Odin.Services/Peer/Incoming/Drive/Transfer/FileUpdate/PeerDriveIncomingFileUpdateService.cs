@@ -202,9 +202,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return false;
             }
 
-            // Asked again now the payloads are in: a share withdrawn while they streamed stops the write
-            await AssertMemberMayChangeAsync(await driveManager.GetDriveAsync(_file.DriveId), _updateInstructionSet, odinContext);
-
             PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
@@ -226,8 +223,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         /// <summary>
         /// A member's update of a file on a Selective Share drive (docs/selective-share-pr3-plan.md, section 7): the file is
         /// found as the member, through their live share, and they need a live share with <c>Write</c>.  Asked when the
-        /// update arrives, before anything is staged, and again when it is applied, after its payloads streamed in;
-        /// applied directly, as the member: no inbox on these drives.  A comment's is asked where its header is written:
+        /// update arrives, before anything is staged; the header write asks it again, after the payloads streamed in
+        /// (<c>DriveStorageServiceBase.AssertMemberMayWriteAsync</c>).  Applied directly, as the member: no inbox on these
+        /// drives.  A comment's is asked where its header is written:
         /// the author, with a share's Comment bit (section 10).  Nothing to ask on any other drive.
         /// </summary>
         private async Task AssertMemberMayChangeAsync(StorageDrive drive, EncryptedRecipientFileUpdateInstructionSet instructionSet,

@@ -231,6 +231,15 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   check of the member's share could run there. On a Selective Share drive the member's update and delete are applied
   directly too, as the member: the file is found by its global transit id through the member's live share (the read
   rule), and refused without a live share with `Write`. Private drives keep their inbox; PR 3 doesn't change them.
+- **Where the `Write` share is asked** (decided 2026-11-02, after the fourth review): where every header is written,
+  and by a hard delete, which writes none (`DriveStorageServiceBase.AssertMemberMayWriteAsync`), for every caller but
+  owner callers and the System, as comments have it. That covers a member's peer writes, and a member calling the
+  owner's own routes: a YouAuth token for a connected identity's domain, which their site holds once the owner signs in
+  there, carries their circles' drive grants (`CircleNetworkService.TryCreateConnectedYouAuthContextAsync`), and with
+  drive `Write` and a `Read` share they could edit, delete and hard delete the file, and add files to its folder
+  **(V, tested)**. An existing file needs a `Write` share on it; a new file, one on the folder its `GroupId` names. Any
+  other outside caller with drive `Write`, such as a YouAuth domain with no shares, writes nothing on these drives. The
+  peer paths also ask it when a write arrives, before anything is staged.
 - **The file keeps its ACL:** a peer update today stores the ACL `Owner` (`PeerFileUpdateWriter.DetermineAclAsync`)
   **(V)**, which would lock out every member; on a Selective Share drive the stored ACL stays.
 - **"Keep the file key" travels as a `share` key header with only the IV** (decision C): the member's new IV, no locked
@@ -390,7 +399,8 @@ comment on it (a photo, a document).
   withdrawal leaves `Connected` and the file owner-only.
 - **Members (V2 and Peer API):** a member reads a client-locked file with their row's locked file key, and is refused with no
   live row; with two circles' rows they always get the same one; a member updates a file with a `Write` row and is
-  refused without; adds a file to a folder with a `Write` row; their own server finds the file for an update; the
+  refused without; adds a file to a folder with a `Write` row; a member calling the owner's own routes (YouAuth) edits,
+  deletes, hard deletes and adds to a folder only with a `Write` share; their own server finds the file for an update; the
   member's query batch pages exactly their shared files, and a withdrawn share comes back as "no longer shared"; a share write reaches the owner's devices and the
   member's peer socket.
 - **V2 integration:** who may write shares (the owner console and the owning app; refused: another app, an app's circle
@@ -439,13 +449,6 @@ Nothing (2026-11-01): A to E are decided. Points marked **(I)** above are settle
 Choices made while building that the user kept as they are without settling them (2026-11-02). Change them here if
 they turn out wrong:
 
-- **Where a member's `Write` share is asked.** Twice, on the peer paths: when a member's update or new folder file
-  arrives, before anything is staged, and again when it is applied, after its payloads streamed in
-  (`PeerDriveIncomingFileUpdateService.AssertMemberMayChangeAsync`,
-  `PeerDriveIncomingTransferService.AssertMemberMayAddToFolderAsync`), and on a member's delete. The alternative is
-  one check where every header is written, as comments have (`DriveStorageServiceBase.AssertMayWriteSharedCommentAsync`):
-  sounder, as no gap is left between the check and the write, but it would also refuse any other outside caller's
-  standard-file writes on these drives, and whether any such caller exists wasn't checked.
 - **A peer payload with no key header passes through** (section 6). The caller's server can't tell a client-locked
   file's payload, which has none on purpose, from an encrypted one whose key header the owner's server left out, so it
   passes either on without one (`PeerDriveQueryService.PayloadKeyHeaderFrom`), where it used to fail. The second only

@@ -230,8 +230,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// A member adds a file to a shared folder on a Selective Share drive (docs/selective-share-pr3-plan.md, section
         /// 7): Filesync names a file's folder by the folder's unique id in <c>GroupId</c>, and the member needs a live
         /// share with <c>Write</c> on that folder file, found as the member.  Asked when the file arrives, before anything is
-        /// staged, and again when it is written, after its payloads streamed in.  Nothing to ask for a comment or on any
-        /// other drive.
+        /// staged; the header write asks it again, after the payloads streamed in
+        /// (<c>DriveStorageServiceBase.AssertMemberMayWriteAsync</c>).  Nothing to ask for a comment or on any other drive.
         /// </summary>
         private async Task AssertMemberMayAddToFolderAsync(StorageDrive drive, FileMetadata metadata, FileSystemType fileSystemType,
             IOdinContext odinContext)
@@ -268,16 +268,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var drive = await driveManager.GetDriveAsync(driveId);
 
             // No inbox on a Selective Share drive: a member deletes a file shared with them through a live share with
-            // Write, at once, as themselves (docs/selective-share-pr3-plan.md, section 7).  A soft delete, so the share
-            // rows stay and members' sync sees the tombstone
+            // Write, at once, as themselves (docs/selective-share-pr3-plan.md, section 7), which the tombstone's header
+            // write asks.  A soft delete, so the share rows stay and members' sync sees the tombstone
             if (drive.IsSelectiveShare && fileSystemType == FileSystemType.Standard)
             {
                 var shared = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext)
                              ?? throw new OdinSecurityException("No share with Write on the file");
-                var file = new InternalDriveFileId(driveId, shared.FileId);
-                await fileSystem.Storage.AssertCallerHoldsShareAsync(file, DrivePermission.Write, odinContext);
-
-                await fileSystem.Storage.SoftDeleteLongTermFile(file, odinContext, null);
+                await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId(driveId, shared.FileId), odinContext, null);
                 return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
             }
 
@@ -441,10 +438,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 return false;
             }
-
-            // Asked again now the payloads are in: a share withdrawn while they streamed stops the write
-            var drive = await driveManager.GetDriveAsync(stateItem.File.DriveId);
-            await AssertMemberMayAddToFolderAsync(drive, metadata, stateItem.TransferInstructionSet.FileSystemType, odinContext);
 
             //TODO: check if any apps are online and we can snag the storage key
 

@@ -508,6 +508,62 @@ public partial class SelectiveShareTests : V2Fixture
         }
     }
 
+    /// <summary>
+    /// Sam calling Frodo's own routes rather than through his own server: a YouAuth token for Sam's domain, as Sam's site
+    /// holds once Frodo signs in there, carries Sam's circles on Frodo, which grant the drive Write
+    /// (<c>CircleNetworkService.TryCreateConnectedYouAuthContextAsync</c>).  So his share row's Write bit is what lets
+    /// him edit, delete or hard delete a file, or add one to a folder, as on the peer paths (file-access.md, "A share
+    /// row narrows its circle's grant").
+    /// </summary>
+    [TestCase(DrivePermission.Read, false, TestName = "AMemberOnTheOwnersRoutesChangesNothingSharedWithoutWrite")]
+    [TestCase(DrivePermission.Read | DrivePermission.Write, true, TestName = "AMemberOnTheOwnersRoutesChangesWhatIsSharedWithWrite")]
+    public async Task AMemberOnTheOwnersRoutesChangesASharedFileOnlyWithWrite(DrivePermission permissions, bool changes)
+    {
+        var s = await ArrangeAsync();
+        // The domain's own circle, on another drive, goes unused: a connected identity's domain gets its circles instead
+        var sam = await GuestSession.SetupAsync(s.Frodo, new PermissionSetGrantRequest
+        {
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = MeshDrive, Permission = DrivePermission.Read } }],
+            PermissionSet = default!
+        }, s.Sam.Identity.AsciiDomain);
+        var edited = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
+        var deleted = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
+        var hardDeleted = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
+        var folderUniqueId = Guid.NewGuid();
+        var folder = await s.TryUploadAsync(s.Frodo, SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)], folderUniqueId);
+        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
+
+        var read = await sam.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, edited);
+        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"Sam reads through his share: {read.Error?.Content}");
+
+        var before = await s.HeaderAsync(edited);
+        var edit = await sam.Drives.Writer.UpdateFileByFileId(s.Drive.Alias, edited, new FileUpdateInstructionSetV2
+        {
+            Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16), Manifest = new UploadManifest { PayloadDescriptors = [] }
+        }, s.Metadata(SecurityGroupType.Connected, before.FileMetadata.VersionTag), []);
+        var delete = await sam.Drives.Writer.SoftDeleteFile(s.Drive.Alias, deleted);
+        var hardDelete = await sam.Drives.Writer.HardDeleteBatch(s.Drive.Alias, new HardDeleteBatchRequestV2
+        {
+            Files = [new FileVersionTagV2 { FileId = hardDeleted, VersionTag = (await s.HeaderAsync(hardDeleted)).FileMetadata.VersionTag }]
+        });
+        var addedUniqueId = Guid.NewGuid();
+        var metadata = s.Metadata(SecurityGroupType.Owner);
+        metadata.AppData.UniqueId = addedUniqueId;
+        metadata.AppData.GroupId = folderUniqueId;
+        var add = await sam.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, metadata, new UploadManifest { PayloadDescriptors = [] }, []);
+
+        var responses = $"edit {edit.StatusCode} {edit.Error?.Content}; delete {delete.StatusCode} {delete.Error?.Content}; " +
+                        $"hard delete {hardDelete.StatusCode} {hardDelete.Error?.Content}; add {add.StatusCode} {add.Error?.Content}";
+        var after = await s.HeaderAsync(edited);
+        Assert.That(after.FileMetadata.VersionTag == before.FileMetadata.VersionTag, Is.EqualTo(!changes), $"the edit; {responses}");
+        Assert.That((await s.HeaderAsync(deleted)).FileState, Is.EqualTo(changes ? FileState.Deleted : FileState.Active),
+            $"the delete; {responses}");
+        Assert.That((await s.Frodo.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, hardDeleted)).StatusCode,
+            Is.EqualTo(changes ? HttpStatusCode.NotFound : HttpStatusCode.OK), $"the hard delete; {responses}");
+        Assert.That((await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(addedUniqueId, s.Drive.Alias)).StatusCode,
+            Is.EqualTo(changes ? HttpStatusCode.OK : HttpStatusCode.NotFound), $"the file added to the folder; {responses}");
+    }
+
     [TestCase(true, TestName = "AMemberSharesTheirNewFileWithTheirCircle")]
     [TestCase(false, TestName = "AMemberCantShareTheirNewFileWithACircleTheyAreNotIn")]
     public async Task AMemberSharesTheirNewFile(bool theirCircle)
