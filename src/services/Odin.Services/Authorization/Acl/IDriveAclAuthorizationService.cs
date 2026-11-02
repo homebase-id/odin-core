@@ -40,5 +40,10 @@ namespace Odin.Services.Authorization.Acl
         /// "A share row narrows its circle's grant").  A comment goes by the file it comments on.
         /// </summary>
         Task<bool> CallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext);
+
+        /// <summary>
+        /// Refuses unless <see cref="CallerHoldsShareAsync"/>; a missing header holds no share.
+        /// </summary>
+        Task AssertCallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext);
     }
 }

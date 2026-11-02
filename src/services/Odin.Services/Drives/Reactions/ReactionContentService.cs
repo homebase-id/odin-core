@@ -44,11 +44,8 @@ public class ReactionContentService(
             return drive;
         }
 
-        var header = await driveQuery.GetFileHeaderAsync(drive, file.FileId);
-        if (header == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(header, permission, odinContext))
-        {
-            throw new OdinSecurityException($"No share with {permission} on the file");
-        }
+        await driveAclAuthorizationService.AssertCallerHoldsShareAsync(await driveQuery.GetFileHeaderAsync(drive, file.FileId), permission,
+            odinContext);
 
         return drive;
     }

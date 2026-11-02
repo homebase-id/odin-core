@@ -748,22 +748,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        /// <summary>
-        /// On a Selective Share drive, refuses an outside caller without a live share with <paramref name="permission"/> on
-        /// <paramref name="file"/> (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>).  The peer paths ask it
-        /// when a member's write arrives, before anything is staged; the header write asks it again
-        /// (<see cref="AssertMemberMayWriteAsync"/>).
-        /// </summary>
-        public async Task AssertCallerHoldsShareAsync(InternalDriveFileId file, DrivePermission permission, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-            if (header == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(header, permission, odinContext))
-            {
-                throw new OdinSecurityException($"No share with {permission} on the file");
-            }
-        }
-
         /// <inheritdoc cref="IDriveAclAuthorizationService.FilesSharedWithCallerAsync"/>
         public Task<CallerShares> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<ServerFileHeader> headers,
             IOdinContext odinContext) =>
@@ -2123,33 +2107,41 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return;
             }
 
+            var stored = await longTermStorageManager.GetServerFileHeader(drive, header.FileMetadata.File.FileId, GetFileSystemType());
             if (GetFileSystemType() == FileSystemType.Comment)
             {
-                await AssertMayWriteSharedCommentAsync(drive, header, odinContext);
+                await AssertMayWriteSharedCommentAsync(drive, header, stored, odinContext);
             }
             else
             {
-                await AssertMayWriteSharedFileAsync(drive, header, odinContext);
+                await AssertMayWriteSharedFileAsync(drive, stored, header.FileMetadata.AppData?.GroupId, odinContext);
             }
         }
 
         /// <summary>
-        /// A member edits or deletes a file through a live share with <c>Write</c> on it, and adds a new file to a folder
-        /// through one on the folder: Filesync names a file's folder by the folder's unique id in <c>GroupId</c>
+        /// A member edits or deletes <paramref name="stored"/> through a live share with <c>Write</c> on it; with no stored
+        /// file, they add a new one to the folder whose unique id is <paramref name="folderUniqueId"/> through one on the
+        /// folder: Filesync names a file's folder by the folder's unique id in <c>GroupId</c>
         /// (docs/selective-share-pr3-plan.md, section 7).  Drive <c>Write</c> is asked too
-        /// (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>).
+        /// (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>).  Asked where every header is written
+        /// (<see cref="AssertMemberMayWriteAsync"/>), and by the peer paths when a member's write arrives, before anything is
+        /// staged.
         /// </summary>
-        private async Task AssertMayWriteSharedFileAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
+        public async Task AssertMayWriteSharedFileAsync(StorageDrive drive, ServerFileHeader stored, Guid? folderUniqueId,
+            IOdinContext odinContext)
         {
-            var stored = await longTermStorageManager.GetServerFileHeader(drive, header.FileMetadata.File.FileId, GetFileSystemType());
-            var shared = stored ?? (header.FileMetadata.AppData?.GroupId is { } groupId
-                ? await longTermStorageManager.GetServerFileHeaderByClientUniqueId(drive, groupId, GetFileSystemType())
-                : null);
-            if (shared == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(shared, DrivePermission.Write, odinContext))
+            if (stored != null)
             {
-                throw new OdinSecurityException(stored == null
-                    ? "A file is added to a folder shared with Write"
-                    : "No share with Write on the file");
+                await driveAclAuthorizationService.AssertCallerHoldsShareAsync(stored, DrivePermission.Write, odinContext);
+                return;
+            }
+
+            var folder = folderUniqueId is { } uniqueId
+                ? await longTermStorageManager.GetServerFileHeaderByClientUniqueId(drive, uniqueId, GetFileSystemType())
+                : null;
+            if (folder == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(folder, DrivePermission.Write, odinContext))
+            {
+                throw new OdinSecurityException("A file is added to a folder shared with Write");
             }
         }
 
@@ -2158,11 +2150,11 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <c>Comment</c>, which the comment's group names, and which they may read: adding, editing and deleting it
         /// alike, as well as drive <c>Comment</c> (docs/file-access.md, "A share row narrows its circle's grant").
         /// </summary>
-        private async Task AssertMayWriteSharedCommentAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
+        private async Task AssertMayWriteSharedCommentAsync(StorageDrive drive, ServerFileHeader header, ServerFileHeader stored,
+            IOdinContext odinContext)
         {
             var caller = odinContext.GetCallerOdinIdOrFail();
             var metadata = header.FileMetadata;
-            var stored = await longTermStorageManager.GetServerFileHeader(drive, metadata.File.FileId, GetFileSystemType());
             if (!IsFrom(metadata, caller) || (stored != null && !IsFrom(stored.FileMetadata, caller)))
             {
                 throw new OdinSecurityException("Only a comment's author writes it");
@@ -2177,10 +2169,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // A comment is on a file its writer may read, as a peer's comment on any drive (IncomingCommentAcl); every
             // live share holds Read, so the drive's is what is left to ask
             odinContext.PermissionsContext.AssertCanReadDrive(drive.Id);
-            if (!await driveAclAuthorizationService.CallerHoldsShareAsync(header, DrivePermission.Comment, odinContext))
-            {
-                throw new OdinSecurityException("No share with Comment on the file");
-            }
+            await driveAclAuthorizationService.AssertCallerHoldsShareAsync(header, DrivePermission.Comment, odinContext);
 
             static bool IsFrom(FileMetadata m, OdinId caller) => m.SenderOdinId != null && new OdinId(m.SenderOdinId) == caller;
         }

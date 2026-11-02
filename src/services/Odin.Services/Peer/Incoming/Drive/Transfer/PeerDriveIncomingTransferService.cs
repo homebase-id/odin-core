@@ -228,29 +228,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         /// <summary>
         /// A member adds a file to a shared folder on a Selective Share drive (docs/selective-share-pr3-plan.md, section
-        /// 7): Filesync names a file's folder by the folder's unique id in <c>GroupId</c>, and the member needs a live
-        /// share with <c>Write</c> on that folder file, found as the member.  Asked when the file arrives, before anything is
-        /// staged; the header write asks it again, after the payloads streamed in
-        /// (<c>DriveStorageServiceBase.AssertMemberMayWriteAsync</c>).  Nothing to ask for a comment or on any other drive.
+        /// 7), with a live share with <c>Write</c> on the folder its <c>GroupId</c> names.  Asked when the file arrives,
+        /// before anything is staged; the header write asks it again, after the payloads streamed in.  Nothing to ask for a
+        /// comment or on any other drive.
         /// </summary>
         private async Task AssertMemberMayAddToFolderAsync(StorageDrive drive, FileMetadata metadata, FileSystemType fileSystemType,
             IOdinContext odinContext)
         {
-            if (!drive.IsSelectiveShare || fileSystemType != FileSystemType.Standard)
+            if (drive.IsSelectiveShare && fileSystemType == FileSystemType.Standard)
             {
-                return;
+                await fileSystem.Storage.AssertMayWriteSharedFileAsync(drive, null, metadata.AppData?.GroupId, odinContext);
             }
-
-            var folder = metadata.AppData?.GroupId is { } groupId
-                ? await fileSystem.Query.GetFileByClientUniqueIdForWriting(drive.Id, groupId, odinContext)
-                : null;
-            if (folder == null)
-            {
-                throw new OdinSecurityException("A file is added to a folder shared with Write");
-            }
-
-            await fileSystem.Storage.AssertCallerHoldsShareAsync(new InternalDriveFileId(drive.Id, folder.FileId), DrivePermission.Write,
-                odinContext);
         }
 
         public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequestAsync(TargetDrive targetDrive, Guid globalTransitId,

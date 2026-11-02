@@ -378,6 +378,13 @@ public class DriveQuery(
         return header?.ServerMetadata.FileSystemType == fileSystemType ? header : null;
     }
 
+    /// <summary>The header of the file with <paramref name="uniqueId"/>, when it is of <paramref name="fileSystemType"/>.</summary>
+    public async Task<ServerFileHeader> GetFileHeaderByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
+    {
+        var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
+        return record?.fileSystemType == (int)fileSystemType ? ServerFileHeader.FromDriveMainIndexRecord(record) : null;
+    }
+
     /// <summary>The file's header, of whichever file system it is.</summary>
     public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId)
     {

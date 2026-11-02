@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -126,6 +127,14 @@ namespace Odin.Services.Authorization.Acl
             var file = header.FileMetadata.File;
             return odinContext.PermissionsContext.HasDrivePermission(file.DriveId, permission) &&
                    (await SharesOfAsync(file.DriveId, [header], odinContext)).Grants(file.FileId, permission);
+        }
+
+        public async Task AssertCallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext)
+        {
+            if (header == null || !await CallerHoldsShareAsync(header, permission, odinContext))
+            {
+                throw new OdinSecurityException($"No share with {permission} on the file");
+            }
         }
 
         /// <summary>

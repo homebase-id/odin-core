@@ -221,8 +221,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         }
 
         /// <summary>
-        /// A member's update of a file on a Selective Share drive (docs/selective-share-pr3-plan.md, section 7): the file is
-        /// found as the member, through their live share, and they need a live share with <c>Write</c>.  Asked when the
+        /// A member's update of a file on a Selective Share drive (docs/selective-share-pr3-plan.md, section 7): they need a
+        /// live share with <c>Write</c> on the file its global transit id names.  Asked when the
         /// update arrives, before anything is staged; the header write asks it again, after the payloads streamed in
         /// (<c>DriveStorageServiceBase.AssertMemberMayWriteAsync</c>).  Applied directly, as the member: no inbox on these
         /// drives.  A comment's is asked where its header is written:
@@ -237,11 +237,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
 
             var target = instructionSet.Request.File;
-            var driveId = target.TargetDrive.Alias;
-            var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, target.GlobalTransitId.GetValueOrDefault(), odinContext)
+            var stored = await fileSystem.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(drive.Id,
+                             target.GlobalTransitId.GetValueOrDefault(), odinContext)
                          ?? throw new OdinSecurityException("No share with Write on the file");
-            await fileSystem.Storage.AssertCallerHoldsShareAsync(new InternalDriveFileId(driveId, header.FileId), DrivePermission.Write,
-                odinContext);
+            await fileSystem.Storage.AssertMayWriteSharedFileAsync(drive, stored, null, odinContext);
         }
 
         /// <summary>

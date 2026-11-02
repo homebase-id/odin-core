@@ -211,13 +211,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
             await AssertDriveIsValidAndActive(driveId, odinContext);
 
-            var record = await _driveQuery.GetByClientUniqueIdAsync(driveId, clientUniqueId);
-            if (record == null || record.fileSystemType != (int)GetFileSystemType())
-            {
-                return null;
-            }
-
-            return ServerFileHeader.FromDriveMainIndexRecord(record);
+            return await _driveQuery.GetFileHeaderByClientUniqueIdAsync(driveId, clientUniqueId, GetFileSystemType());
         }
 
         /// <inheritdoc cref="GetServerFileHeaderByClientUniqueIdSkippingFileAcl"/>

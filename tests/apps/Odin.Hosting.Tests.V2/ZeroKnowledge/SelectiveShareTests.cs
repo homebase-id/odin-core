@@ -537,25 +537,22 @@ public partial class SelectiveShareTests : V2Fixture
         Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"Sam reads through his share: {read.Error?.Content}");
 
         var before = await s.HeaderAsync(edited);
-        var edit = await sam.Drives.Writer.UpdateFileByFileId(s.Drive.Alias, edited, new FileUpdateInstructionSetV2
-        {
-            Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16), Manifest = new UploadManifest { PayloadDescriptors = [] }
-        }, s.Metadata(SecurityGroupType.Connected, before.FileMetadata.VersionTag), []);
+        var edit = await s.TryEditAsync(sam, edited, SecurityGroupType.Connected, before.FileMetadata.VersionTag);
         var delete = await sam.Drives.Writer.SoftDeleteFile(s.Drive.Alias, deleted);
         var hardDelete = await sam.Drives.Writer.HardDeleteBatch(s.Drive.Alias, new HardDeleteBatchRequestV2
         {
             Files = [new FileVersionTagV2 { FileId = hardDeleted, VersionTag = (await s.HeaderAsync(hardDeleted)).FileMetadata.VersionTag }]
         });
         var addedUniqueId = Guid.NewGuid();
-        var metadata = s.Metadata(SecurityGroupType.Owner);
-        metadata.AppData.UniqueId = addedUniqueId;
+        var metadata = FolderMetadata(s, addedUniqueId);
         metadata.AppData.GroupId = folderUniqueId;
         var add = await sam.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, metadata, new UploadManifest { PayloadDescriptors = [] }, []);
 
         var responses = $"edit {edit.StatusCode} {edit.Error?.Content}; delete {delete.StatusCode} {delete.Error?.Content}; " +
                         $"hard delete {hardDelete.StatusCode} {hardDelete.Error?.Content}; add {add.StatusCode} {add.Error?.Content}";
         var after = await s.HeaderAsync(edited);
-        Assert.That(after.FileMetadata.VersionTag == before.FileMetadata.VersionTag, Is.EqualTo(!changes), $"the edit; {responses}");
+        Assert.That(after.FileMetadata.VersionTag,
+            changes ? Is.Not.EqualTo(before.FileMetadata.VersionTag) : Is.EqualTo(before.FileMetadata.VersionTag), $"the edit; {responses}");
         Assert.That((await s.HeaderAsync(deleted)).FileState, Is.EqualTo(changes ? FileState.Deleted : FileState.Active),
             $"the delete; {responses}");
         Assert.That((await s.Frodo.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, hardDeleted)).StatusCode,
@@ -1089,13 +1086,17 @@ public partial class SelectiveShareTests : V2Fixture
         public async Task<SharedSecretEncryptedFileHeader> OwnerEditAsync(Guid fileId, SecurityGroupType group)
         {
             var before = await HeaderAsync(fileId);
-            var update = await Frodo.Drives.Writer.UpdateFileByFileId(Drive.Alias, fileId, new FileUpdateInstructionSetV2
-            {
-                Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16), Manifest = new UploadManifest { PayloadDescriptors = [] }
-            }, Metadata(group, before.FileMetadata.VersionTag), []);
+            var update = await TryEditAsync(Frodo, fileId, group, before.FileMetadata.VersionTag);
             Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
             return before;
         }
+
+        /// <summary><paramref name="caller"/> edits the file's header on Frodo's own routes, sending <paramref name="group"/>.</summary>
+        public Task<ApiResponse<UpdateFileResult>> TryEditAsync(IV2Caller caller, Guid fileId, SecurityGroupType group, Guid versionTag) =>
+            caller.Drives.Writer.UpdateFileByFileId(Drive.Alias, fileId, new FileUpdateInstructionSetV2
+            {
+                Locale = UpdateLocale.Local, TransferIv = ByteArrayUtil.GetRndByteArray(16), Manifest = new UploadManifest { PayloadDescriptors = [] }
+            }, Metadata(group, versionTag), []);
 
         public async Task<GlobalTransitIdFileIdentifier> GtidOfAsync(Guid fileId) =>
             new() { TargetDrive = Drive, GlobalTransitId = (await HeaderAsync(fileId)).FileMetadata.GlobalTransitId!.Value };
