@@ -153,6 +153,7 @@ public class IdentityRegistrationServiceTest
     private sealed class StubInvitationCodeService : HttpMessageHandler
     {
         public readonly List<string> Calls = [];
+        public readonly List<string> Bodies = [];
         public bool Used = true;
         public bool Unreachable;
 
@@ -175,6 +176,7 @@ public class IdentityRegistrationServiceTest
             var path = request.RequestUri!.AbsolutePath;
             var body = await request.Content!.ReadAsStringAsync(cancellationToken);
             Calls.Add($"{path} {request.Headers.GetValues("Odin-Api-Key").Single()}");
+            Bodies.Add(body);
             object answer = path switch
             {
                 "/api/v1/invitation-codes/validate" => new { valid = body.Contains(ServiceCode) },
@@ -285,6 +287,8 @@ public class IdentityRegistrationServiceTest
         await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "k7qx m2pd 9fhw");
 
         Assert.That(service.Calls.Select(c => c.Split(' ')[0]), Is.EqualTo(new[] { "/api/v1/invitation-codes/use" }));
+        // Who is signing up goes with the use, so the service can say who used the code
+        Assert.That(service.Bodies.Single(), Does.Contain("\"identity\":\"frodo.example.com\""));
         Assert.That(capturedRequest()!.Invitation, Is.EqualTo(new RegistrationInvitation(ServiceCode, "sam.example.com", "spring")));
         // The code's older enablePublicWebPresence (false here) is ignored: only the plan's publicWebPresence counts
         Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.True);
