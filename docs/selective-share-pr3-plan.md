@@ -308,8 +308,9 @@ comment on it (a photo, a document).
   it comments on, looked up as the commenter (`IncomingCommentAcl`) **(V)**; on these drives the comment's ACL names
   no one, as every file's there.
 - **A comment is encrypted with the commented file's file key** and an IV of its own: everyone who may read the file
-  already holds the key, so no row is written for it. Its key header says so and holds only the IV (a new form, named
-  when built); the server checks only that a comment on an encrypted file uses it. An unencrypted file's comments are
+  already holds the key, so no row is written for it. Its key header says so and holds only the IV: a new key header
+  type, `fileKey` (decided 2026-11-02), stored on the comment; the server checks only that a comment on an encrypted
+  file uses it. An unencrypted file's comments are
   unencrypted, as today (`IncomingCommentAcl`: encryption must match) **(V)**.
 - **Writing a comment** needs a live row with `Comment` on the commented file, in place of drive `Comment` **(I: the
   rules for editing and deleting a comment are read when built, and keep their meaning)**.
