@@ -10,6 +10,7 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -68,7 +69,7 @@ internal static class ZkTestFiles
     /// </summary>
     public static async Task<(KeyHeader FileKey, EncryptedKeyHeader Sealed)> SendDepositAsync(IV2Caller sender,
         OwnerSession frodo, OwnerSession sam, string publicKeyJwk, Guid uniqueId, string content,
-        TestPayloadDefinition? payload = null, TargetDrive? remoteDrive = null, Guid? groupId = null)
+        TestPayloadDefinition? payload = null, TargetDrive? remoteDrive = null, Guid? groupId = null, List<ShareRequest>? shares = null)
     {
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
         var metadata = Metadata(uniqueId, content);
@@ -87,7 +88,7 @@ internal static class ZkTestFiles
                 IsTransient = true,
                 Recipients = [sam.Identity.DomainName],
                 RemoteTargetDrive = remoteDrive ?? Drive
-            }, manifest, payload == null ? null : [payload], keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
+            }, manifest, payload == null ? null : [payload], keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader, shares: shares);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
         await frodo.Sync.DrainOutboxAsync();
         return (fileKey, sealedKeyHeader);

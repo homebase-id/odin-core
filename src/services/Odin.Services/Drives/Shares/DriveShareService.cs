@@ -84,6 +84,49 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
         AssertKeysFit(encrypted, shares, "The file");
     }
 
+    /// <summary>
+    /// Shares a member's server sends on with a new file (a transient upload): their shape only, as the member's server
+    /// knows nothing of the owner's circles.  The owner's server checks the rest (<see cref="AssertMemberMayShareAsync"/>).
+    /// </summary>
+    public static void AssertSentShares(List<ShareRequest> shares, bool encrypted)
+    {
+        if (shares.Count > MaxSharesPerRequest || shares.Any(s => s.FileId != Guid.Empty) ||
+            shares.DistinctBy(s => s.CircleId).Count() != shares.Count)
+        {
+            throw new OdinClientException($"Up to {MaxSharesPerRequest} shares, one per circle, naming no file",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        var now = UnixTimeUtc.Now();
+        foreach (var share in shares)
+        {
+            AssertShape(share, now);
+        }
+
+        AssertKeysFit(encrypted, shares, "The file");
+    }
+
+    /// <summary>
+    /// A member's shares for the file they add to a shared folder (docs/selective-share-pr3-plan.md, section 7): only for
+    /// circles they are in, each the drive's app's own, enabled, granting the drive Read and Write and holding its key.
+    /// </summary>
+    public async Task AssertMemberMayShareAsync(StorageDrive drive, List<ShareRequest> shares, bool encrypted, IOdinContext odinContext)
+    {
+        AssertSentShares(shares, encrypted);
+        var callersCircles = odinContext.Caller.Circles?.Select(c => c.Value).ToHashSet() ?? [];
+        foreach (var share in shares)
+        {
+            var circle = callersCircles.Contains(share.CircleId) ? await db.CircleCached.GetAsync(share.CircleId) : null;
+            if (circle == null)
+            {
+                throw new OdinSecurityException($"A member shares a file only with a circle they are in, not {share.CircleId}");
+            }
+
+            AssertIsTheDrivesAppsCircle(drive, circle);
+            AssertCircleFits(drive, circle);
+        }
+    }
+
     /// <summary>The upload's shares, written in its header's transaction, so a file is never seen half shared.</summary>
     public WriteSecondDatabaseRowBase UploadSharesWriter(InternalDriveFileId file, List<ShareRequest> shares) =>
         new WriteUploadShares(db, file, ToRows(shares));
@@ -196,21 +239,28 @@ public class DriveShareService(IdentityDatabase db, IDriveManager driveManager, 
     private async Task<CircleRecord> GetCircleCallerMayShareWithAsync(StorageDrive drive, Guid circleId, IOdinContext odinContext)
     {
         var circle = await circleMembership.GetCircleCallerMayManageAsync(new GuidId(circleId), "share files with", odinContext);
-        if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != drive.AppId)
-        {
-            throw new OdinSecurityException($"Circle {circleId} isn't the circle of drive {drive.Id}'s app");
-        }
-
+        AssertIsTheDrivesAppsCircle(drive, circle);
         return circle;
     }
+
+    private static void AssertIsTheDrivesAppsCircle(StorageDrive drive, CircleRecord circle)
+    {
+        if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != drive.AppId)
+        {
+            throw new OdinSecurityException($"Circle {circle.circleId} isn't the circle of drive {drive.Id}'s app");
+        }
+    }
+
+    private async Task AssertCircleMayShareAsync(StorageDrive drive, Guid circleId, IOdinContext odinContext) =>
+        AssertCircleFits(drive, await GetCircleCallerMayShareWithAsync(drive, circleId, odinContext));
 
     /// <summary>
     /// The circle a share is for: enabled, granting the drive Read and Write (decision 1), and holding its key, which
     /// the file key is locked with.
     /// </summary>
-    private async Task AssertCircleMayShareAsync(StorageDrive drive, Guid circleId, IOdinContext odinContext)
+    private static void AssertCircleFits(StorageDrive drive, CircleRecord circle)
     {
-        var circle = await GetCircleCallerMayShareWithAsync(drive, circleId, odinContext);
+        var circleId = circle.circleId;
         var definition = CircleDefinitionService.FromRecord(circle);
         if (definition.Disabled)
         {

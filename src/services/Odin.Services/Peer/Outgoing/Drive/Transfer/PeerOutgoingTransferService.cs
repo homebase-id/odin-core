@@ -17,6 +17,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -56,10 +57,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
+        /// <param name="shares">A member's shares for the file they add to a peer's shared folder, sent on with it.</param>
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             IOdinContext odinContext,
-            DataSource overrideDataSource = null)
+            DataSource overrideDataSource = null,
+            List<ShareRequest> shares = null)
         {
             odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
 
@@ -81,6 +84,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, sfo, odinContext, priority,
                 overrideDataSource);
+            foreach (var item in outboxItems)
+            {
+                item.State.TransferInstructionSet.Shares = shares;
+            }
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)

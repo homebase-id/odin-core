@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.Peer.Encryption
@@ -30,6 +32,12 @@ namespace Odin.Services.Peer.Encryption
         public AppNotificationOptions AppNotificationOptions { get; set; }
 
         public AccessControlList OriginalAcl { get; set; }
+
+        /// <summary>
+        /// A member's shares for the file they add to a shared folder on a Selective Share drive, as their upload carried
+        /// them (docs/selective-share-pr3-plan.md, section 7); checked and written by the owner's server.
+        /// </summary>
+        public List<ShareRequest> Shares { get; set; }
         
         public bool IsValid()
         {

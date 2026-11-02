@@ -424,7 +424,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
                 fileSystemType, 
-                odinContext);
+                odinContext,
+                shares: package.Shares);
 
             return recipientStatus;
         }

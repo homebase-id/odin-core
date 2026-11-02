@@ -22,6 +22,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -46,7 +47,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         OdinConfiguration odinConfiguration,
         TransitInboxBoxStorage transitInboxBoxStorage,
         FeedWriter feedWriter,
-        TenantQuotaGuard quotaGuard
+        TenantQuotaGuard quotaGuard,
+        DriveShareService shares
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
@@ -80,6 +82,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (drive.IsSelectiveShare && transferInstructionSet.FileSystemType == FileSystemType.Standard)
             {
                 await AssertMemberMayAddToFolderAsync(drive, metadata, odinContext);
+            }
+
+            if (transferInstructionSet.Shares is { Count: > 0 } sentShares)
+            {
+                if (!drive.IsSelectiveShare || transferInstructionSet.FileSystemType != FileSystemType.Standard)
+                {
+                    throw new OdinClientException("Only a file for a SelectiveShare drive's shared folder carries shares",
+                        OdinClientErrorCode.ArgumentError);
+                }
+
+                await shares.AssertMemberMayShareAsync(drive, sentShares, metadata.IsEncrypted, odinContext);
             }
 
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
@@ -427,6 +440,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             PeerFileWriter writer = new PeerFileWriter(logger, FileSystemResolver, driveManager, feedWriter);
             var sender = odinContext.GetCallerOdinIdOrFail();
+
+            // A member's shares for their new file, written in its header's transaction (section 7)
+            var writeShares = stateItem.TransferInstructionSet.Shares is { Count: > 0 } sentShares
+                ? shares.UploadSharesWriter(stateItem.File, sentShares)
+                : null;
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
                 odinContext);
             var drive = await driveManager.GetDriveAsync(stateItem.File.DriveId);
@@ -435,7 +453,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 //S1110 - Write to disk and send notifications
                 await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                    odinContext, sourceArea: stateItem.IsDirectWrite ? StagingArea.Upload : StagingArea.Inbox);
+                    odinContext, sourceArea: stateItem.IsDirectWrite ? StagingArea.Upload : StagingArea.Inbox,
+                        markComplete: writeShares);
 
                 return true;
             }
@@ -451,7 +470,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     //S1205
                     await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                        odinContext, sourceArea: stateItem.IsDirectWrite ? StagingArea.Upload : StagingArea.Inbox);
+                        odinContext, sourceArea: stateItem.IsDirectWrite ? StagingArea.Upload : StagingArea.Inbox,
+                        markComplete: writeShares);
                     return true;
                 }
 

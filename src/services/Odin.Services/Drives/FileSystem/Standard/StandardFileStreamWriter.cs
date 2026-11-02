@@ -67,6 +67,13 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             return;
         }
 
+        // A member's file for a peer's shared folder: its shares go with it, and the owner's server checks them (section 7)
+        if (SystemDriveConstants.IsTransientTempDrive(package.InternalFile.DriveId))
+        {
+            DriveShareService.AssertSentShares(shares, metadata.IsEncrypted);
+            return;
+        }
+
         await _shares.AssertUploadMayShareAsync(package.InternalFile.DriveId, shares, metadata.IsEncrypted, odinContext);
 
         // A shared file is Connected, as a share lifts an Owner file (decision A)
@@ -78,7 +85,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         IOdinContext odinContext)
     {
         // The shares in the header's transaction, so the file is never seen half shared (section 4)
-        var writeShares = package.Shares is { Count: > 0 } shares ? _shares.UploadSharesWriter(package.InternalFile, shares) : null;
+        var writeShares = package.Shares is { Count: > 0 } shares && !SystemDriveConstants.IsTransientTempDrive(package.InternalFile.DriveId)
+            ? _shares.UploadSharesWriter(package.InternalFile, shares)
+            : null;
         await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false,
             odinContext, sourceArea: StagingArea.Upload, markComplete: writeShares);
     }

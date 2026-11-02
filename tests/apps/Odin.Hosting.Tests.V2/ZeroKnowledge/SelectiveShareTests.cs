@@ -442,6 +442,32 @@ public class SelectiveShareTests : V2Fixture
         }
     }
 
+    [TestCase(true, TestName = "AMemberSharesTheirNewFileWithTheirCircle")]
+    [TestCase(false, TestName = "AMemberCantShareTheirNewFileWithACircleTheyAreNotIn")]
+    public async Task AMemberSharesTheirNewFile(bool theirCircle)
+    {
+        var s = await ArrangeAsync();
+        var folderUniqueId = Guid.NewGuid();
+        var folder = await s.Frodo.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, FolderMetadata(s, folderUniqueId),
+            new UploadManifest { PayloadDescriptors = [] }, [], shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
+        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
+        var circle = theirCircle ? s.CircleId : await s.CircleWithKeyAsync(DrivePermission.Read | DrivePermission.Write);
+
+        var uniqueId = Guid.NewGuid();
+        await SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file",
+            SamplePayloadDefinitions.GetPayloadDefinition1(), s.Drive, folderUniqueId,
+            [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey(), circleId: circle)]);
+
+        var received = await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias);
+        Assert.That(received.StatusCode, Is.EqualTo(theirCircle ? HttpStatusCode.OK : HttpStatusCode.NotFound), received.Error?.Content);
+        if (theirCircle)
+        {
+            Assert.That(received.Content!.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+            Assert.That((await s.SharesAsync(received.Content.FileId)).Single().CircleId, Is.EqualTo(s.CircleId));
+            await AssertSamSeesAsync(s, received.Content.FileId, true, "his own file, shared with his circle");
+        }
+    }
+
     private static UploadFileMetadata FolderMetadata(Arranged s, Guid uniqueId)
     {
         var metadata = s.Metadata(SecurityGroupType.Owner);
