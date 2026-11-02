@@ -245,10 +245,40 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 | A file with no rows | open to every caller who reaches the required group | owner callers only, whatever its group (PR 3) |
 | Which rows count in a query | a row naming the caller, or no row at all | a row naming the caller, live or not, so a withdrawn share reaches their sync; the read rule then lets through only a file with a live row, and turns the rest into tombstones. A file no row names the caller on is missing, by query and by id. A comment goes by the rows of the file its group names (PR 3) |
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere (PR 3) |
-| Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member whose live row has `Write` (PR 3) |
-| Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member whose live row has `React` or `Comment`, without the drive permission. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it (PR 3) |
+| Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member with drive `Write` whose live row has `Write` (PR 3) |
+| Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member with drive `React` or `Comment` whose live row has the same bit. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it (PR 3) |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't (decision 6, amended 2026-11-01) |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" (PR 3) |
+
+### A share row narrows its circle's grant
+
+**The circles set the ceiling, and the share row picks under it, for every bit** (decided 2026-11-02). To use a
+shared file a member needs the bit twice: in their drive grant, which is what their circles grant on the drive,
+together, and in their live share row on the file:
+
+| To | Drive grant | Live share row |
+|---|---|---|
+| read the file, its comments and its reactions | `Read` | any (a live row has `Read`) |
+| edit or delete it, or add a file to it as a folder | `Write` | `Write` |
+| react to it | `React` | `React` |
+| comment on it | `Comment`, and they may read the file | `Comment` |
+
+This is the rule people know from file servers: a share's permissions and the folder's permissions both apply, each
+added up over the person's groups, and the stricter wins. It is also how other drives work: there a file's ACL only
+narrows what a circle grants on the drive, never widens it, and each drive check reads the grant of all the caller's
+circles together.
+
+- **Changing a circle's grant changes all of its shares at once, both ways.** Take `Read` away and its members stop
+  reading every file shared through it; give it back and every share works again as it was. The rows aren't touched,
+  so nothing has to go through them. "At once" means when the member's context is next built: a change of a circle's
+  grants doesn't reset the cached peer contexts (`CircleNetworkService.UpdateCircleDefinitionAsync`) **(V)**, so it
+  takes up to an hour to reach a peer, on every drive, as a disable does (#2054, "Peers' contexts are cached" above).
+- **A share starts within its ceiling:** the share API refuses a row with a bit its circle doesn't grant on the drive.
+  A later change of the circle's grant caps the row instead.
+- **A reaction asks only `React`, of both,** as a reaction on other drives asks only drive `React` (#2058): a member
+  whose circles keep `React` but lose `Read` can still react. A comment also needs the file readable, as a peer's
+  comment does on other drives (`IncomingCommentAcl`).
+- **Owner callers aren't capped:** they hold the drive.
 
 **What builds it** (the share API, shares in the upload, the query and the read rule, `includeShares`, members'
 reads, writes, sync and socket events): [selective-share-pr3-plan.md](selective-share-pr3-plan.md).

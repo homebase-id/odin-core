@@ -125,8 +125,9 @@ needs drive `Read`. Members write files (section 7), not shares, except on their
 **Checked for each entry, before anything is written:**
 - The drive is Selective Share; the file exists on it, isn't deleted and is a file, not a comment (a comment follows its
   file's shares, section 10).
-- The circle belongs to the app, is enabled, grants the drive `Read` and `Write` (decision 1 of the plan), and holds its
-  share key, since the file key is locked with it (`CircleShareKeyNotSet`).
+- The circle belongs to the app, is enabled, grants the drive every bit the row asks (a row narrows its circle's grant,
+  file-access.md; decided 2026-11-02, in place of "grants `Read` and `Write`"), and holds its share key, since the file
+  key is locked with it (`CircleShareKeyNotSet`).
 - `permissions` isn't 0 (0 is a withdrawn share, written only by `DELETE`), holds only `Read`, `Write`, `React` and
   `Comment`, and includes `Read`: no upload-only rows yet (decided 2026-11-01). The index rows V1 makes from an ACL on
   other drives always mean `Read`, as today; V1 gets no share API.
@@ -302,10 +303,11 @@ and sees them appear in their own Filesync; nothing else is built for them.
 
 Decision B (2026-11-01): a share row's `React` bit lets its members react to the file, its `Comment` bit lets them
 comment on it (a photo, a document).
-- **The row alone grants it:** on a Selective Share drive a caller needs no drive `React` or `Comment`; the app's
-  circle still grants the drive `Read` and `Write` only (section 3). Today a reaction needs drive `React` and a comment
-  drive `Comment` (file-access.md, "Special cases") **(V)**; on these drives both checks become "a live row with that
-  bit for one of the caller's circles", and owner callers pass as today. Other drives keep their checks, and #2058
+- **The drive grant and the row both grant it** (decided 2026-11-02, replacing "the row alone grants it"): a reaction
+  needs drive `React` and a comment drive `Comment`, as today (file-access.md, "Special cases") **(V)**, and on these
+  drives also a live row with the same bit for one of the caller's circles; owner callers pass as today. A row narrows
+  its circle's grant, for every bit (file-access.md, "A share row narrows its circle's grant"), so an app that lets
+  members react and comment grants its circles `React` and `Comment` too. Other drives keep their checks, and #2058
   stays Todd's.
 - **A reaction** is checked against the reacted file's rows, locally and from a peer: today a peer's reaction finds the
   file with a drive check only (`ResolveFileId`) **(V)**, so on these drives that path asks for the row too. Who may see
@@ -321,7 +323,7 @@ comment on it (a photo, a document).
   type, `fileKey` (decided 2026-11-02), stored on the comment; the server checks only that a comment on an encrypted
   file uses it. An unencrypted file's comments are
   unencrypted, as today (`IncomingCommentAcl`: encryption must match) **(V)**.
-- **Writing a comment** needs a live row with `Comment` on the commented file, in place of drive `Comment` **(I: the
+- **Writing a comment** needs drive `Comment` and a live row with `Comment` on the commented file **(I: the
   rules for editing and deleting a comment are read when built, and keep their meaning)**.
 
 **How it was built (2026-11-02):**
@@ -342,10 +344,11 @@ comment on it (a photo, a document).
   `fileKey` goes nowhere else but the transient drive, where a member's comment waits to be sent. It travels as sent
   (`DecryptOrPassSealed`, `EncryptKeyHeaderAes`, `Deposits.OpenWithDriveKey`), may have no key in the transfer's
   instruction set, and is written directly, like a deposit (`IsStoredAsSent`).
-- **Writing a comment** on these drives needs drive `Read` (`CommentFileStorageService.AssertCanWriteToDrive`). The
+- **Writing a comment** on these drives needs drive `Comment`, as on any drive (`CommentFileStorageService.AssertCanWriteToDrive`). The
   rest is asked where every header is written (`DriveStorageServiceBase.AssertMayWriteSharedCommentAsync`), for an
   outside caller: the comment's author, then and before (`SenderOdinId`); an active comment's group naming its
-  referenced file; a live row with `Comment` on that file (`CallerHoldsShareAsync`). That covers adding, editing,
+  referenced file; drive `Comment` and a live row with `Comment` on that file, and the file readable to them: drive
+  `Read` (`CallerHoldsShareAsync`, which asks the drive grant for each bit it asks of the row). That covers adding, editing,
   overwriting and deleting, local or from a peer. A member's comment update skips section 7's `Write` row check.
 - **A shared file's group is the server's** (decided 2026-11-02): a write to a stored file keeps its group, whatever
   the client sends (`DriveQuery.SaveFileHeaderAsync`, which every header write goes through), so an owner client that sends `Owner` with an edit
@@ -366,7 +369,8 @@ comment on it (a photo, a document).
   - Frodo's devices and Sam's peer socket hear each share write, withdrawal, edit, delete, new file, reaction and
     comment.
 - **Reactions**: `ReactionContentService.AssertMayAsync` in place of each drive check, and `GroupReactionService` uses
-  it too. On these drives an outside caller needs a live row with `React` to react, or a live row to see reactions. A
+  it too. On these drives an outside caller needs drive `React` and a live row with `React` to react, or drive `Read`
+  and a live row to see reactions. A
   group reaction from a peer is applied directly, as the member, not through the inbox. Not covered by a test: a
   member has no copy of the file to react to through their own server.
 
@@ -395,14 +399,16 @@ comment on it (a photo, a document).
   rows, one with a bad share stores neither; the next owner query sees a share (cache cleared); a withdrawn share keeps
   its row; `includeShares` returns the live rows and nothing without it.
 - **Reactions and comments:** on a Selective Share drive a member reacts and comments with a row's `React` and
-  `Comment` bits, and is refused without them, whatever the drive grants; a comment is read by a member with a live
+  `Comment` bits, and is refused without them; and refused when their circle no longer grants the drive that bit,
+  with the row unchanged, then let in again when the circle grants it back; a comment is read by a member with a live
   `Read` row on its file and by no one else outside, and is hidden once that row is withdrawn or expired; a comment on
   an encrypted file must use the file's key form. On other drives reactions and comments answer as today.
 
 ## Decided (2026-11-01)
 
-- **B. A share row's `React` and `Comment` bits** let its members react to and comment on the file; the row alone
-  grants it; a comment is read by whoever may read its file and is encrypted with the file's key; in PR 3 (section 10).
+- **B. A share row's `React` and `Comment` bits** let its members react to and comment on the file, where their
+  circle grants the drive the same bit (amended 2026-11-02: a row narrows its circle's grant, for every bit, as file
+  servers combine share and folder permissions; it used to be "the row alone grants it"); a comment is read by whoever may read its file and is encrypted with the file's key; in PR 3 (section 10).
 - **C. A member editing a file keeps the file key and the stored key header** (decision 5 of the plan): the update
   sends a new IV only (section 7). The server can't check the member kept the file key; a member with `Write` can
   write garbage either way, which follows from zero knowledge.

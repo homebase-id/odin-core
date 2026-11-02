@@ -58,7 +58,7 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 | Column | Type | Meaning |
 |---|---|---|
 | `aclMemberId` | Guid | the circle (and later a link's id, decision 4) |
-| `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), per file: Read and Write narrow the drive grant (Write to update the file or, on a folder, add files to it; see "Who may write"); React and Comment are granted by the row alone (PR 3 plan, section 10). No bits = a withdrawn share. Every row before Selective Share means read, hence the default |
+| `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), per file, each narrowing the same bit of the drive grant: a member needs the bit in both (Write to update the file or, on a folder, add files to it; see "Who may write"; file-access.md, "A share row narrows its circle's grant", decided 2026-11-02). No bits = a withdrawn share. Every row before Selective Share means read, hence the default |
 | `expiresAt` | UnixTimeUtc (ms), null | when this share of this file ends, so queries skip expired shares. NULL = never |
 | `lockedFileKey` | ByteArray (≤ 128), null | the file key locked with the circle key: AES-GCM, format 2, no IV, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
 | `created`, `modified` | UnixTimeUtc (ms), not null | the share's own times, apart from the file's (the generator's `FinallyAddCreatedModified`): the cursor a member syncs their shares by. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
@@ -216,9 +216,11 @@ ACLs' names, which `SelectiveShareDrives.AssertAclFits` refuses on any later hea
 
 ## Who may write
 
-The app's circles have Read and Write on the whole drive (decision 1). The drive grant is generic; the ACL
-narrows it per file, as it already does for reading **(V)**. Today nothing narrows writing per file **(V)**
-(`AccessControlList`: required group, named circles, named identities), so the Write bit in a share row's `permissions` is new:
+The app's circles have Read and Write on the whole drive (decision 1). The drive grant is generic; the share row
+narrows it per file, as the ACL already does for reading on other drives **(V)**. Today nothing narrows writing per
+file **(V)** (`AccessControlList`: required group, named circles, named identities), so the Write bit in a share row's
+`permissions` is new. A writer needs drive Write and the row's Write (file-access.md, "A share row narrows its circle's
+grant"):
 
 - **Updating or deleting a file** needs a share row for one of the writer's circles with Write.
 - **Adding a file to a folder** needs that on the folder (Filesync's folders are files, and a file names its
@@ -267,7 +269,9 @@ content with it and leaves the key headers alone. Two things are needed:
    (`V2PeerAppDrivePublicKeyController`) **(V)**, which goes through the peer drive key cache from #2045.
    That endpoint requires Write on the target drive (`PeerDriveQueryService.cs`,
    `GetDriveWriteOnlyPublicKeyAsync`) **(V)**. **Decided (2026-10-30):** the app's circles grant Read and Write
-   on its drive, so the endpoint works as it is; whether a share is read-only is the Write bit of its row.
+   on its drive, so the endpoint works as it is; whether a share is read-only is the Write bit of its row. To react
+   and comment by a share, the circle grants `React` and `Comment` too: a row narrows its circle's grant, for every
+   bit (decided 2026-11-02).
 2. **Owner circles** (no owning app): not shareable this way, or locked with the master key so only the owner
    console can share with them.
 3. **Sharing with one person** outside any circle. The ACL already names people (`OdinIdList`) **(V)**, so a

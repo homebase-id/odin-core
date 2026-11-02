@@ -299,8 +299,9 @@ The full description, today's and Selective Share's, is [file-access.md](file-ac
 - **Reactions** need `React` on the drive (`ReactionContentService`, `GroupReactionService`) **(V)**. Their peer rules are
   their own; don't fold them into the file rule (user decision, #1977).
 - **Read receipts** (transfer history): own rules, hands off (user decision).
-- **On a Selective Share drive** an outside caller's comments and reactions go by the share rows of the file, not by
-  drive `Comment` or `React`: a live row with that bit; a comment is read by whoever may read its file, is encrypted
+- **On a Selective Share drive** an outside caller's comments and reactions need drive `Comment` or `React` as
+  anywhere, and a live share row on the file with the same bit: a share row narrows its circles' grant, for every bit
+  ([file-access.md](file-access.md#a-share-row-narrows-its-circles-grant)); a comment is read by whoever may read its file, is encrypted
   with its file's key (`fileKey`), and is written only by its author ([file-access.md](file-access.md#with-selective-share),
   selective-share-pr3-plan.md section 10).
 
