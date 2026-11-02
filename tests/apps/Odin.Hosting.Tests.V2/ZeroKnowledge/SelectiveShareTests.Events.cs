@@ -157,8 +157,10 @@ public partial class SelectiveShareTests
         Assert.That(withdraw.StatusCode, Is.EqualTo(HttpStatusCode.OK), withdraw.Error?.Content);
         await sockets.Owner.WaitForAsync("Frodo's device: the withdrawal", ClientNotificationType.FileModified,
             h => h.FileId == shared && h.FileState == FileState.Active);
-        await sockets.Member.WaitForAsync("Sam: no longer shared", ClientNotificationType.FileDeleted,
-            h => h.FileId == shared && h.FileState == FileState.Deleted && h.FileMetadata.AppData.Content == "");
+        await sockets.Member.WaitForAsync("Sam: no longer shared, ids, types and dates only", ClientNotificationType.FileDeleted,
+            h => h.FileId == shared && h.FileState == FileState.Deleted && h.FileMetadata.AppData.Content == "" && h.Shares == null &&
+                 h.FileMetadata.AppData.Tags == null && h.FileMetadata.AppData.GroupId == null && h.FileMetadata.SenderOdinId == null &&
+                 h.SharedSecretEncryptedKeyHeader.EncryptedAesKey.All(b => b == 0));
 
         // In the order sent: by now the unshared file's event would have reached him
         Assert.That(sockets.Member.Seen.Where(e => e.Header?.FileId == notShared), Is.Empty, "Sam heard nothing of the unshared file");

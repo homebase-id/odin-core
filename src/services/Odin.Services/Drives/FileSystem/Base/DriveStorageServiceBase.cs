@@ -2101,8 +2101,28 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await AssertMayWriteSharedCommentAsync(drive, header, odinContext);
             }
 
+            if (GetFileSystemType() == FileSystemType.Standard && drive.IsSelectiveShare)
+            {
+                await KeepSharedGroupAsync(drive, header);
+            }
+
             // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
             await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag);
+        }
+
+        /// <summary>
+        /// On a Selective Share drive a stored file keeps its group whatever a write sends: the server decides it, Owner
+        /// until the first share lifts it to Connected (decision A), so an owner client that sends Owner with an edit
+        /// doesn't close a shared file to its members.  Shares are withdrawn to un-share; with no live share a file is
+        /// the owner callers' alone whatever its group (decided 2026-11-02).
+        /// </summary>
+        private async Task KeepSharedGroupAsync(StorageDrive drive, ServerFileHeader header)
+        {
+            var stored = await longTermStorageManager.GetServerFileHeader(drive, header.FileMetadata.File.FileId, FileSystemType.Standard);
+            if (stored?.ServerMetadata?.AccessControlList is { } storedAcl && header.ServerMetadata?.AccessControlList is { } acl)
+            {
+                acl.RequiredSecurityGroup = storedAcl.RequiredSecurityGroup;
+            }
         }
 
         /// <summary>
@@ -2221,11 +2241,37 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// What a Selective Share member's sync and socket get for a file a row names them on that they may no longer read
         /// (withdrawn, expired, set back to Owner): its tombstone, without a key (docs/selective-share-pr3-plan.md, section 8).
         /// </summary>
+        /// <remarks>
+        /// Its ids, types and dates only, enough for a sync to remove it (decided 2026-11-02): it goes to everyone a row
+        /// still names, after every change of the file, so none of the file's tags, folder, sender or version.
+        /// </remarks>
         public static ServerFileHeader NoLongerSharedTombstoneOf(ServerFileHeader header)
         {
-            var tombstone = TombstoneOf(header, header.FileMetadata.Updated.milliseconds);
-            tombstone.EncryptedKeyHeader = EncryptedKeyHeader.Empty();
-            return tombstone;
+            var metadata = header.FileMetadata;
+            return new ServerFileHeader
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.Empty(),
+                FileMetadata = new FileMetadata(metadata.File)
+                {
+                    FileState = FileState.Deleted,
+                    Created = metadata.Created,
+                    Updated = metadata.Updated,
+                    GlobalTransitId = metadata.GlobalTransitId,
+                    AppData = new AppFileMetaData
+                    {
+                        FileType = metadata.AppData.FileType,
+                        DataType = metadata.AppData.DataType,
+                        Content = ""
+                    },
+                    IsEncrypted = false
+                },
+                // Not sent to an outside caller; kept for what builds the client header
+                ServerMetadata = new ServerMetadata
+                {
+                    AccessControlList = header.ServerMetadata.AccessControlList,
+                    FileSystemType = header.ServerMetadata.FileSystemType
+                }
+            };
         }
 
         /// <returns>The tombstone written; null when the delete failed</returns>

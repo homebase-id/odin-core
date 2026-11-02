@@ -240,7 +240,7 @@ the index rows stop being a copy of the ACL and become the record (decided 2026-
 
 | | Other drives | Selective Share drive |
 |---|---|---|
-| The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused. Required group `Owner` (owner callers only; the default) or `Connected` (shareable); the first share lifts `Owner` to `Connected`, keeping the version tag |
+| The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused. Required group `Owner` (owner callers only; the default) or `Connected` (shareable); the first share lifts `Owner` to `Connected`, keeping the version tag, and a later write keeps the stored group whatever it sends (PR 3) |
 | The index rows | made from the ACL on every header write; each means read | share rows, written on their own by the share API; a header write leaves them alone (PR 3) |
 | A file with no rows | open to every caller who reaches the required group | owner callers only, whatever its group (PR 3) |
 | Which rows count in a query | a row naming the caller, or no row at all | a row naming the caller, live or not, so a withdrawn share reaches their sync; the read rule then lets through only a file with a live row, and turns the rest into tombstones. A file no row names the caller on is missing, by query and by id. A comment goes by the rows of the file its group names (PR 3) |

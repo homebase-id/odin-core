@@ -140,6 +140,47 @@ public partial class SelectiveShareTests : V2Fixture
     }
 
     [Test]
+    public async Task AMemberBelowTheFilesGroupGetsNothingThroughALiveShare()
+    {
+        // An unreviewed connection counts as Authenticated, below a shared file's Connected: their live share lets them in
+        // to nothing, the file's comments included, and they may change nothing; their sync gets the file's tombstone,
+        // without the share or its key
+        var s = await ArrangeAsync();
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
+        var file = await s.GtidOfAsync(fileId);
+        var comment = new UploadFileMetadata
+        {
+            AppData = new UploadAppFileMetaData { FileType = 101, Content = "Frodo's comment" },
+            AccessControlList = AccessControlList.Connected,
+            ReferencedFile = file
+        };
+        var commented = await new DriveWriterV2Client(s.Frodo.Identity, s.Frodo.Factory, Odin.Core.Storage.FileSystemType.Comment)
+            .CreateNewUnencryptedFile(s.Drive.Alias, comment, new UploadManifest { PayloadDescriptors = [] }, []);
+        Assert.That(commented.StatusCode, Is.EqualTo(HttpStatusCode.OK), commented.Error?.Content);
+        await AssertSamSeesAsync(s, fileId, true, "reviewed");
+
+        var tenant = Host.GetTenantScope(s.Frodo.Identity.DomainName);
+        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(s.Sam.Identity, ConnectionStatus.Connected, null);
+        await tenant.Resolve<OdinContextCache>().ResetAsync();
+        try
+        {
+            await AssertSamSeesAsync(s, fileId, false, "unreviewed");
+            await AssertSamGetsTheTombstoneAsync(s, fileId, "unreviewed");
+            Assert.That((await SamsCommentsAsync(s, file)).All(c => c.FileState != FileState.Active), Is.True, "its comments go with it");
+
+            var delete = await s.Sam.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, file.GlobalTransitId);
+            Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
+            await s.Sam.Sync.DrainOutboxAsync();
+            Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Active), "his delete refused");
+        }
+        finally
+        {
+            var review = await new V2ConnectionNetworkClient(s.Frodo.Identity, s.Frodo.Factory).MarkReviewedAsync(s.Sam.Identity);
+            Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+        }
+    }
+
+    [Test]
     public async Task AnExpiredShareLetsNoOneIn()
     {
         var s = await ArrangeAsync();

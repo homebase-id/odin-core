@@ -98,7 +98,8 @@ ORDER BY m.modified, m.rowId LIMIT @n
   `(identityId, driveId, aclMemberId)` prefix, each file is found by its key, and only those files are sorted (I:
   `EXPLAIN` on seeded data, both databases, is a test step).
 - **Every row counts here, live or not.** A file with a live row for the caller comes back whole; a file with only a
-  withdrawn or expired row, or one an owner caller set back to `Owner`, comes back as "no longer shared" (section 8).
+  withdrawn or expired row, or one whose file the caller's level doesn't reach, comes back as "no longer shared"
+  (section 8).
 - **The query batch is unchanged for clients:** same request, same modified cursor, same pages.
 
 ## 3. Writing shares
@@ -265,9 +266,11 @@ and sees them appear in their own Filesync; nothing else is built for them.
   caller sets the file back to `Owner`.
 - **Decided (2026-11-02): the deleted tombstone** is the "no longer shared" form, so clients need nothing new.
 - **Built (2026-11-02):** a file the member's query finds through a row naming them but they may no longer read
-  (withdrawn, expired, or set back to `Owner`) comes back as the tombstone a soft delete stores
-  (`DriveStorageServiceBase.TombstoneOf`, shared by both): ids, group, types and dates, no content, payloads, unique id or
-  key. Filesync treats a header whose state is `deleted` as gone (filesync `drive/mod.rs:569`, `feed.rs:536`) **(V)**;
+  (withdrawn, expired, or a level below the file's group) comes back as a deleted file's tombstone
+  (`DriveStorageServiceBase.NoLongerSharedTombstoneOf`). It holds **ids, types and dates only** (decided 2026-11-02): file
+  id, global transit id, file and data type, created and updated, no tags, folder, sender, version tag, content,
+  payloads or key. It reaches everyone a row still names after every change of the file, someone who joined the circle
+  after the withdrawal included, so it says only that the file changed, and when. Filesync treats a header whose state is `deleted` as gone (filesync `drive/mod.rs:569`, `feed.rs:536`) **(V)**;
   odin-js not checked.
 - **Expiry needs no signal:** the member's client holds the share's `expiresAt` (it comes with their row) and drops the
   file when it passes; the server refuses it from then on (section 2).
@@ -338,7 +341,12 @@ comment on it (a photo, a document).
   outside caller: the comment's author, then and before (`SenderOdinId`); an active comment's group naming its
   referenced file; a live row with `Comment` on that file (`CallerHoldsShareAsync`). That covers adding, editing,
   overwriting and deleting, local or from a peer. A member's comment update skips section 7's `Write` row check.
-- **A file set back to `Owner` while shares stay live** (found by the tests, 2026-11-02). Members get its tombstone, and
+- **A shared file's group is the server's** (decided 2026-11-02): a write to a stored file keeps its group, whatever
+  the client sends (`DriveStorageServiceBase.KeepSharedGroupAsync`), so an owner client that sends `Owner` with an edit
+  (Filesync does, wire.rs:601) doesn't close the file to its members. To un-share, the owner withdraws the shares; with
+  no live share a file is the owner callers' alone whatever its group.
+- **A live share whose file's group the member doesn't reach** (an unreviewed connection; found by the tests,
+  2026-11-02, then with a file set back to `Owner`, which an edit can no longer do). The member gets its tombstone, and
   its comments go with it:
   - The query no longer bounds the group when rows are required; the read rule decides (`QueryBatch`).
   - A file's share goes out only with a file the read rule let in, never with a tombstone (`FilterVisibleAsync`).
@@ -396,7 +404,8 @@ comment on it (a photo, a document).
   reset key (the client shares the file again). Removing them is a later PR's.
 
 - **A. The required group keeps its meaning:** files start `Owner` (owner-only), and the first share lifts a file to
-  `Connected`, keeping its version tag (sections 1 and 3).
+  `Connected`, keeping its version tag (sections 1 and 3). After that a write keeps the stored group (decided
+  2026-11-02): the server decides it.
 - **No rows without `Read`** from the V2 share API; V1's index rows always mean `Read`.
 - **Shares in results only when asked** (`includeShares`); the `GET` lists one file's share rows.
 - **An index on a circle's rows** (`identityId, driveId, aclMemberId, modified, rowId`), in PR 1's unreleased
@@ -414,6 +423,9 @@ Nothing (2026-11-01): A to E are decided. Points marked **(I)** above are settle
 
 ## Not in PR 3
 - Removing withdrawn shares, and the rows of deleted circles and reset keys (decision D).
+- **A hard delete of a shared file** removes its rows before the event goes out, so members' sockets get nothing and
+  their sync never sees the file again; their copy stays until they resync. Clients mostly soft-delete, which members
+  see as a tombstone. With decision D's cleanup (decided 2026-11-02).
 - Sharing with one identity, and links: decisions 3 and 4 of the plan.
 - The clients: odin-js, chat-kmp and filesync (the plan's item 5).
 
