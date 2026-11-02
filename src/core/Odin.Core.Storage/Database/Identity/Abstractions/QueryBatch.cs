@@ -73,7 +73,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             listWhere.Add($"driveMainIndex.identityId = {odinIdentity.BytesToSql(_databaseType)}");
             listWhere.Add($"driveMainIndex.driveid = {driveId.BytesToSql(_databaseType)}");
             listWhere.Add($"(driveMainIndex.fileSystemType = {fileSystemType})");
-            listWhere.Add($"(driveMainIndex.requiredSecurityGroup >= {requiredSecurityGroup.Start} AND driveMainIndex.requiredSecurityGroup <= {requiredSecurityGroup.End})");
+
+            // With rows required, not the group: a file set back above the caller's level must still reach their sync,
+            // as a tombstone, which the read rule makes (docs/selective-share-pr3-plan.md, section 8)
+            if (!aclRowsRequired)
+            {
+                listWhere.Add($"(driveMainIndex.requiredSecurityGroup >= {requiredSecurityGroup.Start} AND driveMainIndex.requiredSecurityGroup <= {requiredSecurityGroup.End})");
+            }
 
             //
             // An ACL for a file is the required security group and optional list of circles

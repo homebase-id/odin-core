@@ -338,6 +338,19 @@ comment on it (a photo, a document).
   outside caller: the comment's author, then and before (`SenderOdinId`); an active comment's group naming its
   referenced file; a live row with `Comment` on that file (`CallerHoldsShareAsync`). That covers adding, editing,
   overwriting and deleting, local or from a peer. A member's comment update skips section 7's `Write` row check.
+- **A file set back to `Owner` while shares stay live** (found by the tests, 2026-11-02). Members get its tombstone, and
+  its comments go with it:
+  - The query no longer bounds the group when rows are required; the read rule decides (`QueryBatch`).
+  - A file's share goes out only with a file the read rule let in, never with a tombstone (`FilterVisibleAsync`).
+    Before, the tombstone carried the share and its locked file key.
+  - `CallerShares` holds back the rows of a file whose group the caller's level doesn't reach, so its comments are
+    held back with it.
+- **What a member's writes make others see** is tested end to end, sockets included (`SelectiveShareTests.Events`):
+  - a reaction or a comment updates the file's summary and moves its `modified`, but not its version tag; the server
+    computes the summary on these drives too, because reactions aren't encrypted, and a comment counts with an empty
+    preview text;
+  - Frodo's devices and Sam's peer socket hear each share write, withdrawal, edit, delete, new file, reaction and
+    comment.
 - **Reactions**: `ReactionContentService.AssertMayAsync` in place of each drive check, and `GroupReactionService` uses
   it too. On these drives an outside caller needs a live row with `React` to react, or a live row to see reactions. A
   group reaction from a peer is applied directly, as the member, not through the inbox. Not covered by a test: a

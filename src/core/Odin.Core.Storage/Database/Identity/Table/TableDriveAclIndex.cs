@@ -115,10 +115,11 @@ public class TableDriveAclIndex(
     /// <summary>
     /// The rows of <paramref name="fileIds"/>, and of the standard files whose global transit ids are
     /// <paramref name="globalTransitIds"/> (the file a comment's group names, docs/selective-share-pr3-plan.md, section
-    /// 10), each with its file's global transit id; only those of <paramref name="memberIds"/> when given.  Live or not
-    /// (<see cref="IsLive"/>).  One read for a page of files, whatever its size.
+    /// 10), each with its file's global transit id and required security group; only those of
+    /// <paramref name="memberIds"/> when given.  Live or not (<see cref="IsLive"/>).  One read for a page of files,
+    /// whatever its size.
     /// </summary>
-    public async Task<List<(DriveAclIndexRecord Row, Guid? GlobalTransitId)>> GetRowsAsync(Guid driveId,
+    public async Task<List<(DriveAclIndexRecord Row, Guid? GlobalTransitId, int RequiredSecurityGroup)>> GetRowsAsync(Guid driveId,
         IReadOnlyCollection<Guid> fileIds, IReadOnlyCollection<Guid> globalTransitIds, IReadOnlyCollection<Guid> memberIds)
     {
         if ((fileIds.Count == 0 && globalTransitIds.Count == 0) || memberIds?.Count == 0)
@@ -142,7 +143,7 @@ public class TableDriveAclIndex(
 
         var members = memberIds == null ? "" : $"AND r.aclMemberId IN ({string.Join(",", memberIds.Select((_, i) => $"@m{i}"))}) ";
         cmd.CommandText = "SELECT r.rowId,r.identityId,r.driveId,r.fileId,r.aclMemberId,r.expiresAt,r.permissions,r.lockedFileKey," +
-                          "r.created,r.modified,m.globalTransitId FROM DriveAclIndex r JOIN DriveMainIndex m " +
+                          "r.created,r.modified,m.globalTransitId,m.requiredSecurityGroup FROM DriveAclIndex r JOIN DriveMainIndex m " +
                           "ON m.identityId = r.identityId AND m.driveId = r.driveId AND m.fileId = r.fileId " +
                           $"WHERE r.identityId = @identityId AND r.driveId = @driveId {members}" +
                           $"AND ({string.Join(" OR ", files)}) ORDER BY r.rowId;";
@@ -164,11 +165,11 @@ public class TableDriveAclIndex(
             cmd.AddParameter($"@m{i}", DbType.Binary, memberId);
         }
 
-        var rows = new List<(DriveAclIndexRecord, Guid?)>();
+        var rows = new List<(DriveAclIndexRecord, Guid?, int)>();
         await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
         while (await rdr.ReadAsync())
         {
-            rows.Add((ReadRecordFromReaderAll(rdr), rdr.IsDBNull(10) ? null : new Guid((byte[])rdr[10])));
+            rows.Add((ReadRecordFromReaderAll(rdr), rdr.IsDBNull(10) ? null : new Guid((byte[])rdr[10]), Convert.ToInt32(rdr[11])));
         }
 
         return rows;

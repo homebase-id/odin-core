@@ -50,7 +50,7 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 /// Frodo's files only through a live share, and Pippin, connected but in no circle of the app, never.
 /// </summary>
 [TestFixture]
-public class SelectiveShareTests : V2Fixture
+public partial class SelectiveShareTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Pippin];
 

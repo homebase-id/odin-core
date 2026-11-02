@@ -148,9 +148,15 @@ namespace Odin.Services.Authorization.Acl
                 commentedFiles.Where(f => f.CommentedFile != null).Select(f => f.CommentedFile.Value).Distinct().ToList(),
                 CallerMemberIds(odinContext));
 
-            return new CallerShares(commentedFiles.ToDictionary(f => f.FileId,
-                f => rows.Where(r => f.CommentedFile == null ? r.Row.fileId == f.FileId : r.GlobalTransitId == f.CommentedFile)
-                    .Select(r => r.Row).ToList()), UnixTimeUtc.Now());
+            // A comment is read exactly when its file is: held back, too, when the caller's level doesn't reach the file's
+            // group (a file set back to Owner), whatever the comment's own
+            var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller);
+            var byFile = commentedFiles.ToDictionary(f => f.FileId,
+                f => rows.Where(r => f.CommentedFile == null ? r.Row.fileId == f.FileId : r.GlobalTransitId == f.CommentedFile).ToList());
+            return new CallerShares(
+                byFile.ToDictionary(f => f.Key, f => f.Value.Select(r => r.Row).ToList()),
+                UnixTimeUtc.Now(),
+                byFile.Where(f => f.Value.Any(r => !ReachesGroup((SecurityGroupType)r.RequiredSecurityGroup, level))).Select(f => f.Key).ToHashSet());
         }
 
         /// <summary>
@@ -217,8 +223,10 @@ namespace Odin.Services.Authorization.Acl
         }
 
         /// <summary>Whether <paramref name="level"/> reaches the file's required group, on the ladder.</summary>
-        private static bool ReachesGroup(AccessControlList acl, SecurityGroupType level) =>
+        private static bool ReachesGroup(AccessControlList acl, SecurityGroupType level) => ReachesGroup(acl.RequiredSecurityGroup, level);
+
+        private static bool ReachesGroup(SecurityGroupType required, SecurityGroupType level) =>
             // System is a caller level, never a file's ACL; refuse it rather than let its value (1) admit everyone.
-            acl.RequiredSecurityGroup != SecurityGroupType.System && (int)level >= (int)acl.RequiredSecurityGroup;
+            required != SecurityGroupType.System && (int)level >= (int)required;
     }
 }

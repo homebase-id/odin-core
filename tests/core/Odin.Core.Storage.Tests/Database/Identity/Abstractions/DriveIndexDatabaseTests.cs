@@ -2641,6 +2641,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Assert.That(page.Select(r => r.fileId).OrderBy(id => id),
                 Is.EqualTo(new[] { live, mine, withdrawn, expired, noRead }.OrderBy(id => id)), "through the caller's rows, live or not");
 
+            // Nor does the caller's level hold a file back: one set above it must reach their sync, where the read rule
+            // makes it a tombstone
+            var (belowLevel, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, null, requiredSecurityGroup: new IntRange(0, 0),
+                aclAnyOf: [circle, me], aclRowsRequired: true);
+            Assert.That(belowLevel.Select(r => r.fileId).OrderBy(id => id),
+                Is.EqualTo(new[] { live, mine, withdrawn, expired, noRead }.OrderBy(id => id)), "whatever the files' group");
+
             var (nobody, _, _) = await queryBatch.QueryBatchAsync(driveId, 100, null, requiredSecurityGroup: allIntRange,
                 aclAnyOf: null, aclRowsRequired: true);
             Assert.That(nobody, Is.Empty, "a caller no row can name");
