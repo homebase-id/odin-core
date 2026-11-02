@@ -292,6 +292,24 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             lockedKeyHeader);
     }
 
+    /// <summary>Updates a file on <paramref name="peer"/>'s drive by its global transit id, through this identity's server.</summary>
+    public Task<ApiResponse<UpdateFileResult>> UpdatePeerFileByGlobalTransitId(
+        OdinId peer,
+        Guid driveId,
+        Guid globalTransitId,
+        FileUpdateInstructionSetV2 uploadInstructionSet,
+        UploadFileMetadata fileMetadata,
+        List<TestPayloadDefinition> payloads,
+        EncryptedKeyHeader lockedKeyHeader = null)
+    {
+        return UpdateFileInternal(
+            (svc, parts) => svc.UpdatePeerFileByGlobalTransitId(peer.DomainName, driveId, globalTransitId, parts),
+            uploadInstructionSet,
+            fileMetadata,
+            payloads,
+            lockedKeyHeader);
+    }
+
     public Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(
         Guid driveId,
         Guid uniqueId,

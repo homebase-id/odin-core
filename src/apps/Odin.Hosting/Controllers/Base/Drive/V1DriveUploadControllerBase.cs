@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Services.Base;
@@ -89,7 +90,18 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return ReceiveFileUpdateInternal(driveId, null, uniqueId);
         }
 
-        private async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId, Guid? uniqueId = null)
+        /// <summary>
+        /// A V2 update of a file on <paramref name="recipient"/>'s drive, named by its global transit id: staged here
+        /// and sent there (Locale=Peer), as a member of a Selective Share circle edits a shared file
+        /// (docs/selective-share-pr3-plan.md, section 7).  The route's recipient, drive and file replace the body's.
+        /// </summary>
+        protected Task<FileUpdateResult> ReceivePeerFileUpdateV2(OdinId recipient, Guid driveId, Guid globalTransitId)
+        {
+            return ReceiveFileUpdateInternal(driveId, null, null, (recipient, globalTransitId));
+        }
+
+        private async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId, Guid? uniqueId = null,
+            (OdinId Recipient, Guid GlobalTransitId)? onPeer = null)
         {
             FileSystemType fileSystemType;
             FileSystemUpdateWriterBase updateWriter = null;
@@ -109,9 +121,29 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                 var instructionSet = await BoundedRead.DeserializeAsync<FileUpdateInstructionSet>(section!.Body);
 
+                if (onPeer is var (recipient, globalTransitId))
+                {
+                    // The peer's drive is named by its id alone, as V2 peer reads name it; the recipient goes by the alias
+                    instructionSet = new FileUpdateInstructionSet
+                    {
+                        TransferIv = instructionSet.TransferIv,
+                        File = new FileIdentifier
+                        {
+                            GlobalTransitId = globalTransitId,
+                            TargetDrive = new TargetDrive { Alias = driveId.GetValueOrDefault(), Type = Guid.Empty }
+                        },
+                        Locale = UpdateLocale.Peer,
+                        Recipients = [recipient],
+                        Manifest = instructionSet.Manifest,
+                        UseAppNotification = instructionSet.UseAppNotification,
+                        AppNotificationOptions = instructionSet.AppNotificationOptions
+                    };
+                    fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
+                    updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
+                }
                 //v2 reads from the driveId and fileId params, so we overwrite it. this stops callers
                 //from being bound to the TargetDrive type
-                if (WebOdinContext.ApiVersion == 2)
+                else if (WebOdinContext.ApiVersion == 2)
                 {
                     OdinValidationUtils.AssertNotEmptyGuid(driveId.GetValueOrDefault(), "Version 2 requires DriveId to be set");
                     var theDrive = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());

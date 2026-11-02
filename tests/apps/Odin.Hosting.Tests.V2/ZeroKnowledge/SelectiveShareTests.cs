@@ -351,8 +351,9 @@ public class SelectiveShareTests : V2Fixture
         Assert.That(owners.Shares, Is.Null);
     }
 
-    [Test]
-    public async Task AMemberWithWriteEditsASharedFileKeepingItsKey()
+    [TestCase(false, TestName = "AMemberWithWriteEditsASharedFileKeepingItsKey")]
+    [TestCase(true, TestName = "AMemberEditsASharedFileThroughTheV2PeerUpdate")]
+    public async Task AMemberWithWriteEditsASharedFile(bool v2)
     {
         var s = await ArrangeAsync();
         var (fileId, locked, fileKey) = await s.UploadClientLockedAsync();
@@ -363,7 +364,7 @@ public class SelectiveShareTests : V2Fixture
         Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
         var before = await s.HeaderAsync(fileId);
 
-        var newIv = await MemberEditAsync(s, before, fileKey, "edited by Sam");
+        var newIv = await MemberEditAsync(s, before, fileKey, "edited by Sam", v2);
 
         var after = await s.HeaderAsync(fileId);
         var key = after.SharedSecretEncryptedKeyHeader;
@@ -479,13 +480,29 @@ public class SelectiveShareTests : V2Fixture
     /// Sam edits Frodo's file through his own server (V1 update, Locale=Peer, by global transit id), keeping the file
     /// key: a share key header with a new IV only (decision C).  Returns the new IV.
     /// </summary>
-    private static async Task<byte[]> MemberEditAsync(Arranged s, SharedSecretEncryptedFileHeader file, KeyHeader fileKey, string content)
+    private static async Task<byte[]> MemberEditAsync(Arranged s, SharedSecretEncryptedFileHeader file, KeyHeader fileKey, string content,
+        bool v2 = false)
     {
         var newIv = ByteArrayUtil.GetRndByteArray(16);
         var metadata = s.Metadata(SecurityGroupType.Connected);
         metadata.AppData.Content = new KeyHeader { AesKey = fileKey.AesKey, Iv = newIv }.EncryptDataAes(content.ToUtf8ByteArray()).ToBase64();
         metadata.IsEncrypted = true;
         metadata.AllowDistribution = true;
+
+        var keepKey = new EncryptedKeyHeader { EncryptionVersion = 1, Type = EncryptionType.Share, Iv = newIv };
+        if (v2)
+        {
+            // The route names Frodo, the drive and the file; the body names no recipient
+            var viaV2 = await s.Sam.Drives.Writer.UpdatePeerFileByGlobalTransitId(s.Frodo.Identity, s.Drive.Alias,
+                file.FileMetadata.GlobalTransitId!.Value, new FileUpdateInstructionSetV2
+                {
+                    TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                    Manifest = new UploadManifest { PayloadDescriptors = [] }
+                }, metadata, [], keepKey);
+            Assert.That(viaV2.StatusCode, Is.EqualTo(HttpStatusCode.OK), viaV2.Error?.Content);
+            await s.Sam.Sync.DrainOutboxAsync();
+            return newIv;
+        }
 
         var update = await s.Sam.V1.Drive.UpdateFile(new FileUpdateInstructionSet
         {
@@ -495,7 +512,7 @@ public class SelectiveShareTests : V2Fixture
                 .ToFileIdentifier(),
             Recipients = [s.Frodo.Identity],
             Manifest = new UploadManifest { PayloadDescriptors = [] }
-        }, metadata, [], lockedKeyHeader: new EncryptedKeyHeader { EncryptionVersion = 1, Type = EncryptionType.Share, Iv = newIv });
+        }, metadata, [], lockedKeyHeader: keepKey);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
         await s.Sam.Sync.DrainOutboxAsync();
         return newIv;

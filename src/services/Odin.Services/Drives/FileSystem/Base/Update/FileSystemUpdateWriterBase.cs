@@ -103,7 +103,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         {
             //Note: there is no local file.  everything is enqueued to the transient temp drive
             OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, false, odinContext.Tenant);
-            instructionSet.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
+            instructionSet.File.AssertIsValidPeerTarget();
 
             InternalDriveFileId file = new InternalDriveFileId()
             {
@@ -412,7 +412,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         if (recipients?.Any() ?? false)
         {
             OdinValidationUtils.AssertValidRecipientList(recipients);
-            targetFile.AssertIsValid(FileIdentifierType.GlobalTransitId);
+            targetFile.AssertIsValidPeerTarget();
 
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(
                 package.InternalFile,
