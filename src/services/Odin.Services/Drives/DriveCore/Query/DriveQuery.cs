@@ -230,10 +230,10 @@ public class DriveQuery(
         // Owner until the first share lifts it to Connected (decision A), so an owner client that sends Owner with an
         // edit doesn't close a shared file to its members; withdrawing the shares un-shares it (decided 2026-11-02).
         // Read with the row locked, in the write's transaction, so a share written meanwhile waits rather than being
-        // written back.  Every header write comes here, so none skips it
+        // written back.  Every header write through the file system comes here; the defragmenter's raw repair doesn't
         await using var tx = await db.BeginStackedTransactionAsync();
         var file = header.FileMetadata.File;
-        if (await db.MainIndexMetaCached.GetLockedRequiredSecurityGroupAsync(drive.Id, file.FileId) is { } group)
+        if (await metaIndex.GetLockedRequiredSecurityGroupAsync(drive.Id, file.FileId) is { } group)
         {
             header.ServerMetadata.AccessControlList.RequiredSecurityGroup = (SecurityGroupType)group;
         }
@@ -285,11 +285,20 @@ public class DriveQuery(
             DriveMainIndexRecord ru = null;
             DriveMainIndexRecord rt = null;
 
-            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
-            if (fileMetadata.AppData.UniqueId.HasValue)
-                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId.Value);
-            if (fileMetadata.GlobalTransitId.HasValue)
-                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId.Value);
+            // Only for the log: inside a caller's transaction Postgres refuses every statement after the failed one, and
+            // the answer is the same without them
+            try
+            {
+                rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
+                if (fileMetadata.AppData.UniqueId.HasValue)
+                    ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId.Value);
+                if (fileMetadata.GlobalTransitId.HasValue)
+                    rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId.Value);
+            }
+            catch (OdinDatabaseException lookup)
+            {
+                logger.LogDebug(lookup, "IsUniqueConstraintViolation: the conflicting row could not be read");
+            }
 
             string s = "";
             DriveMainIndexRecord r = null;
@@ -323,7 +332,7 @@ public class DriveQuery(
                 GuidOneOrTwo(drive.Id, r?.driveId),
                 IntOneOrTwo((int)fileMetadata.FileState, r?.fileState ?? -1),
                 IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
-                GuidOneOrTwo(fileMetadata.File.FileId, r.fileId),
+                GuidOneOrTwo(fileMetadata.File.FileId, r?.fileId),
                 drive.Name);
 
             throw new OdinClientException($"UniqueId [{fileMetadata.AppData.UniqueId}] not unique.",

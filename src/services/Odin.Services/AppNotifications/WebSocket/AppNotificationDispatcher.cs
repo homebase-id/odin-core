@@ -232,26 +232,13 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            StorageDrive? drive;
-            try
+            var driveEvent = await DriveEventMessage.TryCreateAsync(notification.File.DriveId, notification.NotificationType,
+                notification.ServerFileHeader, notification.PreviousServerFileHeader, sockets, scope.Resolve<IDriveManager>(), _logger);
+            if (driveEvent == null)
             {
-                var driveManager = scope.Resolve<IDriveManager>();
-                drive = await driveManager.GetDriveAsync(notification.File.DriveId);
-            }
-            catch (Exception e)
-            {
-                // Every socket on the drive misses the event, so every one reconnects and catches up (#1966)
-                _logger.LogError(e, "Drive event for drive {driveId}: {error}", notification.File.DriveId, e.Message);
-                foreach (var deviceSocket in sockets)
-                {
-                    deviceSocket.Abort(_logger, "drive event could not be prepared", e);
-                }
-
                 return;
             }
 
-            var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
-                notification.ServerFileHeader, notification.PreviousServerFileHeader);
             var aclService = scope.Resolve<IDriveAclAuthorizationService>();
             foreach (var deviceSocket in sockets)
             {

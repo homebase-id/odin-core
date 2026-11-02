@@ -546,25 +546,12 @@ public class TableDriveMainIndex(
     /// </summary>
     internal async Task<DriveMainIndexRecord> GetLockedAsync(Guid driveId, Guid fileId)
     {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var lockCommand = cn.CreateCommand();
-        var forUpdate = _scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite ? "" : "FOR UPDATE";
-        lockCommand.CommandText =
-            $"SELECT 1 FROM driveMainIndex WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
-        lockCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-        lockCommand.AddParameter("@driveId", DbType.Binary, driveId);
-        lockCommand.AddParameter("@fileId", DbType.Binary, fileId);
-        if (await lockCommand.ExecuteScalarAsync() == null)
-        {
-            return null;
-        }
-
-        return await GetAsync(driveId, fileId);
+        return await GetLockedRequiredSecurityGroupAsync(driveId, fileId) == null ? null : await GetAsync(driveId, fileId);
     }
 
     /// <summary>
-    /// The file's required security group, its row locked as <see cref="GetLockedAsync"/> locks it, in one statement;
-    /// null when there is no file.
+    /// The file's required security group, its row locked until the caller's transaction ends, in one statement; null
+    /// when there is no file.
     /// </summary>
     internal async Task<int?> GetLockedRequiredSecurityGroupAsync(Guid driveId, Guid fileId)
     {

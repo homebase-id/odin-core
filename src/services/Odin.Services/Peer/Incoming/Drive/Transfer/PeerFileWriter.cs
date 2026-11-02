@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -261,6 +262,34 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinClientException("Must have a global transit id to write peer.", OdinClientErrorCode.InvalidFile);
             }
 
+            // On a Selective Share drive a member changes a file through an update, which checks their Write share (section
+            // 7), never by sending it again, which would overwrite it with no Write share asked and write the shares sent
+            // with it to the incoming file id.  The same delivery again is the outbox retrying one that already landed:
+            // taken as done, nothing written.  The file is found by the server, not as the member: a file they sent
+            // without shares is Owner, and theirs to see only once shared.  A comment is its author's to send again
+            // (DriveStorageServiceBase checks the author and the share)
+            var drive = await driveManager.GetDriveAsync(targetDriveId);
+            if (fs.Storage.GetFileSystemType() == FileSystemType.Standard && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
+            {
+                var stored = await fs.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(targetDriveId,
+                    newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
+                if (stored == null && (!newMetadata.AppData.UniqueId.HasValue ||
+                                       await fs.Query.GetFileByClientUniqueIdForWriting(targetDriveId, newMetadata.AppData.UniqueId.Value,
+                                           odinContext) == null))
+                {
+                    return await WriteNewFile(fs, file, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, sourceArea,
+                        markComplete);
+                }
+
+                if (stored != null && IsSameDelivery(stored.FileMetadata, newMetadata))
+                {
+                    return (true, []);
+                }
+
+                throw new OdinClientException("A member changes a shared file with an update, not by sending it again",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
             // First we check if we can match the gtid to an existing file on disk.
             // If we can, then the gtid is the winner and decides the matching file
             //
@@ -281,24 +310,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             header.AssertFileIsActive();
-            var drive = await driveManager.GetDriveAsync(targetDriveId);
-
-            // On a Selective Share drive a member changes a file through an update, which checks their Write share (section
-            // 7), never by sending it again, which would overwrite it with no Write share asked and write the shares sent
-            // with it to the incoming file id.  The same file sent again by its sender is the outbox retrying a delivery
-            // that already landed: taken as done, nothing written.  A comment is its author's to send again
-            // (DriveStorageServiceBase checks the author and the share)
-            if (fs.Storage.GetFileSystemType() == FileSystemType.Standard && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
-            {
-                if (header.FileMetadata.GlobalTransitId == newMetadata.GlobalTransitId && newMetadata.SenderOdinId != null &&
-                    header.IsOriginalSender((OdinId)newMetadata.SenderOdinId))
-                {
-                    return (true, []);
-                }
-
-                throw new OdinClientException("A member changes a shared file with an update, not by sending it again",
-                    OdinClientErrorCode.ArgumentError);
-            }
 
             if (!drive.IsCollaborationDrive())
             {
@@ -399,6 +410,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             // return await UpdateExistingFile(fs, tempFile, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true,
             //     odinContext, markComplete);
+        }
+
+        /// <summary>
+        /// Whether <paramref name="sent"/> is the delivery <paramref name="stored"/> was written from, sent again: the same
+        /// sender, content and payloads (a payload's uid changes with each upload of it).  Anything else is a change.
+        /// </summary>
+        internal static bool IsSameDelivery(FileMetadata stored, FileMetadata sent)
+        {
+            static string PayloadsOf(FileMetadata m) =>
+                string.Join(",", (m.Payloads ?? []).Select(p => $"{p.Key}:{p.Uid.uniqueTime}"));
+
+            return stored.GlobalTransitId == sent.GlobalTransitId &&
+                   stored.SenderOdinId != null && sent.SenderOdinId != null &&
+                   new OdinId(stored.SenderOdinId) == new OdinId(sent.SenderOdinId) &&
+                   OdinSystemSerializer.Serialize(stored.AppData) == OdinSystemSerializer.Serialize(sent.AppData) &&
+                   PayloadsOf(stored) == PayloadsOf(sent);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId,

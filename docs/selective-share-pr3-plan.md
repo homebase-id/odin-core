@@ -1,6 +1,6 @@
 # Selective Share PR 3: shares as index rows, and members
 
-**Status:** plan, not built. Part of [selective-share-plan.md](selective-share-plan.md) ("Later PRs", items 3 and 4,
+**Status:** built on `selective-share-shares` (#2059); each section's **Built** notes say how. Part of [selective-share-plan.md](selective-share-plan.md) ("Later PRs", items 3 and 4,
 merged into one PR on 2026-11-01: they aren't released apart), which has the model. How a file's access works today, and the terms used here (owner callers, outside callers, required
 group, index row, share row, live row, withdrawn share, the read rule), are in [file-access.md](file-access.md); read
 it first. Code facts were read on `selective-share-circle-keys` (PR 2, which carries PR 1) on 2026-11-01. Markers:
@@ -254,6 +254,10 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
 - **The V2 update route takes a member's edit** (decided 2026-11-02): today it rewrites its target to a local file id
   or unique id (`V1DriveUploadControllerBase`) **(V)**, so only the V1 route could send a peer update; the V2 route
   also takes a global transit id with `Locale=Peer`.
+- **A member's file sent again** (built 2026-11-02): only the same delivery is taken, as the outbox retrying one that
+  landed, and nothing is written; any other re-send is refused, since a change goes through an update
+  (`PeerFileWriter.IsSameDelivery`: the same sender, content and payload uids). The file is found by the server, not as
+  the member, since a file they sent without shares is `Owner` and hidden from them.
 
 ## 8. Members sync with the query batch
 

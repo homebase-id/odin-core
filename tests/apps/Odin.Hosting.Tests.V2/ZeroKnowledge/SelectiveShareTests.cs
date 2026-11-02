@@ -342,6 +342,13 @@ public partial class SelectiveShareTests : V2Fixture
             Assert.That(byId.Content?.Shares?.Single().CircleId, Is.EqualTo(s.CircleId), $"{who}, by id: {byId.Error?.Content}");
             Assert.That((await caller.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, shared)).Content?.Shares, Is.Null, $"{who}, by id, not asked");
         }
+
+        // Only the callers who write the drive's shares get them (SelectiveShareDrives.CallerManagesShares)
+        var otherApp = await AppSession.SetupAsync(s.Frodo, s.Drive, DrivePermission.All);
+        Assert.That((await SharesInQueryAsync(otherApp, s, includeShares: true)).Values, Has.All.Null, "another app of the owner's");
+        var otherAppById = await otherApp.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, shared, includeShares: true);
+        Assert.That((otherAppById.StatusCode, otherAppById.Content?.Shares), Is.EqualTo((HttpStatusCode.OK, (List<ShareRow>?)null)),
+            "another app of the owner's, by id");
     }
 
     // Each file of the drive and the shares its header came with
@@ -536,13 +543,21 @@ public partial class SelectiveShareTests : V2Fixture
             $"nothing of a file never shared with him, not even its tombstone: {byGtid.StatusCode} {byGtid.Content?.FileState}");
     }
 
-    [TestCase(DrivePermission.Read | DrivePermission.React, true, TestName = "AMemberReactsWithAShareWithReact")]
-    [TestCase(DrivePermission.Read | DrivePermission.Write, false, TestName = "AMemberCantReactWithoutReactWhateverElseTheShareHolds")]
-    public async Task AMemberReactsOnlyWithAShareWithReact(DrivePermission permissions, bool reacts)
+    [TestCase(DrivePermission.Read | DrivePermission.React, true, false, TestName = "AMemberReactsWithAShareWithReact")]
+    [TestCase(DrivePermission.Read | DrivePermission.Write, false, false, TestName = "AMemberCantReactWithoutReactWhateverElseTheShareHolds")]
+    [TestCase(DrivePermission.Read | DrivePermission.React, false, true, TestName = "AShareCountsOnlyWhileItsCircleGrantsTheDriveRead")]
+    public async Task AMemberReactsOnlyWithAShareWithReact(DrivePermission permissions, bool reacts, bool circleLosesRead)
     {
         var s = await ArrangeAsync();
         var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
         var file = await s.GtidOfAsync(fileId);
+        if (circleLosesRead)
+        {
+            var definition = await s.Frodo.Admin.GetCircleDefinition(s.CircleId);
+            definition.DriveGrants.Single().PermissionedDrive.Permission = DrivePermission.Write;
+            var update = await s.Frodo.Admin.TryUpdateCircleDefinition(definition);
+            Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        }
 
         var add = await s.Sam.RefitFor<IRefitOwnerTransitReaction>().AddReaction(new PeerAddReactionRequest
         {

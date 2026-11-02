@@ -168,11 +168,13 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            var driveManager =  scope.Resolve<IDriveManager>();
-            var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
+            var driveEvent = await DriveEventMessage.TryCreateAsync(notification.File.DriveId, notification.NotificationType,
+                notification.ServerFileHeader, notification.PreviousServerFileHeader, sockets, scope.Resolve<IDriveManager>(), _logger);
+            if (driveEvent == null)
+            {
+                return;
+            }
 
-            var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
-                notification.ServerFileHeader, notification.PreviousServerFileHeader);
             var aclService = scope.Resolve<IDriveAclAuthorizationService>();
             foreach (var deviceSocket in sockets)
             {

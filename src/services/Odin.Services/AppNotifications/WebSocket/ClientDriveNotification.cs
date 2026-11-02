@@ -15,6 +15,7 @@ using Odin.Services.Peer.Encryption;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.Management;
 
 namespace Odin.Services.AppNotifications.WebSocket;
 
@@ -118,11 +119,30 @@ public sealed class DriveEventMessage(
     }
 
     /// <summary>
-    /// The message for <paramref name="socket"/>, or null when it doesn't get this event.  On a Selective Share drive a
-    /// member's socket is judged by their share, not the event's headers alone (docs/selective-share-pr3-plan.md,
-    /// section 9): the file with their share's key while they may read it, and once a share naming them ends, the
-    /// tombstone their sync gets (section 8).  Every other socket: <see cref="VisibleToAsync"/>, then <see cref="JsonFor"/>.
+    /// The event for a dispatcher's <paramref name="sockets"/> on the drive, or null when its drive can't be read: then
+    /// every one of them misses it and is aborted, so each reconnects and catches up (#1966).
     /// </summary>
+    public static async Task<DriveEventMessage?> TryCreateAsync(Guid driveId, ClientNotificationType notificationType,
+        ServerFileHeader? header, ServerFileHeader? previousHeader, IEnumerable<DeviceSocket> sockets, IDriveManager driveManager,
+        ILogger logger)
+    {
+        try
+        {
+            var drive = await driveManager.GetDriveAsync(driveId);
+            return new DriveEventMessage(notificationType, drive?.TargetDriveInfo, header, previousHeader);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Drive event for drive {driveId}: {error}", driveId, e.Message);
+            foreach (var deviceSocket in sockets)
+            {
+                deviceSocket.Abort(logger, "drive event could not be prepared", e);
+            }
+
+            return null;
+        }
+    }
+
     /// <summary>
     /// <see cref="MessageForAsync"/> for a dispatcher's loop: when the message can't be built, that socket alone misses the
     /// event and is aborted, so its client reconnects and catches up, and the others still get it (#1966).
@@ -141,6 +161,12 @@ public sealed class DriveEventMessage(
         }
     }
 
+    /// <summary>
+    /// The message for <paramref name="socket"/>, or null when it doesn't get this event.  On a Selective Share drive a
+    /// member's socket is judged by their share, not the event's headers alone (docs/selective-share-pr3-plan.md,
+    /// section 9): the file with their share's key while they may read it, and once a share naming them ends, the
+    /// tombstone their sync gets (section 8).  Every other socket: <see cref="VisibleToAsync"/>, then <see cref="JsonFor"/>.
+    /// </summary>
     public async Task<string?> MessageForAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
     {
         var deviceOdinContext = socket.DeviceOdinContext;
