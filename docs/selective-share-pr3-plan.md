@@ -436,6 +436,12 @@ they turn out wrong:
   one check where every header is written, as comments have (`DriveStorageServiceBase.AssertMayWriteSharedCommentAsync`):
   sounder, as no gap is left between the check and the write, but it would also refuse any other outside caller's
   standard-file writes on these drives, and whether any such caller exists wasn't checked.
+- **A peer payload with no key header passes through** (section 6). The caller's server can't tell a client-locked
+  file's payload, which has none on purpose, from an encrypted one whose key header the owner's server left out, so it
+  passes either on without one (`PeerDriveQueryService.PayloadKeyHeaderFrom`), where it used to fail. The second only
+  happens if the owner's server breaks its own rule, a new bug; the client then fails to decrypt instead of the server
+  failing clearly, and nothing is exposed. A marker header for client-locked payloads would tell them apart: a small
+  peer protocol addition, not made (user, 2026-11-02).
 
 ## Not in PR 3
 - Removing withdrawn shares, and the rows of deleted circles and reset keys (decision D).
