@@ -33,7 +33,6 @@ public partial class SelectiveShareTests
 
         var revoke = await s.Frodo.Connections.RevokeCircle(group, pippin.Identity);
         Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK), revoke.Error?.Content);
-        await ResetFrodosContextsAsync(s);
         await AssertSeesAsync(pippin, s, fileId, false, "Pippin, out of the group", hasDriveAccess: false);
         await AssertSamSeesAsync(s, fileId, true, "Sam, still in it");
     }
@@ -62,8 +61,8 @@ public partial class SelectiveShareTests
         // Pippin's own send again changes it, and the group still reads it
         await ZkTestFiles.SendDepositAsync(pippin, pippin, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Pippin's file, again", remoteDrive: s.Drive);
         var after = await s.HeaderAsync(sent.FileId);
-        Assert.That((after.FileMetadata.VersionTag == sent.FileMetadata.VersionTag, after.FileMetadata.AppData.Content == sent.FileMetadata.AppData.Content),
-            Is.EqualTo((false, false)), "Pippin's send changed it");
+        Assert.That(after.FileMetadata.VersionTag, Is.Not.EqualTo(sent.FileMetadata.VersionTag), "Pippin's send changed it");
+        Assert.That(after.FileMetadata.AppData.Content, Is.Not.EqualTo(sent.FileMetadata.AppData.Content), "with his new content");
         Assert.That(after.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected), "still shared");
         await AssertSamSeesAsync(s, sent.FileId, true, "Sam, after Pippin's change");
     }
@@ -89,8 +88,10 @@ public partial class SelectiveShareTests
         await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again", null, s.Drive);
 
         var after = await s.HeaderAsync(before.FileId);
-        Assert.That((after.FileMetadata.VersionTag != before.FileMetadata.VersionTag, after.ServerMetadata.AccessControlList.RequiredSecurityGroup),
-            Is.EqualTo((changes, SecurityGroupType.Connected)), "changed only through a Write share, still shared");
+        Assert.That(after.FileMetadata.VersionTag,
+            changes ? Is.Not.EqualTo(before.FileMetadata.VersionTag) : Is.EqualTo(before.FileMetadata.VersionTag),
+            "changed only through a Write share");
+        Assert.That(after.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected), "still shared");
         Assert.That((await s.SharesAsync(before.FileId)).Single().Permissions, Is.EqualTo(theirShare), "its share as it was");
         await AssertSamSeesAsync(s, after.FileId, true, "after sending it again");
     }

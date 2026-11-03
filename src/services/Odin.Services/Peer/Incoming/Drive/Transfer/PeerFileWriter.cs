@@ -325,23 +325,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (!drive.IsCollaborationDrive())
             {
-                if (string.IsNullOrEmpty(stored.Sender))
-                {
-                    throw new OdinSecurityException($"Original file does not have a sender (FileId: {targetFile.FileId} on Drive: {targetDriveId}");
-                }
-
-                if (new OdinId(stored.Sender) != new OdinId(newMetadata.SenderOdinId))
-                {
-                    throw new OdinSecurityException("Sender does not match original sender");
-                }
+                SharedSecretEncryptedFileHeader.AssertOriginalSender(stored.Sender, (OdinId)newMetadata.SenderOdinId,
+                    $"FileId: {targetFile.FileId} on Drive: {targetDriveId}");
             }
 
-            if (shared != null)
-            {
-                // Before anything is copied over it; the header write asks again, and keeps the file's group
-                await fs.Storage.AssertMayWriteSharedFileAsync(shared, odinContext);
-            }
-
+            // On a Selective Share drive the overwrite asks for the sender's Write share before it copies anything, and the
+            // header write keeps the file's group
             newMetadata.VersionTag = stored.VersionTag;
 
             //note: we also update the key header because it might have been changed by the sender

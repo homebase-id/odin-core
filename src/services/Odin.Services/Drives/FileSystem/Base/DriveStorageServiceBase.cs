@@ -1084,6 +1084,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
             AssertActiveForUpdate(existingServerHeader);
 
+            // A member overwrites a shared file through a live share with Write on it: asked before any payload is
+            // copied, since a copy may land on a live object (a sender's own uid).  The header write asks again
+            if (GetFileSystemType() == FileSystemType.Standard && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
+            {
+                await AssertMayWriteSharedFileAsync(existingServerHeader, odinContext);
+            }
+
             // Once a file exists on a zero-knowledge drive, a sender can't change it: a new sealed version (a new key
             // header, new content) of an existing sealed or zkDrive file is refused, whoever applies the write (a
             // direct peer write can't see the file; an inbox drained by the owner console can).  Only a device holding
