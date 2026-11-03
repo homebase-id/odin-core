@@ -562,7 +562,7 @@ public partial class SelectiveShareTests : V2Fixture
 
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file",
-            SamplePayloadDefinitions.GetPayloadDefinition1(), s.Drive, null,
+            SamplePayloadDefinitions.GetPayloadDefinition1(), s.Drive, shares:
             [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey(), circleId: circle)]);
 
         var received = await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias);
@@ -668,8 +668,11 @@ public partial class SelectiveShareTests : V2Fixture
         definition.DriveGrants.Single().PermissionedDrive.Permission = permission;
         var update = await s.Frodo.Admin.TryUpdateCircleDefinition(definition);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
-        await Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<OdinContextCache>().ResetAsync();
+        await ResetFrodosContextsAsync(s);
     }
+
+    private Task ResetFrodosContextsAsync(Arranged s) =>
+        Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<OdinContextCache>().ResetAsync();
 
     private static Task<ApiResponse<HttpContent>> SamAddsReactionAsync(Arranged s, GlobalTransitIdFileIdentifier file, string reaction) =>
         s.Sam.RefitFor<IRefitOwnerTransitReaction>().AddReaction(new PeerAddReactionRequest

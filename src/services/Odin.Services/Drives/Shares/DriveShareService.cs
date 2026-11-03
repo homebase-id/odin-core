@@ -202,11 +202,9 @@ public class DriveShareService(
         AssertCallerMayWrite(drive, odinContext);
         foreach (var circleShares in shares.GroupBy(s => s.CircleId))
         {
+            // Every share's bits fit when all of them together do
             var circle = await GetCircleCallerMayShareWithAsync(drive, circleShares.Key, odinContext);
-            foreach (var share in circleShares)
-            {
-                await AssertCircleFitsAsync(drive, circle, share.Permissions);
-            }
+            await AssertCircleFitsAsync(drive, circle, circleShares.Aggregate((DrivePermission)0, (bits, s) => bits | s.Permissions));
         }
 
         return drive;

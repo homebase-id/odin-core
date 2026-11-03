@@ -3,21 +3,15 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Hosting.UnifiedV2.Circles;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.Shares;
-using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
-using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -86,10 +80,9 @@ public partial class SelectiveShareTests
         await AssertSamSeesAsync(s, fileId, true, "shared with him alone");
 
         // Out of the circle that grants him the drive, his own share gives him nothing, and stays as it was
-        var revoke = await s.App.RefitFor<IConnectionNetworkHttpClientApiV2>()
-            .RevokeCircle(new RevokeCircleMembershipRequest { CircleId = s.CircleId, OdinId = Identities.Sam });
+        var revoke = await s.Frodo.Connections.RevokeCircle(s.CircleId, s.Sam.Identity);
         Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK), revoke.Error?.Content);
-        await Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<OdinContextCache>().ResetAsync();
+        await ResetFrodosContextsAsync(s);
         await AssertSeesAsync(s.Sam, s, fileId, false, "out of the app's circle", hasDriveAccess: false);
         Assert.That((await s.SharesAsync(fileId)).Single().CircleId, Is.EqualTo(sams), "the share is still there");
         Assert.That(await MembersAsync(s, sams), Is.EqualTo(new[] { Identities.Sam }), "and so is he, in his own circle");
@@ -103,8 +96,8 @@ public partial class SelectiveShareTests
         var sams = await IndividualCircleAsync(s, Identities.Sam);
 
         var uniqueId = Guid.NewGuid();
-        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", null, s.Drive, null,
-            withTheirRow ? [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write, lockedFileKey: LockedFileKey(), circleId: sams)] : null);
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", remoteDrive: s.Drive,
+            shares: withTheirRow ? [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write, lockedFileKey: LockedFileKey(), circleId: sams)] : null);
         var received = await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias);
         Assert.That(received.StatusCode, Is.EqualTo(HttpStatusCode.OK), received.Error?.Content);
         var fileId = received.Content!.FileId;

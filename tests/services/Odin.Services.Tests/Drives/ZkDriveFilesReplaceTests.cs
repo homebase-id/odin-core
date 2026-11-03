@@ -48,7 +48,7 @@ public class ZkDriveFilesReplaceTests
 
     [Test]
     public void ASealedReplacementCarriesPayloadsOnASelectiveShareDrive() =>
-        // A member's file in a shared folder has its content (docs/selective-share-pr3-plan.md, section 7)
+        // A member's new file on a Selective Share drive has its content (docs/file-access.md, "With Selective Share")
         Assert.DoesNotThrow(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: true, Drive(DriveSharingModel.SelectiveShare)));
 
     private static StorageDrive Drive(DriveSharingModel model) => new(null, new StorageDriveData { SharingModel = model });

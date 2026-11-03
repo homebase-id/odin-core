@@ -75,8 +75,8 @@ public partial class SelectiveShareTests
         // Sending it again would reset its ACL and close it to every member; a member changes a file with an update
         var s = await ArrangeAsync();
         var uniqueId = Guid.NewGuid();
-        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", null, s.Drive,
-            null, [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", remoteDrive: s.Drive,
+            shares: [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
         var before = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
 
         await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again", null, s.Drive);

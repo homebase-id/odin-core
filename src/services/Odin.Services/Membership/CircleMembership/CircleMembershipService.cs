@@ -281,11 +281,9 @@ public class CircleMembershipService(
     /// </summary>
     private async Task AssertCircleTakesMemberAsync(Guid circleId, Guid memberId)
     {
-        var circle = await db.CircleCached.GetAsync(circleId);
-        if (circle?.Designation == (int)CircleDesignation.Individual &&
-            (await db.CircleMemberCached.GetCircleMembersAsync(circleId)).Any(m => m.memberId != memberId))
+        if ((await db.CircleCached.GetAsync(circleId))?.Designation == (int)CircleDesignation.Individual)
         {
-            throw CircleDefinitionService.IndividualHasOneMember(circleId);
+            await circleDefinitionService.AssertIndividualHasOneMemberAsync(circleId, memberId);
         }
     }
 

@@ -108,7 +108,7 @@ namespace Odin.Services.Membership.Circles
             circle.Designation = designation;
 
             // The deposit-only rule has to hold whenever GrantOn changes, and this is one such change.
-            await AssertDepositOnlyIfAmbientAsync(circle);
+            await AssertGrantRulesAsync(circle);
 
             await db.CircleCached.UpsertAsync(ToRecord(circle));
             return true;
@@ -161,7 +161,7 @@ namespace Odin.Services.Membership.Circles
 
             // GrantOn is untouched, so a circle cannot become ambient by being adopted -- but the
             // invariant is cheap to re-assert and this is a write.
-            await AssertDepositOnlyIfAmbientAsync(circle);
+            await AssertGrantRulesAsync(circle);
 
             await db.CircleCached.UpsertAsync(ToRecord(circle));
         }
@@ -196,7 +196,7 @@ namespace Odin.Services.Membership.Circles
             circle.AppId = appId;
             circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
 
-            await AssertDepositOnlyIfAmbientAsync(circle);
+            await AssertGrantRulesAsync(circle);
 
             await db.CircleCached.UpsertAsync(ToRecord(circle));
         }
@@ -208,7 +208,7 @@ namespace Odin.Services.Membership.Circles
         /// Fills, never corrects: a circle that already names an app is left alone, so the v18 -&gt; v19
         /// pass can be repeated without moving anything.
         /// <para>
-        /// No <see cref="AssertDepositOnlyIfAmbientAsync"/> call, for the same reason
+        /// No <see cref="AssertGrantRulesAsync"/> call, for the same reason
         /// <see cref="ApplyTreeEmojiIfUnsetAsync"/> makes none: that invariant is about <c>GrantOn</c> and
         /// the drives a circle grants, and this changes neither.
         /// </para>
@@ -257,7 +257,7 @@ namespace Odin.Services.Membership.Circles
 
             circle.Emoji = emoji;
 
-            // No AssertDepositOnlyIfAmbientAsync here: that invariant is about GrantOn and the drive
+            // No AssertGrantRulesAsync here: that invariant is about GrantOn and the drive
             // grants, and this touches neither.
             await db.CircleCached.UpsertAsync(ToRecord(circle));
             return true;
@@ -289,7 +289,7 @@ namespace Odin.Services.Membership.Circles
         {
             if (!skipValidation)
             {
-                await AssertValidAsync(newCircleDefinition.Designation, newCircleDefinition.GrantOn, newCircleDefinition.Permissions,
+                await AssertValidAsync(newCircleDefinition.Designation, newCircleDefinition.Permissions,
                     newCircleDefinition.DriveGrants?.ToList());
             }
 
@@ -298,12 +298,6 @@ namespace Odin.Services.Membership.Circles
             if (null == existingCircle)
             {
                 throw new OdinClientException($"Invalid circle {newCircleDefinition.Id}", OdinClientErrorCode.UnknownId);
-            }
-
-            if (newCircleDefinition.Designation == CircleDesignation.Individual &&
-                (await db.CircleMemberCached.GetCircleMembersAsync(newCircleDefinition.Id)).Count > 1)
-            {
-                throw IndividualHasOneMember(newCircleDefinition.Id);
             }
 
             existingCircle.LastUpdated = UnixTimeUtc.Now().milliseconds;
@@ -325,7 +319,7 @@ namespace Odin.Services.Membership.Circles
 
             // Re-checked on every write, not just the first: the invariant has to hold whenever GrantOn
             // changes, and an update is the way a circle becomes ambient.
-            await AssertDepositOnlyIfAmbientAsync(existingCircle);
+            await AssertGrantRulesAsync(existingCircle);
 
             await db.CircleCached.UpsertAsync(ToRecord(existingCircle));
         }
@@ -556,7 +550,7 @@ namespace Odin.Services.Membership.Circles
                         $"Circle '{circle.Slug}' grants permission keys the app is not registered with: {string.Join(", ", notHeld)}");
                 }
 
-                await AssertValidAsync(circle.Designation, CircleGrantOn.None, circle.Permissions, circle.DriveGrants?.ToList());
+                await AssertValidAsync(circle.Designation, circle.Permissions, circle.DriveGrants?.ToList());
                 await AssertRegistrationMayGrantDrivesAsync(circle.DriveGrants, appId, registeredDrives);
             }
         }
@@ -625,23 +619,15 @@ namespace Odin.Services.Membership.Circles
 
         //
 
-        private async Task AssertValidAsync(CircleDesignation designation, CircleGrantOn grantOn, PermissionSet permissionSet,
+        private async Task AssertValidAsync(CircleDesignation designation, PermissionSet permissionSet,
             List<DriveGrantRequest> driveGrantRequests)
         {
             bool hasDrives = driveGrantRequests?.Any() ?? false;
             bool hasPermissions = permissionSet?.Keys?.Any() ?? false;
 
-            // An individual circle grants nothing: its member's other circles grant the drive, and its share rows narrow
-            // that, so taking them out of those circles stops its shares at once (docs/file-access.md, "Sharing with one
-            // person").  Nor does it enrol anyone by itself
+            // An individual circle grants nothing, which every write asks (AssertGrantRulesAsync)
             if (designation == CircleDesignation.Individual)
             {
-                if (hasDrives || hasPermissions || grantOn != CircleGrantOn.None)
-                {
-                    throw new OdinClientException("An individual circle grants nothing and enrols no one: its member's other circles grant",
-                        OdinClientErrorCode.ArgumentError);
-                }
-
                 return;
             }
 
@@ -662,9 +648,41 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
-        /// <summary>An individual circle has one member: a second would get everything shared with the first.</summary>
-        internal static OdinClientException IndividualHasOneMember(Guid circleId) =>
-            new($"Circle {circleId} is an individual circle, which has one member", OdinClientErrorCode.ArgumentError);
+        /// <summary>
+        /// An individual circle has one member, <paramref name="joining"/> included when given: a second would get
+        /// everything shared with the first (docs/file-access.md, "Sharing with one person").
+        /// </summary>
+        internal async Task AssertIndividualHasOneMemberAsync(Guid circleId, Guid? joining = null)
+        {
+            var members = (await db.CircleMemberCached.GetCircleMembersAsync(circleId)).Select(m => m.memberId);
+            if (members.Append(joining ?? Guid.Empty).Where(m => m != Guid.Empty).Distinct().Count() > 1)
+            {
+                throw new OdinClientException($"Circle {circleId} is an individual circle, which has one member",
+                    OdinClientErrorCode.ArgumentError);
+            }
+        }
+
+        /// <summary>
+        /// The rules on what a circle grants, asked on every write of a definition, validated or not: an individual circle
+        /// grants nothing and enrols no one, and has one member (its member's other circles grant the drive and its share
+        /// rows narrow that, so taking them out of those circles stops its shares at once: docs/file-access.md, "Sharing
+        /// with one person"); an ambient circle hands out deposit capability only.
+        /// </summary>
+        private async Task AssertGrantRulesAsync(CircleDefinition circle)
+        {
+            if (circle.Designation == CircleDesignation.Individual)
+            {
+                if ((circle.DriveGrants?.Any() ?? false) || (circle.Permissions?.Keys?.Any() ?? false) || circle.GrantOn != CircleGrantOn.None)
+                {
+                    throw new OdinClientException("An individual circle grants nothing and enrols no one: its member's other circles grant",
+                        OdinClientErrorCode.ArgumentError);
+                }
+
+                await AssertIndividualHasOneMemberAsync(circle.Id);
+            }
+
+            await AssertDepositOnlyIfAmbientAsync(circle);
+        }
 
         /// <summary>
         /// A circle that enrols without the owner present may hand out deposit capability and nothing
@@ -766,7 +784,7 @@ namespace Odin.Services.Membership.Circles
 
             if (!skipValidation)
             {
-                await AssertValidAsync(request.Designation, request.GrantOn, request.Permissions, request.DriveGrants?.ToList());
+                await AssertValidAsync(request.Designation, request.Permissions, request.DriveGrants?.ToList());
                 await AssertOwningAppExistsAsync(appId);
             }
 
@@ -794,7 +812,7 @@ namespace Odin.Services.Membership.Circles
                 Emoji = request.Emoji
             };
 
-            await AssertDepositOnlyIfAmbientAsync(circle);
+            await AssertGrantRulesAsync(circle);
 
             try
             {

@@ -25,7 +25,6 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
@@ -200,8 +199,8 @@ public partial class SelectiveShareTests
         await using var sockets = await ShareSockets.OpenAsync(s);
 
         var uniqueId = Guid.NewGuid();
-        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", null, s.Drive,
-            null, [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", remoteDrive: s.Drive,
+            shares: [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
 
         var added = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!.FileId;
         await sockets.Owner.WaitForAsync("Frodo's device: Sam's new file", ClientNotificationType.FileAdded, h => h.FileId == added);

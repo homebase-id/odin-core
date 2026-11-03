@@ -2112,30 +2112,24 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 await AssertMayWriteSharedCommentAsync(drive, header, stored, odinContext);
             }
-            else
+            else if (stored != null)
             {
-                await AssertMayWriteSharedFileAsync(drive, stored, odinContext);
+                await AssertMayWriteSharedFileAsync(stored, odinContext);
             }
+
+            // A new file needs drive Write alone, as on any drive, which every write path has asked by now; it lands
+            // owner-only unless it carries the writer's shares
         }
 
         /// <summary>
         /// A member edits or deletes <paramref name="stored"/> through a live share with <c>Write</c> on it, which asks
-        /// drive <c>Write</c> too (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>); with no stored file,
-        /// they add a new one with drive <c>Write</c>, as on any drive, and it lands owner-only unless it carries their
-        /// shares (docs/file-access.md, "A share row narrows its circle's grant").  Asked where every header is written
+        /// drive <c>Write</c> too (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>; docs/file-access.md,
+        /// "A share row narrows its circle's grant").  Asked where every header is written
         /// (<see cref="AssertMemberMayWriteAsync"/>), and by the peer update path when a member's change arrives, before
         /// anything is staged.
         /// </summary>
-        public async Task AssertMayWriteSharedFileAsync(StorageDrive drive, ServerFileHeader stored, IOdinContext odinContext)
-        {
-            if (stored == null)
-            {
-                await AssertCanWriteToDrive(drive.Id, odinContext);
-                return;
-            }
-
-            await driveAclAuthorizationService.AssertCallerHoldsShareAsync(stored, DrivePermission.Write, odinContext);
-        }
+        public Task AssertMayWriteSharedFileAsync(ServerFileHeader stored, IOdinContext odinContext) =>
+            driveAclAuthorizationService.AssertCallerHoldsShareAsync(stored, DrivePermission.Write, odinContext);
 
         /// <summary>
         /// On a Selective Share drive an outside caller writes only their own comment, on a file shared with them with
