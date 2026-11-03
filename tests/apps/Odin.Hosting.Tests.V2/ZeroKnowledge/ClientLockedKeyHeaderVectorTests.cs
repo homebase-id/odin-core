@@ -20,10 +20,10 @@ public class ClientLockedKeyHeaderVectorTests
     private const string AesKey = "ICEiIyQlJicoKSorLC0uLw==";
     private const string ZkDriveEncryptedAesKey = "xqE7N4ePW4JvT4FiocjYeQeFPxlO+hclYcV072RPhmMJbAd9FxFTFUuXv4ql/85L";
 
-    private const string WriteOnlyPrivateKeyPkcs8 =
+    internal const string WriteOnlyPrivateKeyPkcs8 =
         "MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDCZAel29rv0BgBwa7LGp4+tmSi5g4LlRzkW9/ZLQNgeVdrB44imUOGeaKmn1eiPZsShZANiAATKPHfd0ojszgjchR06XVN2p/iaosbJedgQGD86jcH39CM7EjWiXa6wVTW3cWGdDXwWQYx4NHDg8lIWULARJhvn02W1/eoTtDkhdpQrY6KmVbxpY/ehNZlDlhlh3MntF40=";
 
-    private const string WriteOnlyPublicKeyJwk =
+    internal const string WriteOnlyPublicKeyJwk =
         "{\"kty\":\"EC\",\"crv\":\"P-384\",\"x\":\"yjx33dKI7M4I3IUdOl1Tdqf4mqLGyXnYEBg_Oo3B9_QjOxI1ol2usFU1t3FhnQ18\",\"y\":\"FkGMeDRw4PJSFlCwESYb59Nltf3qE7Q5IXaUK2OiplW8aWP3oTWZQ5YZYdzJ7ReN\"}";
 
     private const string SealedEncryptedAesKey =

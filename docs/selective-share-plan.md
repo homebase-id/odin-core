@@ -179,8 +179,18 @@ compatible with.
   threat model (next point).
 - **No content integrity:** out of the threat model ([security-model.md](security-model.md), section 8). The file's
   own key header (locked with the drive key) stays version 1 until #2024 is built.
-- One golden vector for all three, checked in odin-core, odin-js, chat-kmp and filesync, as
-  `ClientLockedKeyHeaderVectorTests` **(V)**.
+- **Exactly, for every client** (decided 2026-11-03): a circle key is 16 random bytes (AES-128). Every id in an AAD
+  is a Guid's .NET `ToByteArray()` (the first three fields little-endian), as the zero-knowledge drive key check
+  already uses, and a drive's id is its alias.
+  - `lockedFileKey` = `0x02 ‖ nonce (12) ‖ ciphertext (16) ‖ tag (16)`, AES-128-GCM under the circle key, AAD
+    `driveId ‖ fileId ‖ circleId`: 45 bytes.
+  - `appKeyLockedShareKey` = the same under `AppZkK`, AAD `circleId`: 45 bytes.
+  - `sealedShareKey` = the `sealed` key header's layout (`ZkSeal`) with format byte 2 and an AAD:
+    `0x02 ‖ key id (4, big-endian CRC-32 of the recipient's 0x04 ‖ x ‖ y) ‖ throwaway public key (97) ‖ nonce (12) ‖
+    ciphertext (16) ‖ tag (16)`, the AES key hkdf-sha256(ECDH, no salt, info "homebase-zk-seal", 16 bytes), AAD
+    `circleId ‖ UTF-8 of the member's lowercased odinId`: 146 bytes.
+- **The golden vector** for all three is `SelectiveShareKeyVectorTests` (odin-core, with the reference implementation
+  `ShareKeys`), which odin-js, chat-kmp and filesync check against, as `ClientLockedKeyHeaderVectorTests` **(V)**.
 
 ## Later PRs
 
