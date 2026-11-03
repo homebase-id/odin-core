@@ -248,6 +248,7 @@ the index rows aren't a copy of the ACL but the record.
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere |
 | Who may add a file | drive `Write` | the same: drive `Write`, nothing else asked. It lands owner-only unless it carries rows: for circles the writer is in, their individual circle included ("Sharing with one person") |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member with drive `Write` whose live row has `Write`. The author of a deposit edits it through the row for their individual circle it carries |
+| Sending a file again | the original sender's send again updates it (on a collaborative channel, anyone's) | the same, as its original sender, through a live row with `Write`. It keeps its rows and its required group: shares come only with a new file, and a send again carrying any is refused. The same delivery again, the outbox retrying one that already landed, is taken as done (`PeerFileWriter.StoreNormalFileLongTermAsync`) **(V, tested)** |
 | Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member with drive `React` or `Comment` whose live row has the same bit. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" |
@@ -331,8 +332,23 @@ Their client locks its file key with their individual circle's key (their copy i
 with the file, as a member already may for circles they are in (`DriveShareService.AssertMemberMayShareAsync`)
 **(V)**. That row gives them what a community drive gives a file's original sender, through the one rule above: their
 sync finds it, their other devices can open it, and they delete it with a `Write` share **(V, tested)**; their edit
-goes through the same check, sending a new `sealed` key header as a deposit's edit does (I, not tested). The owner can
-withdraw it like any share.
+goes through the same check, sending a new `sealed` key header as a deposit's edit does (I, not tested), and so does
+sending it again **(V, tested)**. The owner can withdraw it like any share.
+
+### Sharing with a group
+
+**Sharing with several people is sharing with a circle:** the app makes the group a circle of its own (`Personal`),
+granting the drive, and a file shared with the group has one row, for that circle. Every member reads through it
+**(V, tested)**; one row per file, however many members.
+- **A member's new file goes back to the group:** their client sends it with the group's row, as for any circle
+  they are in, and every member then reads it **(V, tested)**. Only its original sender sends it again **(V, tested)**;
+  the others change it through an update, with the row's `Write` **(V)**.
+- **A new member reads everything already shared with the group,** once the owner's client seals them the circle's key.
+- **A member who leaves stops reading at once** on the server **(V, tested)**, but keeps the copy of the circle key
+  they had, and whatever they opened with it. Nothing is re-locked: the "no rotation on removal" risk of
+  [zero-knowledge-drives.md](zero-knowledge-drives.md).
+- **The group's name:** a member can't read the owner's circle definitions, so how their client names the group is
+  the clients' (Not decided).
 
 ### Telling someone you shared with them: markers
 
@@ -347,9 +363,9 @@ opens that, pages Frodo's drive with the query batch over the Peer API. Nothing 
   members and so would learn every connection. New connections join it as they connect; the app adds the ones made before
   it (`enrollment-candidates`, which needs `ReadConnections`, then `circles/add-many`) **(V, tested)**. Every
   connection can then leave files on Sam's drive; they land owner-only, and Sam's client shows the markers alone.
-- **One marker per sharer:** Frodo's client always sends it with the same unique id. A second send is refused as an
-  existing unique id, and the outbox gives up on a bad request (`OutboxWorkerBase.cs:86`), so "refused" means "already
-  there" **(V, tested)**. Sam dismisses it by deleting it; Frodo's next share makes it again. Sam's client trusts a
+- **One marker per sharer:** Frodo's client always sends it with the same unique id. A second send is a send again
+  of a file no row lets Frodo change, so it is refused, and the outbox gives up on a refusal
+  (`OutboxWorkerBase.cs:86`): "refused" means "already there" **(V, tested)**. Sam dismisses it by deleting it; Frodo's next share makes it again. Sam's client trusts a
   marker only when its sender is the identity it names: another connection could take Frodo's marker id first, and
   then Frodo's own is refused until Sam deletes theirs.
 - **It stays when Frodo withdraws his shares;** Sam's client stops showing him when the query finds nothing.
@@ -378,11 +394,9 @@ drives, which work by copies, keep it.
 
 Not decided:
 - reactions and the read rule on other drives (#2058);
-- **sending a file again:** on a community drive a re-send by the original sender updates the file; on a Selective
-  Share drive it is refused (`PeerFileWriter.cs:272-288`) **(V)**. Proposed: an update when the sender holds a live
-  `Write` share on it, refused otherwise. Every header write asks the `Write` share **(V)**; whether the shares a
-  transfer carries need the refusal is not checked (I);
-- **updating a marker** ("new from Frodo") needs Frodo's individual circle on Sam's side, which Sam's client makes;
+- **updating a marker** ("new from Frodo") needs a row with `Write` for Frodo on it, his individual circle on Sam's
+  side, which Sam's client makes;
+- **how a member's client names a group** it reads files through;
 - **marker ids another connection can't take first**, for example ones only Frodo and Sam can derive.
 
 ## Where in the code

@@ -270,6 +270,10 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   landed, and nothing is written; any other re-send is refused, since a change goes through an update
   (`PeerFileWriter.IsSameDelivery`: the same sender, content and payload uids). The file is found by the server, not as
   the member, since a file they sent without shares is `Owner` and hidden from them.
+  **Changed 2026-11-03, aligned with community drives:** a re-send by the file's original sender updates it, through a
+  live share with `Write`, keeping its rows and its required group; one that carries shares is refused (shares come
+  only with a new file). The same delivery is still taken as done. A second marker send is now refused for want of a
+  `Write` share rather than as a duplicate unique id; the outbox gives up on either.
 
 ## 8. Members sync with the query batch
 

@@ -59,7 +59,7 @@ public partial class SelectiveShareTests
         await ZkTestFiles.SendDepositAsync(frodo, frodo, sams.Owner, sams.WriteOnlyPublicKeyJwk, markerId, "Frodo has files for you",
             remoteDrive: sams.Drive, fileType: MarkerFileType);
 
-        // Sent again: refused as an existing unique id, which the query below shows by finding one
+        // Sent again: refused, as no share lets Frodo change it, which the query below shows by finding one
         await ZkTestFiles.SendDepositAsync(frodo, frodo, sams.Owner, sams.WriteOnlyPublicKeyJwk, markerId, "Frodo has files for you",
             remoteDrive: sams.Drive, fileType: MarkerFileType);
 
