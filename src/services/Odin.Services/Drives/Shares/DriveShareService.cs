@@ -137,7 +137,7 @@ public class DriveShareService(
     }
 
     /// <summary>
-    /// A member's shares for the file they add to a shared folder (docs/selective-share-pr3-plan.md, section 7): only for
+    /// A member's shares for the file they add to a Selective Share drive (docs/file-access.md): only for
     /// circles they are in, each the drive's app's own, enabled, granting the drive every bit the share asks and holding its
     /// key.
     /// </summary>
@@ -154,7 +154,7 @@ public class DriveShareService(
             }
 
             AssertIsTheDrivesAppsCircle(drive, circle);
-            AssertCircleFits(drive, circle, share.Permissions);
+            await AssertCircleFitsAsync(drive, circle, share.Permissions);
         }
     }
 
@@ -205,7 +205,7 @@ public class DriveShareService(
             var circle = await GetCircleCallerMayShareWithAsync(drive, circleShares.Key, odinContext);
             foreach (var share in circleShares)
             {
-                AssertCircleFits(drive, circle, share.Permissions);
+                await AssertCircleFitsAsync(drive, circle, share.Permissions);
             }
         }
 
@@ -282,9 +282,10 @@ public class DriveShareService(
     /// <summary>
     /// The circle a share is for: enabled, granting the drive every bit the share asks, since a share row narrows its
     /// circle's grant and never widens it (docs/file-access.md, "A share row narrows its circle's grant"), and holding
-    /// its key, which the file key is locked with.
+    /// its key, which the file key is locked with.  An individual circle grants nothing itself: its member's other
+    /// circles must.
     /// </summary>
-    private static void AssertCircleFits(StorageDrive drive, CircleRecord circle, DrivePermission asked)
+    private async Task AssertCircleFitsAsync(StorageDrive drive, CircleRecord circle, DrivePermission asked)
     {
         var circleId = circle.circleId;
         var definition = CircleDefinitionService.FromRecord(circle);
@@ -293,11 +294,13 @@ public class DriveShareService(
             throw new OdinClientException($"Circle {circleId} is disabled", OdinClientErrorCode.ArgumentError);
         }
 
-        var granted = definition.DriveGrants?.Where(g => g.PermissionedDrive.Drive == drive.TargetDriveInfo)
-            .Aggregate((DrivePermission)0, (bits, g) => bits | g.PermissionedDrive.Permission) ?? 0;
+        var individual = definition.Designation == CircleDesignation.Individual;
+        var granted = individual ? await MembersOtherCirclesGrantAsync(drive, circleId) : Grants(drive, definition);
         if ((granted & asked) != asked)
         {
-            throw new OdinClientException($"Circle {circleId} doesn't grant the drive {asked & ~granted}, which a share asks",
+            throw new OdinClientException(individual
+                    ? $"Individual circle {circleId}'s member isn't granted the drive {asked & ~granted} by their other circles, which a share asks"
+                    : $"Circle {circleId} doesn't grant the drive {asked & ~granted}, which a share asks",
                 OdinClientErrorCode.ArgumentError);
         }
 
@@ -305,6 +308,32 @@ public class DriveShareService(
         {
             throw new OdinClientException($"Circle {circleId} has no share key yet", OdinClientErrorCode.CircleShareKeyNotSet);
         }
+    }
+
+    private static DrivePermission Grants(StorageDrive drive, CircleDefinition definition) =>
+        definition.DriveGrants?.Where(g => g.PermissionedDrive.Drive == drive.TargetDriveInfo)
+            .Aggregate((DrivePermission)0, (bits, g) => bits | g.PermissionedDrive.Permission) ?? 0;
+
+    /// <summary>What the enabled circles of an individual circle's member, but it, grant the drive; nothing without a member.</summary>
+    private async Task<DrivePermission> MembersOtherCirclesGrantAsync(StorageDrive drive, Guid individualCircleId)
+    {
+        var member = (await db.CircleMemberCached.GetCircleMembersAsync(individualCircleId)).SingleOrDefault();
+        if (member == null)
+        {
+            return 0;
+        }
+
+        DrivePermission granted = 0;
+        foreach (var row in await db.CircleMemberCached.GetMemberCirclesAndDataAsync(member.memberId))
+        {
+            if (row.circleId != individualCircleId && await db.CircleCached.GetAsync(row.circleId) is { } other &&
+                CircleDefinitionService.FromRecord(other) is { Disabled: false } definition)
+            {
+                granted |= Grants(drive, definition);
+            }
+        }
+
+        return granted;
     }
 
     private static void AssertShape(ShareRequest share, UnixTimeUtc now)

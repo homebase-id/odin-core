@@ -194,6 +194,11 @@ public class CircleMembershipService(
                 continue;
             }
 
+            if (!existing.ContainsKey(circleId))
+            {
+                await AssertCircleTakesMemberAsync(circleId, memberId);
+            }
+
             await db.CircleMemberCached.UpsertAsync(record);
         }
 
@@ -265,7 +270,23 @@ public class CircleMembershipService(
 
     public async Task AddCircleMemberAsync(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
     {
-        await db.CircleMemberCached.UpsertAsync(ToMemberRecord(circleId, domainName, circleGrant, domainType));
+        var record = ToMemberRecord(circleId, domainName, circleGrant, domainType);
+        await AssertCircleTakesMemberAsync(circleId, record.memberId);
+        await db.CircleMemberCached.UpsertAsync(record);
+    }
+
+    /// <summary>
+    /// Every path that adds a member writes their row here, in the transaction of the change, so a refusal undoes it.  An
+    /// individual circle takes one member (docs/file-access.md, "Sharing with one person").
+    /// </summary>
+    private async Task AssertCircleTakesMemberAsync(Guid circleId, Guid memberId)
+    {
+        var circle = await db.CircleCached.GetAsync(circleId);
+        if (circle?.Designation == (int)CircleDesignation.Individual &&
+            (await db.CircleMemberCached.GetCircleMembersAsync(circleId)).Any(m => m.memberId != memberId))
+        {
+            throw CircleDefinitionService.IndividualHasOneMember(circleId);
+        }
     }
 
     private static CircleMemberRecord ToMemberRecord(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant,

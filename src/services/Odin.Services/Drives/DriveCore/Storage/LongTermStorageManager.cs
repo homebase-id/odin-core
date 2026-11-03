@@ -528,9 +528,5 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var header = await driveQuery.GetFileHeaderAsync(drive, fileId, fileSystemType);
             return header;
         }
-
-        public Task<ServerFileHeader> GetServerFileHeaderByClientUniqueId(StorageDrive drive, Guid uniqueId,
-            FileSystemType fileSystemType) =>
-            driveQuery.GetFileHeaderByClientUniqueIdAsync(drive.Id, uniqueId, fileSystemType);
     }
 }

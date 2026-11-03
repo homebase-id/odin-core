@@ -480,29 +480,26 @@ public partial class SelectiveShareTests : V2Fixture
             "a soft delete keeps the shares, so members' sync sees the tombstone");
     }
 
-    [TestCase(DrivePermission.Read | DrivePermission.Write, true, true, TestName = "AMemberAddsAFileWithItsContentToAFolderSharedWithWrite")]
-    [TestCase(DrivePermission.Read, true, false, TestName = "AMemberCantAddToAFolderSharedWithoutWrite")]
-    [TestCase(DrivePermission.Read | DrivePermission.Write, false, false, TestName = "AMemberCantAddAFileOutsideAFolder")]
-    public async Task AMemberAddsAFileToASharedFolder(DrivePermission folderPermissions, bool inTheFolder, bool added)
+    [TestCase(true, TestName = "AMemberWithDriveWriteAddsAFileWithItsContent")]
+    [TestCase(false, TestName = "AConnectionWithoutDriveWriteAddsNoFile")]
+    public async Task AFileIsAddedWithDriveWriteAlone(bool member)
     {
+        // As on any drive: there is no file yet for a share to be on, and the server reads nothing into GroupId, which
+        // here names no file at all (file-access.md, "A share row narrows its circle's grant")
         var s = await ArrangeAsync();
-        var folderUniqueId = Guid.NewGuid();
-        var folder = await s.Frodo.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, FolderMetadata(s, folderUniqueId),
-            new UploadManifest { PayloadDescriptors = [] }, [], shares: [s.Share(Guid.Empty, folderPermissions)]);
-        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
-
-        // Sam's deposit, sealed to the drive's write-only key, with its content, naming the folder by its unique id
+        var sender = member ? s.Sam : await LoginAsOwner(Identities.Pippin);
         var uniqueId = Guid.NewGuid();
-        await SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file",
-            SamplePayloadDefinitions.GetPayloadDefinition1(), s.Drive, inTheFolder ? folderUniqueId : null);
+        var groupId = Guid.NewGuid();
+        await SendDepositAsync(sender, sender, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "a new file",
+            SamplePayloadDefinitions.GetPayloadDefinition1(), s.Drive, groupId);
 
         var received = await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias);
-        Assert.That(received.StatusCode, Is.EqualTo(added ? HttpStatusCode.OK : HttpStatusCode.NotFound), received.Error?.Content);
-        if (added)
+        Assert.That(received.StatusCode, Is.EqualTo(member ? HttpStatusCode.OK : HttpStatusCode.NotFound), received.Error?.Content);
+        if (member)
         {
             Assert.That(received.Content!.FileMetadata.Payloads, Has.Count.EqualTo(1), "its content came with it");
             Assert.That(received.Content.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Sealed), "a deposit, as sent");
-            Assert.That(received.Content.FileMetadata.AppData.GroupId, Is.EqualTo(folderUniqueId));
+            Assert.That(received.Content.FileMetadata.AppData.GroupId, Is.EqualTo(groupId), "kept as sent");
             Assert.That(received.Content.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner),
                 "the owner's until shared");
         }
@@ -512,8 +509,8 @@ public partial class SelectiveShareTests : V2Fixture
     /// Sam calling Frodo's own routes rather than through his own server: a YouAuth token for Sam's domain, as Sam's site
     /// holds once Frodo signs in there, carries Sam's circles on Frodo, which grant the drive Write
     /// (<c>CircleNetworkService.TryCreateConnectedYouAuthContextAsync</c>).  So his share row's Write bit is what lets
-    /// him edit, delete or hard delete a file, or add one to a folder, as on the peer paths (file-access.md, "A share
-    /// row narrows its circle's grant").
+    /// him edit, delete or hard delete a file, as on the peer paths, and drive Write alone lets him add one
+    /// (file-access.md, "A share row narrows its circle's grant").
     /// </summary>
     [TestCase(DrivePermission.Read, false, TestName = "AMemberOnTheOwnersRoutesChangesNothingSharedWithoutWrite")]
     [TestCase(DrivePermission.Read | DrivePermission.Write, true, TestName = "AMemberOnTheOwnersRoutesChangesWhatIsSharedWithWrite")]
@@ -529,9 +526,6 @@ public partial class SelectiveShareTests : V2Fixture
         var edited = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
         var deleted = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
         var hardDeleted = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)]);
-        var folderUniqueId = Guid.NewGuid();
-        var folder = await s.TryUploadAsync(s.Frodo, SecurityGroupType.Owner, [s.Share(Guid.Empty, permissions)], folderUniqueId);
-        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
 
         var read = await sam.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, edited);
         Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"Sam reads through his share: {read.Error?.Content}");
@@ -544,9 +538,7 @@ public partial class SelectiveShareTests : V2Fixture
             Files = [new FileVersionTagV2 { FileId = hardDeleted, VersionTag = (await s.HeaderAsync(hardDeleted)).FileMetadata.VersionTag }]
         });
         var addedUniqueId = Guid.NewGuid();
-        var metadata = FolderMetadata(s, addedUniqueId);
-        metadata.AppData.GroupId = folderUniqueId;
-        var add = await sam.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, metadata, new UploadManifest { PayloadDescriptors = [] }, []);
+        var add = await s.TryUploadAsync(sam, SecurityGroupType.Owner, null, addedUniqueId);
 
         var responses = $"edit {edit.StatusCode} {edit.Error?.Content}; delete {delete.StatusCode} {delete.Error?.Content}; " +
                         $"hard delete {hardDelete.StatusCode} {hardDelete.Error?.Content}; add {add.StatusCode} {add.Error?.Content}";
@@ -558,7 +550,7 @@ public partial class SelectiveShareTests : V2Fixture
         Assert.That((await s.Frodo.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, hardDeleted)).StatusCode,
             Is.EqualTo(changes ? HttpStatusCode.NotFound : HttpStatusCode.OK), $"the hard delete; {responses}");
         Assert.That((await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(addedUniqueId, s.Drive.Alias)).StatusCode,
-            Is.EqualTo(changes ? HttpStatusCode.OK : HttpStatusCode.NotFound), $"the file added to the folder; {responses}");
+            Is.EqualTo(HttpStatusCode.OK), $"the new file, which drive Write alone adds; {responses}");
     }
 
     [TestCase(true, TestName = "AMemberSharesTheirNewFileWithTheirCircle")]
@@ -566,15 +558,11 @@ public partial class SelectiveShareTests : V2Fixture
     public async Task AMemberSharesTheirNewFile(bool theirCircle)
     {
         var s = await ArrangeAsync();
-        var folderUniqueId = Guid.NewGuid();
-        var folder = await s.Frodo.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, FolderMetadata(s, folderUniqueId),
-            new UploadManifest { PayloadDescriptors = [] }, [], shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
-        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
         var circle = theirCircle ? s.CircleId : await s.CircleWithKeyAsync(DrivePermission.Read | DrivePermission.Write);
 
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file",
-            SamplePayloadDefinitions.GetPayloadDefinition1(), s.Drive, folderUniqueId,
+            SamplePayloadDefinitions.GetPayloadDefinition1(), s.Drive, null,
             [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey(), circleId: circle)]);
 
         var received = await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias);
@@ -865,13 +853,6 @@ public partial class SelectiveShareTests : V2Fixture
         ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, IncludeMetadataHeader = true }
     };
 
-    private static UploadFileMetadata FolderMetadata(Arranged s, Guid uniqueId)
-    {
-        var metadata = s.Metadata(SecurityGroupType.Owner);
-        metadata.AppData.UniqueId = uniqueId;
-        return metadata;
-    }
-
     /// <summary>
     /// Sam edits Frodo's file through his own server (V1 update, Locale=Peer, by global transit id), keeping the file
     /// key: a share key header with a new IV only (decision C).  Returns the new IV.
@@ -1004,11 +985,17 @@ public partial class SelectiveShareTests : V2Fixture
         {
             var circleId = Guid.NewGuid();
             await Frodo.Admin.CreateCircle(circleId, "the app's circle", ReadWriteGrant(permission), App.AppId);
+            await SetShareKeyAsync(circleId);
+            return circleId;
+        }
+
+        /// <summary>The app sets the circle's key: a stand-in, which the server can't open.</summary>
+        public async Task SetShareKeyAsync(Guid circleId)
+        {
             var key = new byte[61];
             key[0] = CircleShareKeyService.FormatVersion;
             var set = await App.RefitFor<ICircleShareKeyHttpClient>().SetShareKey(circleId, new CircleShareKeyData { AppKeyLockedShareKey = key });
             Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK), set.Error?.Content);
-            return circleId;
         }
 
         public UploadFileMetadata Metadata(SecurityGroupType group, Guid? versionTag = null)

@@ -34,7 +34,7 @@ namespace Odin.Services.Peer.Encryption
         public AccessControlList OriginalAcl { get; set; }
 
         /// <summary>
-        /// A member's shares for the file they add to a shared folder on a Selective Share drive, as their upload carried
+        /// A member's shares for the file they add to a Selective Share drive, as their upload carried
         /// them (docs/selective-share-pr3-plan.md, section 7); checked and written by the owner's server.
         /// </summary>
         public List<ShareRequest> Shares { get; set; }

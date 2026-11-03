@@ -64,6 +64,6 @@ public class CreateCircleRequest
         Permissions = request.Permissions,
         AppId = appId,
         GrantOn = CircleGrantOn.None,
-        Designation = CircleDesignation.Personal
+        Designation = request.Designation
     };
 }

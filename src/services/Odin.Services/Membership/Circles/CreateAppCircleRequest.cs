@@ -38,4 +38,11 @@ public class CreateAppCircleRequest
 
     /// <summary>Only permission keys the calling app holds.</summary>
     public PermissionSet Permissions { get; set; }
+
+    /// <summary>
+    /// What kind of circle it is; <see cref="CircleDesignation.Personal"/> when left out.  An app sharing a file with
+    /// one person makes them an <see cref="CircleDesignation.Individual"/> circle, which grants nothing
+    /// (docs/file-access.md, "Sharing with one person").
+    /// </summary>
+    public CircleDesignation Designation { get; set; } = CircleDesignation.Personal;
 }

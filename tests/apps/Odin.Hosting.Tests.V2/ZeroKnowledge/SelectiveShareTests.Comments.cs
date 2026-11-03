@@ -74,17 +74,12 @@ public partial class SelectiveShareTests
     {
         // Sending it again would reset its ACL and close it to every member; a member changes a file with an update
         var s = await ArrangeAsync();
-        var folderUniqueId = Guid.NewGuid();
-        var folder = await s.Frodo.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, FolderMetadata(s, folderUniqueId),
-            new UploadManifest { PayloadDescriptors = [] }, [], shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
-        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
         var uniqueId = Guid.NewGuid();
         await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", null, s.Drive,
-            folderUniqueId, [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
+            null, [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
         var before = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
 
-        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again", null, s.Drive,
-            folderUniqueId);
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again", null, s.Drive);
 
         var after = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
         Assert.That((after.FileMetadata.VersionTag, after.ServerMetadata.AccessControlList.RequiredSecurityGroup),

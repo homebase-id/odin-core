@@ -80,13 +80,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     transferInstructionSet.FileSystemType);
             }
 
-            await AssertMemberMayAddToFolderAsync(drive, metadata, transferInstructionSet.FileSystemType, odinContext);
-
             if (transferInstructionSet.Shares is { Count: > 0 } sentShares)
             {
                 if (!drive.IsSelectiveShare || transferInstructionSet.FileSystemType != FileSystemType.Standard)
                 {
-                    throw new OdinClientException("Only a file for a SelectiveShare drive's shared folder carries shares",
+                    throw new OdinClientException("Only a new file for a Selective Share drive carries shares",
                         OdinClientErrorCode.ArgumentError);
                 }
 
@@ -224,21 +222,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             throw new OdinSystemException("Unhandled Routing");
-        }
-
-        /// <summary>
-        /// A member adds a file to a shared folder on a Selective Share drive (docs/selective-share-pr3-plan.md, section
-        /// 7), with a live share with <c>Write</c> on the folder its <c>GroupId</c> names.  Asked when the file arrives,
-        /// before anything is staged; the header write asks it again, after the payloads streamed in.  Nothing to ask for a
-        /// comment or on any other drive.
-        /// </summary>
-        private async Task AssertMemberMayAddToFolderAsync(StorageDrive drive, FileMetadata metadata, FileSystemType fileSystemType,
-            IOdinContext odinContext)
-        {
-            if (drive.IsSelectiveShare && fileSystemType == FileSystemType.Standard)
-            {
-                await fileSystem.Storage.AssertMayWriteSharedFileAsync(drive, null, metadata.AppData?.GroupId, odinContext);
-            }
         }
 
         public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequestAsync(TargetDrive targetDrive, Guid globalTransitId,

@@ -57,7 +57,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
-        /// <param name="shares">A member's shares for the file they add to a peer's shared folder, sent on with it.</param>
+        /// <param name="shares">A member's shares for the file they add to a peer's Selective Share drive, sent on with it.</param>
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             IOdinContext odinContext,

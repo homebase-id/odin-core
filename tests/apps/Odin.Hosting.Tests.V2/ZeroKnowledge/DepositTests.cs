@@ -75,7 +75,7 @@ public class DepositTests : V2Fixture
     public async Task ADepositToAPrivateDriveCarriesNoPayloads()
     {
         // Taken on the transient drive, where a deposit is written to be sent, and refused by the drive it arrives at: only
-        // a Selective Share drive's shared folder takes a deposit's content (docs/selective-share-pr3-plan.md, section 7)
+        // a Selective Share drive takes a deposit's content (docs/file-access.md, "With Selective Share")
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.ConnectAsync(frodo, sam);

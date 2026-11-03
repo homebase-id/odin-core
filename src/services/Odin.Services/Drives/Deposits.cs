@@ -70,8 +70,8 @@ public static class Deposits
     }
 
     /// <summary>
-    /// Where a deposit may carry payloads: a Selective Share drive, where a member adds a file with its content to a
-    /// shared folder (docs/selective-share-pr3-plan.md, section 7), and the transient drive a deposit is sent from,
+    /// Where a deposit may carry payloads: a Selective Share drive, where a member adds a file with its content
+    /// (docs/file-access.md, "With Selective Share"), and the transient drive a deposit is sent from,
     /// where the receiving drive decides.  Anywhere else a deposit is still a header only.
     /// </summary>
     public static bool MayCarryPayloads(StorageDrive drive) =>

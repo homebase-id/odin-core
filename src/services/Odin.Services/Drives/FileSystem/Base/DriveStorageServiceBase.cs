@@ -2114,35 +2114,27 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             else
             {
-                await AssertMayWriteSharedFileAsync(drive, stored, header.FileMetadata.AppData?.GroupId, odinContext);
+                await AssertMayWriteSharedFileAsync(drive, stored, odinContext);
             }
         }
 
         /// <summary>
-        /// A member edits or deletes <paramref name="stored"/> through a live share with <c>Write</c> on it; with no stored
-        /// file, they add a new one to the folder whose unique id is <paramref name="folderUniqueId"/> through one on the
-        /// folder: Filesync names a file's folder by the folder's unique id in <c>GroupId</c>
-        /// (docs/selective-share-pr3-plan.md, section 7).  Drive <c>Write</c> is asked too
-        /// (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>).  Asked where every header is written
-        /// (<see cref="AssertMemberMayWriteAsync"/>), and by the peer paths when a member's write arrives, before anything is
-        /// staged.
+        /// A member edits or deletes <paramref name="stored"/> through a live share with <c>Write</c> on it, which asks
+        /// drive <c>Write</c> too (<see cref="IDriveAclAuthorizationService.CallerHoldsShareAsync"/>); with no stored file,
+        /// they add a new one with drive <c>Write</c>, as on any drive, and it lands owner-only unless it carries their
+        /// shares (docs/file-access.md, "A share row narrows its circle's grant").  Asked where every header is written
+        /// (<see cref="AssertMemberMayWriteAsync"/>), and by the peer update path when a member's change arrives, before
+        /// anything is staged.
         /// </summary>
-        public async Task AssertMayWriteSharedFileAsync(StorageDrive drive, ServerFileHeader stored, Guid? folderUniqueId,
-            IOdinContext odinContext)
+        public async Task AssertMayWriteSharedFileAsync(StorageDrive drive, ServerFileHeader stored, IOdinContext odinContext)
         {
-            if (stored != null)
+            if (stored == null)
             {
-                await driveAclAuthorizationService.AssertCallerHoldsShareAsync(stored, DrivePermission.Write, odinContext);
+                await AssertCanWriteToDrive(drive.Id, odinContext);
                 return;
             }
 
-            var folder = folderUniqueId is { } uniqueId
-                ? await longTermStorageManager.GetServerFileHeaderByClientUniqueId(drive, uniqueId, GetFileSystemType())
-                : null;
-            if (folder == null || !await driveAclAuthorizationService.CallerHoldsShareAsync(folder, DrivePermission.Write, odinContext))
-            {
-                throw new OdinSecurityException("A file is added to a folder shared with Write");
-            }
+            await driveAclAuthorizationService.AssertCallerHoldsShareAsync(stored, DrivePermission.Write, odinContext);
         }
 
         /// <summary>

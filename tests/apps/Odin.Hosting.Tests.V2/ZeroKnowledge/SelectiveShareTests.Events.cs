@@ -194,18 +194,14 @@ public partial class SelectiveShareTests
     }
 
     [Test]
-    public async Task AMembersNewFileInASharedFolderReachesEveryone()
+    public async Task AMembersNewFileReachesEveryone()
     {
         var s = await ArrangeAsync();
-        var folderUniqueId = Guid.NewGuid();
-        var folder = await s.Frodo.Drives.Writer.CreateNewUnencryptedFile(s.Drive.Alias, FolderMetadata(s, folderUniqueId),
-            new UploadManifest { PayloadDescriptors = [] }, [], shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write)]);
-        Assert.That(folder.StatusCode, Is.EqualTo(HttpStatusCode.OK), folder.Error?.Content);
         await using var sockets = await ShareSockets.OpenAsync(s);
 
         var uniqueId = Guid.NewGuid();
         await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", null, s.Drive,
-            folderUniqueId, [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
+            null, [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
 
         var added = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!.FileId;
         await sockets.Owner.WaitForAsync("Frodo's device: Sam's new file", ClientNotificationType.FileAdded, h => h.FileId == added);

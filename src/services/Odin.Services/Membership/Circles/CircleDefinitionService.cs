@@ -289,7 +289,8 @@ namespace Odin.Services.Membership.Circles
         {
             if (!skipValidation)
             {
-                await AssertValidAsync(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
+                await AssertValidAsync(newCircleDefinition.Designation, newCircleDefinition.GrantOn, newCircleDefinition.Permissions,
+                    newCircleDefinition.DriveGrants?.ToList());
             }
 
             var existingCircle = await GetCircleAsync(newCircleDefinition.Id);
@@ -297,6 +298,12 @@ namespace Odin.Services.Membership.Circles
             if (null == existingCircle)
             {
                 throw new OdinClientException($"Invalid circle {newCircleDefinition.Id}", OdinClientErrorCode.UnknownId);
+            }
+
+            if (newCircleDefinition.Designation == CircleDesignation.Individual &&
+                (await db.CircleMemberCached.GetCircleMembersAsync(newCircleDefinition.Id)).Count > 1)
+            {
+                throw IndividualHasOneMember(newCircleDefinition.Id);
             }
 
             existingCircle.LastUpdated = UnixTimeUtc.Now().milliseconds;
@@ -549,7 +556,7 @@ namespace Odin.Services.Membership.Circles
                         $"Circle '{circle.Slug}' grants permission keys the app is not registered with: {string.Join(", ", notHeld)}");
                 }
 
-                await AssertValidAsync(circle.Permissions, circle.DriveGrants?.ToList());
+                await AssertValidAsync(circle.Designation, CircleGrantOn.None, circle.Permissions, circle.DriveGrants?.ToList());
                 await AssertRegistrationMayGrantDrivesAsync(circle.DriveGrants, appId, registeredDrives);
             }
         }
@@ -618,10 +625,25 @@ namespace Odin.Services.Membership.Circles
 
         //
 
-        private async Task AssertValidAsync(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
+        private async Task AssertValidAsync(CircleDesignation designation, CircleGrantOn grantOn, PermissionSet permissionSet,
+            List<DriveGrantRequest> driveGrantRequests)
         {
             bool hasDrives = driveGrantRequests?.Any() ?? false;
             bool hasPermissions = permissionSet?.Keys?.Any() ?? false;
+
+            // An individual circle grants nothing: its member's other circles grant the drive, and its share rows narrow
+            // that, so taking them out of those circles stops its shares at once (docs/file-access.md, "Sharing with one
+            // person").  Nor does it enrol anyone by itself
+            if (designation == CircleDesignation.Individual)
+            {
+                if (hasDrives || hasPermissions || grantOn != CircleGrantOn.None)
+                {
+                    throw new OdinClientException("An individual circle grants nothing and enrols no one: its member's other circles grant",
+                        OdinClientErrorCode.ArgumentError);
+                }
+
+                return;
+            }
 
             if (!hasPermissions && !hasDrives)
             {
@@ -639,6 +661,10 @@ namespace Odin.Services.Membership.Circles
                 await AssertValidDriveGrantsAsync(driveGrantRequests);
             }
         }
+
+        /// <summary>An individual circle has one member: a second would get everything shared with the first.</summary>
+        internal static OdinClientException IndividualHasOneMember(Guid circleId) =>
+            new($"Circle {circleId} is an individual circle, which has one member", OdinClientErrorCode.ArgumentError);
 
         /// <summary>
         /// A circle that enrols without the owner present may hand out deposit capability and nothing
@@ -740,7 +766,7 @@ namespace Odin.Services.Membership.Circles
 
             if (!skipValidation)
             {
-                await AssertValidAsync(request.Permissions, request.DriveGrants?.ToList());
+                await AssertValidAsync(request.Designation, request.GrantOn, request.Permissions, request.DriveGrants?.ToList());
                 await AssertOwningAppExistsAsync(appId);
             }
 

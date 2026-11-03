@@ -223,15 +223,17 @@ file **(V)** (`AccessControlList`: required group, named circles, named identiti
 grant"):
 
 - **Updating or deleting a file** needs a share row for one of the writer's circles with Write.
-- **Adding a file to a folder** needs that on the folder (Filesync's folders are files, and a file names its
-  folder as its group **(I)**, from the Filesync design).
+- **Adding a file** needs drive Write alone, as on any drive (changed 2026-11-03; it first asked a Write share on the
+  file its `GroupId` names, which built a Filesync convention into the server).
 - **A writer may only add shares for circles they belong to**, only on files they write in that request.
   Every other share is the owning app's.
 
 ## A member adds a file to a shared folder
 
 Michael shares a folder with Family, with read and write. John, a Family member, adds a file. John's Filesync
-app does all of it in the upload, with no help from Michael's devices:
+app does all of it in the upload, with no help from Michael's devices (since 2026-11-03 the server asks only Family's
+drive Write; the folder is Filesync's, and the file also carries John's row for his individual circle, so he keeps
+it: file-access.md, "Sharing with one person"):
 
 1. **The file**, encrypted with a new file key.
 2. **The file's own key header, `sealed` to Michael's drive's write-only public key.** John has no DrvK, so

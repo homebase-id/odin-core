@@ -209,8 +209,9 @@ The header's ACL names no one on these drives. The `GET` lists one file's share 
 The rules from selective-share-plan.md, "Who may write" and "A member adds a file to a shared folder":
 - **Updating or deleting a file** needs, besides drive `Write` and passing the read rule, a live row with `Write` for
   one of the writer's circles. Owner callers need none.
-- **Adding a file to a shared folder** needs that on the folder: Filesync's folders are files, and a file names its
-  folder as its `GroupId` **(I, Filesync's design)**. The new file's own key header is `sealed` to the drive's
+- **Adding a file** needs drive `Write` alone, as on any drive (changed 2026-11-03, superseding "a `Write` share on
+  the folder its `GroupId` names", below; individual circles let the author keep it: file-access.md, "Sharing with
+  one person"). The new file's own key header is `sealed` to the drive's
   write-only key, as deposits are today **(V)**; its shares are for circles the writer is in, only on files written in
   that request. Shares for the folder's other circles are added later by an owner caller's device, the same job as
   sharing existing files.
@@ -247,7 +248,8 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   locked with the drive's key (`zkDrive`): version 1 locks `IV ‖ key` under the IV itself, so the IV is the visible one
   **(V, security-model.md)**; key header version 2 (#2024) would need this revisited. A file a member deposited keeps
   today's rule: a `sealed` key header replaces a `sealed` one, the member sending a new sealed one.
-- **Adding a file to a shared folder** (built in PR 3, decided 2026-11-02): Filesync names a file's folder by the
+- **Adding a file to a shared folder** (built in PR 3, decided 2026-11-02; **superseded 2026-11-03**: drive `Write`
+  alone, and the server reads nothing into `GroupId`): Filesync names a file's folder by the
   folder's unique id in `GroupId` (filesync `wire.rs:324-338`) **(V)**. A member's deposit to a Selective Share drive
   may carry payloads when the member has a live share with `Write` on the folder file whose unique id is the new
   file's `GroupId`; elsewhere a deposit still carries none (`Deposits.AssertValid`) **(V)**. The transfer may carry
@@ -399,8 +401,10 @@ comment on it (a photo, a document).
   withdrawal leaves `Connected` and the file owner-only.
 - **Members (V2 and Peer API):** a member reads a client-locked file with their row's locked file key, and is refused with no
   live row; with two circles' rows they always get the same one; a member updates a file with a `Write` row and is
-  refused without; adds a file to a folder with a `Write` row; a member calling the owner's own routes (YouAuth) edits,
-  deletes, hard deletes and adds to a folder only with a `Write` share; their own server finds the file for an update; the
+  refused without; adds a file with drive `Write` alone; a member calling the owner's own routes (YouAuth) edits,
+  deletes and hard deletes only with a `Write` share, and adds a file with drive `Write`; an individual circle grants
+  nothing, takes one member and goes by its member's other circles; a member keeps their new file through their
+  individual circle's row; their own server finds the file for an update; the
   member's query batch pages exactly their shared files, and a withdrawn share comes back as "no longer shared"; a share write reaches the owner's devices and the
   member's peer socket.
 - **V2 integration:** who may write shares (the owner console and the owning app; refused: another app, an app's circle

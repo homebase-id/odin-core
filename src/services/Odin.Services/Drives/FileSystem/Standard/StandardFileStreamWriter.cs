@@ -65,7 +65,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             return;
         }
 
-        // A member's file for a peer's shared folder: its shares go with it, and the owner's server checks them (section 7)
+        // A member's new file for a peer's Selective Share drive: its shares go with it, and the owner's server checks them (section 7)
         if (SystemDriveConstants.IsTransientTempDrive(package.InternalFile.DriveId))
         {
             DriveShareService.AssertSentShares(shares, metadata.IsEncrypted);
