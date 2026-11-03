@@ -26,9 +26,9 @@ internal static class ZkTestFiles
 {
     public static readonly TargetDrive Drive = WellKnownAppDrives.ShardRecoveryDrive;
 
-    public static UploadFileMetadata Metadata(Guid uniqueId, string content, Guid? versionTag = null)
+    public static UploadFileMetadata Metadata(Guid uniqueId, string content, Guid? versionTag = null, int fileType = 100)
     {
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, AccessControlList.OwnerOnly);
+        var metadata = SampleMetadataData.CreateWithContent(fileType, content, AccessControlList.OwnerOnly);
         metadata.AppData.UniqueId = uniqueId;
         metadata.VersionTag = versionTag;
         return metadata;
@@ -70,11 +70,10 @@ internal static class ZkTestFiles
     public static async Task<(KeyHeader FileKey, EncryptedKeyHeader Sealed)> SendDepositAsync(IV2Caller sender,
         OwnerSession frodo, OwnerSession sam, string publicKeyJwk, Guid uniqueId, string content,
         TestPayloadDefinition? payload = null, TargetDrive? remoteDrive = null, Guid? groupId = null, List<ShareRequest>? shares = null,
-        int? fileType = null)
+        int fileType = 100)
     {
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
-        var metadata = Metadata(uniqueId, content);
-        metadata.AppData.FileType = fileType ?? metadata.AppData.FileType;
+        var metadata = Metadata(uniqueId, content, fileType: fileType);
         metadata.AllowDistribution = true;
         metadata.AppData.GroupId = groupId;
         UploadManifest? manifest = null;

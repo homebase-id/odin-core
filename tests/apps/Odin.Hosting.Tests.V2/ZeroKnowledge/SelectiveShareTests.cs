@@ -949,22 +949,14 @@ public partial class SelectiveShareTests : V2Fixture
     /// </summary>
     private async Task<Arranged> ArrangeAsync()
     {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-        var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
-
-        var appId = Guid.NewGuid();
-        await frodo.Admin.EnsureAppRegistered(appId);
-        var drive = TargetDrive.NewTargetDrive();
-        var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
-        await frodo.Admin.CreateDrive(drive, "Shared", allowAnonymousReads: false, appId: appId,
-            sharingModel: DriveSharingModel.SelectiveShare, zkKeys: keys.Request);
-        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.All, [], knownAppId: appId);
-
-        var s = new Arranged(frodo, sam, app, drive, keys.DriveKey) { WriteOnlyPublicKeyJwk = keys.WriteOnlyPublicKeyJwk };
+        var frodos = await ArrangeDriveAsync(await LoginAsOwner(Identities.Frodo));
+        var s = new Arranged(frodos.Owner, await LoginAsOwner(Identities.Sam), frodos.App, frodos.Drive, frodos.DriveKey)
+        {
+            WriteOnlyPublicKeyJwk = frodos.WriteOnlyPublicKeyJwk
+        };
         // As an app whose members react and comment: a share row narrows its circle's grant (file-access.md)
         s.CircleId = await s.CircleWithKeyAsync(DriveShareService.ShareBits);
-        await AppCircles.AddMemberAsync(app, s.CircleId, Identities.Sam);
+        await AppCircles.AddMemberAsync(s.App, s.CircleId, Identities.Sam);
         return s;
     }
 

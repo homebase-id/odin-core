@@ -556,6 +556,11 @@ namespace Odin.Services.Membership.Circles
                 }
 
                 await AssertValidAsync(circle.Designation, circle.Permissions, circle.DriveGrants?.ToList());
+                await AssertGrantRulesAsync(new CircleDefinition
+                {
+                    Name = circle.Name, DriveGrants = circle.DriveGrants, Permissions = circle.Permissions,
+                    GrantOn = circle.GrantOn, Designation = circle.Designation
+                });
                 await AssertRegistrationMayGrantDrivesAsync(circle.DriveGrants, appId, registeredDrives);
             }
         }
@@ -630,10 +635,9 @@ namespace Odin.Services.Membership.Circles
             bool hasDrives = driveGrantRequests?.Any() ?? false;
             bool hasPermissions = permissionSet?.Keys?.Any() ?? false;
 
-            // An individual circle grants nothing, which every write asks too (AssertGrantRulesAsync)
+            // An individual circle grants nothing, which every write asks (AssertGrantRulesAsync)
             if (designation == CircleDesignation.Individual)
             {
-                AssertIndividualGrantsNothing(hasDrives || hasPermissions, CircleGrantOn.None);
                 return;
             }
 

@@ -342,7 +342,7 @@ any deposit. Sam's client keeps markers out of its file tree, shows Frodo as som
 opens that, pages Frodo's drive with the query batch over the Peer API. Nothing of Frodo's files is copied to Sam.
 - **Frodo needs drive `Write` on Sam's drive**, as on a community drive, before Sam has done anything for him. Sam's
   app makes a circle every connection joins, granting `Write` on the drive and nothing else
-  (`CreateAppCircleRequest.GrantOn = Connect`, held to write and react grants as every such circle is), with a fixed
+  (`CreateAppCircleRequest.GrantOn = Connect`, held to the deposit-only rule as every such circle is), with a fixed
   slug so every device finds the same one. New connections join it as they connect; the app adds the ones made before
   it (`enrollment-candidates`, which needs `ReadConnections`, then `circles/add-many`) **(V, tested)**. Every
   connection can then leave files on Sam's drive; they land owner-only, and Sam's client shows the markers alone.

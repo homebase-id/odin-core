@@ -50,8 +50,9 @@ public class CreateCircleRequest
     public string Emoji { get; set; }
 
     /// <summary>
-    /// What an app's own circle is: a new server-minted id, owned by <paramref name="appId"/>, granted only
-    /// explicitly.  The one definition both <c>circles/create</c> and install-time declarations use.
+    /// What an app's own circle is: a new server-minted id, owned by <paramref name="appId"/>, of the kind and enrolment
+    /// the app asked for (<see cref="CreateAppCircleRequest.AssertKind"/>).  The one definition both
+    /// <c>circles/create</c> and install-time declarations use.
     /// </summary>
     public static CreateCircleRequest ForApp(Guid appId, CreateAppCircleRequest request) => new()
     {

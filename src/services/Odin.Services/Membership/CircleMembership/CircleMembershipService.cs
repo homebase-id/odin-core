@@ -451,7 +451,7 @@ public class CircleMembershipService(
     /// it holds it itself, and on a drive it does not own only Read with the storage key
     /// (<see cref="CircleDefinitionService.AssertAppMayGrantDrivesAsync"/>); permission keys only ones it holds -- and
     /// the circle is granted by hand (<see cref="CircleGrantOn.None"/>), or to every connection as it connects
-    /// (<see cref="CircleGrantOn.Connect"/>) with write and react grants only.  The id is the server's, so a
+    /// (<see cref="CircleGrantOn.Connect"/>), held to the deposit-only rule.  The id is the server's, so a
     /// deleted circle's id, which leftover deposits and enrollments may still name, is never reused.
     /// <para>
     /// Idempotent on <see cref="CreateAppCircleRequest.Slug"/> (#1939): a circle the app already holds under that

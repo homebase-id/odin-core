@@ -502,7 +502,7 @@ public class AppCircleDefinitionTests : V2Fixture
 
         var circle = await owner.Admin.GetCircleDefinition(response.Content);
         Assert.That(circle.AppId, Is.EqualTo(app.AppId), "the circle belongs to the app that made it");
-        Assert.That(circle.GrantOn, Is.EqualTo(CircleGrantOn.None), "an app's circle is granted only explicitly");
+        Assert.That(circle.GrantOn, Is.EqualTo(CircleGrantOn.None), "an app's circle is granted by hand when it asks for nothing else");
         Assert.That(circle.DriveGrants.Single().PermissionedDrive.Drive, Is.EqualTo(drive));
 
         // and, owning it, the app can delete it
@@ -543,6 +543,24 @@ public class AppCircleDefinitionTests : V2Fixture
             DriveGrants = [AppCircles.WriteOn(drive)]
         });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    // An app's circle every connection joins is held to the deposit-only rule, and the other ways of enrolling stay
+    // with the built-in apps
+    [TestCase(DrivePermission.Read | DrivePermission.Write, CircleGrantOn.Connect, TestName = "AnAppsCircleEveryConnectionJoinsCantGrantRead")]
+    [TestCase(DrivePermission.Write, CircleGrantOn.Review, TestName = "AnAppsCircleDoesntEnrolAtTheOwnersReview")]
+    [TestCase(DrivePermission.Write, CircleGrantOn.OwnFlowConnect, TestName = "AnAppsCircleDoesntEnrolThroughItsOwnFlow")]
+    public async Task AnAppsCircleIsRefused(DrivePermission permission, CircleGrantOn grantOn)
+    {
+        var owner = await LoginAsOwner();
+        var (app, drive) = await AppOwningADriveAsync(owner, DrivePermission.All);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "refused", GrantOn = grantOn,
+            DriveGrants = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = permission } }]
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
     }
 
     /// <summary>
