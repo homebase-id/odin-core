@@ -545,22 +545,26 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
-    // An app's circle every connection joins is held to the deposit-only rule, and the other ways of enrolling stay
-    // with the built-in apps
-    [TestCase(DrivePermission.Read | DrivePermission.Write, CircleGrantOn.Connect, TestName = "AnAppsCircleEveryConnectionJoinsCantGrantRead")]
-    [TestCase(DrivePermission.Write, CircleGrantOn.Review, TestName = "AnAppsCircleDoesntEnrolAtTheOwnersReview")]
-    [TestCase(DrivePermission.Write, CircleGrantOn.OwnFlowConnect, TestName = "AnAppsCircleDoesntEnrolThroughItsOwnFlow")]
-    public async Task AnAppsCircleIsRefused(DrivePermission permission, CircleGrantOn grantOn)
+    // An app's circle every connection joins is held to the deposit-only rule and needs ReadConnections, since the app
+    // may list its members; the other ways of enrolling stay with the built-in apps
+    [TestCase(DrivePermission.Read | DrivePermission.Write, CircleGrantOn.Connect, true, HttpStatusCode.BadRequest,
+        TestName = "AnAppsCircleEveryConnectionJoinsCantGrantRead")]
+    [TestCase(DrivePermission.Write, CircleGrantOn.Connect, false, HttpStatusCode.Forbidden,
+        TestName = "AnAppsCircleEveryConnectionJoinsNeedsReadConnections")]
+    [TestCase(DrivePermission.Write, CircleGrantOn.Review, true, HttpStatusCode.BadRequest, TestName = "AnAppsCircleDoesntEnrolAtTheOwnersReview")]
+    [TestCase(DrivePermission.Write, CircleGrantOn.OwnFlowConnect, true, HttpStatusCode.BadRequest,
+        TestName = "AnAppsCircleDoesntEnrolThroughItsOwnFlow")]
+    public async Task AnAppsCircleIsRefused(DrivePermission permission, CircleGrantOn grantOn, bool readsConnections, HttpStatusCode refusal)
     {
         var owner = await LoginAsOwner();
-        var (app, drive) = await AppOwningADriveAsync(owner, DrivePermission.All);
+        var (app, drive) = await AppOwningADriveAsync(owner, DrivePermission.All, readsConnections ? [PermissionKeys.ReadConnections] : []);
 
         var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
             Name = "refused", GrantOn = grantOn,
             DriveGrants = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = permission } }]
         });
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
+        Assert.That(response.StatusCode, Is.EqualTo(refusal), response.Error?.Content);
     }
 
     /// <summary>

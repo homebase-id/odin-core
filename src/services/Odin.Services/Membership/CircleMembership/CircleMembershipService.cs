@@ -471,7 +471,7 @@ public class CircleMembershipService(
             throw new OdinSecurityException("Only an app can create a circle it owns");
         }
 
-        request.AssertKind();
+        request.AssertKind(odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections));
         if (request.Slug.HasValue)
         {
             var existing = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);

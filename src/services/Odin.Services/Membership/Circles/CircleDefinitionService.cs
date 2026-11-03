@@ -538,7 +538,7 @@ namespace Odin.Services.Membership.Circles
                     throw new OdinClientException("A declared circle needs a name", OdinClientErrorCode.ArgumentError);
                 }
 
-                circle.AssertKind();
+                circle.AssertKind(heldKeys.Contains(PermissionKeys.ReadConnections));
 
                 // Required here, unlike on circles/create: a declared circle is one the app means to find again.
                 var slug = OdinSlug.Required(circle.Slug, nameof(CreateAppCircleRequest.Slug));

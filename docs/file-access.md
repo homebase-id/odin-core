@@ -343,7 +343,8 @@ opens that, pages Frodo's drive with the query batch over the Peer API. Nothing 
 - **Frodo needs drive `Write` on Sam's drive**, as on a community drive, before Sam has done anything for him. Sam's
   app makes a circle every connection joins, granting `Write` on the drive and nothing else
   (`CreateAppCircleRequest.GrantOn = Connect`, held to the deposit-only rule as every such circle is), with a fixed
-  slug so every device finds the same one. New connections join it as they connect; the app adds the ones made before
+  slug so every device finds the same one. The app needs `ReadConnections` for it, since it may list its own circle's
+  members and so would learn every connection. New connections join it as they connect; the app adds the ones made before
   it (`enrollment-candidates`, which needs `ReadConnections`, then `circles/add-many`) **(V, tested)**. Every
   connection can then leave files on Sam's drive; they land owner-only, and Sam's client shows the markers alone.
 - **One marker per sharer:** Frodo's client always sends it with the same unique id. A second send is refused as an

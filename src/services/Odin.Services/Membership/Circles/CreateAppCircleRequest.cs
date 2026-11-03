@@ -59,9 +59,11 @@ public class CreateAppCircleRequest
     /// An app makes <see cref="CircleDesignation.Personal"/> circles, as it always has, and individual ones; the other
     /// kinds change how the owner reviews a connection (<c>CircleNetworkService.ClearReviewAsync</c>), so they stay
     /// the owner's.  It enrols by hand or on connect; enrolling through its own consent flow or at the owner's review
-    /// stays with the built-in apps.
+    /// stays with the built-in apps.  A circle every connection joins needs <c>ReadConnections</c>
+    /// (<paramref name="readsConnections"/>): the app may list its own circle's members, so through it the app would
+    /// learn every new connection, which that key is for.
     /// </summary>
-    public void AssertKind()
+    public void AssertKind(bool readsConnections)
     {
         if (Designation is not (CircleDesignation.Personal or CircleDesignation.Individual))
         {
@@ -71,6 +73,11 @@ public class CreateAppCircleRequest
         if (GrantOn is not (CircleGrantOn.None or CircleGrantOn.Connect))
         {
             throw new OdinClientException($"An app's circle enrols by hand or on connect, not {GrantOn}", OdinClientErrorCode.ArgumentError);
+        }
+
+        if (GrantOn == CircleGrantOn.Connect && !readsConnections)
+        {
+            throw new OdinSecurityException("An app's circle every connection joins lists them all, so the app needs ReadConnections");
         }
     }
 }

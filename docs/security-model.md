@@ -207,7 +207,8 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
 - A connected caller's rights are the union of their enabled circles' grants. A disabled circle grants nothing **(V)**.
 - `AppId` on a circle is the owning app; null = owner circle. An app may change only its own circles and can't enrol
   anyone into an owner circle **(V)**. An app creates `Personal` and `Individual` circles, enrolling by hand or on
-  connect (`CreateAppCircleRequest.AssertKind`) **(V)**.
+  connect, the latter only with `ReadConnections`, since the app may list its own circle's members
+  (`CreateAppCircleRequest.AssertKind`) **(V)**.
 - **Who may see a circle's members** (and who is pending in it): the owner; the app that owns the circle, always; any
   other app only with `ReadCircleMembership` (`CircleMembershipService.AssertCallerMayReadMembersAsync`) **(V)**.
   Listing every circle with its members still needs the key.
