@@ -98,6 +98,8 @@ namespace Odin.Services.Membership.Circles
                 return false;
             }
 
+            AssertDesignationMayChange(circle, designation);
+
             if (circle.AppId != appId)
             {
                 await AssertSlugFreeInAppAsync(circle, appId);
@@ -310,6 +312,7 @@ namespace Odin.Services.Membership.Circles
             // created and must not be reassignable by anyone who can PUT a definition.  Nor is Slug: it
             // is the circle's address within its app, and immutable once written (#1939).
             existingCircle.GrantOn = newCircleDefinition.GrantOn;
+            AssertDesignationMayChange(existingCircle, newCircleDefinition.Designation);
             existingCircle.Designation = newCircleDefinition.Designation;
             existingCircle.Emoji = newCircleDefinition.Emoji;
 
@@ -535,6 +538,8 @@ namespace Odin.Services.Membership.Circles
                     throw new OdinClientException("A declared circle needs a name", OdinClientErrorCode.ArgumentError);
                 }
 
+                circle.AssertDesignation();
+
                 // Required here, unlike on circles/create: a declared circle is one the app means to find again.
                 var slug = OdinSlug.Required(circle.Slug, nameof(CreateAppCircleRequest.Slug));
                 if (!slugs.Add(slug))
@@ -625,9 +630,10 @@ namespace Odin.Services.Membership.Circles
             bool hasDrives = driveGrantRequests?.Any() ?? false;
             bool hasPermissions = permissionSet?.Keys?.Any() ?? false;
 
-            // An individual circle grants nothing, which every write asks (AssertGrantRulesAsync)
+            // An individual circle grants nothing, which every write asks too (AssertGrantRulesAsync)
             if (designation == CircleDesignation.Individual)
             {
+                AssertIndividualGrantsNothing(hasDrives || hasPermissions, CircleGrantOn.None);
                 return;
             }
 
@@ -672,16 +678,53 @@ namespace Odin.Services.Membership.Circles
         {
             if (circle.Designation == CircleDesignation.Individual)
             {
-                if ((circle.DriveGrants?.Any() ?? false) || (circle.Permissions?.Keys?.Any() ?? false) || circle.GrantOn != CircleGrantOn.None)
-                {
-                    throw new OdinClientException("An individual circle grants nothing and enrols no one: its member's other circles grant",
-                        OdinClientErrorCode.ArgumentError);
-                }
-
+                AssertIndividualGrantsNothing((circle.DriveGrants?.Any() ?? false) || (circle.Permissions?.Keys?.Any() ?? false), circle.GrantOn);
                 await AssertIndividualHasOneMemberAsync(circle.Id);
             }
 
             await AssertDepositOnlyIfAmbientAsync(circle);
+        }
+
+        private static void AssertIndividualGrantsNothing(bool grants, CircleGrantOn grantOn)
+        {
+            if (grants || grantOn != CircleGrantOn.None)
+            {
+                throw new OdinClientException("An individual circle grants nothing and enrols no one: its member's other circles grant",
+                    OdinClientErrorCode.ArgumentError);
+            }
+        }
+
+        /// <summary>
+        /// A circle is individual from its creation to its deletion: one that became individual could already hold
+        /// several members' keys, and one that stopped being individual could take more members, who would then get
+        /// everything shared with its one person (docs/file-access.md, "Sharing with one person").
+        /// </summary>
+        internal static void AssertDesignationMayChange(CircleDefinition circle, CircleDesignation to)
+        {
+            if ((circle.Designation == CircleDesignation.Individual) != (to == CircleDesignation.Individual))
+            {
+                throw new OdinClientException($"Circle {circle.Id} is {circle.Designation} for good: a circle is individual from its creation",
+                    OdinClientErrorCode.ArgumentError);
+            }
+        }
+
+        /// <summary>
+        /// The rules of individual circles <paramref name="update"/> must keep, asked before any member is re-granted
+        /// for it (<c>CircleNetworkService.UpdateCircleDefinitionAsync</c>), so a refused update has changed nothing.
+        /// </summary>
+        public async Task AssertIndividualRulesKeptAsync(CircleDefinition update)
+        {
+            var existing = await GetCircleAsync(update.Id);
+            if (existing == null)
+            {
+                return;
+            }
+
+            AssertDesignationMayChange(existing, update.Designation);
+            if (update.Designation == CircleDesignation.Individual)
+            {
+                AssertIndividualGrantsNothing((update.DriveGrants?.Any() ?? false) || (update.Permissions?.Keys?.Any() ?? false), update.GrantOn);
+            }
         }
 
         /// <summary>

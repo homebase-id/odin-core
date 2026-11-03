@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 
@@ -45,4 +46,17 @@ public class CreateAppCircleRequest
     /// (docs/file-access.md, "Sharing with one person").
     /// </summary>
     public CircleDesignation Designation { get; set; } = CircleDesignation.Personal;
+
+    /// <summary>
+    /// An app makes <see cref="CircleDesignation.Personal"/> circles, as it always has, and individual ones; the other
+    /// kinds change how the owner reviews a connection (<c>CircleNetworkService.ClearReviewAsync</c>), so they stay
+    /// the owner's.
+    /// </summary>
+    public void AssertDesignation()
+    {
+        if (Designation is not (CircleDesignation.Personal or CircleDesignation.Individual))
+        {
+            throw new OdinClientException($"An app's circle is Personal or Individual, not {Designation}", OdinClientErrorCode.ArgumentError);
+        }
+    }
 }

@@ -298,23 +298,31 @@ are then share rows like any other: the circle's id, the file key locked with th
 for every circle: the owner's app holds it locked (`Circle.appKeyLockedShareKey`), the member a copy sealed to their
 own drive (`CircleMember.sealedShareKey`) **(V)**.
 - **One member at most:** the server refuses a second, wherever a member is added
-  (`CircleMembershipService.AssertCircleTakesMemberAsync`), and a circle of two can't become one **(V)**. A client bug that added someone to "Frodo" would otherwise
-  share everything shared with Frodo with them too.
+  (`CircleMembershipService.AssertCircleTakesMemberAsync`) **(V)**. A client bug that added someone to "Frodo" would
+  otherwise share everything shared with Frodo with them too.
+- **Individual from its creation to its deletion:** no circle becomes individual or stops being one, so none can carry
+  one person's shares to a group, and a refused change is refused before any member is re-granted
+  (`CircleDefinitionService.AssertIndividualRulesKeptAsync`) **(V)**.
 - **It grants nothing of its own.** The member's drive grant comes from their other circles (Family, Colleagues, a
   project's circle: an app may have many), and the individual circle's rows narrow it, as every row does (above). So
   removing Frodo from Family stops his individual shares at once; nothing has to follow. Every other circle must grant at
-  least one drive or permission; an individual circle must grant none, and enrols no one by itself
-  (`CircleDefinitionService.AssertValidAsync`) **(V)**. A share with it asks the member's other enabled circles for its
-  bits (`DriveShareService.AssertCircleFitsAsync`) **(V)**.
+  least one drive or permission; an individual circle must grant none, and enrols no one by itself, on every write of
+  it (`CircleDefinitionService.AssertGrantRulesAsync`) **(V)**. Nor may an app be authorized through it, which would
+  give its member the app's grant (`AppRegistrationService.AssertCirclesExistAsync`) **(V)**. A share with it asks
+  what the member holds through their other enabled circles, their apps' grants through them included: what their
+  permission context holds (`DriveShareService.MemberHoldsAsync`, `CircleNetworkService.DrivePermissionAsync`) **(V)**.
 - **The owner's client makes it**, not the server, which never sees a circle key: when it adds members to any of the
   app's circles that grants a Selective Share drive, at the moment it seals that circle's key to them. It first looks
   for the member's existing one (app, designation, member). The app creates it like any of its circles, naming the
-  designation (`CreateAppCircleRequest.Designation`); a slug of its own per member makes the create return the same
-  circle to every device (#1939), so two devices racing make one.
+  designation (`CreateAppCircleRequest.Designation`: an app makes `Personal` and `Individual` circles; the other kinds
+  change how the owner reviews a connection, so they stay the owner's). A slug of its own per member makes the create
+  return the same circle to every device (#1939), so two devices racing make one; a slug naming a circle of another
+  kind is refused rather than returned **(V)**.
 - **Removing the member from their other circles leaves them in it:** with no grant it gives nothing, and their sealed
   key copy is kept for when they are added back. A disconnect removes them, as from every circle (I).
-- **Circle lists hide individual circles.** The designation is for presentation and filtering only, never read by an
-  ACL check, as the enum says (`CircleEnrollment.cs`) **(V)**.
+- **Clients' circle lists hide individual circles;** the server lists them like any circle **(V)**. No access check
+  reads the designation; the share API reads it to set a share's ceiling, and the circle rules above to keep its shape
+  (`CircleEnrollment.cs`) **(V)**.
 
 **The author keeps their deposit.** A member's new file lands owner-only, so its author couldn't see or change it.
 Their client locks its file key with their individual circle's key (their copy is theirs to open) and sends the row

@@ -42,7 +42,7 @@ namespace Odin.Services.Membership.Circles
     /// <summary>
     /// What kind of relationship a circle represents.  Presentation and filtering only -- it never
     /// participates in ACL evaluation, which was considered and rejected as ambient authority resting on
-    /// a distributed judgment.  <see cref="Individual"/> also shapes the circle (one member, no grant), still
+    /// a distributed judgment.  <see cref="Individual"/> also shapes the circle (one member, no grant) and a share's ceiling, still
     /// without any ACL check reading it.
     /// </summary>
     /// <remarks>

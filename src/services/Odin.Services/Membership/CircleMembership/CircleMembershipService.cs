@@ -432,6 +432,16 @@ public class CircleMembershipService(
     }
 
     /// <summary>
+    /// The circle a slug already names answers a create for it only when it is the kind asked for: a slug's ordinary
+    /// circle answering a request for an individual one would share "with one person" with all of its members.
+    /// </summary>
+    private static CircleDefinition SameKind(CircleDefinition existing, CreateAppCircleRequest request) =>
+        existing.Designation == request.Designation
+            ? existing
+            : throw new OdinClientException($"Slug {request.Slug} names a {existing.Designation} circle, not a {request.Designation} one",
+                OdinClientErrorCode.CircleSlugTaken);
+
+    /// <summary>
     /// Creates a circle owned by the calling app, and returns the id the server picked for it.
     /// </summary>
     /// <remarks>
@@ -460,12 +470,13 @@ public class CircleMembershipService(
             throw new OdinSecurityException("Only an app can create a circle it owns");
         }
 
+        request.AssertDesignation();
         if (request.Slug.HasValue)
         {
             var existing = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);
             if (existing != null)
             {
-                return existing.Id;
+                return SameKind(existing, request).Id;
             }
         }
 
@@ -495,7 +506,7 @@ public class CircleMembershipService(
                 throw;
             }
 
-            return winner.Id;
+            return SameKind(winner, request).Id;
         }
 
         await mediator.Publish(new CircleDefinitionChangedNotification

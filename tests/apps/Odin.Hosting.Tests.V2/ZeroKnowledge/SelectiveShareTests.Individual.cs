@@ -5,13 +5,18 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
+using Odin.Core;
+using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Membership.Circles;
+using Refit;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -52,15 +57,70 @@ public partial class SelectiveShareTests
         Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"a second member: {second.Error?.Content}");
         Assert.That(await MembersAsync(s, circleId), Is.EqualTo(new[] { Identities.Sam }), "still Sam alone");
 
-        // Nor does a circle of two become one
-        var pair = await s.CircleWithKeyAsync(DrivePermission.Read);
-        await AppCircles.AddMemberAsync(s.App, pair, Identities.Sam);
-        await AppCircles.AddMemberAsync(s.App, pair, Identities.Pippin);
-        var definition = await s.Frodo.Admin.GetCircleDefinition(pair);
-        definition.Designation = CircleDesignation.Individual;
-        definition.DriveGrants = [];
-        var update = await s.Frodo.Admin.TryUpdateCircleDefinition(definition);
-        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"two members: {update.Error?.Content}");
+    }
+
+    [Test]
+    public async Task ACircleIsIndividualFromItsCreation()
+    {
+        // One that became individual could hold several members' keys; one that stopped being individual could take
+        // more members, who would get everything shared with its one person.  Refused before any member is re-granted
+        var s = await ArrangeAsync();
+        await AppCircles.AddMemberAsync(s.App, s.CircleId, Identities.Pippin);
+        var toIndividual = await s.Frodo.Admin.GetCircleDefinition(s.CircleId);
+        toIndividual.Designation = CircleDesignation.Individual;
+        toIndividual.DriveGrants = [];
+        var becoming = await s.Frodo.Admin.TryUpdateCircleDefinition(toIndividual);
+        Assert.That(becoming.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"becoming individual: {becoming.Error?.Content}");
+        var fileId = await s.UploadAsync(SecurityGroupType.Owner, [s.Share(Guid.Empty, DrivePermission.Read)]);
+        await AssertSamSeesAsync(s, fileId, true, "his circle's grant, untouched by the refused update");
+
+        var sams = await IndividualCircleAsync(s, Identities.Sam);
+        var toPersonal = await s.Frodo.Admin.GetCircleDefinition(sams);
+        toPersonal.Designation = CircleDesignation.Personal;
+        toPersonal.DriveGrants = [AppCircles.WriteOn(s.Drive)];
+        var leaving = await s.Frodo.Admin.TryUpdateCircleDefinition(toPersonal);
+        Assert.That(leaving.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"leaving individual: {leaving.Error?.Content}");
+        Assert.That((await s.Frodo.Admin.GetCircleDefinition(sams)).Designation, Is.EqualTo(CircleDesignation.Individual));
+    }
+
+    [Test]
+    public async Task AnAppMakesPersonalAndIndividualCirclesEachKindByItsOwnSlug()
+    {
+        var s = await ArrangeAsync();
+        var network = s.App.RefitFor<IConnectionNetworkHttpClientApiV2>();
+
+        var vendor = await network.CreateCircle(new CreateAppCircleRequest { Name = "a vendor", Designation = CircleDesignation.Vendor });
+        Assert.That(vendor.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"a kind that is the owner's: {vendor.Error?.Content}");
+
+        // A slug's ordinary circle doesn't answer a request for an individual one, nor the other way round
+        var slug = new OdinSlug("frodo-" + Guid.NewGuid().ToString("N")[..8]);
+        var personal = await network.CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "Frodo's group", Slug = slug, DriveGrants = [AppCircles.WriteOn(s.Drive)]
+        });
+        Assert.That(personal.StatusCode, Is.EqualTo(HttpStatusCode.OK), personal.Error?.Content);
+        var individual = await network.CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "Frodo", Slug = slug, Designation = CircleDesignation.Individual
+        });
+        Assert.That(individual.IsSuccessStatusCode, Is.False, $"the slug names a Personal circle: {individual.StatusCode} {individual.Content}");
+        var again = await network.CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "Frodo's group", Slug = slug, DriveGrants = [AppCircles.WriteOn(s.Drive)]
+        });
+        Assert.That(again.Content, Is.EqualTo(personal.Content), "the same kind gets the same circle back");
+    }
+
+    [Test]
+    public async Task AnAppIsntAuthorizedThroughAnIndividualCircle()
+    {
+        // Its member would get the app's grant through it, and an individual circle grants nothing
+        var s = await ArrangeAsync();
+        var sams = await IndividualCircleAsync(s, Identities.Sam);
+
+        var refused = Assert.CatchAsync<ApiException>(() => s.Frodo.RefitFor<IRefitOwnerAppRegistration>().UpdateAuthorizedCircles(
+            new UpdateAuthorizedCirclesRequest { AppId = s.App.AppId, AuthorizedCircles = [sams], CircleMemberPermissionGrant = s.ReadWriteGrant() }));
+        Assert.That(refused!.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), refused.Content);
     }
 
     [Test]
