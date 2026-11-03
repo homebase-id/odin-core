@@ -10,8 +10,8 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 namespace Odin.Services.Tests.Peer;
 
 /// <summary>
-/// A member's file sent again to a Selective Share drive (docs/selective-share-pr3-plan.md, section 7): the same delivery
-/// is the outbox retrying one that landed, taken as done; anything else is a change, which goes through an update.
+/// A member's file sent again to a Selective Share drive (docs/file-access.md, "With Selective Share"): the same delivery
+/// is the outbox retrying one that landed, taken as done; anything else is a change, which needs a live Write share.
 /// </summary>
 public class MemberResendTests
 {

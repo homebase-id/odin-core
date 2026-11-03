@@ -1089,6 +1089,28 @@ public partial class SelectiveShareTests : V2Fixture
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
             return response.Content!;
         }
+
+        /// <summary>The header of the file with <paramref name="uniqueId"/> on Frodo's drive, a member's file found by its id.</summary>
+        public async Task<SharedSecretEncryptedFileHeader> HeaderByUniqueIdAsync(Guid uniqueId)
+        {
+            var response = await Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+            return response.Content!;
+        }
+
+        /// <summary>The app makes a circle of its own as <paramref name="request"/> says, sets its key and adds <paramref name="members"/>.</summary>
+        public async Task<Guid> AppCircleAsync(CreateAppCircleRequest request, params string[] members)
+        {
+            var create = await App.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(request);
+            Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK), create.Error?.Content);
+            await SetShareKeyAsync(create.Content);
+            foreach (var member in members)
+            {
+                await AppCircles.AddMemberAsync(App, create.Content, member);
+            }
+
+            return create.Content;
+        }
     }
 }
 

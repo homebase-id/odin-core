@@ -202,7 +202,7 @@ public partial class SelectiveShareTests
         await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", remoteDrive: s.Drive,
             shares: [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
 
-        var added = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!.FileId;
+        var added = (await s.HeaderByUniqueIdAsync(uniqueId)).FileId;
         await sockets.Owner.WaitForAsync("Frodo's device: Sam's new file", ClientNotificationType.FileAdded, h => h.FileId == added);
         await sockets.Member.WaitForAsync("Sam: his new file, shared with his circle", ClientNotificationType.FileAdded,
             h => h.FileId == added && h.Shares?.Single().CircleId == s.CircleId);

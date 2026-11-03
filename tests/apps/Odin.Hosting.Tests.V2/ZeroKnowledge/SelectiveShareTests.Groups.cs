@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -15,7 +14,8 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 /// <summary>
 /// Sharing with a group (file-access.md, "Sharing with a group"): the app's circle for the group grants its drive, and a
 /// file shared with it has one row, which every member reads through; a member's new file can carry that row, so it
-/// goes back to the whole group.
+/// goes back to the whole group.  And a member's file sent again, as on a community drive (file-access.md, "With
+/// Selective Share").
 /// </summary>
 public partial class SelectiveShareTests
 {
@@ -49,7 +49,7 @@ public partial class SelectiveShareTests
         var uniqueId = Guid.NewGuid();
         await ZkTestFiles.SendDepositAsync(pippin, pippin, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Pippin's file", remoteDrive: s.Drive,
             shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write, lockedFileKey: LockedFileKey(), circleId: group)]);
-        var sent = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
+        var sent = await s.HeaderByUniqueIdAsync(uniqueId);
         Assert.That((await s.SharesAsync(sent.FileId)).Select(r => r.CircleId), Is.EqualTo(new[] { group }), "the group's row");
         await AssertSamSeesAsync(s, sent.FileId, true, "Sam, through the group");
         await AssertSeesAsync(pippin, s, sent.FileId, true, "Pippin, his own");
@@ -68,20 +68,34 @@ public partial class SelectiveShareTests
         await AssertSamSeesAsync(s, sent.FileId, true, "Sam, after Pippin's change");
     }
 
-    /// <summary>The app makes a group of <paramref name="members"/>: its own circle granting Read and Write on the drive, its key set.</summary>
-    private static async Task<Guid> GroupAsync(Arranged s, params string[] members)
+    [TestCase(DrivePermission.Read | DrivePermission.Write, true, TestName = "AMembersFileSentAgainChangesItThroughAWriteShare")]
+    [TestCase(DrivePermission.Read, false, TestName = "AMembersFileSentAgainWithoutAWriteShareIsRefused")]
+    public async Task AMembersFileSentAgain(DrivePermission theirShare, bool changes)
     {
-        var create = await s.App.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
-        {
-            Name = "the fellowship", DriveGrants = s.ReadWriteGrant().Drives
-        });
-        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK), create.Error?.Content);
-        await s.SetShareKeyAsync(create.Content);
-        foreach (var member in members)
-        {
-            await AppCircles.AddMemberAsync(s.App, create.Content, member);
-        }
+        // As on a community drive its sender changes it by sending it again, here through a live share with Write on it;
+        // it keeps its shares either way, and the group that lets members read it
+        var s = await ArrangeAsync();
+        var uniqueId = Guid.NewGuid();
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", remoteDrive: s.Drive,
+            shares: [s.Share(Guid.Empty, theirShare, lockedFileKey: LockedFileKey())]);
+        var before = await s.HeaderByUniqueIdAsync(uniqueId);
 
-        return create.Content;
+        // Shares come only with a new file
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again with shares", null, s.Drive,
+            shares: [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
+        Assert.That((await s.HeaderAsync(before.FileId)).FileMetadata.VersionTag, Is.EqualTo(before.FileMetadata.VersionTag),
+            "refused: sent again with shares");
+
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again", null, s.Drive);
+
+        var after = await s.HeaderAsync(before.FileId);
+        Assert.That((after.FileMetadata.VersionTag != before.FileMetadata.VersionTag, after.ServerMetadata.AccessControlList.RequiredSecurityGroup),
+            Is.EqualTo((changes, SecurityGroupType.Connected)), "changed only through a Write share, still shared");
+        Assert.That((await s.SharesAsync(before.FileId)).Single().Permissions, Is.EqualTo(theirShare), "its share as it was");
+        await AssertSamSeesAsync(s, after.FileId, true, "after sending it again");
     }
+
+    /// <summary>The app makes a group of <paramref name="members"/>: its own circle granting Read and Write on the drive, its key set.</summary>
+    private static Task<Guid> GroupAsync(Arranged s, params string[] members) =>
+        s.AppCircleAsync(new CreateAppCircleRequest { Name = "the fellowship", DriveGrants = s.ReadWriteGrant().Drives }, members);
 }

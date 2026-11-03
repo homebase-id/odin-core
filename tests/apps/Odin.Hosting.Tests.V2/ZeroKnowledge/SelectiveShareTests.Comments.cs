@@ -69,33 +69,6 @@ public partial class SelectiveShareTests
         Assert.That((await SamsCommentsAsync(s, file)).Select(c => c.FileState), Is.EqualTo(new[] { FileState.Active }));
     }
 
-    [TestCase(DrivePermission.Read | DrivePermission.Write, true, TestName = "AMembersFileSentAgainChangesItThroughAWriteShare")]
-    [TestCase(DrivePermission.Read, false, TestName = "AMembersFileSentAgainWithoutAWriteShareIsRefused")]
-    public async Task AMembersFileSentAgain(DrivePermission theirShare, bool changes)
-    {
-        // As on a community drive its sender changes it by sending it again, here through a live share with Write on it;
-        // it keeps its shares either way, and the group that lets members read it
-        var s = await ArrangeAsync();
-        var uniqueId = Guid.NewGuid();
-        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", remoteDrive: s.Drive,
-            shares: [s.Share(Guid.Empty, theirShare, lockedFileKey: LockedFileKey())]);
-        var before = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
-
-        // Shares come only with a new file
-        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again with shares", null, s.Drive,
-            shares: [s.Share(Guid.Empty, DrivePermission.Read, lockedFileKey: LockedFileKey())]);
-        Assert.That((await s.HeaderAsync(before.FileId)).FileMetadata.VersionTag, Is.EqualTo(before.FileMetadata.VersionTag),
-            "refused: sent again with shares");
-
-        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "sent again", null, s.Drive);
-
-        var after = await s.HeaderAsync(before.FileId);
-        Assert.That((after.FileMetadata.VersionTag != before.FileMetadata.VersionTag, after.ServerMetadata.AccessControlList.RequiredSecurityGroup),
-            Is.EqualTo((changes, SecurityGroupType.Connected)), "changed only through a Write share, still shared");
-        Assert.That((await s.SharesAsync(before.FileId)).Single().Permissions, Is.EqualTo(theirShare), "its share as it was");
-        await AssertSamSeesAsync(s, after.FileId, true, "after sending it again");
-    }
-
     [Test]
     public async Task OnlyACommentsAuthorEditsItKeepingTheFilesKey()
     {

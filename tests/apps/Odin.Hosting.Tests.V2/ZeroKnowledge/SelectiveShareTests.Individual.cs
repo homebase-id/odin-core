@@ -158,13 +158,12 @@ public partial class SelectiveShareTests
         var uniqueId = Guid.NewGuid();
         await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's file", remoteDrive: s.Drive,
             shares: withTheirRow ? [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write, lockedFileKey: LockedFileKey(), circleId: sams)] : null);
-        var received = await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias);
-        Assert.That(received.StatusCode, Is.EqualTo(HttpStatusCode.OK), received.Error?.Content);
-        var fileId = received.Content!.FileId;
+        var received = await s.HeaderByUniqueIdAsync(uniqueId);
+        var fileId = received.FileId;
         await AssertSamSeesAsync(s, fileId, withTheirRow, "his own file");
 
         var delete = await s.Sam.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive,
-            received.Content.FileMetadata.GlobalTransitId!.Value);
+            received.FileMetadata.GlobalTransitId!.Value);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
         await s.Sam.Sync.DrainOutboxAsync();
         Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(withTheirRow ? FileState.Deleted : FileState.Active),
@@ -172,18 +171,8 @@ public partial class SelectiveShareTests
     }
 
     /// <summary>The app makes <paramref name="member"/> an individual circle of its own, sets its key and adds them.</summary>
-    private static async Task<Guid> IndividualCircleAsync(Arranged s, string member)
-    {
-        var create = await s.App.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
-        {
-            Name = member, Designation = CircleDesignation.Individual
-        });
-        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK), create.Error?.Content);
-        var circleId = create.Content;
-        await s.SetShareKeyAsync(circleId);
-        await AppCircles.AddMemberAsync(s.App, circleId, member);
-        return circleId;
-    }
+    private static Task<Guid> IndividualCircleAsync(Arranged s, string member) =>
+        s.AppCircleAsync(new CreateAppCircleRequest { Name = member, Designation = CircleDesignation.Individual }, member);
 
     private static async Task<string[]> MembersAsync(Arranged s, Guid circleId)
     {
