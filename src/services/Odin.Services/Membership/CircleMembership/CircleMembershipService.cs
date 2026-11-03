@@ -433,13 +433,14 @@ public class CircleMembershipService(
 
     /// <summary>
     /// The circle a slug already names answers a create for it only when it is the kind asked for: a slug's ordinary
-    /// circle answering a request for an individual one would share "with one person" with all of its members.
+    /// circle answering a request for an individual one would share "with one person" with all of its members, and a
+    /// hand-filled one answering for one every connection joins would leave the sharers it is for outside.
     /// </summary>
     private static CircleDefinition SameKind(CircleDefinition existing, CreateAppCircleRequest request) =>
-        existing.Designation == request.Designation
+        existing.Designation == request.Designation && existing.GrantOn == request.GrantOn
             ? existing
-            : throw new OdinClientException($"Slug {request.Slug} names a {existing.Designation} circle, not a {request.Designation} one",
-                OdinClientErrorCode.CircleSlugTaken);
+            : throw new OdinClientException($"Slug {request.Slug} names a {existing.Designation} circle enrolling {existing.GrantOn}, " +
+                                            $"not a {request.Designation} one enrolling {request.GrantOn}", OdinClientErrorCode.CircleSlugTaken);
 
     /// <summary>
     /// Creates a circle owned by the calling app, and returns the id the server picked for it.
@@ -449,8 +450,8 @@ public class CircleMembershipService(
     /// bounded by what it already has, so creating one is never a way to hand out more -- drive access only as far as
     /// it holds it itself, and on a drive it does not own only Read with the storage key
     /// (<see cref="CircleDefinitionService.AssertAppMayGrantDrivesAsync"/>); permission keys only ones it holds -- and
-    /// the circle is granted only explicitly
-    /// (<see cref="CircleGrantOn.None"/>), never to every connection on its own.  The id is the server's, so a
+    /// the circle is granted by hand (<see cref="CircleGrantOn.None"/>), or to every connection as it connects
+    /// (<see cref="CircleGrantOn.Connect"/>) with write and react grants only.  The id is the server's, so a
     /// deleted circle's id, which leftover deposits and enrollments may still name, is never reused.
     /// <para>
     /// Idempotent on <see cref="CreateAppCircleRequest.Slug"/> (#1939): a circle the app already holds under that
@@ -470,7 +471,7 @@ public class CircleMembershipService(
             throw new OdinSecurityException("Only an app can create a circle it owns");
         }
 
-        request.AssertDesignation();
+        request.AssertKind();
         if (request.Slug.HasValue)
         {
             var existing = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);

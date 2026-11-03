@@ -318,6 +318,8 @@ own drive (`CircleMember.sealedShareKey`) **(V)**.
   change how the owner reviews a connection, so they stay the owner's). A slug of its own per member makes the create
   return the same circle to every device (#1939), so two devices racing make one; a slug naming a circle of another
   kind is refused rather than returned **(V)**.
+- **It counts as the member's circle** in their context and in the query's member list, though it grants nothing: a
+  member finds and opens a file through its row **(V, tested)**.
 - **Removing the member from their other circles leaves them in it:** with no grant it gives nothing, and their sealed
   key copy is kept for when they are added back. A disconnect removes them, as from every circle (I).
 - **Clients' circle lists hide individual circles;** the server lists them like any circle **(V)**. No access check
@@ -334,14 +336,21 @@ withdraw it like any share.
 
 ### Telling someone you shared with them: markers
 
-**To build, in the clients.** **Frodo's client leaves a marker on Sam's Selective Share drive of the same app**: a file of the
+**The marker is the clients' to build; the server part is built.** **Frodo's client leaves a marker on Sam's Selective Share drive of the same app**: a file of the
 app's marker file type, saying only "Frodo has files for you" (Frodo's identity and drive), sealed to Sam's drive as
 any deposit. Sam's client keeps markers out of its file tree, shows Frodo as someone sharing with him, and when Sam
 opens that, pages Frodo's drive with the query batch over the Peer API. Nothing of Frodo's files is copied to Sam.
-- **Frodo needs drive `Write` on Sam's drive**, from any of the circles Sam put him in, as on a community drive.
-- **One marker per sharer:** Frodo's client always sends it with the same unique id (proposed: a second send is
-  refused as an existing unique id, and the outbox gives up on a bad request, `OutboxWorkerBase.cs:86` **(V)**, so
-  "refused" means "already there"). Sam dismisses it by deleting it; Frodo's next share makes it again.
+- **Frodo needs drive `Write` on Sam's drive**, as on a community drive, before Sam has done anything for him. Sam's
+  app makes a circle every connection joins, granting `Write` on the drive and nothing else
+  (`CreateAppCircleRequest.GrantOn = Connect`, held to write and react grants as every such circle is), with a fixed
+  slug so every device finds the same one. New connections join it as they connect; the app adds the ones made before
+  it (`enrollment-candidates`, which needs `ReadConnections`, then `circles/add-many`) **(V, tested)**. Every
+  connection can then leave files on Sam's drive; they land owner-only, and Sam's client shows the markers alone.
+- **One marker per sharer:** Frodo's client always sends it with the same unique id. A second send is refused as an
+  existing unique id, and the outbox gives up on a bad request (`OutboxWorkerBase.cs:86`), so "refused" means "already
+  there" **(V, tested)**. Sam dismisses it by deleting it; Frodo's next share makes it again. Sam's client trusts a
+  marker only when its sender is the identity it names: another connection could take Frodo's marker id first, and
+  then Frodo's own is refused until Sam deletes theirs.
 - **It stays when Frodo withdraws his shares;** Sam's client stops showing him when the query finds nothing.
 
 **What builds it** (the share API, shares in the upload, the query and the read rule, `includeShares`, members'
@@ -373,10 +382,7 @@ Not decided:
   `Write` share on it, refused otherwise. Every header write asks the `Write` share **(V)**; whether the shares a
   transfer carries need the refusal is not checked (I);
 - **updating a marker** ("new from Frodo") needs Frodo's individual circle on Sam's side, which Sam's client makes;
-- **someone in none of Sam's circles** can't leave a marker. A circle every connection joins (`GrantOn = Connect`,
-  write-only by its rule) would cover them;
-- **a circle that grants nothing must still count as the caller's circle**, in their context and in the query's member
-  list (`DriveQuery.GetAcl`); not checked (I).
+- **marker ids another connection can't take first**, for example ones only Frodo and Sam can derive.
 
 ## Where in the code
 

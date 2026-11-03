@@ -63,7 +63,7 @@ public class CreateCircleRequest
         DriveGrants = request.DriveGrants,
         Permissions = request.Permissions,
         AppId = appId,
-        GrantOn = CircleGrantOn.None,
+        GrantOn = request.GrantOn,
         Designation = request.Designation
     };
 }

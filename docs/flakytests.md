@@ -1089,6 +1089,11 @@ node's service provider, and StackExchange.Redis throws while closing the connec
 **Cause, a hypothesis:** a race inside the Redis client while a multiplexer is disposed with its own connect or
 background tasks still settling. Undiagnosed; the failed job was re-run.
 
+**Again 2026-11-03:** `ubuntu/postgres/release` on PR #2059 (`selective-share-shares`) commit `b3e13951b`, run
+41618641608, the same `TearDown` NullReferenceException. `ubuntu/sqlite/release` and `windows/sqlite/debug` passed on
+the same commit, which changes circles and drive shares, nothing in the cache, Redis or this fixture. The failed job
+was re-run.
+
 ## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
 
 - `Disconnect_PushesConnectionChanged`
