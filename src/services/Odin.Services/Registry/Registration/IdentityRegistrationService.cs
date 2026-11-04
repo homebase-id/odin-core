@@ -721,7 +721,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         InvitationCodeUse? used = null;
         if (code != null && IsServiceCode(code))
         {
-            used = await _invitationCodes.TryUseAsync(code)
+            used = await _invitationCodes.TryUseAsync(code, domain.DomainName)
                    ?? throw new OdinClientException("Invalid or expired Invitation Code");
         }
 
