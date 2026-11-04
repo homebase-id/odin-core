@@ -19,6 +19,10 @@ public static class UnifiedApiRouteConstants
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
     public const string ByGtid = FilesRoot + "/by-gtid/{gtid:guid}";
     public const string Notify = BasePath + "/notify/push";
+
+    // The notification list sits beside /notify/push, as V1 has it (/notify/list). Under /notify/push its
+    // GET list collided with the push-subscription list.
+    public const string NotifyRoot = BasePath + "/notify";
     public const string LiveRelay = BasePath + "/live-relay";
     public const string NotifySocket = BasePath + "/notify/ws-token";
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
