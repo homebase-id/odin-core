@@ -9,6 +9,7 @@ using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -59,10 +60,21 @@ public partial class SelectiveShareTests
         await ZkTestFiles.SendDepositAsync(frodo, frodo, sams.Owner, sams.WriteOnlyPublicKeyJwk, markerId, "Frodo has files for you",
             remoteDrive: sams.Drive, fileType: MarkerFileType);
 
-        // Sent again: refused, as no share lets Frodo change it, which the query below shows by finding one
-        await ZkTestFiles.SendDepositAsync(frodo, frodo, sams.Owner, sams.WriteOnlyPublicKeyJwk, markerId, "Frodo has files for you",
-            remoteDrive: sams.Drive, fileType: MarkerFileType);
+        var marker = await MarkerAsync(sams, markerId);
+        Assert.That(marker.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner), "Sam's alone");
 
+        // Sent again: Frodo updates it, though he can't read it, as no one else has written it since (docs/file-access.md,
+        // "Changing a file you sent"); still one marker
+        await ZkTestFiles.SendDepositAsync(frodo, frodo, sams.Owner, sams.WriteOnlyPublicKeyJwk, markerId, "Frodo has new files for you",
+            remoteDrive: sams.Drive, fileType: MarkerFileType);
+        var updated = await MarkerAsync(sams, markerId);
+        Assert.That(updated.FileMetadata.VersionTag, Is.Not.EqualTo(marker.FileMetadata.VersionTag), "updated");
+        Assert.That(updated.FileMetadata.AppData.Content, Is.Not.EqualTo(marker.FileMetadata.AppData.Content), "with the new content");
+    }
+
+    /// <summary>The one marker on Sam's drive: Frodo's, sealed to Sam's drive.</summary>
+    private static async Task<SharedSecretEncryptedFileHeader> MarkerAsync(OwnersDrive sams, Guid markerId)
+    {
         var markers = await sams.Owner.Drives.Reader.GetBatchAsync(sams.Drive.Alias, new QueryBatchRequest
         {
             QueryParams = new FileQueryParamsV1 { TargetDrive = sams.Drive, FileType = [MarkerFileType] },
@@ -72,7 +84,7 @@ public partial class SelectiveShareTests
         var marker = markers.Content!.SearchResults.Single();
         Assert.That((marker.FileMetadata.AppData.UniqueId, marker.FileMetadata.SenderOdinId, marker.SharedSecretEncryptedKeyHeader.Type),
             Is.EqualTo(((Guid?)markerId, Identities.Frodo, EncryptionType.Sealed)), "Frodo's marker, sealed to Sam's drive");
-        Assert.That(marker.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner), "Sam's alone");
+        return marker;
     }
 
     /// <summary>A zero-knowledge owner's app, holding <paramref name="permissionKeys"/>, with a Selective Share drive of its own.</summary>

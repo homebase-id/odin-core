@@ -65,16 +65,18 @@ internal static class ZkTestFiles
 
     /// <summary>
     /// <paramref name="sender"/> (Frodo, or an app of his) writes a deposit to his transient drive and sends it to
-    /// Sam's Shard Recovery drive.
+    /// Sam's Shard Recovery drive.  Sending it again names <paramref name="versionTag"/>, the one Sam's copy has
+    /// (docs/file-access.md, "Changing a file you sent").
     /// </summary>
     public static async Task<(KeyHeader FileKey, EncryptedKeyHeader Sealed)> SendDepositAsync(IV2Caller sender,
         OwnerSession frodo, OwnerSession sam, string publicKeyJwk, Guid uniqueId, string content,
         TestPayloadDefinition? payload = null, TargetDrive? remoteDrive = null, Guid? groupId = null, List<ShareRequest>? shares = null,
-        int fileType = 100)
+        int fileType = 100, Guid? versionTag = null)
     {
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
         var metadata = Metadata(uniqueId, content, fileType: fileType);
         metadata.AllowDistribution = true;
+        metadata.VersionTag = versionTag;
         metadata.AppData.GroupId = groupId;
         UploadManifest? manifest = null;
         if (payload != null)

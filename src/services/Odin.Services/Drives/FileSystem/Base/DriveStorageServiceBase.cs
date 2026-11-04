@@ -767,7 +767,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanReadDriveAsync(file.DriveId, odinContext);
+            // A sender changing a file they sent may hold drive Write alone, which the overwrite asked; the header load asks
+            // drive Read when the file isn't theirs to change unread
+            if (odinContext.SendersOwnFile?.File != file)
+            {
+                await AssertCanReadDriveAsync(file.DriveId, odinContext);
+            }
+
             var header = await GetServerFileHeaderInternal(file, odinContext);
 
             if (header == null)
@@ -1073,7 +1079,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             InternalDriveFileId originFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete,
-            StagingArea sourceArea)
+            StagingArea sourceArea, Guid? useThisVersionTag = null)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
@@ -1088,13 +1094,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             // copied, since a copy may land on a live object (a sender's own uid).  The header write asks again
             if (GetFileSystemType() == FileSystemType.Standard && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
             {
-                await AssertMayWriteSharedFileAsync(existingServerHeader, odinContext);
+                await AssertMayWriteStoredFileAsync(drive, existingServerHeader, odinContext);
             }
 
-            // Once a file exists on a zero-knowledge drive, a sender can't change it: a new sealed version (a new key
-            // header, new content) of an existing sealed or zkDrive file is refused, whoever applies the write (a
-            // direct peer write can't see the file; an inbox drained by the owner console can).  Only a device holding
-            // the drive's key changes it, with a zkDrive key header.  A sender editing what it sent comes with Chat
+            // A sealed key header replaces only a sealed one: a deposit's sender changes it until a device holding the
+            // drive's key takes it over (docs/file-access.md, "Changing a file you sent")
             ZkDriveFiles.AssertMayReplace(existingServerHeader, keyHeader);
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
@@ -1153,7 +1157,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
-                    await WriteFileHeaderInternal(serverHeader, odinContext);
+                    await WriteFileHeaderInternal(serverHeader, odinContext, useThisVersionTag);
                     _logger.LogDebug("{method} -> markComplete {message}",
                         nameof(OverwriteFile),
                         markComplete == null ? "is not configured" : "will be called");
@@ -1749,7 +1753,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
-            await WriteFileHeaderInternal(header, odinContext); // sets the new VersionTag and Updated on the header
+            // sets the new VersionTag and Updated on the header
+            await WriteFileHeaderInternal(header, odinContext, CarrySendersWrite(header.FileMetadata));
 
             if (await TryShouldRaiseDriveEventAsync(file))
             {
@@ -2121,11 +2126,35 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             else if (stored != null)
             {
-                await AssertMayWriteSharedFileAsync(stored, odinContext);
+                await AssertMayWriteStoredFileAsync(drive, stored, odinContext);
             }
 
             // A new file needs drive Write alone, as on any drive, which every write path has asked by now; it lands
             // owner-only unless it carries the writer's shares
+        }
+
+        /// <summary>
+        /// An outside caller writes <paramref name="stored"/> on a Selective Share drive: its original sender while it has no
+        /// share, otherwise through a live share with <c>Write</c> on it (docs/file-access.md, "Changing a file you sent").
+        /// </summary>
+        private Task AssertMayWriteStoredFileAsync(StorageDrive drive, ServerFileHeader stored, IOdinContext odinContext) =>
+            AssertSenderOrShareMayWriteAsync(drive, stored,
+                odinContext.SendersOwnFile is { } own && own.File == stored.FileMetadata.File ? own.Sender : null, odinContext);
+
+        /// <summary>
+        /// <paramref name="sender"/>, when the file's, writes it while it has no share; anyone else, or the sender once it
+        /// has one, through a live share with <c>Write</c> on it (docs/file-access.md, "Changing a file you sent").
+        /// </summary>
+        private async Task AssertSenderOrShareMayWriteAsync(StorageDrive drive, ServerFileHeader stored, OdinId? sender,
+            IOdinContext odinContext)
+        {
+            if (sender is { } s && SharedSecretEncryptedFileHeader.IsOriginalSender(stored.FileMetadata.SenderOdinId, s) &&
+                await SenderMayChangeAsync(drive, stored))
+            {
+                return;
+            }
+
+            await AssertMayWriteSharedFileAsync(stored, odinContext);
         }
 
         /// <summary>
@@ -2135,7 +2164,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// (<see cref="AssertMemberMayWriteAsync"/>), and by the peer update path when a member's change arrives, before
         /// anything is staged.
         /// </summary>
-        public Task AssertMayWriteSharedFileAsync(ServerFileHeader stored, IOdinContext odinContext) =>
+        private Task AssertMayWriteSharedFileAsync(ServerFileHeader stored, IOdinContext odinContext) =>
             driveAclAuthorizationService.AssertCallerHoldsShareAsync(stored, DrivePermission.Write, odinContext);
 
         /// <summary>
@@ -2148,7 +2177,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             var caller = odinContext.GetCallerOdinIdOrFail();
             var metadata = header.FileMetadata;
-            if (!IsFrom(metadata, caller) || (stored != null && !IsFrom(stored.FileMetadata, caller)))
+            if (!SharedSecretEncryptedFileHeader.IsOriginalSender(metadata.SenderOdinId, caller) ||
+                (stored != null && !SharedSecretEncryptedFileHeader.IsOriginalSender(stored.FileMetadata.SenderOdinId, caller)))
             {
                 throw new OdinSecurityException("Only a comment's author writes it");
             }
@@ -2164,7 +2194,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             odinContext.PermissionsContext.AssertCanReadDrive(drive.Id);
             await driveAclAuthorizationService.AssertCallerHoldsShareAsync(header, DrivePermission.Comment, odinContext);
 
-            static bool IsFrom(FileMetadata m, OdinId caller) => m.SenderOdinId != null && new OdinId(m.SenderOdinId) == caller;
         }
 
         /// <summary>
@@ -2405,6 +2434,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return (null, null);
             }
 
+            if (await IsSendersOwnFileAsync(drive, header, odinContext))
+            {
+                return (header, null);
+            }
+
+            // Marked for its sender, who may not change it unread (a shared file): drive Read too, which GetServerFileHeader
+            // left to here
+            if (odinContext.SendersOwnFile?.File == file)
+            {
+                await AssertCanReadDriveAsync(file.DriveId, odinContext);
+            }
+
             var shares = drive.IsSelectiveShare
                 ? await driveAclAuthorizationService.FilesSharedWithCallerAsync(drive.Id, [header], odinContext)
                 : null;
@@ -2418,8 +2459,74 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (header, shares);
         }
 
+        /// <summary>
+        /// Whether the context changes <paramref name="header"/> for its original sender, who may change a file they sent
+        /// without reading it (docs/file-access.md, "Changing a file you sent"): on a Selective Share drive only while the
+        /// file has no share, since once it has one the shares decide.  A context marked for the file by anyone else than
+        /// its sender is refused.
+        /// </summary>
+        private async Task<bool> IsSendersOwnFileAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
+        {
+            if (odinContext.SendersOwnFile is not { } own || own.File != header.FileMetadata.File)
+            {
+                return false;
+            }
+
+            if (!SharedSecretEncryptedFileHeader.IsOriginalSender(header.FileMetadata.SenderOdinId, own.Sender))
+            {
+                throw new OdinSecurityException($"{own.Sender} didn't send file {own.File.FileId}");
+            }
+
+            return await SenderMayChangeAsync(drive, header);
+        }
+
+        /// <summary>
+        /// Whether a file's sender changes it without reading it: always, but on a Selective Share drive only a standard file
+        /// with no share, since once it has one the shares decide, and a comment there goes by the shares of the file it
+        /// comments on.
+        /// </summary>
+        public async Task<bool> SenderMayChangeAsync(StorageDrive drive, ServerFileHeader header) =>
+            !drive.IsSelectiveShare ||
+            (GetFileSystemType() == FileSystemType.Standard &&
+             (await db.DriveAclIndex.GetRowsAsync(drive.Id, [header.FileMetadata.File.FileId], [], null)).Count == 0);
+
+        /// <summary>
+        /// A change of <paramref name="stored"/> arriving from a peer on a Selective Share drive: its original sender's while
+        /// it has no share, otherwise a member's through a live share with <c>Write</c> on it (docs/file-access.md, "Changing
+        /// a file you sent").  Asked before anything is staged; the header write asks again.
+        /// </summary>
+        public Task AssertMayChangeSharedFileAsync(StorageDrive drive, ServerFileHeader stored, IOdinContext odinContext) =>
+            AssertSenderOrShareMayWriteAsync(drive, stored, odinContext.GetCallerOdinIdOrFail(), odinContext);
+
+        /// <summary>A file sent again keeps its data source.</summary>
+        internal static void AssertSameDataSource(ServerFileHeader existing, FileMetadata newMetadata)
+        {
+            if (!DataSource.AreSame(existing.FileMetadata.DataSource, newMetadata.DataSource))
+            {
+                throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates",
+                    OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+            }
+        }
+
+        /// <summary>
+        /// The version tag for a save that changes none of the file's content (its expiry starting or hastened, its
+        /// archival status): a peer's last write the file still had carries over to it, so the save doesn't end its sender's
+        /// right to change the file (docs/file-access.md, "Changing a file you sent").
+        /// </summary>
+        private static Guid CarrySendersWrite(FileMetadata metadata)
+        {
+            var versionTag = DriveFileUtility.CreateVersionTag();
+            if (metadata.SendersWrite is { } last && last.VersionTag == metadata.VersionTag)
+            {
+                metadata.SendersWrite = new SendersWrite
+                    { Sender = last.Sender, SendersVersionTag = last.SendersVersionTag, VersionTag = versionTag };
+            }
+
+            return versionTag;
+        }
+
         /// <summary>An update keeps a file encrypted or unencrypted: its payloads were written that way.</summary>
-        private static void AssertSameEncryption(ServerFileHeader existing, FileMetadata newMetadata)
+        internal static void AssertSameEncryption(ServerFileHeader existing, FileMetadata newMetadata)
         {
             if (existing.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
             {
@@ -2501,7 +2608,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
 
                     fresh.FileMetadata.Ttl = resolved;
-                    await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: null);
+                    await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: CarrySendersWrite(fresh.FileMetadata));
                     tx.Commit();
                 }
 
@@ -2577,7 +2684,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // Shorten-only by construction: now is earlier than any live absolute Ttl, and a
                 // pending negative Ttl resolves to at-least-now. Never extend, never resurrect.
                 fresh.FileMetadata.Ttl = nowMs;
-                await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: null);
+                await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: CarrySendersWrite(fresh.FileMetadata));
                 tx.Commit();
             }
 

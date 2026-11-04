@@ -858,7 +858,8 @@ public partial class SelectiveShareTests : V2Fixture
 
     /// <summary>
     /// Sam edits Frodo's file through his own server (V1 update, Locale=Peer, by global transit id), keeping the file
-    /// key: a share key header with a new IV only (decision C).  Returns the new IV.
+    /// key: a share key header with a new IV only (decision C), naming the version tag <paramref name="file"/> has
+    /// (docs/file-access.md, "Changing a file you sent").  Returns the new IV.
     /// </summary>
     private static async Task<byte[]> MemberEditAsync(Arranged s, SharedSecretEncryptedFileHeader file, KeyHeader fileKey, string content,
         bool v2 = false)
@@ -868,6 +869,7 @@ public partial class SelectiveShareTests : V2Fixture
         metadata.AppData.Content = new KeyHeader { AesKey = fileKey.AesKey, Iv = newIv }.EncryptDataAes(content.ToUtf8ByteArray()).ToBase64();
         metadata.IsEncrypted = true;
         metadata.AllowDistribution = true;
+        metadata.VersionTag = file.FileMetadata.VersionTag;
 
         var keepKey = new EncryptedKeyHeader { EncryptionVersion = 1, Type = EncryptionType.Share, Iv = newIv };
         if (v2)

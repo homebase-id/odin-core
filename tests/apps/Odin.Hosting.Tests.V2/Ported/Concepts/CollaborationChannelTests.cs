@@ -239,9 +239,11 @@ public class CollaborationChannelTests : V2Fixture
         var caller = await callerContext.Build(member1OwnerClient);
         var callerDriveClient = caller.V1.Drive;
 
-        // Edited in place: the same metadata object goes back up carrying the new values.
+        // Edited in place: the same metadata object goes back up carrying the new values, naming the channel copy's tag
         uploadedFileMetadata.AppData.Content = "some new content here";
         uploadedFileMetadata.AppData.DataType = 999;
+        uploadedFileMetadata.VersionTag =
+            (await TransitScenario.SingleByGlobalTransitIdAsync(collabChannelOwnerClient, remoteTargetFile.ToGlobalTransitIdFileIdentifier())).FileMetadata.VersionTag;
 
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
         var updateInstructionSet = PeerUpdateInstructionSet(
@@ -344,8 +346,8 @@ public class CollaborationChannelTests : V2Fixture
 
     /// <summary>
     /// Edits <paramref name="fileMetadata"/> in place and sends it back to the collaboration channel
-    /// through <paramref name="callerContext"/>'s caller. The returned metadata is that same
-    /// instance, now carrying the new content and data type.
+    /// through <paramref name="callerContext"/>'s caller, naming the channel copy's version tag. The returned metadata is
+    /// that same instance, now carrying the new content and data type.
     /// </summary>
     private static async Task<(ApiResponse<UploadPayloadResult> updateFileResponse, UploadFileMetadata updatedFile)>
         AwaitUpdateFile(
@@ -359,6 +361,8 @@ public class CollaborationChannelTests : V2Fixture
     {
         fileMetadata.AppData.Content = "some new content here";
         fileMetadata.AppData.DataType = 5678;
+        fileMetadata.VersionTag =
+            (await TransitScenario.SingleByGlobalTransitIdAsync(collabChannel, remoteTargetFile.ToGlobalTransitIdFileIdentifier())).FileMetadata.VersionTag;
 
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
         var updateInstructionSet = PeerUpdateInstructionSet(

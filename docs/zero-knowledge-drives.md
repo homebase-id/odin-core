@@ -35,9 +35,9 @@ merged 2026-10-27); the reasons, alternatives and work are in
   Nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (no recipients,
   feeds or CDN).
 - **Known limit:** the read rule also gates the server's own lookups made in a caller's context, so a
-  sender's own server can't find a client-locked file to update or delete it, and an inbox drained by an
-  app misses one: a peer's delete of a deposit applied that way is lost. Deposits are never edited or
-  deleted by peers today (Shamir); a sender's edit (Chat) needs the deeper fix in the plan's open items.
+  sender's own server can't find a client-locked file to delete it, and an inbox drained by an app misses one: a
+  peer's delete of a deposit applied that way is lost. A sender's change finds and writes their deposit without the
+  read rule ([file-access.md](file-access.md), "Changing a file you sent"); a delete doesn't yet (Not decided).
 - **Transforming `sealed` into `zkDrive` is optional**, and designed for Chat (deferred): a key holder
   re-locks the same IV and FileKey with DrvK. It keeps the file's version tag and `updated`, because
   nothing a reader or writer depends on changed, and a new version tag would break collaborators'

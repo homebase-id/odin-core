@@ -240,7 +240,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var stored = await fileSystem.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(drive.Id,
                              target.GlobalTransitId.GetValueOrDefault(), odinContext)
                          ?? throw new OdinSecurityException("No share with Write on the file");
-            await fileSystem.Storage.AssertMayWriteSharedFileAsync(stored, odinContext);
+            await fileSystem.Storage.AssertMayChangeSharedFileAsync(drive, stored, odinContext);
         }
 
         /// <summary>

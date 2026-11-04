@@ -83,10 +83,14 @@ namespace Odin.Services.Apps
                 throw new OdinSecurityException($"Original file does not have a sender ({file})");
             }
 
-            if (new OdinId(storedSender) != odinId)
+            if (!IsOriginalSender(storedSender, odinId))
             {
                 throw new OdinSecurityException("Sender does not match original sender");
             }
         }
+
+        /// <summary>Whether <paramref name="odinId"/> sent the stored file, whose sender is <paramref name="storedSender"/>.</summary>
+        public static bool IsOriginalSender(string storedSender, OdinId odinId) =>
+            !string.IsNullOrEmpty(storedSender) && new OdinId(storedSender) == odinId;
     }
 }

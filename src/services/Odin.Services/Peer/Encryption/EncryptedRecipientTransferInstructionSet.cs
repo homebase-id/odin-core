@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.Acl;
@@ -38,6 +39,12 @@ namespace Odin.Services.Peer.Encryption
         /// them (docs/selective-share-pr3-plan.md, section 7); checked and written by the owner's server.
         /// </summary>
         public List<ShareRequest> Shares { get; set; }
+
+        /// <summary>
+        /// For a file sent from the transient drive, the version tag the recipient's copy has, as the client named it: a
+        /// member who may read it names it (docs/file-access.md, "Changing a file you sent").
+        /// </summary>
+        public Guid? ExpectedVersionTag { get; set; }
         
         public bool IsValid()
         {

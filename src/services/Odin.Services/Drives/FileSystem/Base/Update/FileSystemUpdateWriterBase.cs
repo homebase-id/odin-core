@@ -299,10 +299,15 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
             }
 
+            // The recipient's copy's, as the client named it, before the transient file takes a version tag of its own
+            // (docs/file-access.md, "Changing a file you sent")
+            var expectedVersionTag = metadata.VersionTag;
+
             await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false,
                 odinContext, sourceArea: StagingArea.Upload);
 
-            var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext);
+            var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext,
+                expectedVersionTag);
 
             return new FileUpdateResult()
             {
@@ -404,7 +409,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
     protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package,
         FileIdentifier targetFile,
         KeyHeader keyHeader,
-        IOdinContext odinContext)
+        IOdinContext odinContext,
+        Guid? expectedVersionTag = null)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.Recipients;
@@ -425,7 +431,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 package.InstructionSet.UseAppNotification ? package.InstructionSet.AppNotificationOptions : null,
                 package.InstructionSet.Locale,
                 odinContext,
-                overrideDataSource: null);
+                overrideDataSource: null,
+                expectedVersionTag: expectedVersionTag);
         }
 
         return recipientStatus;

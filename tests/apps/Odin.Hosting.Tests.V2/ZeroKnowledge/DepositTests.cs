@@ -211,6 +211,35 @@ public class DepositTests : V2Fixture
     }
 
     [Test]
+    public async Task ADepositSentAgainChangesItUntilTheOwnerTakesItOver()
+    {
+        // Frodo can only write Sam's drive: sending his deposit again changes it, naming no tag, as no one else has
+        // written it since (docs/file-access.md, "Changing a file you sent").  Once Sam has taken it over, it is refused,
+        // whatever tag it names: a sealed key header never replaces Sam's own
+        var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
+        var uniqueId = Guid.NewGuid();
+        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
+        var received = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
+
+        var (fileKey, _) = await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, "sent again");
+        var changed = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
+        Assert.That(changed.FileMetadata.VersionTag, Is.Not.EqualTo(received.FileMetadata.VersionTag), "changed");
+        Assert.That(changed.FileMetadata.AppData.Content, Is.Not.EqualTo(received.FileMetadata.AppData.Content), "with the new content");
+
+        var newKey = WithNewIv(fileKey);
+        var takeOver = await UpdateAsync(sam, changed.FileId, uniqueId, newKey, ZkBrowser.LockFileKey(newKey, samsKeys.DriveKey),
+            changed.FileMetadata.VersionTag);
+        Assert.That(takeOver.StatusCode, Is.EqualTo(HttpStatusCode.OK), takeOver.Error?.Content);
+        var takenOver = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
+
+        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, "after Sam took it over",
+            versionTag: takenOver.FileMetadata.VersionTag);
+        var after = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
+        Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(takenOver.FileMetadata.VersionTag), "refused: Sam's own now");
+        Assert.That(after.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
+    }
+
+    [Test]
     public async Task TheOwnerCannotUpdateADepositWithASealedKeyHeader()
     {
         // A caller holding the drive's key writes zkDrive, in an update or a metadata-only upload too

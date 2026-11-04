@@ -58,11 +58,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// </summary>
         /// <returns></returns>
         /// <param name="shares">A member's shares for the file they add to a peer's Selective Share drive, sent on with it.</param>
+        /// <param name="expectedVersionTag">For a file sent from the transient drive, the version tag of the recipient's copy
+        /// it changes, as the client named it.</param>
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             IOdinContext odinContext,
             DataSource overrideDataSource = null,
-            List<ShareRequest> shares = null)
+            List<ShareRequest> shares = null,
+            Guid? expectedVersionTag = null)
         {
             odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
 
@@ -87,6 +90,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var item in outboxItems)
             {
                 item.State.TransferInstructionSet.Shares = shares;
+                item.State.TransferInstructionSet.ExpectedVersionTag = expectedVersionTag;
             }
 
             //TODO: change this to a batch update of the transfer history
@@ -121,7 +125,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             AppNotificationOptions notificationOptions,
             UpdateLocale updateLocale,
             IOdinContext odinContext,
-            DataSource overrideDataSource = null)
+            DataSource overrideDataSource = null,
+            Guid? expectedVersionTag = null)
         {
             odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
             OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
@@ -132,6 +137,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 File = file,
                 Manifest = manifest,
                 NewVersionTag = newVersionTag,
+                ExpectedVersionTag = expectedVersionTag,
                 AppNotificationOptions = notificationOptions,
                 UpdateLocale = updateLocale
             };

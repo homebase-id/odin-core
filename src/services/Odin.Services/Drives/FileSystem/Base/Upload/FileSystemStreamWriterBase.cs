@@ -419,7 +419,9 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 TransferFileType.Normal,
                 fileSystemType, 
                 odinContext,
-                shares: package.Shares);
+                shares: package.Shares,
+                // Nothing of a transient file stays here, so its client names the tag of the recipient's copy
+                expectedVersionTag: transitOptions.IsTransient ? package.Descriptor.FileMetadata.VersionTag : null);
 
             return recipientStatus;
         }

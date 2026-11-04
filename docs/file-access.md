@@ -156,11 +156,75 @@ the page comes back short.
     returns it to every caller, and the per-result read rule leaves it out ("A query").
 - Comments, reactions and read receipts have rules of their own ("Special cases").
 
+### Changing a file you sent
+
+**A file's original sender changes it by sending it again or updating it, as long as no one else has written it since
+their last write; anyone else, and the sender once someone else has, names the version tag the file has**, on every
+drive **(V, tested)**. Anything else is refused with `VersionTagMismatch` (`SentFileChanges.LandedBefore`), and the SQL
+write that replaces the header checks the tag again (`TableDriveMainIndex`, `WHERE hdrVersionTag = @hdrVersionTag`)
+**(V)**, so of two writes from the same tag only the first lands. Both writers ask who may change the file and what it
+names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdateWriter`) **(V)**.
+- **Who may:** the file's original sender, or on a collaborative channel any member who may read it, holding drive
+  `Write` **(V, tested)**; on a Selective Share drive also what "With Selective Share" asks (below). On the inbox path
+  the collaborative channel's read check is the drainer's (the owner or an app), not the sender's, as before this rule
+  **(V)**.
+- **The recipient records the last write by a peer.** Each new file, file sent again and update from a peer stores, in
+  the header, who sent it, the version tag their copy had and the one the write gave the recipient's copy
+  (`FileMetadata.SendersWrite`) **(V, tested)**. The recipient's copy keeps version tags of its own server's making, as
+  for every file; only the update flow takes the sender's new tag, as it always has (`UpdateRemoteFileRequest.NewVersionTag`).
+  The record comes from this server, never from the sender's metadata **(V)**. A save that changes none of the file's
+  content carries the record over to the new tag: the expiry of an expire-after-read file starting or hastened, and the
+  owner's change of its archival status (`DriveStorageServiceBase.CarrySendersWrite`) **(V, tested for the archival status)**.
+- **A sender who can only write the file names no tag.** While the file still has the tag their last write gave it,
+  no one else has changed it since, so their change goes on: a deposit, a Filesync marker, a chat message on a drive
+  they hold only `Write` on, an owner-only file on a community drive **(V, tested)**. Nothing the sender's server or
+  client keeps has to stay in step with the recipient: a lost response, or an inbox item the recipient dropped, leaves
+  the sender free to send their next change. Every device of the sender's sends the same way.
+- **Anyone else's write ends it:** the owner's edit, or another member's, gives the file a new tag, after which the
+  sender's change must name the file's tag like anyone's, which a sender who can only write it never learns **(V,
+  tested)**. On a zero-knowledge drive the owner's edit also takes a deposit over, and a `sealed` key header never
+  replaces a taken-over one ([zero-knowledge-drives.md](zero-knowledge-drives.md)) **(V, tested)**.
+- **A sender or member who can read the file** names its tag, as for any update, and gets a version tag error with a
+  stale one: the ordinary collaborative case **(V, tested)**. Only a change that has no copy on the sender's own drive
+  names one: an update of the recipient's copy only (`UpdateLocale.Peer`) or a send from the transient drive, where the
+  client names it as the `versionTag` of the metadata it uploads, carried as `ExpectedVersionTag` **(V)**. One named tag
+  goes to every recipient, so a change naming one is for one recipient. A change sent from the sender's own drive
+  (`UpdateLocale.Local`, or an upload with recipients) names none, so once someone else has changed a recipient's copy,
+  it is refused there for good (I, from the code).
+- **The same change sent again,** the outbox retrying one that landed, is that peer's tag already recorded: done,
+  nothing written; an inbox item is marked complete and the payloads it streamed in are deleted
+  (`SentFileChanges.AlreadyDeliveredAsync`) **(V)**.
+- **What doesn't change the tag:** a share row write ("With Selective Share") **(V)**, a reaction (its own column) and the
+  owner's local app data, which has a tag of its own (`hdrLocalVersionTag`) **(V)**. Taking a deposit over today is the
+  owner's update, which does **(V)**.
+- **The sender changes it without reading it.** The server finds the file without the read rule, by global transit id
+  then unique id, checks the sender is the stored file's, and, while they may change it unread (on a Selective Share
+  drive, while it has no share), writes it in a context marked for that file and sender
+  (`OdinContextUpgrades.ForSendersOwnFile`), whose header loads skip the read rule for that file alone and ask no drive
+  `Read` (`DriveStorageServiceBase.IsSendersOwnFileAsync`) **(V, tested)**. It holds on the inbox path too, whoever
+  drains it. Once it has a share, its sender changes it as any member does.
+- **On a Selective Share drive, a share freezes it.** A standard file with no share is changed by the rule above. Once
+  it has one, the shares decide: the sender also needs a live share with `Write` on it, so a share without `Write`, or a
+  withdrawn one, keeps them from changing it until the owner changes that share **(V, tested)**. **Any share freezes
+  it**, not only one for a circle the sender is in: a file shared with a group the sender isn't in stays as the group
+  reads it. The rule may be loosened later; it can't be tightened without surprising senders. A comment there goes by
+  the shares of the file it comments on.
+- **What a send again keeps,** as an update does: encrypted or not, its data source, and for a client-locked file a
+  client-locked key header with a new IV (`DriveStorageServiceBase.AssertSameEncryption`, `AssertSameDataSource`,
+  `ZkDriveFiles.AssertFitsUpdate`) **(V)**. The file key stays the same; the server can't check a client-locked file's
+  key, which is the sender's to keep.
+- **A deleted file stays deleted:** its change is refused ("File is deleted") **(V)**.
+- **A file received before this rule has no record of its sender's write,** so a sender who can only write it can't
+  change it. There is no fallback: chat edits are short-lived, and clients update.
+- **A refused change isn't retried** (`OutboxWorkerBase.cs:86`) **(V)**.
+- **Feed copies** a channel distributes to its followers are written by their own path (`PeerFileWriter`'s feed
+  files), which this rule doesn't cover (I, not changed).
+
 ### What else widens access, on purpose
 
 `UpgradeToByPassAclCheck` makes a caller an owner caller for one job; the CDN reads CDN-enabled drives as `System`;
-three callers read headers without the read rule; a public drive skips the drive-permission check, not the read
-rule. All in "Special cases".
+some callers find headers without the read rule, and a file's original sender changes it without reading it ("Changing
+a file you sent"); a public drive skips the drive-permission check, not the read rule. All in "Special cases".
 
 ## Index rows on other drives
 
@@ -178,8 +242,9 @@ alone ("With Selective Share").
 
 **Peers' contexts are cached** for up to an hour (`OdinContextCache`): their level, enabled circles and whether they
 are reviewed (`TransitAuthenticationService`) **(V)**. The cache is reset when a connection is finalized, blocked or
-deleted, not when a circle is disabled **(V)**, so a check that must see a disable asks at the time (as the circle
-share key read does, `CircleShareKeyService`) **(V)**.
+deleted, and when a member is removed from a circle (`CircleNetworkService.RevokeCircleAccessAsync`), not when a circle
+is disabled **(V)**, so a check that must see a disable asks at the time (as the circle share key read does,
+`CircleShareKeyService`) **(V)**.
 
 ## Copies sent to others
 
@@ -208,8 +273,12 @@ share key read does, `CircleShareKeyService`) **(V)**.
   (`PeerFileWriter.MarkFileAsRead`) **(V)**.
 - **The server's own work skips the read rule's ACL part:** `System` passes it, and `UpgradeToByPassAclCheck` makes a
   caller an owner caller for one job: profile attributes, contacts, Shamir, zero-knowledge keys
-  (`OdinContextUpgrades.cs:34-65`) **(V)**. `GetServerFileHeaderBy…SkippingFileAcl` skips the read rule for three
-  callers: the peer file-exists probes, the email key writer and Shamir (`DriveQueryServiceBase.cs:206-235`) **(V)**.
+  (`OdinContextUpgrades.UpgradeToByPassAclCheck`) **(V)**. `GetServerFileHeaderBy…SkippingFileAcl` finds a header without
+  the read rule for the peer file-exists probes, the email key writer, Shamir, and the peer writers, which find a file
+  sent again or updated and then decide who may change it (`DriveQueryServiceBase.cs:206-235`; "Changing a file you
+  sent") **(V)**. A context marked for one file and its original sender (`OdinContextUpgrades.ForSendersOwnFile`) loads
+  that file's header without the read rule or drive `Read`, while the sender may change it unread
+  (`DriveStorageServiceBase.IsSendersOwnFileAsync`) **(V)**.
 - **The CDN** reads payloads and thumbnails of CDN-enabled drives as `System`, so it passes every file's ACL there
   (`CdnAuthPathHandler`) **(V)**: `AllowCdn` means "the CDN may read this drive". A zero-knowledge drive is never
   CDN-enabled (`DriveManager.GetCdnEnabledDrivesAsync`) **(V)**.
@@ -248,7 +317,7 @@ the index rows aren't a copy of the ACL but the record.
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere |
 | Who may add a file | drive `Write` | the same: drive `Write`, nothing else asked. It lands owner-only unless it carries rows: for circles the writer is in, their individual circle included ("Sharing with one person") |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member with drive `Write` whose live row has `Write`. The author of a deposit edits it through the row for their individual circle it carries |
-| Sending a file again | the original sender's send again updates it (on a collaborative channel, anyone's) when it goes through the inbox; a direct write looks the file up as the sender, whom an incoming file's owner-only ACL refuses (I, not tested) | the same, as its original sender, through a live row with `Write`. It keeps its rows and its required group: shares come only with a new file, and a send again carrying any is refused. The same delivery again, the outbox retrying one that already landed, is taken as done (`PeerFileWriter.StoreNormalFileLongTermAsync`) **(V, tested)** |
+| Sending a file again | the original sender's send again updates it while no one else has written it since; anyone else's (on a collaborative channel, a member who may read it) names the file's version tag: "Changing a file you sent" **(V, tested)** | the same, as its original sender: a file with no share by that rule alone, one with a share through a live row with `Write` too ("Changing a file you sent") **(V, tested)**. It keeps its rows and its required group: shares come only with a new file, and a send again carrying any is refused. The same delivery again, the outbox retrying one that already landed, is taken as done (`PeerFileWriter.StoreNormalFileLongTermAsync`) **(V, tested)** |
 | Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member with drive `React` or `Comment` whose live row has the same bit. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" |
@@ -372,9 +441,10 @@ opens that, pages Frodo's drive with the query batch over the Peer API. Nothing 
   members and so would learn every connection. New connections join it as they connect; the app adds the ones made before
   it (`enrollment-candidates`, which needs `ReadConnections`, then `circles/add-many`) **(V, tested)**. Every
   connection can then leave files on Sam's drive; they land owner-only, and Sam's client shows the markers alone.
-- **One marker per sharer:** Frodo's client always sends it with the same unique id. A second send is a send again
-  of a file no row lets Frodo change, so it is refused, and the outbox gives up on a refusal
-  (`OutboxWorkerBase.cs:86`): "refused" means "already there" **(V, tested)**. Sam dismisses it by deleting it; Frodo's next share makes it again. Sam's client trusts a
+- **One marker per sharer:** Frodo's client always sends it with the same unique id. A second send updates it, for a
+  group's new name or to show a new share, naming no tag, until Sam changes it or shares it ("Changing a file you
+  sent") **(V, tested)**. Sam dismisses it by deleting it; Frodo's next share makes it
+  again after a hard delete, while a soft delete's tombstone refuses it, as a deleted file stays deleted (I, not tested). Sam's client trusts a
   marker only when its sender is the identity it names: another connection could take Frodo's marker id first, and
   then Frodo's own is refused until Sam deletes theirs.
 - **It stays when Frodo withdraws his shares;** Sam's client stops showing him when the query finds nothing.
@@ -403,8 +473,6 @@ drives, which work by copies, keep it.
 
 Not decided:
 - reactions and the read rule on other drives (#2058);
-- **updating a marker** ("new from Frodo") needs a row with `Write` for Frodo on it, his individual circle on Sam's
-  side, which Sam's client makes;
 - **how a member's client names a group** it reads files through;
 - **marker ids another connection can't take first**, for example ones only Frodo and Sam can derive.
 

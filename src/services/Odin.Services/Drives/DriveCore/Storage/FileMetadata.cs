@@ -77,6 +77,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public UnixTimeUtc TransitUpdated { get; set; }
 
+        /// <summary>A received file's last write by a peer; null for a file of this identity's own.</summary>
+        public SendersWrite SendersWrite { get; set; }
+
         public ReactionSummary ReactionPreview { get; set; }
 
         /// <summary>
@@ -143,6 +146,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // Updated = fileMetadataDto.Updated;
             TransitCreated = fileMetadataDto.TransitCreated;
             TransitUpdated = fileMetadataDto.TransitUpdated;
+            SendersWrite = fileMetadataDto.SendersWrite;
             // ReactionPreview = ReactionPreview,
             IsEncrypted = fileMetadataDto.IsEncrypted;
             // SenderOdinId = fileMetadataDto.SenderOdinId;
@@ -156,8 +160,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             Ttl = fileMetadataDto.Ttl;
 
             // SANITY CHECK:
-            // There are EIGHT fields in the DTO.
-            // There are EIGHTEEN properties in the FileMetaData
+            // There are NINE fields in the DTO.
+            // There are NINETEEN properties in the FileMetaData
             // There must be TEN assignments below
 
             // Now fill in FileMetadata with column specific values from the record

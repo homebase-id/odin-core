@@ -7,6 +7,7 @@ using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Hosting.UnifiedV2.Drive.Shares;
 using Odin.Services.Membership.Circles;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
@@ -94,6 +95,36 @@ public partial class SelectiveShareTests
         Assert.That(after.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected), "still shared");
         Assert.That((await s.SharesAsync(before.FileId)).Single().Permissions, Is.EqualTo(theirShare), "its share as it was");
         await AssertSamSeesAsync(s, after.FileId, true, "after sending it again");
+    }
+
+    [Test]
+    public async Task AnyShareFreezesADepositForItsSender()
+    {
+        // Sam's deposit carries no share, so he changes it by sending it again, naming no tag.  Once Frodo shares
+        // it, even with a circle Sam isn't in, the shares decide, and Sam holds none with Write on it; withdrawing that
+        // share leaves it frozen (docs/file-access.md, "Changing a file you sent")
+        var s = await ArrangeAsync();
+        var other = await s.CircleWithKeyAsync(DrivePermission.Read);
+        var uniqueId = Guid.NewGuid();
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's", remoteDrive: s.Drive);
+        var sent = await s.HeaderByUniqueIdAsync(uniqueId);
+
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "Sam's, changed", remoteDrive: s.Drive);
+        var changed = await s.HeaderAsync(sent.FileId);
+        Assert.That(changed.FileMetadata.VersionTag, Is.Not.EqualTo(sent.FileMetadata.VersionTag), "no share: his to change");
+
+        var share = await s.Shares.WriteShares(s.Drive.Alias,
+            new WriteSharesRequest { Shares = [s.Share(sent.FileId, DrivePermission.Read, lockedFileKey: LockedFileKey(), circleId: other)] });
+        Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "after the share", remoteDrive: s.Drive);
+        Assert.That((await s.HeaderAsync(sent.FileId)).FileMetadata.VersionTag, Is.EqualTo(changed.FileMetadata.VersionTag),
+            "refused: shared with others");
+
+        Assert.That((await s.Shares.WithdrawShare(s.Drive.Alias, sent.FileId, other)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        await ZkTestFiles.SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "after the withdrawal",
+            remoteDrive: s.Drive);
+        Assert.That((await s.HeaderAsync(sent.FileId)).FileMetadata.VersionTag, Is.EqualTo(changed.FileMetadata.VersionTag),
+            "refused: the withdrawn share still decides");
     }
 
     /// <summary>The app makes a group of <paramref name="members"/>: its own circle granting Read and Write on the drive, its key set.</summary>

@@ -274,6 +274,10 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   live share with `Write`, keeping its rows and its required group; one that carries shares is refused (shares come
   only with a new file). The same delivery is still taken as done. A second marker send is now refused for want of a
   `Write` share rather than as a duplicate unique id; the outbox gives up on either.
+  **Changed 2026-11-04, one rule on every drive** (file-access.md, "Changing a file you sent"): the recipient records
+  the sender's last write (`SendersWrite`); the sender changes the file, naming no tag, while no one else has written it
+  since, and anyone else names the file's tag. On a Selective Share drive any share freezes it for the sender. The same
+  delivery is the sender's tag already recorded (`SentFileChanges.LandedBefore`); `IsSameDelivery` is gone.
 
 ## 8. Members sync with the query batch
 
