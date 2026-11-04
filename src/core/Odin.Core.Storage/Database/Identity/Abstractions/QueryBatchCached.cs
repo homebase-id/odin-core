@@ -54,6 +54,10 @@ public class QueryBatchCached : AbstractTableCaching
     private static bool IsChangeDate(QueryBatchSortField sortField) =>
         sortField is QueryBatchSortField.AnyChangeDate or QueryBatchSortField.OnlyModifiedDate;
 
+    // A share's expiry would outlive a cached page (QueryBatch, aclRowsRequired and sharedWithAnyOf)
+    private static bool ReadsShareRows(bool aclRowsRequired, List<Guid>? sharedWithAnyOf) =>
+        aclRowsRequired || sharedWithAnyOf?.Count > 0;
+
     private static bool HeldNothingBack(int noOfItems, int recordCount, bool moreRows) =>
         !moreRows || recordCount >= noOfItems;
 
@@ -82,7 +86,8 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         UnixTimeUtc? modifiedAfter = null,
         TimeSpan? cacheTtl = null,
-        bool aclRowsRequired = false)
+        bool aclRowsRequired = false,
+        List<Guid>? sharedWithAnyOf = null)
     {
         var cacheKey = "QueryBatchAsync:" + driveId + ":" + HashParameters.Calculate(
             driveId,
@@ -133,12 +138,12 @@ public class QueryBatchCached : AbstractTableCaching
                 localTagsAnyOf,
                 localTagsAllOf,
                 modifiedAfter,
-                aclRowsRequired);
+                aclRowsRequired,
+                sharedWithAnyOf);
             return new QueryBatchCachedResult(records, moreRows, c);
         };
 
-        // A share's expiry would outlive a cached page (QueryBatch, aclRowsRequired)
-        if (aclRowsRequired || (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst))
+        if (ReadsShareRows(aclRowsRequired, sharedWithAnyOf) || (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst))
         {
             return await query();
         }
@@ -179,7 +184,8 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAnyOf = null,
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null,
-        bool aclRowsRequired = false)
+        bool aclRowsRequired = false,
+        List<Guid>? sharedWithAnyOf = null)
     {
         var cacheKey = "QueryBatchSmartCursorAsync:" + driveId + ":" + HashParameters.Calculate(
             driveId,
@@ -228,12 +234,12 @@ public class QueryBatchCached : AbstractTableCaching
                 tagsAllOf,
                 localTagsAnyOf,
                 localTagsAllOf,
-                aclRowsRequired);
+                aclRowsRequired,
+                sharedWithAnyOf);
             return new QueryBatchCachedResult(records, moreRows, c);
         };
 
-        // A share's expiry would outlive a cached page (QueryBatch, aclRowsRequired)
-        if (aclRowsRequired || (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst))
+        if (ReadsShareRows(aclRowsRequired, sharedWithAnyOf) || (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst))
         {
             return await query();
         }
@@ -272,7 +278,8 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAnyOf = null,
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null,
-        bool aclRowsRequired = false)
+        bool aclRowsRequired = false,
+        List<Guid>? sharedWithAnyOf = null)
     {
         var cacheKey = "QueryModifiedAsync:" + driveId + ":" +  HashParameters.Calculate(
             driveId,
@@ -317,13 +324,14 @@ public class QueryBatchCached : AbstractTableCaching
                 tagsAllOf,
                 localTagsAnyOf,
                 localTagsAllOf,
-                aclRowsRequired);
+                aclRowsRequired,
+                sharedWithAnyOf);
             return new QueryModifiedCachedResult(records, moreRows, c);
         };
 
-        if (aclRowsRequired)
+        if (ReadsShareRows(aclRowsRequired, sharedWithAnyOf))
         {
-            return await query(); // a share's expiry would outlive a cached page (QueryBatch, aclRowsRequired)
+            return await query();
         }
 
         var result = await Cache.GetOrSetAsync(

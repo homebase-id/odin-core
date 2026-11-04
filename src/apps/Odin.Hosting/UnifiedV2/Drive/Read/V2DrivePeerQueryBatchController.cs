@@ -68,7 +68,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 TagsMatchAll = p.TagsMatchAll,
                 LocalTagsMatchAtLeastOne = p.LocalTagsMatchAtLeastOne,
                 LocalTagsMatchAll = p.LocalTagsMatchAll,
-                GlobalTransitId = p.GlobalTransitId
+                GlobalTransitId = p.GlobalTransitId,
+                SharedWith = p.SharedWith
             };
         }
     }

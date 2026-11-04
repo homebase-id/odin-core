@@ -66,7 +66,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> localTagsAllOf,
             Int32? fileSystemType,
             Guid driveId,
-            bool aclRowsRequired)
+            bool aclRowsRequired,
+            List<Guid> sharedWithAnyOf)
         {
             var leftJoin = "";
 
@@ -122,6 +123,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 //
                 //listWhere.Add($"(((fileid IN (SELECT DISTINCT fileId FROM driveAclIndex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
                 //               "(fileId NOT IN (SELECT DISTINCT fileId FROM driveAclIndex WHERE driveMainIndex.fileId = driveAclIndex.fileId))))");
+            }
+
+            // The files shared with any of these circles, through a live row (TableDriveAclIndex.IsLive): whom the owner shares
+            // with (docs/file-access.md, "Who a file is shared with"). Found by the circle's index, as the rows above.
+            if (IsSet(sharedWithAnyOf))
+            {
+                listWhere.Add($"driveMainIndex.fileId IN (SELECT s.fileId FROM driveAclIndex s WHERE s.identityId = {odinIdentity.BytesToSql(_databaseType)} " +
+                              $"AND s.driveId = {driveId.BytesToSql(_databaseType)} AND s.aclMemberId IN ({HexList(sharedWithAnyOf)}) " +
+                              $"AND (s.permissions & 1) = 1 AND (s.expiresAt IS NULL OR s.expiresAt > {UnixTimeUtc.Now().milliseconds}))");
             }
 
             if (IsSet(filetypesAnyOf))
@@ -250,7 +260,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> localTagsAnyOf = null,
             List<Guid> localTagsAllOf = null,
             UnixTimeUtc? modifiedAfter = null,
-            bool aclRowsRequired = false)
+            bool aclRowsRequired = false,
+            List<Guid> sharedWithAnyOf = null)
         {
             if (null == fileSystemType)
             {
@@ -390,7 +401,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
                 uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
-                fileSystemType, driveId, aclRowsRequired);
+                fileSystemType, driveId, aclRowsRequired, sharedWithAnyOf);
 
             var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
@@ -491,7 +502,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> tagsAllOf = null,
             List<Guid> localTagsAnyOf = null,
             List<Guid> localTagsAllOf = null,
-            bool aclRowsRequired = false)
+            bool aclRowsRequired = false,
+            List<Guid> sharedWithAnyOf = null)
         {
             bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
 
@@ -515,7 +527,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     tagsAnyOf,
                     tagsAllOf,
                     localTagsAnyOf,
-                    localTagsAllOf, aclRowsRequired: aclRowsRequired);
+                    localTagsAllOf, aclRowsRequired: aclRowsRequired, sharedWithAnyOf: sharedWithAnyOf);
 
             if (sortOrder == QueryBatchSortOrder.OldestFirst)
                 return (result, moreRows, refCursor);
@@ -582,7 +594,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         tagsAnyOf,
                         tagsAllOf,
                         localTagsAnyOf,
-                        localTagsAllOf, aclRowsRequired: aclRowsRequired);
+                        localTagsAllOf, aclRowsRequired: aclRowsRequired, sharedWithAnyOf: sharedWithAnyOf);
 
                     // There was more data
                     if (r2.Count > 0)
@@ -616,7 +628,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         userdateSpan,
                         aclAnyOf,
                         tagsAnyOf, tagsAllOf,
-                        localTagsAnyOf, localTagsAllOf, aclRowsRequired: aclRowsRequired);
+                        localTagsAnyOf, localTagsAllOf, aclRowsRequired: aclRowsRequired, sharedWithAnyOf: sharedWithAnyOf);
                 }
                 else
                 {
@@ -657,7 +669,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> tagsAllOf = null,
             List<Guid> localTagsAnyOf = null,
             List<Guid> localTagsAllOf = null,
-            bool aclRowsRequired = false)
+            bool aclRowsRequired = false,
+            List<Guid> sharedWithAnyOf = null)
         {
 
             var cursor = TimeRowCursor.FromJson(cursorString);
@@ -675,7 +688,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var (ldr, mr, c3) = await QueryBatchAsync(driveId, noOfItems, c2, QueryBatchSortOrder.OldestFirst, QueryBatchSortField.OnlyModifiedDate,
                 fileSystemType, null, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf,
                 uniqueIdAnyOf, archivalStatusAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf, localTagsAnyOf, localTagsAllOf,
-                aclRowsRequired: aclRowsRequired);
+                aclRowsRequired: aclRowsRequired, sharedWithAnyOf: sharedWithAnyOf);
 
             return (ldr, mr, c3.pagingCursor.ToJson());
         }

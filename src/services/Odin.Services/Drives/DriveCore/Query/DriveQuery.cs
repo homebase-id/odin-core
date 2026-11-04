@@ -63,6 +63,7 @@ public class DriveQuery(
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             aclRowsRequired: AclRowsRequired(drive, odinContext),
+            sharedWithAnyOf: SharedWith(drive, qp, odinContext),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
@@ -102,6 +103,7 @@ public class DriveQuery(
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList?.ToList(),
             aclRowsRequired: AclRowsRequired(drive, odinContext),
+            sharedWithAnyOf: SharedWith(drive, qp, odinContext),
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
@@ -145,6 +147,7 @@ public class DriveQuery(
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList?.ToList(),
             aclRowsRequired: AclRowsRequired(drive, odinContext),
+            sharedWithAnyOf: SharedWith(drive, qp, odinContext),
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
@@ -160,6 +163,28 @@ public class DriveQuery(
     // On a Selective Share drive an outside caller sees a file only through a row naming them (QueryBatch, aclRowsRequired)
     private static bool AclRowsRequired(StorageDrive drive, IOdinContext odinContext) =>
         SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller);
+
+    // Whom the owner shares with (docs/file-access.md, "Who a file is shared with"): seen by whoever sees the shares themselves
+    private static List<Guid> SharedWith(StorageDrive drive, FileQueryParams qp, IOdinContext odinContext)
+    {
+        if (qp.SharedWith?.Any() != true)
+        {
+            return null;
+        }
+
+        if (!drive.IsSelectiveShare)
+        {
+            throw new OdinClientException($"Drive {drive.Id} isn't a SelectiveShare drive: its files have no shares",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        if (!SelectiveShareDrives.CallerManagesShares(drive, odinContext.Caller))
+        {
+            throw new OdinSecurityException($"Only the owner console or the app that owns drive {drive.Id} sees whom its files are shared with");
+        }
+
+        return qp.SharedWith.ToList();
+    }
 
     private List<Guid> GetAcl(IOdinContext odinContext)
     {

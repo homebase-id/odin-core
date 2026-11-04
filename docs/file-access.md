@@ -350,6 +350,15 @@ granting the drive, and a file shared with the group has one row, for that circl
 - **The group's name:** a member can't read the owner's circle definitions, so how their client names the group is
   the clients' (Not decided).
 
+### Who a file is shared with
+
+**The owner's client finds the files shared with a person or a group** by the query batch's `SharedWith`: circle ids,
+and the files with a live row for at least one of them come back, paged as any query, without walking the drive's
+files **(V, tested)**. A person is their individual circle, a group its circle. Withdrawn and expired rows don't
+count; `includeShares` gives each file's live rows. Only the callers who manage the drive's shares may ask: the owner
+console and the app that owns the drive; anyone else is refused, and on any other drive it is a client error
+**(V, tested)**. Such a query is never cached, as a row can expire (`QueryBatchCached`).
+
 ### Telling someone you shared with them: markers
 
 **The marker is the clients' to build; the server part is built.** **Frodo's client leaves a marker on Sam's Selective Share drive of the same app**: a file of the

@@ -82,7 +82,8 @@ public abstract class V2PeerAppDriveControllerBase(PeerDriveQueryService peerDri
             TagsMatchAll = p.TagsMatchAll,
             LocalTagsMatchAtLeastOne = p.LocalTagsMatchAtLeastOne,
             LocalTagsMatchAll = p.LocalTagsMatchAll,
-            GlobalTransitId = p.GlobalTransitId
+            GlobalTransitId = p.GlobalTransitId,
+            SharedWith = p.SharedWith
         };
     }
 }
