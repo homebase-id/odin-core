@@ -18,6 +18,7 @@ public static class UnifiedApiRouteConstants
     public const string GroupReactionsByFileId = FilesRoot + "/{fileId:guid}/group-reactions";
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
     public const string ByGtid = FilesRoot + "/by-gtid/{gtid:guid}";
+    public const string GroupReactionsByGtid = ByGtid + "/group-reactions";
     public const string Notify = BasePath + "/notify/push";
     public const string LiveRelay = BasePath + "/live-relay";
     public const string NotifySocket = BasePath + "/notify/ws-token";
@@ -37,11 +38,14 @@ public static class UnifiedApiRouteConstants
 
     public const string PeerRoot = BasePath + "/peer";
     public const string PeerByOdinId = PeerRoot + "/{odinId}";
-    public const string PeerByDriveId = PeerByOdinId + "/drives/{driveId:guid}";
+    public const string PeerDrivesRoot = PeerByOdinId + "/drives";
+    public const string PeerByDriveId = PeerDrivesRoot + "/{driveId:guid}";
+    public const string PeerAuth = PeerByOdinId + "/auth";
     public const string PeerFilesRoot = PeerByDriveId + "/files";
     public const string PeerByFileId = PeerFilesRoot + "/{fileId:guid}";
     public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
     public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
+    public const string PeerReactionsByGtid = PeerByGtid + "/reactions";
 
     // Temporal (time-boxed) read of a drive hosted by another identity. Parallels the peer file-read
     // chain above so temporal actions share the same templates as their non-temporal twins.
