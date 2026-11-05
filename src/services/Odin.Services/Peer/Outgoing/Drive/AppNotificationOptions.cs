@@ -27,8 +27,9 @@ public class AppNotificationOptions
 
     /// <summary>
     /// Background delivery: wake the app without showing anything. On iOS this is a background
-    /// push (no alert, no sound); on Android every push is data-only and the app decides. Android
-    /// and the notification list are unaffected by this flag.
+    /// push (no alert, no sound). On Android every push is data-only; this one goes at normal
+    /// priority, so Doze may delay it, and the app reads this flag and shows nothing. The
+    /// notification list is unaffected by this flag.
     /// </summary>
     public bool Silent { get; set; }
 
