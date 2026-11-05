@@ -175,18 +175,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
         /// <summary>
         /// Serves a drive's write-only public key, so a caller can seal a deposit to a drive it may
-        /// write but never read.
+        /// write but never read, or seal a key for this identity to open (a Selective Share circle key).
         /// </summary>
         /// <remarks>
-        /// <b>Write is required, and only Write.</b>  Unlike
-        /// <see cref="ResolveDriveAddressAsync"/>, which accepts any grant because naming a drive
-        /// reveals nothing a caller cannot already learn, this hands out the means to put data on the
-        /// drive.  A reader has no business with it.
+        /// <b>Write on the drive, or a connection the owner has reviewed.</b>  The key is public, and
+        /// sealing to it puts nothing on the drive: a deposit still needs Write.  A connection the owner
+        /// hasn't reviewed is refused with <see cref="OdinClientErrorCode.ContactNotReviewed"/>, so its
+        /// app can say the owner must review it first; anyone else with a security exception.
         /// <para>
-        /// A missing drive is a 404 and a missing grant is a security exception -- deliberately
-        /// different, unlike resolution, which conflates them.  By the time a caller reaches here it
-        /// has already resolved the address, which means it already holds a grant; refusing with a
-        /// 404 would send it looking for a drive that is there.
+        /// A missing drive is a 404 and a refusal is a security exception -- deliberately different,
+        /// unlike resolution, which conflates them.
         /// </para>
         /// <para>
         /// Every drive is minted a keypair at creation and the migration backfills the rest, so a
@@ -209,10 +207,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 return null;
             }
 
-            if (!odinContext.PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Write))
+            var caller = odinContext.Caller;
+            if (!odinContext.PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Write) &&
+                !(caller.IsConnected && caller.IsReviewed))
             {
-                throw new OdinSecurityException(
-                    $"Write access is required to retrieve the public key for /apps/{appSlug}/drives/{driveSlug}");
+                throw caller.IsConnected
+                    ? new OdinSecurityException($"{odinContext.Tenant} hasn't reviewed the connection with {caller.OdinId} yet",
+                        OdinClientErrorCode.ContactNotReviewed)
+                    : new OdinSecurityException(
+                        $"Write access or a reviewed connection is required to retrieve the public key for /apps/{appSlug}/drives/{driveSlug}");
             }
 
             if (drive.WriteOnlyKeyPair == null)

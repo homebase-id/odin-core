@@ -5,6 +5,7 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
@@ -14,6 +15,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Util;
 using Refit;
 
 namespace Odin.Hosting.Tests.V2.Addressing;
@@ -25,7 +27,7 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 /// <remarks>
 /// The key exists so a caller can write to a drive it cannot read -- seal to the public half and only
 /// a holder of that drive's storage key can open it (docs/security-model.md, Drive addressing).  So the gate is Write
-/// on the drive, and the test that matters is not "a key came back" but that the key which came back
+/// on the drive, or a connection the owner has reviewed, and the test that matters is not "a key came back" but that the key which came back
 /// is the one the drive actually holds: sealed to it, the owner can open it.
 /// </remarks>
 [TestFixture]
@@ -102,17 +104,46 @@ public class PeerAppDrivePublicKeyTests : V2Fixture
     }
 
     [Test]
-    public async Task AReaderIsRefused()
+    public async Task AReviewedConnectionGetsTheKeyWithoutWrite()
     {
-        // Read is not enough, deliberately: this key is the means to put data on the drive, and a
-        // reader has no business with it. Unlike address resolution, which accepts any grant.
-        var (frodo, sam, _) = await SetupAsync(DrivePermission.Read);
+        // Sealing to the key puts nothing on the drive, so a connection Sam has reviewed gets it with Read only: it
+        // seals a key for Sam to open, as a Selective Share circle key is
+        var (frodo, sam, drive) = await SetupAsync(DrivePermission.Read);
 
         var response = await SlugClient(frodo).GetDriveWriteOnlyPublicKey(sam.Identity.DomainName, AppSlug, DriveSlug);
 
-        Assert.That(response.IsSuccessStatusCode, Is.False);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
-            "a caller without Write is refused, not told the drive is missing");
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"expected 200, got {response.StatusCode}: {response.Error?.Content}");
+        Assert.That(response.Content!.PublicKeyCrc32, Is.EqualTo((await SamsDriveAsync(sam, drive)).WriteOnlyKeyPair.crc32c));
+    }
+
+    [Test]
+    public async Task AConnectionNotYetReviewedIsRefusedAndToldWhy()
+    {
+        // Frodo, with Read only, before Sam has reviewed him: refused, not told the drive is missing, and with the
+        // reason, so his app can say Sam must review him first
+        var (frodo, sam, _) = await SetupAsync(DrivePermission.Read);
+        var tenant = sam.Host.GetTenantScope(sam.Identity.DomainName);
+        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(frodo.Identity, ConnectionStatus.Connected, null);
+        await tenant.Resolve<OdinContextCache>().ResetAsync();
+
+        var response = await SlugClient(frodo).GetDriveWriteOnlyPublicKey(sam.Identity.DomainName, AppSlug, DriveSlug);
+
+        Assert.That((response.StatusCode, response.ErrorCode()),
+            Is.EqualTo((HttpStatusCode.Forbidden, OdinClientErrorCode.ContactNotReviewed)), response.Error?.Content);
+    }
+
+    [Test]
+    public async Task AWriterNotYetReviewedGetsTheKey()
+    {
+        // Write alone is enough, as for any deposit
+        var (frodo, sam, _) = await SetupAsync(DrivePermission.Write);
+        var tenant = sam.Host.GetTenantScope(sam.Identity.DomainName);
+        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(frodo.Identity, ConnectionStatus.Connected, null);
+        await tenant.Resolve<OdinContextCache>().ResetAsync();
+
+        var response = await SlugClient(frodo).GetDriveWriteOnlyPublicKey(sam.Identity.DomainName, AppSlug, DriveSlug);
+
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"expected 200, got {response.StatusCode}: {response.Error?.Content}");
     }
 
     [Test]

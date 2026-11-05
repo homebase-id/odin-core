@@ -18,9 +18,9 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     /// holder of that drive's storage key can open it, so collecting deposits costs the recipient no new
     /// grant (docs/security-model.md, Drive addressing).
     /// <para>
-    /// A read has no use for it, so <b>Write on the target drive is required</b> and a caller without it
-    /// is refused rather than told the drive is missing — by the time you ask you have already resolved
-    /// the address, so a 404 would send you hunting for a drive that is there.
+    /// Served to <b>a caller with Write on the target drive, or a connection its owner has reviewed</b>; anyone
+    /// else is refused rather than told the drive is missing.  A connection not yet reviewed gets 403 with
+    /// <c>ContactNotReviewed</c>, so the app can say the owner must review it first.
     /// </para>
     /// </remarks>
     [ApiController]
@@ -34,7 +34,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// <remarks>
         /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
         /// no guid constants shared with them — a hostname and two slugs is the whole address.</para>
-        /// <para>400 when nothing there answers to the address; 403 when you may not write to it.</para>
+        /// <para>400 when nothing there answers to the address; 403 when you may neither write to it nor are a
+        /// connection its owner has reviewed, with <c>ContactNotReviewed</c> when they haven't reviewed you yet.</para>
         /// </remarks>
         /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
         /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>

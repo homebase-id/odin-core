@@ -206,7 +206,9 @@ compatible with.
      the route.
    - **The member's public key** comes from #2045's endpoint and cache (`GET /api/v2/peer/{odinId}/apps/{appSlug}/
      drives/{driveSlug}/public-key`): `PublicKeyJwk`, `PublicKeyCrc32` (the key hint in the sealed copy) and
-     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. The client must not seal to a drive whose
+     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. It is served to any connection the
+     member has reviewed, so sharing needs no grant on the member's drive; one not yet reviewed gets a 403 with
+     `ContactNotReviewed` (security-model.md, "A drive's public key"). The client must not seal to a drive whose
      sharing model is `Collaborative`: its server and its members hold its key (file-access.md, "Terms"). The server
      may refuse it later.
    - **A developer's reset** (`DELETE .../share-key`, owner console only, no UI): clears the key and every member's

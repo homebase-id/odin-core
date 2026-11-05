@@ -187,8 +187,13 @@ public class PeerDriveQueryService(
                 OdinClientErrorCode.InvalidDrive);
         }
 
-        // A 403 is the remote saying this identity may not write there. Surfaced as-is rather than
-        // folded into "no such drive": the caller resolved the address, so the drive exists.
+        // A 403 is the remote refusing this identity. Surfaced as-is rather than folded into "no such
+        // drive", and with its reason when the remote hasn't reviewed the connection, so the app can say so
+        if (response?.StatusCode == HttpStatusCode.Forbidden && response.ErrorCode() == OdinClientErrorCode.ContactNotReviewed)
+        {
+            throw new OdinSecurityException($"{odinId} hasn't reviewed the connection yet", OdinClientErrorCode.ContactNotReviewed);
+        }
+
         await HandleInvalidResponseAsync(odinId, response, odinContext);
 
         var key = response.Content;

@@ -163,8 +163,11 @@ uses on another identity. The original design, with its full argument, is archiv
 - **Listing** `GET /api/v2/apps/{appSlug}/drives?type=` (`V2AppDriveController`) **(V)** returns only drives the caller
   can already reach: its own, plus cross-app grants. The owner console sees all.
 - **A drive's public key** (`…/drives/{driveSlug}/public-key`, `V2PeerAppDrivePublicKeyController`) **(V)** is served
-  only to a caller with Write on that drive; anyone else gets a security exception, not a 404, since resolving the
-  address already showed the drive exists. So a stranger with no grant can't deposit yet
+  to a caller with Write on that drive, or to a connection the owner has reviewed, on every drive. A reviewed
+  connection needs it to seal a key for the owner to open, such as a Selective Share circle key; sealing puts
+  nothing on the drive, and a deposit still needs Write. A connection not yet reviewed gets a security exception
+  with `ContactNotReviewed`, which the sender's server passes on, so its app can say the owner must review it
+  first; anyone else gets a plain security exception, not a 404. So a stranger with no grant can't deposit yet
   ([weak-key-retirement.md](weak-key-retirement.md)).
 - **Slug format** (`OdinSlug`) **(V)**: `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`, 1–14 characters, for `AppSlug`, `DriveSlug`,
   `DriveTypeSlug` and circle slugs alike, plus a reserved list (empty today) for route segments. That is RFC 3986
