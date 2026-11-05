@@ -55,16 +55,5 @@ namespace Odin.Hosting.UnifiedV2.Security
             var tokenId = WebOdinContext.Caller.OdinClientContext.AccessRegistrationId;
             await storage.DeleteAsync(tokenId);
         }
-        
-        /// <summary>
-        /// Returns redacted security information for the currently logged in user
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("context")]
-        [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
-            public RedactedOdinContext GetSecurityContext()
-        {
-            return WebOdinContext.Redacted();
-        }
     }
 }

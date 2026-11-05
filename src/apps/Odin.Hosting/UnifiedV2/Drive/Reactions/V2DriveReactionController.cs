@@ -12,7 +12,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Reactions
 {
     [ApiController]
     [Route(UnifiedApiRouteConstants.ReactionsByFileId)]
-    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+    // Open as V1's guest route is: ReactionContentService checks Read or React on the drive for every caller.
+    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveReactionController(ReactionContentService reactionContentService)
         : DriveReactionContentControllerBase(reactionContentService)

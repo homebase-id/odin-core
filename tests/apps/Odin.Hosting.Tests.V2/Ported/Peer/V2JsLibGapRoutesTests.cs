@@ -16,12 +16,14 @@ using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.UnifiedV2;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Apps;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Reactions.Redux.Group;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Incoming.Reactions;
 using Refit;
 
@@ -30,7 +32,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// <summary>
 /// The V2 routes added so odin-js's js-lib can leave V1: local header and group reactions by globalTransitId,
 /// drives by type (local and over peer), the peer security context, the peer header by uniqueId, and reactions
-/// on another identity's file.
+/// on another identity's file. Also the routes V1 answers for anonymous visitors, which V2 must answer the same way.
 ///
 /// Layout: Sam hosts the drive and uploads; Frodo is connected and granted Read and React on Sam's drive.
 /// </summary>
@@ -67,6 +69,30 @@ public class V2JsLibGapRoutesTests : V2Fixture
         [Get(UnifiedApiRouteConstants.PeerByUniqueId + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetPeerHeaderByUid(
             string odinId, [AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid);
+
+        [Get(UnifiedApiRouteConstants.Auth + "/context")]
+        Task<ApiResponse<RedactedOdinContext>> GetSecurityContext();
+
+        [Post(UnifiedApiRouteConstants.ReactionsByFileId + "/add")]
+        Task<ApiResponse<HttpContent>> AddReaction(
+            [AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId, [Body] AddReactionRequest request);
+
+        [Post(UnifiedApiRouteConstants.ReactionsByFileId + "/list")]
+        Task<ApiResponse<GetReactionsResponse>> ListReactions(
+            [AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId, [Body] GetReactionsRequest request);
+
+        [Post(UnifiedApiRouteConstants.ReactionsByFileId + "/summary")]
+        Task<ApiResponse<GetReactionCountsResponse>> ReactionSummary(
+            [AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId, [Body] GetReactionsRequest request);
+
+        [Get(UnifiedApiRouteConstants.Connections + "/connected")]
+        Task<ApiResponse<CursoredResult<RedactedIdentityConnectionRegistration>>> GetConnected([Query] int count);
+
+        [Get(UnifiedApiRouteConstants.Followers + "/identities-i-follow")]
+        Task<ApiResponse<HttpContent>> GetIdentitiesIFollow([Query] int count);
+
+        [Get(UnifiedApiRouteConstants.Followers + "/follower-configuration")]
+        Task<ApiResponse<HttpContent>> GetFollowerConfiguration();
 
         [Post(UnifiedApiRouteConstants.PeerReactionsByGtid + "/add")]
         Task<ApiResponse<HttpContent>> AddPeerReaction(
@@ -214,6 +240,100 @@ public class V2JsLibGapRoutesTests : V2Fixture
     }
 
     // -----------------------------------------------------------------------------------------
+
+    private IGapRoutes AnonymousRoutes(string identity) => RestService.For<IGapRoutes>(Host.CreateAnonymousClient(identity));
+
+    [Test]
+    public async Task Anonymous_GetsItsSecurityContext()
+    {
+        var context = await AnonymousRoutes(Identities.Sam).GetSecurityContext();
+
+        Assert.That(context.IsSuccessStatusCode, Is.True, $"anonymous context: {context.StatusCode}");
+        Assert.That(context.Content!.Caller.SecurityLevel, Is.EqualTo(SecurityGroupType.Anonymous));
+    }
+
+    [Test]
+    public async Task Anonymous_ReadsReactionsOnAPublicDrive_ButCannotReact()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var drive = TargetDrive.NewTargetDrive();
+        await sam.Admin.CreateDrive(drive, "public drive", allowAnonymousReads: true);
+        var (fileId, _) = await UploadAsync(sam, drive);
+
+        var added = await Routes(sam).AddReaction(drive.Alias, fileId, new AddReactionRequest { Reaction = ":+1:" });
+        Assert.That(added.IsSuccessStatusCode, Is.True, $"owner add reaction: {added.StatusCode}");
+
+        var anonymous = AnonymousRoutes(Identities.Sam);
+
+        var summary = await anonymous.ReactionSummary(drive.Alias, fileId, new GetReactionsRequest());
+        Assert.That(summary.IsSuccessStatusCode, Is.True, $"anonymous summary: {summary.StatusCode}");
+        Assert.That(summary.Content!.Reactions.Single().Count, Is.EqualTo(1));
+
+        var list = await anonymous.ListReactions(drive.Alias, fileId, new GetReactionsRequest { MaxRecords = 10 });
+        Assert.That(list.IsSuccessStatusCode, Is.True, $"anonymous list: {list.StatusCode}");
+
+        var refused = await anonymous.AddReaction(drive.Alias, fileId, new AddReactionRequest { Reaction = ":-1:" });
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "anonymous has no React permission");
+    }
+
+    [Test]
+    public async Task Anonymous_CannotReadReactionsOnAPrivateDrive()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var drive = TargetDrive.NewTargetDrive();
+        await sam.Admin.CreateDrive(drive, "private drive", allowAnonymousReads: false);
+        var (fileId, _) = await UploadAsync(sam, drive);
+
+        var summary = await AnonymousRoutes(Identities.Sam).ReactionSummary(drive.Alias, fileId, new GetReactionsRequest());
+
+        Assert.That(summary.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [Test]
+    public async Task Anonymous_ListsConnections_OnlyWhenTheOwnerAllowsIt()
+    {
+        var (_, sam, _) = await ConnectAsync();
+        var anonymous = AnonymousRoutes(Identities.Sam);
+
+        var before = await anonymous.GetConnected(10);
+        Assert.That(before.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+
+        await sam.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.AnonymousVisitorsCanViewConnections, bool.TrueString);
+        try
+        {
+            var after = await anonymous.GetConnected(10);
+            Assert.That(after.IsSuccessStatusCode, Is.True, $"anonymous connections: {after.StatusCode}");
+            Assert.That(after.Content!.Results, Is.Not.Empty);
+        }
+        finally
+        {
+            await sam.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.AnonymousVisitorsCanViewConnections, bool.FalseString);
+        }
+    }
+
+    [Test]
+    public async Task Anonymous_ReadsFollows_OnlyWhenTheOwnerAllowsIt()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var anonymous = AnonymousRoutes(Identities.Sam);
+
+        var before = await anonymous.GetIdentitiesIFollow(10);
+        Assert.That(before.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+
+        await sam.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.AnonymousVisitorsCanViewWhoIFollow, bool.TrueString);
+        try
+        {
+            var after = await anonymous.GetIdentitiesIFollow(10);
+            Assert.That(after.IsSuccessStatusCode, Is.True, $"anonymous follows: {after.StatusCode}");
+        }
+        finally
+        {
+            await sam.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.AnonymousVisitorsCanViewWhoIFollow, bool.FalseString);
+        }
+
+        var configuration = await anonymous.GetFollowerConfiguration();
+        Assert.That(configuration.IsSuccessStatusCode, Is.True, $"anonymous follower configuration: {configuration.StatusCode}");
+    }
 
     private async Task<(OwnerSession frodo, OwnerSession sam, TargetDrive drive)> ConnectAsync()
     {
