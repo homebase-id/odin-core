@@ -16,6 +16,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Services.Base;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -169,6 +170,27 @@ public class FriendRecoveryTests : ShamirFixture
         {
             Assert.That(results[player.Identity.DomainName].IsValid, Is.True, player.Identity.DomainName);
         }
+    }
+
+    /// <summary>
+    /// A friend who doesn't let the dealer write to their Shard Recovery drive (they haven't reviewed the dealer) would
+    /// refuse the shard when it arrives, so the deal is refused up front and the working one stays.
+    /// </summary>
+    [Test]
+    public async Task ADealToAFriendWhoWouldRefuseTheShardIsRefusedAndTheOldDealStays()
+    {
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
+        await ClearReviewOnAsync(players[0], frodo.Identity);
+
+        var deal = await ZkFriends.MakeDealAsync(frodo, ZkMasterKeyOf(frodo), players.Select(p => (p, PlayerType.Delegate)).ToList(),
+            ShamirConfigurationService.CalculateMinAllowedShardCount(players.Count));
+        var refused = await SecurityOf(frodo).ConfigureShards(deal.Request);
+        Assert.That((refused.StatusCode, refused.ErrorCode()), Is.EqualTo((HttpStatusCode.Forbidden, OdinClientErrorCode.NotReviewedByOwner)),
+            refused.Error?.Content);
+
+        var kept = await GetDealerShardConfigAsync(frodo);
+        Assert.That(kept.Envelopes.Select(e => e.ShardId), Is.EquivalentTo(config.Envelopes.Select(e => e.ShardId)),
+            "the working deal stays");
     }
 
     [Test]

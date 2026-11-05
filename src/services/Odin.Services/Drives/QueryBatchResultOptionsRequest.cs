@@ -33,6 +33,9 @@ public class QueryBatchResultOptionsRequest
     /// </summary>
     public bool IncludeTransferHistory { get; set; }
 
+    /// <summary>On a Selective Share drive, each file's live shares, for an owner caller (section 5 of the PR 3 plan).</summary>
+    public bool IncludeShares { get; set; }
+
     public QueryBatchSortOrder Ordering { get; set; }
     
     public QueryBatchSortField Sorting { get; set; }
@@ -45,6 +48,7 @@ public class QueryBatchResultOptionsRequest
             MaxRecords = this.MaxRecords,
             ResultShape = FileResultShapes.Resolve(this.ResultShape, this.IncludeMetadataHeader),
             IncludeTransferHistory = this.IncludeTransferHistory,
+            IncludeShares = this.IncludeShares,
             Ordering = this.Ordering,
             Sorting = this.Sorting
         };

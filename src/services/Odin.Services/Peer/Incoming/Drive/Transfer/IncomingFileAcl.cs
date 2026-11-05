@@ -1,3 +1,4 @@
+using Odin.Core.Storage;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Acl;
@@ -7,11 +8,27 @@ using Odin.Services.Drives.DriveCore.Storage;
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
     /// <summary>
-    /// The ACL an incoming comment is stored under: its referenced file's. Shared by the new-file and
-    /// update paths so the two answer a bad comment the same way.
+    /// The ACL a peer's incoming file is stored under (<see cref="ForIncomingFileAsync"/>), and a comment's, its referenced
+    /// file's. Shared by the new-file and update paths so the two answer the same way.
     /// </summary>
-    internal static class IncomingCommentAcl
+    internal static class IncomingFileAcl
     {
+        /// <summary>
+        /// The ACL a peer's file is stored with, new or updated: only the owner's, so the owner can pass it along; a
+        /// comment its file's (<see cref="ResetAclForComment"/>); a post on a community channel the one its sender gave it.
+        /// </summary>
+        public static async Task<AccessControlList> ForIncomingFileAsync(FileSystemResolver fileSystemResolver,
+            FileSystemType fileSystemType, FileMetadata metadata, bool isCollaborationChannel, AccessControlList originalAcl,
+            IOdinContext odinContext)
+        {
+            if (fileSystemType == FileSystemType.Comment)
+            {
+                return await ResetAclForComment(fileSystemResolver, metadata, odinContext);
+            }
+
+            return isCollaborationChannel ? originalAcl ?? AccessControlList.OwnerOnly : AccessControlList.OwnerOnly;
+        }
+
         public static async Task<AccessControlList> ResetAclForComment(FileSystemResolver fileSystemResolver,
             FileMetadata metadata, IOdinContext odinContext)
         {

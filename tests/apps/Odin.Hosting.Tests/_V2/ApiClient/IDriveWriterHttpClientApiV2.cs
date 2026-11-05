@@ -41,6 +41,14 @@ public interface IDriveWriterHttpClientApiV2
         StreamPart[] streamdata);
 
     [Multipart]
+    [Patch(UnifiedApiRouteConstants.PeerByGtid)]
+    Task<ApiResponse<UpdateFileResult>> UpdatePeerFileByGlobalTransitId(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("gtid:guid")] Guid globalTransitId,
+        StreamPart[] streamdata);
+
+    [Multipart]
     [Patch(UnifiedApiRouteConstants.ByUniqueId)]
     Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(
         [AliasAs("driveId:guid")] Guid driveId,

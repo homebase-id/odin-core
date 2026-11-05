@@ -72,19 +72,27 @@ public class DepositTests : V2Fixture
     }
 
     [Test]
-    public async Task ADepositCarriesNoPayloads()
+    public async Task ADepositToAPrivateDriveCarriesNoPayloads()
     {
-        // On the transient drive, where a deposit is written to be sent
+        // Taken on the transient drive, where a deposit is written to be sent, and refused by the drive it arrives at: only
+        // a Selective Share drive takes a deposit's content (docs/file-access.md, "With Selective Share")
         var frodo = await LoginAsOwner(Identities.Frodo);
-        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(ZkBrowser.MakeKeyPair().PublicKeyJwk);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+        await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
+        var samsPublicKey = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
 
-        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
-        payload.Iv = ByteArrayUtil.GetRndByteArray(16);
-        var manifest = new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] };
+        // The same deposit without its payload arrives, so the payload alone is what's refused
+        var withoutPayload = Guid.NewGuid();
+        await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, withoutPayload, Content);
+        var control = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(withoutPayload, Drive.Alias);
+        Assert.That(control.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"the deposit without its payload: {control.Error?.Content}");
 
-        var e = Assert.ThrowsAsync<Exception>(() => frodo.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias,
-            Metadata(Guid.NewGuid()), transitOptions: null!, manifest, [payload], keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader));
-        Assert.That(e!.Message, Does.EndWith(nameof(OdinClientErrorCode.InvalidPayload)));
+        var uniqueId = Guid.NewGuid();
+        await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, uniqueId, Content, SamplePayloadDefinitions.GetPayloadDefinition1());
+
+        var received = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
+        Assert.That(received.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "a private drive takes no deposit with payloads");
     }
 
     [TestCase(true, TestName = "ADepositSentToAPeersZeroKnowledgeDriveArrivesSealed")]
@@ -189,17 +197,46 @@ public class DepositTests : V2Fixture
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var uniqueId = Guid.NewGuid();
         var (fileKey, _) = await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
-        var received = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
+        var received = await HeaderByUniqueIdAsync(sam, uniqueId);
 
         var newKey = WithNewIv(fileKey);
         var update = await UpdateAsync(sam, received.FileId, uniqueId, newKey, ZkBrowser.LockFileKey(newKey, samsKeys.DriveKey),
             received.FileMetadata.VersionTag);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
 
-        var read = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
+        var read = await HeaderByUniqueIdAsync(sam, uniqueId);
         Assert.That(read.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
         var opened = ZkBrowser.OpenFileKey(read.SharedSecretEncryptedKeyHeader, samsKeys.DriveKey);
         Assert.That(opened.Decrypt(read.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes(), Is.EqualTo("updated"));
+    }
+
+    [Test]
+    public async Task ADepositSentAgainChangesItUntilTheOwnerTakesItOver()
+    {
+        // Frodo can only write Sam's drive: sending his deposit again changes it, naming no tag, as no one else has
+        // written it since (docs/file-access.md, "Changing a file you sent").  Once Sam has taken it over, it is refused,
+        // whatever tag it names: a sealed key header never replaces Sam's own
+        var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
+        var uniqueId = Guid.NewGuid();
+        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
+        var received = await HeaderByUniqueIdAsync(sam, uniqueId);
+
+        var (fileKey, _) = await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, "sent again");
+        var changed = await HeaderByUniqueIdAsync(sam, uniqueId);
+        Assert.That(changed.FileMetadata.VersionTag, Is.Not.EqualTo(received.FileMetadata.VersionTag), "changed");
+        Assert.That(changed.FileMetadata.AppData.Content, Is.Not.EqualTo(received.FileMetadata.AppData.Content), "with the new content");
+
+        var newKey = WithNewIv(fileKey);
+        var takeOver = await UpdateAsync(sam, changed.FileId, uniqueId, newKey, ZkBrowser.LockFileKey(newKey, samsKeys.DriveKey),
+            changed.FileMetadata.VersionTag);
+        Assert.That(takeOver.StatusCode, Is.EqualTo(HttpStatusCode.OK), takeOver.Error?.Content);
+        var takenOver = await HeaderByUniqueIdAsync(sam, uniqueId);
+
+        await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, "after Sam took it over",
+            versionTag: takenOver.FileMetadata.VersionTag);
+        var after = await HeaderByUniqueIdAsync(sam, uniqueId);
+        Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(takenOver.FileMetadata.VersionTag), "refused: Sam's own now");
+        Assert.That(after.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
     }
 
     [Test]
@@ -209,7 +246,7 @@ public class DepositTests : V2Fixture
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
-        var received = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
+        var received = await HeaderByUniqueIdAsync(sam, uniqueId);
 
         var (newKey, sealedAgain) = ZkBrowser.SealNewFileKey(samsKeys.PublicKeyJwk);
         var update = await UpdateAsync(sam, received.FileId, uniqueId, newKey, sealedAgain, received.FileMetadata.VersionTag);
@@ -228,7 +265,7 @@ public class DepositTests : V2Fixture
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
-        var received = (await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias)).Content!;
+        var received = await HeaderByUniqueIdAsync(sam, uniqueId);
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
         payload.Iv = ByteArrayUtil.GetRndByteArray(16);

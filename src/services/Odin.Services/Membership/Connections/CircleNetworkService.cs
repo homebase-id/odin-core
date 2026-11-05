@@ -580,12 +580,7 @@ namespace Odin.Services.Membership.Connections
                 return false;
             }
 
-            // Only grants from enabled circles count, as in the permission context the follower actually gets.
-            var grants = icr.PeerKeyStore.CircleGrants.Values.Select(cg => (cg.CircleId, cg.KeyStoreKeyEncryptedDriveGrants))
-                .Concat(icr.PeerKeyStore.AppGrants.Values.SelectMany(a => a.Values)
-                    .Select(ag => (ag.CircleId, ag.KeyStoreKeyEncryptedDriveGrants)));
-
-            foreach (var (circleId, driveGrants) in grants)
+            foreach (var (circleId, driveGrants) in DriveGrantsByCircle(icr))
             {
                 if ((driveGrants ?? []).Any(g => g.DriveId == driveId && g.IsKeyedRead) &&
                     await circleDefinitionService.IsEnabledAsync(circleId))
@@ -596,6 +591,40 @@ namespace Odin.Services.Membership.Connections
 
             return false;
         }
+
+        /// <summary>
+        /// What <paramref name="odinId"/>'s enabled circles but <paramref name="exceptCircleId"/> grant on the drive,
+        /// their apps' grants through those circles included: what their permission context holds there.  The ceiling
+        /// of a share with their individual circle (docs/file-access.md, "Sharing with one person").
+        /// </summary>
+        public async Task<DrivePermission> DrivePermissionAsync(OdinId odinId, Guid driveId, Guid exceptCircleId)
+        {
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            if (icr == null || !icr.IsConnected() || icr.PeerKeyStore == null)
+            {
+                return 0;
+            }
+
+            DrivePermission granted = 0;
+            foreach (var (circleId, driveGrants) in DriveGrantsByCircle(icr))
+            {
+                var bits = (driveGrants ?? []).Where(g => g.DriveId == driveId)
+                    .Aggregate((DrivePermission)0, (b, g) => b | g.PermissionedDrive.Permission);
+                if (bits != 0 && circleId != exceptCircleId && await circleDefinitionService.IsEnabledAsync(circleId))
+                {
+                    granted |= bits;
+                }
+            }
+
+            return granted;
+        }
+
+        // Only grants from enabled circles count, as in the permission context the connection actually gets, so callers
+        // ask IsEnabledAsync of each
+        private static IEnumerable<(Guid CircleId, List<DriveGrant> DriveGrants)> DriveGrantsByCircle(IdentityConnectionRegistration icr) =>
+            icr.PeerKeyStore.CircleGrants.Values.Select(cg => (cg.CircleId.Value, cg.KeyStoreKeyEncryptedDriveGrants))
+                .Concat(icr.PeerKeyStore.AppGrants.Values.SelectMany(a => a.Values)
+                    .Select(ag => (ag.CircleId.Value, ag.KeyStoreKeyEncryptedDriveGrants)));
 
         public async Task<IEnumerable<OdinId>> GetCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
         {
@@ -1032,6 +1061,7 @@ namespace Odin.Services.Membership.Connections
         public async Task UpdateCircleDefinitionAsync(CircleDefinition circleDef, IOdinContext odinContext)
         {
             await circleMembershipService.AssertValidDriveGrantsAsync(circleDef.DriveGrants);
+            await circleDefinitionService.AssertIndividualRulesKeptAsync(circleDef);
 
             var members = await GetCircleMembersAsync(circleDef.Id, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();

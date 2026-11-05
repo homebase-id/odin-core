@@ -8,10 +8,12 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
+using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -209,20 +211,24 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
             await AssertDriveIsValidAndActive(driveId, odinContext);
 
-            var record = await _driveQuery.GetByClientUniqueIdAsync(driveId, clientUniqueId);
-            if (record == null || record.fileSystemType != (int)GetFileSystemType())
-            {
-                return null;
-            }
-
-            return ServerFileHeader.FromDriveMainIndexRecord(record);
+            return await _driveQuery.GetFileHeaderByClientUniqueIdAsync(driveId, clientUniqueId, GetFileSystemType());
         }
 
         /// <inheritdoc cref="GetServerFileHeaderByClientUniqueIdSkippingFileAcl"/>
+        /// <param name="permission">The drive permission the caller's write needs, asked instead of Read or Write: a
+        /// reaction needs only <c>React</c>.</param>
         public async Task<ServerFileHeader> GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(Guid driveId, Guid globalTransitId,
-            IOdinContext odinContext)
+            IOdinContext odinContext, DrivePermission? permission = null)
         {
-            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
+            if (permission is { } asked)
+            {
+                odinContext.PermissionsContext.AssertHasDrivePermission(driveId, asked);
+            }
+            else
+            {
+                await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
+            }
+
             await AssertDriveIsValidAndActive(driveId, odinContext);
 
             var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, globalTransitId);
@@ -361,7 +367,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 bool forceIncludeServerMetadata = false,
                 bool logAclFailuresAsErrors = false)
         {
-            var (visible, aclFailures) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
+            var (visible, aclFailures, sharedWithCaller) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
 
             var results = new List<SharedSecretEncryptedFileHeader>();
             foreach (var serverFileHeader in visible)
@@ -369,7 +375,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var header = DriveFileUtility.CreateClientFileHeader(
                     serverFileHeader,
                     odinContext,
-                    forceIncludeServerMetadata);
+                    forceIncludeServerMetadata,
+                    sharedWithCaller?.LiveRowOf(serverFileHeader.FileMetadata.File.FileId));
 
                 if (header?.FileMetadata?.AppData != null)
                 {
@@ -408,14 +415,22 @@ namespace Odin.Services.Drives.FileSystem.Base
                 results.Add(header);
             }
 
+            if (options.IncludeShares)
+            {
+                await _storage.AttachSharesAsync(driveId, results, odinContext);
+            }
+
             return (results, aclFailures);
         }
 
         /// <summary>
         /// The rows of <paramref name="recordList"/> the caller may receive, in order, and the ones its ACL denied.
-        /// Every result shape goes through here, so none of them can show a file another would hide.
+        /// Every result shape goes through here, so none of them can show a file another would hide.  On a Selective
+        /// Share drive, also the caller's shares: a file the read rule let them in to has its live row, and a tombstone of
+        /// a file no longer shared with them has none (null otherwise).
         /// </summary>
-        private async Task<(List<ServerFileHeader> visible, List<ServerFileHeader> aclFailures)> FilterVisibleAsync(
+        private async Task<(List<ServerFileHeader> visible, List<ServerFileHeader> aclFailures,
+            CallerShares sharedWithCaller)> FilterVisibleAsync(
             Guid driveId,
             List<DriveMainIndexRecord> recordList,
             IOdinContext odinContext,
@@ -424,22 +439,28 @@ namespace Odin.Services.Drives.FileSystem.Base
             var visible = new List<ServerFileHeader>();
             var aclFailures = new List<ServerFileHeader>();
 
+            var headers = new List<ServerFileHeader>();
             foreach (var record in recordList)
             {
-                var file = new InternalDriveFileId()
-                {
-                    DriveId = driveId,
-                    FileId = record.fileId
-                };
-
                 var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
                 if (null == serverFileHeader)
                 {
                     _logger.LogError("File {file} on drive {drive} was found in index but was not returned from disk",
-                        file.FileId,
-                        file.DriveId);
+                        record.fileId,
+                        driveId);
                     continue;
                 }
+
+                headers.Add(serverFileHeader);
+            }
+
+            // The drive once for the page, and on a Selective Share drive the page's share rows in one read, not one per file
+            var drive = await DriveManager.GetDriveAsync(driveId);
+            var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(drive, headers, odinContext);
+
+            foreach (var serverFileHeader in headers)
+            {
+                var file = serverFileHeader.FileMetadata.File;
 
                 // The index has no expiry column (deliberately - see FileTtl), so a file whose TTL has
                 // come due can still be sitting in query results until its job runs. Drop it here for the
@@ -450,8 +471,22 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 var isClientLocked = ZkDriveFiles.IsClientLocked(serverFileHeader);
-                if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext))
+                if (!await _storage.CallerMayReadFileOnLiveDrive(drive, serverFileHeader, odinContext, sharedWithCaller))
                 {
+                    // On a Selective Share drive, a file a row names the caller on that they may no longer read
+                    // (withdrawn, expired, a level below its group) comes back as a deleted file's tombstone, so their sync
+                    // removes it, without a key (docs/selective-share-pr3-plan.md, section 8); a file no row names them
+                    // on is missing, as a client-locked one is below
+                    if (sharedWithCaller != null)
+                    {
+                        if (DriveStorageServiceBase.NoLongerSharedViewOf(serverFileHeader, sharedWithCaller) is { } tombstone)
+                        {
+                            visible.Add(tombstone);
+                        }
+
+                        continue;
+                    }
+
                     // A client-locked file (sealed or zkDrive) is left out as missing, not reported as refused: a
                     // read by unique id or global transit id answers as for no file, and a write's check for a taken
                     // unique id falls through to the index's
@@ -492,8 +527,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
                     else
                     {
-                        var drive = await DriveManager.GetDriveAsync(file.DriveId);
-
                         // Allow anon will let the user get the file so only log
                         // if this is not the case as it means we have a problem
                         if (!drive.AllowAnonymousReads)
@@ -515,7 +548,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return (visible, aclFailures);
+            return (visible, aclFailures, sharedWithCaller);
         }
 
         /// <summary>
@@ -556,7 +589,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (options.ResultShape == FileResultShape.Minimal)
             {
-                var (visible, _) = await FilterVisibleAsync(driveId, records, odinContext);
+                var (visible, _, _) = await FilterVisibleAsync(driveId, records, odinContext);
                 result.FileRefs = visible.Select(FileRef.FromHeader).ToList();
             }
             else
@@ -568,17 +601,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             return result;
         }
 
-        private async Task AssertDriveIsValidAndActive(Guid driveId, IOdinContext odinContext)
-        {
-            var theDrive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
-            if (theDrive.IsArchived)
-            {
-                if (!odinContext.Caller.HasMasterKey)
-                {
-                    throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
-                }
-            }
-        }
+        private async Task AssertDriveIsValidAndActive(Guid driveId, IOdinContext odinContext) =>
+            (await DriveManager.GetDriveAsync(driveId, failIfInvalid: true)).AssertNotArchivedFor(odinContext);
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueIdInternal(Guid driveId, Guid clientUniqueId,
             ResultOptions options, IOdinContext odinContext)

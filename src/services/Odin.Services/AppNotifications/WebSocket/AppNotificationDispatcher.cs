@@ -232,49 +232,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            StorageDrive? drive;
-            try
-            {
-                var driveManager = scope.Resolve<IDriveManager>();
-                drive = await driveManager.GetDriveAsync(notification.File.DriveId);
-            }
-            catch (Exception e)
-            {
-                // Every socket on the drive misses the event, so every one reconnects and catches up (#1966)
-                _logger.LogError(e, "Drive event for drive {driveId}: {error}", notification.File.DriveId, e.Message);
-                foreach (var deviceSocket in sockets)
-                {
-                    deviceSocket.Abort(_logger, "drive event could not be prepared", e);
-                }
-
-                return;
-            }
-
-            var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
-                notification.ServerFileHeader, notification.PreviousServerFileHeader);
-            var aclService = scope.Resolve<IDriveAclAuthorizationService>();
-            foreach (var deviceSocket in sockets)
-            {
-                string json;
-                try
-                {
-                    if (!await driveEvent.VisibleToAsync(deviceSocket, aclService))
-                    {
-                        continue;
-                    }
-
-                    json = driveEvent.JsonFor(deviceSocket);
-                }
-                catch (Exception e)
-                {
-                    // This socket misses the event; the others still get it (#1966)
-                    _logger.LogError(e, "Drive event for socket {key}: {error}", deviceSocket.Key, e.Message);
-                    deviceSocket.Abort(_logger, "drive event could not be prepared", e);
-                    continue;
-                }
-
-                await SendMessageAsync(deviceSocket, json, encrypt: true);
-            }
+            await DriveEventMessage.PublishAsync(notification.File.DriveId, notification.NotificationType,
+                notification.ServerFileHeader, notification.PreviousServerFileHeader, sockets, scope.Resolve<IDriveManager>(),
+                scope.Resolve<IDriveAclAuthorizationService>(), (socket, json) => SendMessageAsync(socket, json, encrypt: true), _logger);
         }
 
         //

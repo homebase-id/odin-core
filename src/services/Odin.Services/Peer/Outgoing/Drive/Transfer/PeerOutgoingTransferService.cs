@@ -17,6 +17,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -56,10 +57,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
+        /// <param name="shares">A member's shares for the file they add to a peer's Selective Share drive, sent on with it.</param>
+        /// <param name="expectedVersionTag">For a file sent from the transient drive, the version tag of the recipient's copy
+        /// it changes, as the client named it.</param>
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             IOdinContext odinContext,
-            DataSource overrideDataSource = null)
+            DataSource overrideDataSource = null,
+            List<ShareRequest> shares = null,
+            Guid? expectedVersionTag = null)
         {
             odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
 
@@ -81,6 +87,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, sfo, odinContext, priority,
                 overrideDataSource);
+            foreach (var item in outboxItems)
+            {
+                item.State.TransferInstructionSet.Shares = shares;
+                item.State.TransferInstructionSet.ExpectedVersionTag = expectedVersionTag;
+            }
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -114,7 +125,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             AppNotificationOptions notificationOptions,
             UpdateLocale updateLocale,
             IOdinContext odinContext,
-            DataSource overrideDataSource = null)
+            DataSource overrideDataSource = null,
+            Guid? expectedVersionTag = null)
         {
             odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
             OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
@@ -125,6 +137,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 File = file,
                 Manifest = manifest,
                 NewVersionTag = newVersionTag,
+                ExpectedVersionTag = expectedVersionTag,
                 AppNotificationOptions = notificationOptions,
                 UpdateLocale = updateLocale
             };

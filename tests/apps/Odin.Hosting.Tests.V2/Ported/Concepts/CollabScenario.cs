@@ -74,7 +74,7 @@ public sealed record CollabCallerSpec(string Name, Func<OwnerSession, Task<IV2Ca
 /// </summary>
 /// <remarks>
 /// The <c>IsCollaborativeChannel</c> attribute is load-bearing rather than cosmetic:
-/// <c>PeerFileUpdateWriter.DetermineAclAsync</c> keeps the sender's ACL on the collaboration
+/// <c>IncomingFileAcl.ForIncomingFileAsync</c> keeps the sender's ACL on the collaboration
 /// channel's copy instead of narrowing it to owner-only, which is the whole point of both fixtures.
 /// <see cref="Peer.PeerFlow.ConnectAllAsync"/> is not used — it builds a mesh with no drive
 /// attributes and a circle per identity, whereas these scenarios need a star (every member connects

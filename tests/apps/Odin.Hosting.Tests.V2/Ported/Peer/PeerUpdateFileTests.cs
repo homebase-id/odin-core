@@ -11,6 +11,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Ported.Transit;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.DataSubscription.Follower;
@@ -109,6 +110,7 @@ public class PeerUpdateFileTests : V2Fixture
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         var updatedFileMetadata = uploadedFileMetadata;
+        updatedFileMetadata.VersionTag = (await TransitScenario.SingleByGlobalTransitIdAsync(recipientOwnerClient, remoteTargetFile.ToGlobalTransitIdFileIdentifier())).FileMetadata.VersionTag;
         updatedFileMetadata.AppData.Content = "some new content here";
         updatedFileMetadata.AppData.DataType = 777;
 
@@ -293,6 +295,7 @@ public class PeerUpdateFileTests : V2Fixture
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         var updatedFileMetadata = uploadedFileMetadata;
+        updatedFileMetadata.VersionTag = (await TransitScenario.SingleByGlobalTransitIdAsync(collabChannelOwnerClient, remoteTargetFile.ToGlobalTransitIdFileIdentifier())).FileMetadata.VersionTag;
         updatedFileMetadata.AppData.Content = "some new content here";
         updatedFileMetadata.AppData.DataType = 5678;
 
@@ -414,6 +417,7 @@ public class PeerUpdateFileTests : V2Fixture
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         var updatedFileMetadata = uploadedFileMetadata;
+        updatedFileMetadata.VersionTag = (await TransitScenario.SingleByGlobalTransitIdAsync(collabChannelOwnerClient, remoteTargetFile.ToGlobalTransitIdFileIdentifier())).FileMetadata.VersionTag;
         updatedFileMetadata.AppData.Content = "some new content here";
         updatedFileMetadata.AppData.DataType = 999;
 
@@ -502,6 +506,7 @@ public class PeerUpdateFileTests : V2Fixture
 /// </summary>
 internal static class CollabChannelFlow
 {
+
     /// <summary>
     /// Creates <paramref name="channelDrive"/> on <paramref name="channelOwner"/> as a collaboration
     /// channel, grants every entry of <paramref name="members"/> Write on it through one circle, and

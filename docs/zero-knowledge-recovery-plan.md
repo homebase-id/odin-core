@@ -1101,5 +1101,5 @@ Inferred. Lines include tests.
 ## Out of scope here
 
 Everything in plan A, converting any drive besides Shard Recovery, deposits other than shards
-(the format is set here, decision 10), Chat, Selective Share, moving automated recovery to the
+(the format is set here, decision 10), Chat, Private Share, moving automated recovery to the
 password (decision 6), and changing the phrase (roadmap, decision 3).

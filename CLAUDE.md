@@ -131,10 +131,11 @@ It is the root of the reference docs; each of these goes deeper, and is the one 
 
 | Read | Before touching |
 |---|---|
-| `docs/file-access.md` | who may see or change a file: a file's ACL, the `DriveAclIndex` rows, the query's ACL filter, the read rule (`CallerMayReadAsync`), shares, collaborative channels |
+| `docs/terminology.md` | any doc or comment about drives, keys or files: the one meaning of each term (Server Share, Private, Private Share, zero knowledge, community channel, deposit, share, key-header kinds) |
+| `docs/file-access.md` | who may see or change a file: a file's ACL, the `DriveAclIndex` rows, the query's ACL filter, the read rule (`CallerMayReadAsync`), shares, community channels |
 | `docs/owner-keys.md` | any key or key header: what each key is called, what locks what, where it is stored |
-| `docs/zero-knowledge-drives.md` | a drive's sharing model (Collaborative, Private, Selective Share), client-locked files, deposits |
-| `docs/selective-share-plan.md` | Selective Share: share rows, circle keys, the PR order and its open decisions |
+| `docs/zero-knowledge-drives.md` | a drive's sharing model (Server Share, Private, Private Share), client-locked files, deposits |
+| `docs/selective-share-plan.md` | Private Share: share rows, circle keys, the PR order and its open decisions |
 
 ### Events
 

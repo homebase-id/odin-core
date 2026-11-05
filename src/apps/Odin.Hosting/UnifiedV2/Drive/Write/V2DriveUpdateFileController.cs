@@ -45,16 +45,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             OdinValidationUtils.AssertNotEmptyGuid(fileId, "missing file id");
             
             var v1Result = await ReceiveFileUpdateV2(driveId, fileId);
-            return new UpdateFileResult
-            {
-                FileId = v1Result.File.FileId,
-                DriveId = v1Result.File.TargetDrive.Alias.Value,
-                GlobalTransitId = v1Result.GlobalTransitId,
-                RecipientStatus = v1Result.RecipientStatus,
-                NewVersionTag = v1Result.NewVersionTag,
-                Updated = v1Result.Updated,
-                Payloads = v1Result.Payloads
-            };
+            return UpdateFileResult.From(v1Result, withLocalFile: true);
         }
         
         /// <summary>
@@ -81,16 +72,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             OdinValidationUtils.AssertNotEmptyGuid(uniqueId, "missing uid");
             
             var v1Result = await ReceiveFileUpdateByUniqueIdV2(driveId, uniqueId);
-            return new UpdateFileResult
-            {
-                FileId = v1Result.File.FileId,
-                DriveId = v1Result.File.TargetDrive.Alias.Value,
-                GlobalTransitId = v1Result.GlobalTransitId,
-                RecipientStatus = v1Result.RecipientStatus,
-                NewVersionTag = v1Result.NewVersionTag,
-                Updated = v1Result.Updated,
-                Payloads = v1Result.Payloads
-            };
+            return UpdateFileResult.From(v1Result, withLocalFile: true);
         }
     }
 }

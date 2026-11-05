@@ -17,7 +17,7 @@ using Odin.Services.Membership.Connections;
 namespace Odin.Services.Membership.Circles;
 
 /// <summary>
-/// Selective Share's circle keys (docs/selective-share-plan.md, PR 2).  A circle's share key is made on a device
+/// Selective Share's circle keys (docs/selective-share-plan.md).  A circle's share key is made on a device
 /// of the app that owns the circle, which stores it locked with the app's zero-knowledge key and stores a copy
 /// sealed to each member's matching drive.  The server opens none of them: it keeps them, checks their size and
 /// format version, and decides who may read or write which.
@@ -180,15 +180,17 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
     /// </summary>
     /// <remarks>
     /// An unreviewed connection is judged as a logged-in stranger wherever content is (<see cref="ReviewedSecurityTier"/>),
-    /// and the circle key opens content, so it waits for the review.  The copy can be sealed before then; it is
-    /// served once the review lands.
+    /// and the circle key opens content, so it waits for the review, refused with
+    /// <see cref="OdinClientErrorCode.NotReviewedByOwner"/> so its app can say so.  The copy can be sealed before then;
+    /// it is served once the review lands.
     /// </remarks>
     public async Task<byte[]> GetCallersSealedShareKeyAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsConnected();
         if (ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller) != SecurityGroupType.Connected)
         {
-            throw new OdinSecurityException("Caller is a connection the owner has not reviewed yet");
+            throw new OdinSecurityException("Caller is a connection the owner has not reviewed yet",
+                OdinClientErrorCode.NotReviewedByOwner);
         }
 
         // The caller's circles come from a peer context cached for up to an hour, which disabling a circle doesn't

@@ -103,7 +103,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         {
             //Note: there is no local file.  everything is enqueued to the transient temp drive
             OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, false, odinContext.Tenant);
-            instructionSet.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
+            instructionSet.File.AssertIsValidPeerTarget();
 
             InternalDriveFileId file = new InternalDriveFileId()
             {
@@ -299,10 +299,15 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
             }
 
+            // The recipient's copy's, as the client named it, before the transient file takes a version tag of its own
+            // (docs/file-access.md, "Changing a file you sent")
+            var expectedVersionTag = metadata.VersionTag;
+
             await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false,
                 odinContext, sourceArea: StagingArea.Upload);
 
-            var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext);
+            var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext,
+                expectedVersionTag);
 
             return new FileUpdateResult()
             {
@@ -383,8 +388,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
-            ? await ZkDriveFiles.OpenForWriteAsync(updateDescriptor.EncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
-                odinContext)
+            ? await ZkDriveFiles.OpenForWriteAsync(updateDescriptor.EncryptedKeyHeader, package.InternalFile.DriveId,
+                FileSystem.Storage.GetFileSystemType(), _driveManager, odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(updateDescriptor);
@@ -404,7 +409,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
     protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package,
         FileIdentifier targetFile,
         KeyHeader keyHeader,
-        IOdinContext odinContext)
+        IOdinContext odinContext,
+        Guid? expectedVersionTag = null)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.Recipients;
@@ -412,7 +418,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         if (recipients?.Any() ?? false)
         {
             OdinValidationUtils.AssertValidRecipientList(recipients);
-            targetFile.AssertIsValid(FileIdentifierType.GlobalTransitId);
+            targetFile.AssertIsValidPeerTarget();
 
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(
                 package.InternalFile,
@@ -425,7 +431,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 package.InstructionSet.UseAppNotification ? package.InstructionSet.AppNotificationOptions : null,
                 package.InstructionSet.Locale,
                 odinContext,
-                overrideDataSource: null);
+                overrideDataSource: null,
+                expectedVersionTag: expectedVersionTag);
         }
 
         return recipientStatus;
@@ -483,11 +490,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         }
 
         var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, true);
-        if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
-        {
-            throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
-                OdinClientErrorCode.DriveSecurityAndAclMismatch);
-        }
+        SelectiveShareDrives.AssertAclFitsDrive(drive, serverMetadata.AccessControlList);
 
         // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
         PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);

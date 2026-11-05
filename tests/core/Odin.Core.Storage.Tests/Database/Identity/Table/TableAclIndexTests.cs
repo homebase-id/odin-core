@@ -311,12 +311,54 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Assert.That(await tbl.GetAsync(driveId, fileId), Is.Empty, "an empty list leaves no rows");
         }
 
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // On a Selective Share drive the rows are the shares: a header write that doesn't reconcile leaves every row as
+        // it was, whatever list it carries, and a hard delete still deletes them
+        public async Task AHeaderWriteThatDoesntReconcileLeavesTheRowsAlone(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var mainIndex = scope.Resolve<TableDriveMainIndex>();
+            var tbl = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var shared = Guid.NewGuid();
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, null, 1, 1, "frodo.baggins.me", null, null, 0,
+                UnixTimeUtc.Now(), 1, null, null, 1);
+            await tbl.InsertAsync(new DriveAclIndexRecord
+            {
+                driveId = driveId, fileId = fileId, aclMemberId = shared, permissions = 3,
+                lockedFileKey = Enumerable.Range(0, 45).Select(i => (byte)i).ToArray()
+            });
+            var before = await tbl.GetAsync(driveId, fileId, shared);
+
+            foreach (var acl in new List<Guid>[] { null, [], [Guid.NewGuid()] })
+            {
+                await RewriteHeaderAsync(metaIndex, mainIndex, driveId, fileId, acl, reconcileAcl: false);
+                var after = await tbl.GetAsync(driveId, fileId, shared);
+                Assert.That((after.rowId, after.permissions, after.modified, after.lockedFileKey),
+                    Is.EqualTo((before.rowId, before.permissions, before.modified, before.lockedFileKey)),
+                    $"the share row after a write carrying {acl?.Count.ToString() ?? "no"} list");
+                Assert.That(await tbl.GetAsync(driveId, fileId), Is.EqualTo(new[] { shared }), "the file's rows");
+            }
+
+            await metaIndex.DeleteEntryAsync(driveId, fileId);
+            Assert.That(await tbl.GetAsync(driveId, fileId), Is.Empty, "a hard delete deletes the shares");
+        }
+
         // Writes the stored header again with a new ACL, as DriveQuery.SaveFileHeaderAsync does
         private static async Task RewriteHeaderAsync(MainIndexMeta metaIndex, TableDriveMainIndex mainIndex, Guid driveId,
-            Guid fileId, List<Guid> acl)
+            Guid fileId, List<Guid> acl, bool reconcileAcl = true)
         {
             var record = await mainIndex.GetAsync(driveId, fileId);
-            Assert.That(await metaIndex.BaseUpsertEntryZapZapAsync(record, acl), Is.EqualTo(1), "the header write");
+            Assert.That(await metaIndex.BaseUpsertEntryZapZapAsync(record, acl, reconcileAcl: reconcileAcl), Is.EqualTo(1),
+                "the header write");
         }
     }
 }

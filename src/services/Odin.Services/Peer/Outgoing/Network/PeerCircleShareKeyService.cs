@@ -9,6 +9,7 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Util;
 
 namespace Odin.Services.Peer.Outgoing.Network;
 
@@ -36,6 +37,8 @@ public class PeerCircleShareKeyService(
         return result.IssueType switch
         {
             PeerRequestIssueType.None => result.Response.Content?.SealedKey,
+            PeerRequestIssueType.Forbidden when result.Response.ErrorCode() == OdinClientErrorCode.NotReviewedByOwner =>
+                throw new OdinSecurityException($"{odinId} hasn't reviewed this connection yet", OdinClientErrorCode.NotReviewedByOwner),
             PeerRequestIssueType.Forbidden => throw new OdinSecurityException($"{odinId}: not a member of circle {circleId}"),
             PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr => throw new OdinSecurityException(
                 $"{odinId} no longer recognises this connection"),

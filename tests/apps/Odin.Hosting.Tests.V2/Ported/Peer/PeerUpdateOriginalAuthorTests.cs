@@ -9,6 +9,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Ported.Transit;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -166,6 +167,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         //
 
         var updatedFileMetadata = uploadedFileMetadata;
+        updatedFileMetadata.VersionTag = (await TransitScenario.SingleByGlobalTransitIdAsync(collabChannelOwnerClient, remoteTargetFile.ToGlobalTransitIdFileIdentifier())).FileMetadata.VersionTag;
         updatedFileMetadata.AppData.Content = "some new content here";
         updatedFileMetadata.AppData.DataType = 444;
         updatedFileMetadata.AppData.UniqueId = Guid.Parse("00000000-0000-0000-0000-111111111111");
@@ -301,6 +303,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         var updatedFileMetadata = uploadedFileMetadata;
+        updatedFileMetadata.VersionTag = (await TransitScenario.SingleByGlobalTransitIdAsync(collabChannelOwnerClient, remoteTargetFile.ToGlobalTransitIdFileIdentifier())).FileMetadata.VersionTag;
         updatedFileMetadata.AppData.Content = "some new content here";
         updatedFileMetadata.AppData.DataType = 222;
 
