@@ -1105,6 +1105,10 @@ background tasks still settling. Undiagnosed; the failed job was re-run.
 the same commit, which changes circles and drive shares, nothing in the cache, Redis or this fixture. The failed job
 was re-run.
 
+**Again 2026-11-05:** `ubuntu/sqlite/release` on PR #2056 (`selective-share-circle-keys`) commit `5f250abd6`, run
+42092307328, the same `TearDown` NullReferenceException; the re-run passed. Filed as #2069, with a hypothesis: the
+multiplexer is disposed twice, once by FusionCache's Redis L2/backplane and once by the container.
+
 ## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
 
 - `Disconnect_PushesConnectionChanged`
