@@ -6,9 +6,9 @@ permission check, a file's ACL, the `DriveAclIndex` rows or the query's ACL filt
 names of the keys), [zero-knowledge-drives.md](zero-knowledge-drives.md) (the drive sharing models) and
 [selective-share-plan.md](selective-share-plan.md) (how shares are built, PR by PR).
 
-**Status:** "Today" describes `main`, read in the code on 2026-11-01, partly by subagents. "With Selective Share" is
-the plan: the share columns and the index (PR 1, #2053) and circle keys (PR 2, #2056) are built and in review, PR 3
-(shares and members, which took in what was planned as PR 4) is not built. Markers follow security-model.md: **(V)**
+**Status:** "Today" describes `main` plus Selective Share PR 1 (the share columns and the index, #2053), read in the
+code on 2026-11-01, partly by subagents. "With Selective Share" is the plan: circle keys (PR 2, #2056) are built and in
+review, PR 3 (shares and members, which took in what was planned as PR 4) is not built. Markers follow security-model.md: **(V)**
 read in the code (file named), **(I)** inferred.
 
 ## Terms
@@ -61,7 +61,7 @@ writes "collaborative channel" for the second.
 | Term | Means |
 |---|---|
 | **index row** | a `DriveAclIndex` row: one per named circle or named identity of a file (an identity as its OdinId's hash), so the query can find "files my circles may see" **(V)** |
-| **share row** | on a Selective Share drive, the index row *is* the share: it adds permission bits, an expiry, the **locked file key** (`lockedFileKey`: the file key locked with the circle key, no IV), and its own `created` and `modified` (columns added by PR 1, written by PR 3; planned) |
+| **share row** | on a Selective Share drive, the index row *is* the share: it adds permission bits, an expiry, the **locked file key** (`lockedFileKey`: the file key locked with the circle key, no IV), and its own `created` and `modified` (columns from PR 1 **(V)**; written from PR 3) |
 | **live row** | a row with `Read` that hasn't expired |
 | **withdrawn share** | a share row kept with no bits and no locked file key, so members syncing see it go: to a share what a soft-deleted file's tombstone is to a file |
 | **member** | an identity in a circle |
@@ -166,11 +166,11 @@ rule. All in "Special cases".
 
 **They follow the header.** Every header write (about 50 call sites, soft delete included) ends in
 `DriveQuery.SaveFileHeaderAsync`. It turns the ACL into a member list (the named circles, plus each named identity's
-OdinId hash), and in the header's transaction deletes the file's index rows and inserts one per member
-(`MainIndexMeta.BaseUpsertEntryZapZapAsync`: `DeleteAllRowsAsync`, then `InsertRowsAsync`) **(V)**. A row is only
-the pair (file, member); every row means read **(V)**. A hard delete and a drive purge delete the rows **(V)**. Nothing
-else writes them **(V)**. PR 1 makes the header write reconcile the rows instead (only members no longer named go,
-only new ones are added), so a share row's columns survive it.
+OdinId hash) and reconciles the file's index rows in the header's transaction: rows of members no longer named are
+deleted, new ones inserted, and a row that stays isn't touched, so a share row's columns survive it
+(`MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync`) **(V)**. A new row means read:
+`permissions` 1, no expiry, the columns' defaults **(V)**. A hard delete and a drive purge delete the rows **(V)**.
+Nothing else writes them **(V)**.
 
 **Who gets the ACL back:** owner callers only. Outside callers get the header without its server metadata
 (`DriveFileUtility.CreateClientFileHeader`, `:113-116`) **(V)**.
@@ -288,6 +288,6 @@ Selective Share's open decisions are in [selective-share-pr3-plan.md](selective-
 | Queries, the per-result check | `services/Odin.Services/Drives/FileSystem/Base/DriveQueryServiceBase.cs` (`FilterVisibleAsync`) |
 | The query's SQL | `core/Odin.Core.Storage/Database/Identity/Abstractions/QueryBatch.cs` |
 | The caller's member list for the SQL | `services/Odin.Services/Drives/DriveCore/Query/DriveQuery.cs` (`GetAcl`) |
-| Index rows on a header write | `MainIndexMeta.BaseUpsertEntryZapZapAsync` |
+| Index rows on a header write | `MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync` |
 | What a recipient's copy gets | `services/Odin.Services/Peer/Incoming/Drive/Transfer/PeerFileWriter.cs` |
 | Feed distribution | `services/Odin.Services/DataSubscription/FeedDriveDistributionRouter.cs` |
