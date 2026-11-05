@@ -52,8 +52,8 @@ public class PushNotificationBuildMessageTests
         Assert.That(message.Apns.Headers["apns-priority"], Is.EqualTo("5"), Describe(message));
         Assert.That(message.Apns.Aps.Alert, Is.Null, Describe(message));
         Assert.That(message.Apns.Aps.ContentAvailable, Is.True, "a background push must say content-available");
-        // Android is data-only in both cases; the app decides what to show.
-        Assert.That(message.Android.Priority, Is.EqualTo(Priority.High));
+        // Android is data-only in both cases; the app shows nothing for this one, so it goes at normal priority.
+        Assert.That(message.Android.Priority, Is.EqualTo(Priority.Normal));
         Assert.That(message.Notification, Is.Null);
     }
 
