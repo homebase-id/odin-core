@@ -42,25 +42,7 @@ public class TableCircle(
     /// </summary>
     internal async Task<List<CircleRecord>> GetByGrantOnAsync(int grantOn)
     {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
-
-        cmd.CommandText =
-            "SELECT rowId,identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji FROM Circle " +
-            "WHERE identityId = @identityId AND GrantOn = @grantOn;";
-
-        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-        cmd.AddParameter("@grantOn", DbType.Int32, grantOn);
-
-        var results = new List<CircleRecord>();
-
-        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
-        while (await rdr.ReadAsync())
-        {
-            results.Add(ReadRecordFromReaderAll(rdr));
-        }
-
-        return results;
+        return await base.GetByGrantOnAsync(odinIdentity, grantOn) ?? [];
     }
 
     /// <summary>
