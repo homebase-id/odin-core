@@ -18,13 +18,24 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - Homebase is a generic self-sovereign **app platform**. One identity = one domain = one tenant, with its own server.
 - Apps authenticate with **YouAuth**, an OAuth2-like flow: the owner consents to what the app asks for, and each device
   gets a client token.
-- Apps own **drives** and **circles** (section 2). Each drive is encrypted with its own **storage key** (section 8).
+- Apps own **drives** and **circles** (section 2). Each drive is encrypted with its own **drive key**, which the code
+  and this doc call the storage key (section 8).
 - An app sees only what it was granted: "an app gains nothing beyond its own reach". This is cryptographic, not just a
   check: no storage key in hand, no working grant (`PermissionContextStorageKeySource`) **(V)**.
-- All files are zero knowledge encrypted at rest. No decryption keys are stored on the server, they only appears as in-memory blips when the user is online and calls the API.
-- **Zero-knowledge drives** (today only Shard Recovery) have no master-key copy of their key: the only copy is locked
-  by the owner's zero-knowledge master key, which only the browser opens (`StorageDrive.IsZeroKnowledge`). The server
-  never encrypts for one, and no grant on one carries its key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
+- Words as in [terminology.md](terminology.md). A drive's **sharing model** says who holds its key (section 3).
+- **Server Share drives are zero knowledge at rest:** the server stores the drive key locked, and opens it only in
+  memory while the owner, one of the owner's apps or a member is online and calling the API **(not traced for every
+  key path, inferred)**.
+- **Zero-knowledge drives** (sharing model Private or Private Share: a new identity's Vault and Email from the start
+  (`BuiltinDrives`), an older identity's Vault, Email and Filesync and every identity's Shard Recovery once the
+  browser converts them (`ZkDriveConversionService.ConvertibleDrives`), and apps' own, such as Filesync's Private Share
+  drive) are zero knowledge: the server never holds a key that opens them, not even in memory. They have no master-key
+  copy of their key: the only copy is locked by the owner's zero-knowledge master key, which only the browser opens
+  (`StorageDrive.IsZeroKnowledge`). The server never encrypts for one, and no grant on one carries its key
+  (`StorageDrive.GrantCarriesStorageKey`) **(V)**. Two checks answer "is it zero knowledge" today, the model
+  (`DriveSharingModel.IsZeroKnowledge()`) and the missing master-key copy; a drive row with a zero-knowledge model and a
+  master-key copy is refused (`DriveManager.AssertKeyCopies`) **(V)**. One definition, by the model, with the key
+  copy following from it, is **(to build)**.
 - **Recovery in the browser** ([zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md)): once the browser
   takes the recovery phrase over, the server holds no copy of it it can open (`RecoveryKeyRecord.TakenOver`). The
   phrase locks the zero-knowledge master key and the private half of a phrase key pair; the password is sealed to the
@@ -138,17 +149,32 @@ Later:
 |---|---|
 | `OwnerOnly` | every file must carry the Owner ACL (`FileSystemStreamWriterBase`, `FileSystemUpdateWriterBase`); can't be combined with anonymous reads or subscriptions (`DriveManager`) |
 | `AllowAnonymousReads` | anyone may read files whose ACL allows it; also relaxes the comment checks (section 6) |
-| `AllowSubscriptions` | followers may subscribe (feed); collaborative channels need it |
+| `AllowSubscriptions` | followers may subscribe (feed); a drive marked as a community channel needs it |
 | `AllowCdn` | the CDN may read payloads (`IsCdnEnabled`); anonymous drives are reachable anyway |
 | `RequirePayloadHashes` | every payload must carry client hashes |
 | `IsReadonly` | documented "owner only, in owner auth". **No write path reads it** (grep) **(V)**, so it's not enforced |
 | `IsArchived` | non-owner callers are refused (`AssertDriveIsNotArchived`) |
-| `WriteOnlyKeyPair` | per-drive ECC-384 key: seal a deposit without being able to read; private half under the storage key. Handed only to callers with Write |
-| Attribute `IsCollaborativeChannel` | collaborative feed channel (`IsCollaborationDrive`) |
+| `WriteOnlyKeyPair` | per-drive ECC-384 key: seal a deposit without being able to read; private half under the storage key. Its public half is served to any identity, with whether the asker may write (`CallerMayWrite`); a deposit still needs Write |
+| Attribute `IsCollaborativeChannel` | marks the drive as a **community channel** (`IsCollaborationDrive`): members may change each other's posts, and posts keep the sender's ACL ([file-access.md](file-access.md#drives-marked-as-a-community-channel)) |
 
 - System drives (`BuiltinDrives.Protected`) can't be deleted **(V)**.
+- **A zero-knowledge drive allows neither anonymous reads, the CDN nor subscriptions,** and may not be marked as a
+  community channel, which needs the server to hold the key. Checked today: at creation, the first three
+  (`CreateDriveRequest.AssertSharingModel`) **(V)**; on a Private Share drive, the community channel at creation,
+  conversion and an attribute change (`SelectiveShareDrives.AssertSettingsFit`) **(V)**. One check of all four, at
+  creation, conversion and every setter, on every zero-knowledge drive, is **(to build)**.
 - Tenant settings add rights on anonymous drives for authenticated and connected identities: Read always,
   Comment/React by flag (`TenantSettings.GetAnonymousDrivePermissionsFor…`) **(V)**.
+
+### Sharing models (`Drives.SharingModel`) **(V)**
+
+| Model | Who holds the drive key |
+|---|---|
+| **Server Share** (`Collaborative` in code; the default) | the server, locked at rest; it opens it for the owner, the owner's apps and the members of the drive's circles, whose grants carry it |
+| **Private** | the owner's devices and apps only; others may only add deposits |
+| **Private Share** (`SelectiveShare` in code) | the owner's devices and apps only; others add deposits, and read what is shared with them through shares ([file-access.md](file-access.md#with-private-share)) |
+
+An app chooses the model when it creates the drive; an existing drive changes it only by conversion **(V)**.
 
 ### Drive addressing (slugs)
 
@@ -166,7 +192,7 @@ uses on another identity. The original design, with its full argument, is archiv
   to any identity, on every drive; a missing drive is a 404. The key is public: sealing to it puts nothing on the
   drive, and a deposit still needs Write when it arrives, so a stranger with no grant can't deposit yet
   ([weak-key-retirement.md](weak-key-retirement.md)). Sharers need it to seal a key for the owner to open, such as a
-  Selective Share circle key. The answer also says the drive exists, whether it is zero knowledge, its sharing
+  Private Share circle key. The answer also says the drive exists, whether it is zero knowledge, its sharing
   model, and whether the caller may write to it (`CallerMayWrite`), which senders need: Shamir dealing refuses a
   holder who doesn't let the dealer write, rather than deal a shard their server will refuse. So any identity can
   list an identity's apps and drives by slug through it; address resolution still answers only a caller with a
@@ -226,7 +252,7 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   circle definition needs the master key (`CircleMembershipService.UpdateAsync`) **(V)**.
 - Unreviewed connections are treated as `Authenticated`, not `Connected`, when content is evaluated
   (`ReviewedSecurityTier`) **(V)**.
-- **Circle share keys** (Selective Share, [selective-share-plan.md](selective-share-plan.md)): an app circle's key,
+- **Circle share keys** (Private Share, [selective-share-plan.md](selective-share-plan.md)): an app circle's key,
   locked with the owning app's zero-knowledge key, and each member's copy, sealed to their matching drive. The server
   opens neither, and checks only their size and format version (`CircleShareKeyService`) **(V)**.
   - Only the owning app or the owner console may read or set the key, list members without a copy, or store copies
@@ -274,7 +300,7 @@ Details in [connection-defaults.md](connection-defaults.md).
 
 ## 5. Files and their ACL
 
-The full description, today's and Selective Share's, is [file-access.md](file-access.md).
+The full description, today's and Private Share's, is [file-access.md](file-access.md).
 
 - Each file carries an `AccessControlList`: `RequiredSecurityGroup` + optional `CircleIdList` and `OdinIdList` **(V)**.
 - Security groups are a ladder: `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 <
@@ -288,8 +314,10 @@ The full description, today's and Selective Share's, is [file-access.md](file-ac
   ACL **(V)**.
 - Owner and `System` callers skip the ACL **(V)**.
 - Reading a file needs **both** drive Read and the ACL. Past drive Read, one rule decides whether the caller may see a stored
-  file (`IDriveAclAuthorizationService.CallerMayReadAsync`): the ACL, and a client-locked file (sealed or zkDrive) only for a caller holding the
-  drive's key, except a deposit staged on the transient drive (`ZkDriveFiles.VisibleTo`). A read by id, a query and a socket event all ask it **(V)**. Queries also drop
+  file (`IDriveAclAuthorizationService.CallerMayReadAsync`): the ACL, and a client-locked file (sealed, zkDrive or fileKey: `EncryptedKeyHeader.IsLockedByClient`) only for a caller holding the
+  drive's key, except a deposit staged on the transient drive (`ZkDriveFiles.VisibleTo`); on a Private Share drive an
+  outside caller's live share decides instead, and opens a client-locked file to them too
+  (`DriveAclAuthorizationService.CallerMayReadAsync`) **(V)**. A read by id, a query and a socket event all ask it **(V)**. Queries also drop
   encrypted files the caller has no storage key for (`DriveQueryServiceBase` filter) **(V)**.
 - `LocalAppMetadata` never leaves the identity.
 
@@ -303,14 +331,19 @@ The full description, today's and Selective Share's, is [file-access.md](file-ac
   - **on a drive with `AllowAnonymousReads` both checks are skipped** **(V)**. Whether the tenant "can comment" flags are
     still enforced elsewhere: **not checked** **(?)**;
   - telling recipients to delete a comment accepts either transit key; other file deletes need `UseTransitWrite`
-    (`AssertCanTellRecipientsToDelete`, #1978) **(V)**. Why comments are looser: **(?)**.
+    (`AssertCanTellRecipientsToDelete`, #1978) **(V)**. Why comments are looser: **(?)**;
+  - **who may comment follows the sharing model:** on a Server Share drive the members who may read, by the checks
+    above; on a Private Share drive through shares (below); on a Private drive only owner callers, never a peer
+    **(to build)**. Today a peer with drive `Comment` can still leave one on a Private drive as a deposit (inferred
+    from `ZkDriveFiles.AssertDriveTakes`, not tested).
 - **Reactions** need `React` on the drive (`ReactionContentService`, `GroupReactionService`) **(V)**. Their peer rules are
-  their own; don't fold them into the file rule (user decision, #1977).
+  their own; don't fold them into the file rule (user decision, #1977). They stay allowed on Private drives: Chat
+  needs them.
 - **Read receipts** (transfer history): own rules, hands off (user decision).
-- **On a Selective Share drive** an outside caller's comments and reactions need drive `Comment` or `React` as
+- **On a Private Share drive** an outside caller's comments and reactions need drive `Comment` or `React` as
   anywhere, and a live share row on the file with the same bit: a share row narrows its circles' grant, for every bit
   ([file-access.md](file-access.md#a-share-row-narrows-its-circles-grant)); a comment is read by whoever may read its file, is encrypted
-  with its file's key (`fileKey`), and is written only by its author ([file-access.md](file-access.md#with-selective-share),
+  with its file's key (`fileKey`), and is written only by its author ([file-access.md](file-access.md#with-private-share),
   selective-share-pr3-plan.md section 10).
 
 ### Peer file operations (#1977)
@@ -361,19 +394,29 @@ serverMetadata
 
 **The rule.** A file has one key header (FileKey and an IV); content, local app data, payloads and
 thumbnails are all encrypted with FileKey, each with its own IV **(V)**. Only the key header is locked:
-- **Normal drive:** by the server with the drive's key (DrvK, `type: aes`). A peer's key header arrives
+- **Server Share drive:** by the server with the drive's key (DrvK, `type: aes`). A peer's key header arrives
   wrapped in the connection's shared secret and waits in the drive's inbox until the owner or an app is
   signed in; the server then re-locks it with the keys that caller lends it (`PeerInboxProcessor`) **(V)**.
+  Only a Server Share drive needs an inbox, since only there does the server re-lock what arrives; the plan is to
+  remove it there too, later.
 - **Zero-knowledge drive:** by a client, and the server opens neither kind: by a device holding DrvK
   (`type: zkDrive`), or sealed to the drive's write-only public key by anyone with Write (`type: sealed`,
   a deposit) **(V)**. A key holder may later transform `sealed` into `zkDrive` (designed, built with
-  Chat). One exception writes server-side: on a private Email drive the server seals the OpenPGP keyring and its
+  Chat). One exception writes server-side: on a Private Email drive the server seals the OpenPGP keyring and its
   pointer to the drive itself (`EmailKeyMaterialWriter`), skipping the write rules a client's upload passes
   (`OpenForWrite`, `AssertMayReplace`), so a rotation's sealed pointer replaces a `zkDrive` one on an upgraded drive;
-  it refuses a caller that doesn't hold the drive's key **(V)**. One read rule (`IDriveAclAuthorizationService.CallerMayReadAsync`) shows a client-locked file
-  only to a caller that can open it; the model and decisions are in
-  [zero-knowledge-drives.md](zero-knowledge-drives.md#how-a-zero-knowledge-drive-holds-files), the work in
-  [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
+  it refuses a caller that doesn't hold the drive's key **(V)**.
+  - **The inbox:** none on a Private Share drive, and none for a deposit. A peer's new deposit is written directly,
+    as it was sent (`PeerDriveIncomingTransferService.CanDirectWriteFile`, `Deposits.IsStoredAsSent`) **(V)**; on a
+    Private Share drive a member's update and delete are written directly too, as the member
+    (`PeerDriveIncomingFileUpdateService`, `AcceptDeleteLinkedFileRequestAsync`) **(V)**. A Private drive still queues
+    a peer's encrypted update and delete in the inbox **(V)**; writing them directly, as on Private Share, is
+    **(to build)**. So is one check of "may a peer write directly", for new files and updates alike, by the key
+    header's kind **(to build)**.
+  - One read rule (`IDriveAclAuthorizationService.CallerMayReadAsync`) shows a client-locked file only to a caller
+    that can open it; the model and decisions are in
+    [zero-knowledge-drives.md](zero-knowledge-drives.md#how-a-zero-knowledge-drive-holds-files), the work in
+    [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
 
 Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md). The owner's
 own keys above the storage key (password, master key, zero-knowledge master key, recovery phrase, reset key, Shamir),
@@ -393,8 +436,9 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
   and rewraps it with its own storage key **(V)**. Payload bytes are not re-encrypted **(inferred)**.
 - `IsEncrypted = false` files use an empty KeyHeader and are stored in clear **(V)**.
 - `StorageDrive.AssertValidStorageKey` checks a key against the drive's encrypted id before use **(V)**.
-- A zero-knowledge drive takes only key headers an owner device locked with its key (`zkDrive`), and
-  deposits. It refuses one locked with the shared secret by its type, before opening it
+- A zero-knowledge drive takes only key headers an owner device locked with its key (`zkDrive`),
+  deposits, and on a Private Share drive comments locked with their file's key (`fileKey`)
+  (`ZkDriveFiles.AssertDriveTakes`) **(V)**. It refuses one locked with the shared secret by its type, before opening it
   (`ZkDriveFiles.OpenForWrite` → `DriveIsZeroKnowledge`) **(V)**. Reads return a `zkDrive` key header as
   stored, only to a caller holding the drive's key: the owner console, or an app device given the app's
   zero-knowledge key (`ZkDriveFiles.CallerHoldsDriveKey`) **(V)**; and a payload or thumbnail read sends no

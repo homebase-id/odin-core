@@ -1,6 +1,6 @@
 # Drive public keys: a peer key cache, a key check on arrival, and later retired keys
 
-Status: plan, 2026-10-28. The first piece towards Chat going private. **(V)** = verified by reading code
+Status: plan, 2026-10-28; "Now" built and merged (#2045). The first piece towards Chat going private. **(V)** = verified by reading code
 on main `e3a6af496`. **(I)** = inferred.
 
 ## Goal
@@ -49,8 +49,9 @@ Decided 2026-10-28: build the cache and the key check now, and **leave retired k
    (`ZkDriveFiles`, no database read.)
 2. **The sender's server caches a peer drive's key** per identity, for `Host:PeerDriveKeyCacheSeconds`
    (7 days; at least the cache's 2-second minimum), in `PeerDriveQueryService`'s tenant cache.
-   - Only a zero-knowledge drive's answer is kept: one that isn't yet takes no deposits, and becomes
-     one at its owner's next login.
+   - Only a zero-knowledge drive's answer is kept: one that isn't takes no deposits. Of the built-in
+     drives only Shard Recovery becomes zero knowledge later, at its owner's next login; Vault and Email
+     are made zero knowledge.
    - Per identity, not per host: the answer's `CallerMayWrite` is per asker, and every other cache here is
      per tenant. The recipient serves the key to any identity; an answer that this identity may not write
      isn't kept, so a grant made since is seen at once. One that it may is served until it expires, even
@@ -68,7 +69,7 @@ this, they were stored and could never be opened.
 ## Later: retired keys, when a voluntary rotation needs them
 
 Nothing replaces a drive key with a grace period today: converting a drive drops a key that either took
-no deposits (Collaborative) or whose private half is lost (a reset). When a rotation is built, for Chat
+no deposits (a Server Share drive, `Collaborative` in code) or whose private half is lost (a reset). When a rotation is built, for Chat
 perhaps on removing a member:
 
 ### The timing rule

@@ -1,70 +1,18 @@
 # File access: who may see and change a file
 
-How a file's access control works, on every drive and on Selective Share drives. Read it before touching a drive
+How a file's access control works, on every drive and on Private Share drives. Read it before touching a drive
 permission check, a file's ACL, the `DriveAclIndex` rows or the query's ACL filter. Its neighbours:
 [security-model.md](security-model.md) (every caller and permission, in short), [owner-keys.md](owner-keys.md) (the
 names of the keys), [zero-knowledge-drives.md](zero-knowledge-drives.md) (the drive sharing models) and
 [selective-share-plan.md](selective-share-plan.md) (how shares are built, PR by PR).
 
-**Status:** describes `main` plus Selective Share's three open PRs (#2053, #2056, #2059). What they don't build yet is
+**Status:** describes `main` plus Private Share's three open PRs (#2053, #2056, #2059). What they don't build yet is
 marked **(to build)**. Markers follow security-model.md: **(V)** read in the code (file named), **(I)** inferred.
 
 ## Terms
 
-Each term below means one thing everywhere in this document.
-
-**Callers**
-
-| Term | Means |
-|---|---|
-| **owner callers** | the **owner console** (signed in with the master key) and the **owner's apps** (an app's client token). Both act at the `Owner` level (`CallerContext.IsOwner`) **(V)** |
-| **outside callers** | everyone else: peers, YouAuth domains, signed-in identities that aren't connected, and anonymous visitors |
-| **peer** | another identity, calling this one through the Peer API (`/api/peer/…`, `/api/v2/peer/…`) |
-| **`System`** | the server's own work (outbox, jobs, the CDN): a caller level, not a person |
-
-**Levels and groups**
-
-| Term | Means |
-|---|---|
-| **level** | where a caller stands on the ladder `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 < `Owner` 999 (`CallerContext.SecurityLevel`) **(V)**. An unreviewed connection's level counts as `Authenticated` wherever content is judged (`ReviewedSecurityTier.EffectiveLevel`) **(V)** |
-| **required group** | the rung a file asks for: the ACL's `RequiredSecurityGroup`, on the same ladder **(V)**. A group that is missing or undefined (0, or any other number that names no rung) means `Owner` (`AccessControlList.RequiredSecurityGroup`); `System` is defined, and refused as a file's group by the ACL check |
-
-**Drives**
-
-| Term | Means |
-|---|---|
-| **drive permission** | what a caller may do on a whole drive, from their grants: `Read` 1, `Write` 2, `React` 4, `Comment` 8, `ConditionalTemporalRead` 16 (`DrivePermission`, `PermissionContext`) **(V)** |
-| **public drive** | a drive with the option `AllowAnonymousReads` |
-| **drive option** | a typed setting on the drive the drive API validates: `OwnerOnly`, `AllowAnonymousReads`, `AllowSubscriptions`, `AllowCdn`, `IsArchived`, `IsReadonly`, `RequirePayloadHashes` (`StorageDriveDetails`) **(V)** |
-| **drive attribute** | a free key/value string an app sets on a drive; the server gives meaning only to `IsCollaborativeChannel` (`StorageDriveDetails.Attributes`) **(V)**. An option and an attribute do the same job and differ only in how they're stored |
-| **sharing model** | who holds the drive key: `Collaborative` (the default: the server holds it, and members of the drive's circles get it), `Private` or `SelectiveShare` (zero knowledge) (`Drives.SharingModel`) **(V)** |
-| **drive key** | the key every file's key is locked with on that drive (DrvK, [owner-keys.md](owner-keys.md)) |
-
-"Collaborative" names two different things: the **sharing model** `Collaborative`, and the **attribute**
-`IsCollaborativeChannel` (V1 community and feed channels, where members may edit each other's files). This document
-writes "collaborative channel" for the second.
-
-**Files**
-
-| Term | Means |
-|---|---|
-| **header** | the file's server-side record (`ServerFileHeader`): metadata, key header and server metadata, stored in `driveMainIndex` **(V)** |
-| **ACL** | the file's access control list, in the header's server metadata (`ServerMetadata.AccessControlList`): a **required group**, plus optional **named circles** (`CircleIdList`) and **named identities** (`OdinIdList`) **(V)** |
-| **client-locked file** | a file whose key header a client locked (types `sealed` and `zkDrive`); the server can't open it **(V)** |
-| **the read rule** | the one check that decides whether a caller may see a stored file: `IDriveAclAuthorizationService.CallerMayReadAsync` **(V)** |
-| **version tag**, **`modified`** | the header's version (a new one on every header write, used to refuse a stale update) and its last-change time (what clients sync by) **(V)** |
-
-**Index rows and shares**
-
-| Term | Means |
-|---|---|
-| **index row** | a `DriveAclIndex` row: one per named circle or named identity of a file (an identity as its OdinId's hash), so the query can find "files my circles may see" **(V)** |
-| **share row** | on a Selective Share drive, the index row *is* the share: it adds permission bits, an expiry, the **locked file key** (`lockedFileKey`: the file key locked with the circle key, no IV), and its own `created` and `modified` **(V)** |
-| **live row** | a row with `Read` that hasn't expired |
-| **withdrawn share** | a share row kept with no bits and no locked file key, so members syncing see it go: to a share what a soft-deleted file's tombstone is to a file |
-| **member** | an identity in a circle |
-| **individual circle** | a circle with one member (`CircleDesignation.Individual`), in the same `Circle` table as every other circle, so that a share with one person is a share row like any other |
-| **deposit** | a file a member adds to the owner's drive: its key header `sealed` to the drive's write-only key, so the owner's devices can open it |
+The terms used here are in [terminology.md](terminology.md): callers, levels and groups, drives and their sharing
+models (Server Share, Private, Private Share), the community channel attribute, files and key headers, and shares.
 
 ## Who each check applies to
 
@@ -137,7 +85,7 @@ the page comes back short.
 - **Update, overwrite, delete:** the drive isn't archived, drive `Write`, then **the existing header is loaded through
   steps 3 to 5**, so the writer must also pass the read rule (`GetServerFileHeaderForWriting`,
   `SoftDeleteLongTermFile`) **(V)**. There is no per-file write permission: drive `Write` plus passing the read rule is
-  the whole rule **(V)**. Selective Share drives add one ("With Selective Share").
+  the whole rule **(V)**. Private Share drives add one ("With Private Share").
 - **The new ACL's checks** (`AccessControlList.Validate`, through upload and update validation and
   `ServerFileHeader.Validate`) **(V)**:
   - a required group of `Anonymous` or `Owner` with named circles or identities is refused;
@@ -164,10 +112,10 @@ drive **(V, tested)**. Anything else is refused with `VersionTagMismatch` (`Sent
 write that replaces the header checks the tag again (`TableDriveMainIndex`, `WHERE hdrVersionTag = @hdrVersionTag`)
 **(V)**, so of two writes from the same tag only the first lands. Both writers ask who may change the file and what it
 names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdateWriter`) **(V)**.
-- **Who may:** the file's original sender, or on a collaborative channel any member who may read it, holding drive
-  `Write` **(V, tested)**; on a Selective Share drive also what "With Selective Share" asks (below). On the inbox path
-  the collaborative channel's read check is the drainer's (the owner or an app), not the sender's, as before this rule
-  **(V)**.
+- **Who may:** the file's original sender, or on a drive marked as a community channel any member who may read it,
+  holding drive `Write` **(V, tested)**; on a Private Share drive also what "With Private Share" asks (below). On
+  the inbox path the community channel's read check is the drainer's (the owner or an app), not the sender's, as
+  before this rule **(V)**.
 - **The recipient records the last write by a peer.** Each new file, file sent again and update from a peer stores, in
   the header, who sent it, the version tag their copy had and the one the write gave the recipient's copy
   (`ServerMetadata.SendersWrite`) **(V, tested)**. The recipient's copy keeps version tags of its own server's making, as
@@ -177,15 +125,15 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   owner's change of its archival status (`DriveStorageServiceBase.CarrySendersWrite`) **(V, tested for the archival status)**.
 - **A sender who can only write the file names no tag.** While the file still has the tag their last write gave it,
   no one else has changed it since, so their change goes on: a deposit, a Filesync marker, a chat message on a drive
-  they hold only `Write` on, an owner-only file on a community drive **(V, tested)**. Nothing the sender's server or
-  client keeps has to stay in step with the recipient: a lost response, or an inbox item the recipient dropped, leaves
-  the sender free to send their next change. Every device of the sender's sends the same way.
+  they hold only `Write` on, an owner-only file on a drive marked as a community channel **(V, tested)**. Nothing the
+  sender's server or client keeps has to stay in step with the recipient: a lost response, or an inbox item the
+  recipient dropped, leaves the sender free to send their next change. Every device of the sender's sends the same way.
 - **Anyone else's write ends it:** the owner's edit, or another member's, gives the file a new tag, after which the
   sender's change must name the file's tag like anyone's, which a sender who can only write it never learns **(V,
   tested)**. On a zero-knowledge drive the owner's edit also takes a deposit over, and a `sealed` key header never
   replaces a taken-over one ([zero-knowledge-drives.md](zero-knowledge-drives.md)) **(V, tested)**.
 - **A sender or member who can read the file** names its tag, as for any update, and gets a version tag error with a
-  stale one: the ordinary collaborative case **(V, tested)**. Only a change that has no copy on the sender's own drive
+  stale one: the ordinary case of people editing together **(V, tested)**. Only a change that has no copy on the sender's own drive
   names one: an update of the recipient's copy only (`UpdateLocale.Peer`) or a send from the transient drive, where the
   client names it as the `versionTag` of the metadata it uploads, carried as `ExpectedVersionTag` **(V)**. One named tag
   goes to every recipient, so a change naming one is for one recipient. A change sent from the sender's own drive
@@ -194,16 +142,16 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
 - **The same change sent again,** the outbox retrying one that landed, is that peer's tag already recorded: done,
   nothing written; an inbox item is marked complete and the payloads it streamed in are deleted
   (`SentFileChanges.AlreadyDeliveredAsync`) **(V)**.
-- **What doesn't change the tag:** a share row write ("With Selective Share") **(V)**, a reaction (its own column) and the
+- **What doesn't change the tag:** a share row write ("With Private Share") **(V)**, a reaction (its own column) and the
   owner's local app data, which has a tag of its own (`hdrLocalVersionTag`) **(V)**. Taking a deposit over today is the
   owner's update, which does **(V)**.
 - **The sender changes it without reading it.** The server finds the file without the read rule, by global transit id
-  then unique id, checks the sender is the stored file's, and, while they may change it unread (on a Selective Share
+  then unique id, checks the sender is the stored file's, and, while they may change it unread (on a Private Share
   drive, while it has no share), writes it in a context marked for that file and sender
   (`OdinContextUpgrades.ForSendersOwnFile`), whose header loads skip the read rule for that file alone and ask no drive
   `Read` (`DriveStorageServiceBase.IsSendersOwnFileAsync`) **(V, tested)**. It holds on the inbox path too, whoever
   drains it. Once it has a share, its sender changes it as any member does.
-- **On a Selective Share drive, a share freezes it.** A standard file with no share is changed by the rule above. Once
+- **On a Private Share drive, a share freezes it.** A standard file with no share is changed by the rule above. Once
   it has one, the shares decide: the sender also needs a live share with `Write` on it, so a share without `Write`, or a
   withdrawn one, keeps them from changing it until the owner changes that share **(V, tested)**. **Any share freezes
   it**, not only one for a circle the sender is in: a file shared with a group the sender isn't in stays as the group
@@ -234,8 +182,8 @@ OdinId hash) and reconciles the file's index rows in the header's transaction: r
 deleted, new ones inserted, and a row that stays isn't touched, so a share row's columns survive it
 (`MainIndexMeta.BaseUpsertEntryZapZapAsync`, `TableDriveAclIndex.ReconcileRowsAsync`) **(V)**. A new row means read:
 `permissions` 1, no expiry, the columns' defaults **(V)**. A hard delete and a drive purge delete the rows **(V)**.
-Nothing else writes them **(V)**. On a Selective Share drive the share API writes them and a header write leaves them
-alone ("With Selective Share").
+Nothing else writes them **(V)**. On a Private Share drive the share API writes them and a header write leaves them
+alone ("With Private Share").
 
 **Who gets the ACL back:** owner callers only. Outside callers get the header without its server metadata
 (`DriveFileUtility.CreateClientFileHeader`, `:113-116`) **(V)**.
@@ -256,7 +204,8 @@ is disabled **(V)**, so a check that must see a disable asks at the time (as the
 - **A sent copy carries the ACL without its named identities**, so a recipient never learns who else was named
   (`SendFileOutboxWorkerAsync`, `UpdateRemoteFileOutboxWorker`) **(V)**.
 - **The recipient's copy gets a required group of `Owner`**, except: a comment takes the ACL of the file it comments
-  on (`IncomingCommentAcl`), and a collaborative channel keeps the sender's ACL (`PeerFileWriter.cs:75-94`) **(V)**.
+  on (`IncomingCommentAcl`), and a drive marked as a community channel keeps the sender's ACL (`PeerFileWriter`)
+  **(V)**.
 - **A zero-knowledge drive sends nothing** (`ZkDriveFiles.AssertNotSent`) **(V)**.
 
 ## Special cases
@@ -265,10 +214,12 @@ is disabled **(V)**, so a check that must see a disable asks at the time (as the
   (`CommentFileStorageService`) **(V)**; the read rule still applies. The tenant's settings give signed-in and
   connected callers `Read`, and by flag `Comment` and `React`, on public drives (`TenantSettings`) **(V)**.
 - **Comments** are a separate file system on the same drive: reading needs drive `Read` or `Comment`, writing needs
-  `Comment` (security-model.md, section 6) **(V)**.
+  `Comment` (security-model.md, section 6) **(V)**. Who may comment follows the sharing model: on a Server Share
+  drive the members who may read; on a Private Share drive through shares ("With Private Share"); on a Private
+  drive only owner callers, never a peer **(to build)**.
 - **Reactions** need drive `React` and never pass the read rule, locally or from a peer: a peer's reaction finds the
   file by global transit id with a drive check only (`ResolveFileId`) **(V)**. Reactions keep rules of their own
-  (#1977); whether the drive check is enough is asked in #2058.
+  (#1977); whether the drive check is enough is asked in #2058. They stay allowed on Private drives: Chat needs them.
 - **Read receipts** need a drive check; the inbox then applies them through the read rule
   (`PeerFileWriter.MarkFileAsRead`) **(V)**.
 - **The server's own work skips the read rule's ACL part:** `System` passes it, and `UpgradeToByPassAclCheck` makes a
@@ -280,44 +231,53 @@ is disabled **(V)**, so a check that must see a disable asks at the time (as the
   that file's header without the read rule or drive `Read`, while the sender may change it unread
   (`DriveStorageServiceBase.IsSendersOwnFileAsync`) **(V)**.
 - **The CDN** reads payloads and thumbnails of CDN-enabled drives as `System`, so it passes every file's ACL there
-  (`CdnAuthPathHandler`) **(V)**: `AllowCdn` means "the CDN may read this drive". A zero-knowledge drive is never
-  CDN-enabled (`DriveManager.GetCdnEnabledDrivesAsync`) **(V)**.
+  (`CdnAuthPathHandler`) **(V)**: `AllowCdn` means "the CDN may read this drive". The CDN never reads a zero-knowledge
+  drive (`DriveManager.GetCdnEnabledDrivesAsync`) **(V)**, which is created refusing `AllowCdn`, anonymous reads and
+  subscriptions (`CreateDriveRequest.AssertSharingModel`) **(V)**; refusing them at conversion and in every setter too
+  is **(to build)** (security-model.md, section 3).
 - **Static and profile publishing** pick public files themselves: active, unencrypted, a required group of
   `Anonymous`, no TTL (`StaticFileContentService.Filter`) **(V)**.
 
-## Collaborative channels
+## Drives marked as a community channel
 
-**Status:** kept on every drive but Selective Share drives, which refuse it. It can go once community and feed
-channels move to Selective Share drives, which isn't planned.
+**Status:** a drive attribute, not a kind of drive. Only a Server Share drive may carry it, since it needs the server
+to hold the drive key: a Private Share drive refuses it (`SelectiveShareDrives.AssertSettingsFit`) **(V)**, and a
+Private drive refusing it is **(to build)**. It could go once community and feed channels move to Private Share
+drives, which isn't planned.
 
-The attribute `IsCollaborativeChannel` is set by the community app, by collaborative feed channels and on the built-in
-Lists drive (`BuiltinDrives.cs:146`) **(V)**. On such a drive **(V)**:
-1. a peer may update a file another identity sent; elsewhere only the original sender may (`PeerFileWriter.cs:279`);
-2. a peer's delete takes the direct soft-delete path (`PeerDriveIncomingTransferService.cs:226`);
-3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter.cs:88-94`);
+The attribute `IsCollaborativeChannel` (read through `StorageDrive.IsCollaborationDrive()`) is set by the community
+app, by the feed app for channels members post to, and on the built-in Lists drive (`BuiltinDrives`) **(V)**. On such a drive
+**(V)**:
+1. a member who may read a post may change it, naming its version tag; elsewhere only the original sender may, and
+   on a Private Share drive a member through a share (`SentFileChanges.ContextForChangeAsync`; "Changing a file you
+   sent");
+2. a peer's delete takes the direct soft-delete path, and only the post's original sender may delete it
+   (`PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync`). Whether only the original sender is meant
+   is Not decided (#2067);
+3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter`, `PeerFileUpdateWriter`);
 4. files received from others are distributed on to the members (`AllowDistribution`,
    `FeedDriveDistributionRouter.ShouldDistribute`);
-5. an upload may name recipients for app notifications (`FileSystemStreamWriterBase.cs:431`).
+5. an upload may name recipients for app notifications (`FileSystemStreamWriterBase`).
 
 The community app's per-message flag `appData.content.isCollaborative` is inside the encrypted content, so only
 clients read it, to decide whether to offer Edit **(V, odin-js)**. The server goes by the drive's attribute.
 
-## With Selective Share
+## With Private Share
 
-On a Selective Share drive only owner callers hold the drive key, and each share has a key of its own
-([zero-knowledge-drives.md](zero-knowledge-drives.md#selective-share)). **A share is the file's index row**: there
+On a Private Share drive only owner callers hold the drive key, and each share has a key of its own
+([zero-knowledge-drives.md](zero-knowledge-drives.md#private-share)). **A share is the file's index row**: there
 the index rows aren't a copy of the ACL but the record.
 
-| | Other drives | Selective Share drive |
+| | Other drives | Private Share drive |
 |---|---|---|
 | The ACL | the record: required group, named circles, named identities | names no one: named circles and identities refused. Required group `Owner` (owner callers only; the default) or `Connected` (shareable); the first share lifts `Owner` to `Connected`, keeping the version tag, and a later write keeps the stored group whatever it sends |
 | The index rows | made from the ACL on every header write; each means read | share rows, written on their own by the share API; a header write leaves them alone |
 | A file with no rows | open to every caller who reaches the required group | owner callers only, whatever its group |
 | Which rows count in a query | a row naming the caller, or no row at all | a row naming the caller, live or not, so a withdrawn share reaches their sync; the read rule then lets through only a file with a live row, and turns the rest into tombstones. A file no row names the caller on is missing, by query and by id. A comment goes by the rows of the file its group names |
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere |
-| Who may add a file | drive `Write` | the same: drive `Write`, nothing else asked. It lands owner-only unless it carries rows: for circles the writer is in, their individual circle included ("Sharing with one person") |
+| Who may add a file | drive `Write` | the same: drive `Write`, nothing else asked. It lands owner-only unless it carries rows: for circles the writer is in, their individual circle included ("Sharing with one person"). A deposit taking its payloads through the payload-upload route too is **(to build)** |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member with drive `Write` whose live row has `Write`. The author of a deposit edits it through the row for their individual circle it carries |
-| Sending a file again | the original sender's send again updates it while no one else has written it since; anyone else's (on a collaborative channel, a member who may read it) names the file's version tag: "Changing a file you sent" **(V, tested)** | the same, as its original sender: a file with no share by that rule alone, one with a share through a live row with `Write` too ("Changing a file you sent") **(V, tested)**. It keeps its rows and its required group: shares come only with a new file, and a send again carrying any is refused. The same delivery again, the outbox retrying one that already landed, is taken as done (`PeerFileWriter.StoreNormalFileLongTermAsync`) **(V, tested)** |
+| Sending a file again | the original sender's send again updates it while no one else has written it since; anyone else's (on a drive marked as a community channel, a member who may read it) names the file's version tag: "Changing a file you sent" **(V, tested)** | the same, as its original sender: a file with no share by that rule alone, one with a share through a live row with `Write` too ("Changing a file you sent") **(V, tested)**. It keeps its rows and its required group: shares come only with a new file, and a send again carrying any is refused. The same delivery again, the outbox retrying one that already landed, is taken as done (`PeerFileWriter.StoreNormalFileLongTermAsync`) **(V, tested)** |
 | Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member with drive `React` or `Comment` whose live row has the same bit. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it |
 | Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" |
@@ -382,7 +342,7 @@ own drive (`CircleMember.sealedShareKey`) **(V)**.
   what the member holds through their other enabled circles, their apps' grants through them included: what their
   permission context holds (`DriveShareService.MemberHoldsAsync`, `CircleNetworkService.DrivePermissionAsync`) **(V)**.
 - **The owner's client makes it**, not the server, which never sees a circle key: when it adds members to any of the
-  app's circles that grants a Selective Share drive, at the moment it seals that circle's key to them. It first looks
+  app's circles that grants a Private Share drive, at the moment it seals that circle's key to them. It first looks
   for the member's existing one (app, designation, member). The app creates it like any of its circles, naming the
   designation (`CreateAppCircleRequest.Designation`: an app makes `Personal` and `Individual` circles; the other kinds
   change how the owner reviews a connection, so they stay the owner's). A slug of its own per member makes the create
@@ -399,7 +359,7 @@ own drive (`CircleMember.sealedShareKey`) **(V)**.
 **The author keeps their deposit.** A member's new file lands owner-only, so its author couldn't see or change it.
 Their client locks its file key with their individual circle's key (their copy is theirs to open) and sends the row
 with the file, as a member already may for circles they are in (`DriveShareService.AssertMemberMayShareAsync`)
-**(V)**. That row gives them what a community drive gives a file's original sender, through the one rule above: their
+**(V)**. That row gives them what a drive marked as a community channel gives a file's original sender, through the one rule above: their
 sync finds it, their other devices can open it, and they delete it with a `Write` share **(V, tested)**; their edit
 goes through the same check, sending a new `sealed` key header as a deposit's edit does (I, not tested), and so does
 sending it again **(V, tested)**. The owner can withdraw it like any share.
@@ -430,11 +390,11 @@ console and the app that owns the drive; anyone else is refused, and on any othe
 
 ### Telling someone you shared with them: markers
 
-**The marker is the clients' to build; the server part is built.** **Frodo's client leaves a marker on Sam's Selective Share drive of the same app**: a file of the
+**The marker is the clients' to build; the server part is built.** **Frodo's client leaves a marker on Sam's Private Share drive of the same app**: a file of the
 app's marker file type, saying only "Frodo has files for you" (Frodo's identity and drive), sealed to Sam's drive as
 any deposit. Sam's client keeps markers out of its file tree, shows Frodo as someone sharing with him, and when Sam
 opens that, pages Frodo's drive with the query batch over the Peer API. Nothing of Frodo's files is copied to Sam.
-- **Frodo needs drive `Write` on Sam's drive**, as on a community drive, before Sam has done anything for him. Sam's
+- **Frodo needs drive `Write` on Sam's drive**, as on a drive marked as a community channel, before Sam has done anything for him. Sam's
   app makes a circle every connection joins, granting `Write` on the drive and nothing else
   (`CreateAppCircleRequest.GrantOn = Connect`, held to the deposit-only rule as every such circle is), with a fixed
   slug so every device finds the same one. The app needs `ReadConnections` for it, since it may list its own circle's
@@ -452,18 +412,18 @@ opens that, pages Frodo's drive with the query batch over the Peer API. Nothing 
 **What builds it** (the share API, shares in the upload, the query and the read rule, `includeShares`, members'
 reads, writes, sync and socket events): [selective-share-pr3-plan.md](selective-share-pr3-plan.md).
 
-**Is the collaborative channel attribute still needed?** On a Selective Share drive, no. Its edit rules (1 and 2
+**Is the community channel attribute still needed?** On a Private Share drive, no. Its edit rules (1 and 2
 above) are what a share row's `Write` bit says, per file; its other effects (3 to 5) move copies, and a
-zero-knowledge drive sends none. Selective Share drives refuse the attribute so the two can't mix; community and feed
-drives, which work by copies, keep it.
+zero-knowledge drive sends none. Private Share drives refuse the attribute so the two can't mix; the community
+app's and feed channels' drives, which work by copies, keep it.
 
 ## Kept, retiring, retired
 
 | What | Status |
 |---|---|
-| The `IsCollaborativeChannel` attribute | **kept** on other drives; **refused** on Selective Share drives; can go when community and feed channels move to Selective Share drives, not planned |
-| The ACL's named circles and identities on a Selective Share drive | **refused**: the share rows say who. Kept on every other drive |
-| Index rows made from the ACL | **kept** on every other drive; share rows instead on Selective Share drives |
+| The community channel attribute (`IsCollaborativeChannel`) | **kept** on Server Share drives; **refused** on Private Share drives, and on Private drives **(to build)**; can go when community and feed channels move to Private Share drives, not planned |
+| The ACL's named circles and identities on a Private Share drive | **refused**: the share rows say who. Kept on every other drive |
+| Index rows made from the ACL | **kept** on every other drive; share rows instead on Private Share drives |
 | `QueryModifiedAsync` (V1's change query) | **obsolete**, V1 only; the query batch does the same. Left as it is (it ignores its `MaxDate`) until V1 goes |
 | `FileUpdateInstructionSetV2` | **unused** by any route, referenced only by a V2 test **(V)**; to remove |
 | The drive option `IsReadonly` | documented but **not enforced**: no write path reads it (security-model.md, section 3) **(V)**. Open: enforce or remove |
@@ -473,6 +433,7 @@ drives, which work by copies, keep it.
 
 Not decided:
 - reactions and the read rule on other drives (#2058);
+- whether only a post's original sender may delete it on a drive marked as a community channel (#2067);
 - **how a member's client names a group** it reads files through;
 - **marker ids another connection can't take first**, for example ones only Frodo and Sam can derive.
 

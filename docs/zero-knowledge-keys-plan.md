@@ -1,7 +1,8 @@
 # Zero-knowledge keys in the database and the browser: plan A
 
-**Status:** built, in review: odin-core #1998, odin-js #988 and Odin-SQLite-Generator #38
-(2026-10-23). [As built](#as-built-2026-10-23) lists where the build differs from the plan below.
+**Status:** built and merged: odin-core #1998, odin-js #988 and Odin-SQLite-Generator #38
+(2026-10-23). Words follow [terminology.md](terminology.md): Server Share is the sharing model the code calls
+`Collaborative`. [As built](#as-built-2026-10-23) lists where the build differs from the plan below.
 Half A of steps 1 and 2 in the
 [order of work](zero-knowledge-drives.md#order-of-work). Half B, Shamir in the browser, is kept as
 a reference in [zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md). It is there so
@@ -34,7 +35,7 @@ Built on branches `zk-keys-plan-a` (odin-core, odin-js) and `zk-drive-columns`
   refused with `DriveIsZeroKnowledge`, and a test proves it.
 - **The login keys copy was replaced by the password copy** in plan B (the password, sealed to the
   recovery phrase's public key): recovery gives back the password itself.
-- **Shard Recovery is the first Private drive.** It starts Collaborative like every drive, and
+- **Shard Recovery is the first Private drive.** It starts Server Share like every drive, and
   conversion makes it Private. Conversion drops the master-key copy, stores the browser's locked
   keys and the new write-only pair, and resets the whole `OdinContextCache` after commit.
 - **The check value becomes the drive id.** The browser encrypts the drive id, but
@@ -44,7 +45,9 @@ Built on branches `zk-keys-plan-a` (odin-core, odin-js) and `zk-drive-columns`
   master-key copy, so `DriveManager` refuses to save one with neither copy.
 - **Grants never escrow a zero-knowledge drive's key** (`ExchangeGrantService.CreateDriveGrant`).
 - **A drive is Private only once it is converted.** The migration leaves every existing drive
-  Collaborative, every new drive is created Collaborative, and only conversion sets Private.
+  Server Share, every new drive is created Server Share, and only conversion sets Private. (Since step 4 of
+  [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md), a new drive takes the model its app
+  asks for, and Vault and Email are created Private on a new identity.)
   `DriveManager` refuses to save a Private drive that still has a master-key copy, so no drive
   can claim zero knowledge it doesn't have. A client may trust the label. (The first draft
   labelled Vault, Chat and others Private while the server still held their keys.)
@@ -72,7 +75,7 @@ Nothing a user sees. After A, every owner who logs in has, without noticing:
   new write-only key pair. The server's old copies are gone.
 
 The database has the drive columns `SharingModel` and `ZkMasterKeyEncryptedStorageKey`, with
-`SharingModel` filled in for existing drives.
+`SharingModel` filled in for existing drives (as built: no backfill, every existing drive stays Server Share).
 
 **Why A first:** the login keys and the conversion need the password, so they can only happen at
 a login. Shipping A first lets owners convert quietly, so most Shamir holders are ready by the
@@ -129,7 +132,7 @@ social-sync after a run.
 ### Drive columns and migration
 
 - The generated migration, hand-edited for the new columns.
-- No `SharingModel` backfill: every existing drive stays Collaborative until it is converted (see
+- No `SharingModel` backfill: every existing drive stays Server Share until it is converted (see
   "As built").
 - `StorageDrive` and `DriveManager` carry both fields. Drive reads return `SharingModel`, and to
   the owner, the ZK-locked drive key.
@@ -265,4 +268,4 @@ generator and 600–900 in odin-js. The generator catch-up is no longer needed: 
 ## Out of scope for A
 
 Everything in B (Shamir in the browser, the ZK session key), converting any other drive,
-deposits, Chat, the recovery phrase, and Selective Share.
+deposits, Chat, the recovery phrase, and Private Share.

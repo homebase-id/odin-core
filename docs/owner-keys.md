@@ -1,9 +1,8 @@
 # Owner keys: names, shorthand, and what locks what
 
 One place for every key the owner's identity uses, today's and the zero-knowledge ones, with the
-shorthand we write them in. Names agreed 2026-10-25. It describes the branch `zk-recovery-friends`
-(odin-core #2013, odin-js #990): both recovery pairs, built and not yet released. The design behind
-it is in [zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md) and
+shorthand we write them in. It describes `main`, both recovery pairs included. Other words are as in
+[terminology.md](terminology.md). The design behind it is in [zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md) and
 [zero-knowledge-keys-plan.md](zero-knowledge-keys-plan.md).
 
 Claims checked against the code are marked **(V)**, as in [security-model.md](security-model.md).
@@ -42,9 +41,9 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 
 | Shorthand | Name | What it is | Made by | Kept where |
 |---|---|---|---|---|
-| `Bip-PK` (`Bip-PK-Pub` / `Bip-PK-Priv`) | BIP key pair | a P-384 key pair. **New in the second review.** | the browser, whenever it has the phrase (takeover, re-entry) | `Bip-PK-Pub` stored as is (a JWK); `Bip-PK-Priv` locked, next line |
+| `Bip-PK` (`Bip-PK-Pub` / `Bip-PK-Priv`) | BIP key pair | a P-384 key pair | the browser, whenever it has the phrase (takeover, re-entry) | `Bip-PK-Pub` stored as is (a JWK); `Bip-PK-Priv` locked, next line |
 | `EncBip-PK-Priv` | the stored BIP private key | `aes(BipK, Bip-PK-Priv)`: the private half as PKCS8, locked by `BipK` with AES-GCM: base64 of a 12-byte IV, the ciphertext and its 16-byte tag (`zkLock`) **(V)** | the browser, with the pair | the server (`ZkKeyRecord.PhraseKeyEncryptedPhrasePrivateKey`) **(V)**, which can't open it |
-| `Bip-RK` | BIP reset key | `hkdf(BipK, "homebase-recovery-reset-key")`, 16 bytes. **From the phrase since the second review.** | the browser, from the phrase | never stored; the server keeps only what it locks |
+| `Bip-RK` | BIP reset key | `hkdf(BipK, "homebase-recovery-reset-key")`, 16 bytes: from the phrase, not `ZKMK` (below) | the browser, from the phrase | never stored; the server keeps only what it locks |
 
 ### Shamir keys
 
@@ -68,17 +67,17 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 
 | Shorthand | Name | What it is | Made by | Kept where |
 |---|---|---|---|---|
-| `DrvK` | drive storage key | 16 random bytes per drive | the server (today) or the browser (zero knowledge) | locked, see below |
-| `WO-PK` (`WO-PK-Pub` / `WO-PK-Priv`) | a drive's write-only key pair | P-384; lets others deposit to a drive they can't read | the server (today) or the browser (zero knowledge) | `WO-PK-Pub` as is; `WO-PK-Priv` locked, next lines |
-| `EncWO-PK-Priv` | the stored write-only private key, normal drive | `aes(DrvK, WO-PK-Priv)`: the private half as PKCS8 DER, locked by `DrvK` with AES-CBC, a 16-byte IV and a key check (`keyHash`, a reduced SHA-256 of `DrvK`) (`EccFullKeyData.storedKey`) **(V)** | the server, when it creates the drive | the server (`Drives.WriteOnlyKeyPair`, with the public half) **(V)**; it opens it whenever it holds `DrvK` |
+| `DrvK` | drive key (the code's storage key) | 16 random bytes per drive | the server (Server Share drives) or the browser (zero-knowledge drives: Private and Private Share) | locked, see below |
+| `WO-PK` (`WO-PK-Pub` / `WO-PK-Priv`) | a drive's write-only key pair | P-384; lets others deposit to a drive they can't read | the server (Server Share drives) or the browser (zero-knowledge drives) | `WO-PK-Pub` as is; `WO-PK-Priv` locked, next lines |
+| `EncWO-PK-Priv` | the stored write-only private key, Server Share drive | `aes(DrvK, WO-PK-Priv)`: the private half as PKCS8 DER, locked by `DrvK` with AES-CBC, a 16-byte IV and a key check (`keyHash`, a reduced SHA-256 of `DrvK`) (`EccFullKeyData.storedKey`) **(V)** | the server, when it creates the drive | the server (`Drives.WriteOnlyKeyPair`, with the public half) **(V)**; it opens it whenever it holds `DrvK` |
 | `AppZkK` | zero-knowledge app key (zero-knowledge-drive-api-plan.md step 3) | 16 random bytes per app; opens the zero-knowledge drive keys the app is granted. The zero-knowledge twin of the app's key store key. Not derived from `ZKMK`, so one app's key can be replaced alone | the browser, the first time the app needs it | `aes(ZKMK, AppZkK)` on the app registration, for the browser; sealed to a device's YouAuth public key once, then in the device's secure storage |
-| `EncWO-PK-Priv_zk` | the stored write-only private key, zero-knowledge drive | `aes(DrvK, WO-PK-Priv)`: the private half as PKCS8, locked by `DrvK` with AES-GCM: base64 of a 12-byte IV, the ciphertext and its 16-byte tag (`zkLock`) **(V)** | the browser, when it converts the drive | the server (`StorageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey`) **(V)**, which can't open it, except once in a conversion that keeps `DrvK`: there it opens it to check it against the public half and wipes it (`ZkDriveConversionService.AssertLockedWithTheDriveKey`) **(V)**; `Drives.WriteOnlyKeyPair` then holds only the public half **(V)** |
+| `EncWO-PK-Priv_zk` | the stored write-only private key, zero-knowledge drive | `aes(DrvK, WO-PK-Priv)`: the private half as PKCS8, locked by `DrvK` with AES-GCM: base64 of a 12-byte IV, the ciphertext and its 16-byte tag (`zkLock`) **(V)** | the browser, when it creates or converts the drive | the server (`StorageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey`) **(V)**, which can't open it, except once in a conversion that keeps `DrvK`: there it opens it to check it against the public half and wipes it (`ZkDriveConversionService.AssertLockedWithTheDriveKey`) **(V)**; `Drives.WriteOnlyKeyPair` then holds only the public half **(V)** |
 
 ### File keys
 
 | Shorthand | Name | What it is | Made by | Kept where |
 |---|---|---|---|---|
-| `FileKey` | a file's own key (its key header) | 16 random bytes and a 16-byte IV per file; the content is AES-CBC **(V)** | whoever writes the file; for a deposit, the depositor | locked by `DrvK`: by the server on a normal drive (type `Aes`, 11), by an owner device on a zero-knowledge drive (type `ZkDrive`, 13, stored and returned as sent); for a deposit, `seal(WO-PK-Pub, IV ‖ FileKey)` in a key header of type `Sealed` (12) **(V)** |
+| `FileKey` | a file's own key (its key header) | 16 random bytes and a 16-byte IV per file; the content is AES-CBC **(V)** | whoever writes the file; for a deposit, the depositor | locked by `DrvK`: by the server on a Server Share drive (server-locked, type `Aes`, 11), by an owner device on a zero-knowledge drive (drive-locked, type `ZkDrive`, 13, stored and returned as sent); for a deposit, `seal(WO-PK-Pub, IV ‖ FileKey)` in a key header of type `Sealed` (12) **(V)**. Two more kinds never lock a file key of their own: a Private Share comment's `FileKey` header holds only its IV, the commented file's key being the key, and a `Share` header carries a share's locked file key to a member ([terminology.md](terminology.md#key-headers)) |
 
 ## What is stored
 
@@ -87,14 +86,14 @@ its 16-byte tag **(V)**. The shorthand doesn't tell them apart; the tables say w
 | `PwHash` | `pbkdf2(pw, SaltPassword)` | `PasswordData.HashPassword` **(V)** | it checks it; can't reverse it | password set or changed |
 | `EncMK` | `aes(MK-KEK, MK)` | `PasswordData.KekEncryptedMasterKey` **(V)** | only with a live session's MK-KEK | password set or changed |
 | session split | `MK-KEK` = cookie half ⊕ server half | `OwnerConsoleClientRegistration.TokenEncryptedKek` **(V)** | only with the cookie | login |
-| `EncDrvK` | `aes(MK, DrvK)` | `StorageDrive.MasterKeyEncryptedStorageKey` **(V)** | yes, with MK | drive created (non-zero-knowledge drives) |
+| `EncDrvK` | `aes(MK, DrvK)` | `StorageDrive.MasterKeyEncryptedStorageKey` **(V)** | yes, with MK | drive created (Server Share drives) |
 | `EncZKMK` | `aes(ZKMK-KEK, ZKMK)` | `ZkKeyRecord.ZkKekEncryptedZkMasterKey` **(V)** | no | first login; re-locked at password change |
 | `ZKMK` in the browser | `aes(SessK, ZKMK)` | localStorage `ZKMK` **(V)** | no (no localStorage); the browser alone has no `SessK` | every password login |
-| `EncDrvK_zk` | `aes(ZKMK, DrvK)` | `StorageDrive.ZkMasterKeyEncryptedStorageKey` **(V)** | no | drive converted (Shard Recovery today) |
+| `EncDrvK_zk` | `aes(ZKMK, DrvK)` | `StorageDrive.ZkMasterKeyEncryptedStorageKey` **(V)** | no | drive created zero knowledge (a new identity's Vault and Email, an app's Private or Private Share drive) or converted (Shard Recovery; an older identity's Vault, Email and Filesync, `ZkDriveConversionService.ConvertibleDrives`) |
 | `EncAppZkK` | `aes(ZKMK, AppZkK)` | the app registration | no | first sign-in or conversion that needs it; kept at a reset with today's master key, though only the app's devices still open it |
 | `EncDrvK_app` | `aes(AppZkK, DrvK)`, one per zero-knowledge drive the app is granted reading | the app registration | no | drive converted, or granted to the app, in the browser |
-| `EncWO-PK-Priv` | `aes(DrvK, WO-PK-Priv)`, AES-CBC | `StorageDrive.WriteOnlyKeyPair` (`EccFullKeyData.storedKey`) **(V)** | yes, with `DrvK` | drive created (non-zero-knowledge drives) |
-| `EncWO-PK-Priv_zk` | `aes(DrvK, WO-PK-Priv)`, AES-GCM | `StorageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey` **(V)** | no (once, to check it, in a conversion that keeps `DrvK`) | drive converted |
+| `EncWO-PK-Priv` | `aes(DrvK, WO-PK-Priv)`, AES-CBC | `StorageDrive.WriteOnlyKeyPair` (`EccFullKeyData.storedKey`) **(V)** | yes, with `DrvK` | drive created (Server Share drives) |
+| `EncWO-PK-Priv_zk` | `aes(DrvK, WO-PK-Priv)`, AES-GCM | `StorageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey` **(V)** | no (once, to check it, in a conversion that keeps `DrvK`) | drive created zero knowledge or converted |
 | `EncZKMK_bip` | `aes(BipK, ZKMK)` | `ZkKeyRecord.PhraseKeyEncryptedZkMasterKey` **(V)** | no | takeover; re-entry |
 | `EncBipK_zk` | `aes(ZKMK, BipK)` | `ZkKeyRecord.ZkMasterKeyEncryptedPhraseKey` **(V)** | no | takeover; re-entry |
 | `Bip-PK-Pub` | as is | `ZkKeyRecord.PhrasePublicKeyJwk` **(V)** | it's public | takeover; re-entry |
@@ -193,11 +192,11 @@ type it once (**re-entry**), which makes the phrase copies again; the next login
 owner request removes it and the security page shows the red dot **(V)**; an automated deal is dealt
 again at the next password login **(V)**.
 
-## ⚠ Changed in the second review: the phrase, not ZKMK, guards the password
+## ⚠ Why the phrase, not ZKMK, guards the password
 
 This is the part to read slowly.
 
-**Before** (first version, never released):
+**The rejected design** (never released):
 - `EncPw_bip` was `aes(ZKMK, pw)`.
 - `Bip-RK` was `hkdf(ZKMK, …)`.
 
@@ -210,7 +209,7 @@ This is the part to read slowly.
    - compute `Bip-RK = hkdf(ZKMK)` and **reset your password**.
 5. They never needed the phrase, so the 14-day wait before the phrase is shown didn't apply.
 
-**After** (as built):
+**As built:**
 - `Bip-RK = hkdf(BipK, …)`: only the phrase gives it.
 - `EncPw_bip = seal(Bip-PK-Pub, pw)`: your browser writes it at login without the phrase, using
   `Bip-PK-Pub`; only `Bip-PK-Priv` opens it, and only `BipK` opens `Bip-PK-Priv`.
@@ -249,7 +248,7 @@ So `SmrK` opens a key pair, as `BipK` does:
 
 Rejected:
 - **Keeping `SmrK` locked by `ZKMK`**, so a password change can re-lock the copy. That is the hole
-  from the second review: anyone who once knew the password opens `ZKMK`, then `SmrK`, then every
+  above: anyone who once knew the password opens `ZKMK`, then `SmrK`, then every
   later password.
 - **Dealing again at every password change** (today's server rotation, moved to the browser). A
   password change would have to reach every friend, and while one can't be reached, the deal keeps
