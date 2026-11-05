@@ -42,9 +42,10 @@ public class PushNotification : IPushNotification
     //
 
     /// <summary>
-    /// Maps a host request onto one FCM message. Android always gets a data-only, high-priority
-    /// message (the app renders its own notification). iOS gets an alert push, or a background push
-    /// when <see cref="DevicePushNotificationRequestV1.Silent"/> is set; APNs requires the push type
+    /// Maps a host request onto one FCM message. Android always gets a data-only message (the app
+    /// renders its own notification), at high priority, or at normal priority when
+    /// <see cref="DevicePushNotificationRequestV1.Silent"/> is set. iOS gets an alert push, or a
+    /// background push when Silent is set; APNs requires the push type
     /// header to match the payload and priority 5 for background pushes. Sound and badge are left to
     /// the app. Pure, so it can be tested without Firebase credentials.
     /// </summary>
@@ -52,7 +53,8 @@ public class PushNotification : IPushNotification
     {
         var android = new AndroidConfig // magic stuff to increase reliability on android
         {
-            Priority = Priority.High,
+            // The app shows nothing for a silent push; FCM can downgrade an app whose high-priority messages show nothing.
+            Priority = request.Silent ? Priority.Normal : Priority.High,
         };
 
         var apnsHeaders = new Dictionary<string, string>();
