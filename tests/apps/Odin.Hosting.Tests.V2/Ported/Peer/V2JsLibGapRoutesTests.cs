@@ -273,7 +273,8 @@ public class V2JsLibGapRoutesTests : V2Fixture
         Assert.That(list.IsSuccessStatusCode, Is.True, $"anonymous list: {list.StatusCode}");
 
         var refused = await anonymous.AddReaction(drive.Alias, fileId, new AddReactionRequest { Reaction = ":-1:" });
-        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "anonymous has no React permission");
+        Assert.That(refused.StatusCode, Is.AnyOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden),
+            "a reaction needs a signed-in author");
     }
 
     [Test]

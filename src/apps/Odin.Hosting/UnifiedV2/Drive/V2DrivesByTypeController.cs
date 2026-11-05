@@ -14,8 +14,9 @@ namespace Odin.Hosting.UnifiedV2.Drive;
 
 /// <summary>
 /// Lists this identity's drives of one type: the V2 twin of V1's <c>drive/metadata/type</c>. Anonymous, as V1's guest
-/// route is, so the public site can list channels; the drive manager returns only the drives the caller may read, and
-/// anyone who is not the owner or an app gets just each drive's address (<see cref="ClientDriveData.ForCaller"/>).
+/// route is, so the public site can list channels. An anonymous caller sees only drives with anonymous reads on; a guest
+/// sees every drive of the type that isn't owner-only or archived, including ones it can't read, as on V1. Anyone who is
+/// not the owner or an app gets just each drive's address (<see cref="ClientDriveData.ForCaller"/>).
 /// </summary>
 [ApiController]
 [Route(UnifiedApiRouteConstants.DrivesRoot)]

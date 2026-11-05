@@ -10,10 +10,12 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Reactions
 {
+    /// <summary>
+    /// Reactions on a local file. Reads are open as V1's guest route is, and ReactionContentService checks Read on the
+    /// drive. Writes need a signed-in caller: a reaction's author is the caller's identity, which an anonymous visitor lacks.
+    /// </summary>
     [ApiController]
     [Route(UnifiedApiRouteConstants.ReactionsByFileId)]
-    // Open as V1's guest route is: ReactionContentService checks Read or React on the drive for every caller.
-    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveReactionController(ReactionContentService reactionContentService)
         : DriveReactionContentControllerBase(reactionContentService)
@@ -25,6 +27,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Reactions
             Tags = [SwaggerInfo.FileReaction]
         )]
         [HttpPost("add")]
+        [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
         public async Task<IActionResult> AddReactionContent(
             Guid driveId, Guid fileId,
             [FromBody] AddReactionRequest request
@@ -46,6 +49,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Reactions
             Tags = [SwaggerInfo.FileReaction]
         )]
         [HttpPost("delete")]
+        [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
         public async Task<IActionResult> DeleteReactionContent(
             Guid driveId, Guid fileId,
             [FromBody] DeleteReactionRequest request
@@ -67,6 +71,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Reactions
             Tags = [SwaggerInfo.FileReaction]
         )]
         [HttpPost("deleteall")]
+        [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
         public async Task<IActionResult> DeleteAllReactionsOnFile(
             Guid driveId, Guid fileId,
             [FromBody] DeleteReactionRequest request
@@ -89,6 +94,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Reactions
             Tags = [SwaggerInfo.FileReaction]
         )]
         [HttpPost("list")]
+        [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
         public async Task<GetReactionsResponse> GetAllReactions(
             Guid driveId, Guid fileId,
             [FromBody] GetReactionsRequest request
@@ -109,6 +115,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Reactions
             Tags = [SwaggerInfo.FileReaction]
         )]
         [HttpPost("summary")]
+        [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile(
             Guid driveId, Guid fileId,
             [FromBody] GetReactionsRequest request
@@ -129,6 +136,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Reactions
             Tags = [SwaggerInfo.FileReaction]
         )]
         [HttpPost("listbyidentity")]
+        [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
         public async Task<List<string>> GetReactionsByIdentity(
             Guid driveId, Guid fileId,
             [FromBody] GetReactionsByIdentityRequest request
