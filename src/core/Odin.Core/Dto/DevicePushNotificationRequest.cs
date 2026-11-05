@@ -95,7 +95,7 @@ public class DevicePushNotificationRequestV1
     /// <summary>Platform collapse key: a later push with the same id replaces an undelivered earlier one.</summary>
     public string? CollapseId { get; set; }
 
-    /// <summary>Background delivery without an alert (iOS content-available only).</summary>
+    /// <summary>Background delivery with nothing shown: a background push on iOS, normal priority on Android, where the app shows nothing for it.</summary>
     public bool Silent { get; set; }
 
     /// <summary>Ask for a time-sensitive interruption level where the platform supports it (iOS).</summary>
