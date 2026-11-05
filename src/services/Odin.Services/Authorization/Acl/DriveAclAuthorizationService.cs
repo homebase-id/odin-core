@@ -10,7 +10,6 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 
@@ -20,7 +19,6 @@ namespace Odin.Services.Authorization.Acl
         CircleNetworkService circleNetwork,
         CircleDefinitionService circleDefinitionService,
         TenantContext tenantContext,
-        IDriveManager driveManager,
         TableDriveAclIndex driveAclIndex)
         : IDriveAclAuthorizationService
     {
@@ -67,8 +65,8 @@ namespace Odin.Services.Authorization.Acl
             return Allows(acl, ReviewedSecurityTier.For(tenantContext.DataVersionNumber, icr), circles, odinId);
         }
 
-        public async Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext, CallerShares sharedWithCaller = null,
-            StorageDrive drive = null)
+        public async Task<bool> CallerMayReadAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext,
+            CallerShares sharedWithCaller = null)
         {
             var visible = ZkDriveFiles.VisibleTo(header, odinContext);
             var caller = odinContext.Caller;
@@ -83,38 +81,39 @@ namespace Odin.Services.Authorization.Acl
                 return false;
             }
 
-            var file = header.FileMetadata.File;
-            // Shares given: the caller's on a Selective Share drive, already looked up
-            if (sharedWithCaller != null || (drive?.IsSelectiveShare ?? await IsSelectiveShareAsync(file.DriveId)))
+            // The drive decides which rule reads the file, so it must be the file's
+            if (drive != null && drive.Id != header.FileMetadata.File.DriveId)
+            {
+                throw new OdinSystemException($"File {header.FileMetadata.File.FileId} isn't on drive {drive.Id}");
+            }
+
+            if (drive?.IsSelectiveShare == true)
             {
                 // The share rows say who, not the ACL's names (docs/file-access.md, "With Selective Share"); a live
                 // share also opens a client-locked file to the member, who gets the share's locked file key (section 6).
                 // The group asked is the shared file's, which CallerShares holds back when the caller doesn't reach it:
                 // a comment is read exactly when its file is, whatever group the comment itself names (section 10)
-                sharedWithCaller ??= await SharesOfAsync(file.DriveId, [header], odinContext);
-                return sharedWithCaller.LiveRowOf(file.FileId) != null;
+                sharedWithCaller ??= await SharesOfAsync(drive.Id, [header], odinContext);
+                return sharedWithCaller.LiveRowOf(header.FileMetadata.File.FileId) != null;
             }
 
             var level = ReviewedSecurityTier.EffectiveLevel(tenantContext, caller);
             return visible && Allows(acl, level, caller.Circles?.Select(c => c.Value).ToList() ?? [], caller.OdinId);
         }
 
-        public async Task<CallerShares> FilesSharedWithCallerAsync(Guid driveId, IReadOnlyCollection<ServerFileHeader> headers,
-            IOdinContext odinContext)
-        {
-            if (PassesEveryAcl(odinContext.Caller) || !await IsSelectiveShareAsync(driveId))
-            {
-                return null;
-            }
+        public async Task<CallerShares> FilesSharedWithCallerAsync(StorageDrive drive, IReadOnlyCollection<ServerFileHeader> headers,
+            IOdinContext odinContext) =>
+            drive != null && SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller)
+                ? await SharesOfAsync(drive.Id, headers, odinContext)
+                : null;
 
-            return await SharesOfAsync(driveId, headers, odinContext);
-        }
-
-        public async Task<bool> CallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext)
+        public async Task<bool> CallerMayAsync(StorageDrive drive, ServerFileHeader header, DrivePermission permission,
+            IOdinContext odinContext, CallerShares sharedWithCaller = null)
         {
-            if (PassesEveryAcl(odinContext.Caller))
+            ArgumentNullException.ThrowIfNull(drive);
+            if (!SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
             {
-                return true;
+                return odinContext.PermissionsContext.HasDrivePermission(drive.Id, permission);
             }
 
             if (header?.ServerMetadata?.AccessControlList == null || odinContext.Caller == null)
@@ -125,14 +124,22 @@ namespace Odin.Services.Authorization.Acl
             // A share row narrows its circles' grant, for every bit: the caller needs the bit on the drive too, so a change
             // of a circle's grant changes its shares at once (docs/file-access.md, "A share row narrows its circle's
             // grant").  The group asked is the shared file's (CallerShares holds the rows back), as for a read
-            var file = header.FileMetadata.File;
-            return odinContext.PermissionsContext.HasDrivePermission(file.DriveId, permission) &&
-                   (await SharesOfAsync(file.DriveId, [header], odinContext)).Grants(file.FileId, permission);
+            return odinContext.PermissionsContext.HasDrivePermission(drive.Id, permission) &&
+                   (sharedWithCaller ?? await SharesOfAsync(drive.Id, [header], odinContext)).Grants(header.FileMetadata.File.FileId,
+                       permission);
         }
 
-        public async Task AssertCallerHoldsShareAsync(ServerFileHeader header, DrivePermission permission, IOdinContext odinContext)
+        public async Task AssertCallerMayAsync(StorageDrive drive, ServerFileHeader header, DrivePermission permission,
+            IOdinContext odinContext, CallerShares sharedWithCaller = null)
         {
-            if (header == null || !await CallerHoldsShareAsync(header, permission, odinContext))
+            ArgumentNullException.ThrowIfNull(drive);
+            if (!SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
+            {
+                odinContext.PermissionsContext.AssertHasDrivePermission(drive.Id, permission);
+                return;
+            }
+
+            if (!await CallerMayAsync(drive, header, permission, odinContext, sharedWithCaller))
             {
                 throw new OdinSecurityException($"No share with {permission} on the file");
             }
@@ -193,9 +200,6 @@ namespace Odin.Services.Authorization.Acl
         // Owner callers and the server's own work pass every file's ACL part
         public static bool PassesEveryAcl(CallerContext caller) =>
             (caller?.IsOwner ?? false) || caller?.IsSystem == true;
-
-        private async Task<bool> IsSelectiveShareAsync(Guid driveId) =>
-            (await driveManager.GetDriveAsync(driveId))?.IsSelectiveShare == true;
 
         /// <summary>
         /// The one ACL decision, for <paramref name="reader"/> (null when anonymous) at <paramref name="level"/>

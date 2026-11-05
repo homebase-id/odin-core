@@ -14,7 +14,7 @@ whose meaning the code doesn't give yet.
 |---|---|
 | **zero knowledge** | the server never holds a key that opens the data, not even in memory. A zero-knowledge drive's key is made in the owner's browser and locked by the zero-knowledge master key, which only the browser opens (`ZKMK`, [owner-keys.md](owner-keys.md)) |
 | **zero knowledge at rest** | the server stores the key locked, so it can't open it while nobody is signed in, but opens it in memory while the owner, one of the owner's apps or a member is online and calling the API. Every Server Share drive is zero knowledge at rest **(I: not traced for every key path)** |
-| **zero-knowledge drive** | a drive whose sharing model is Private or Private Share. Two code checks answer it today: the model (`DriveSharingModel.IsZeroKnowledge()`) and whether the drive key has a master-key copy (`StorageDrive.IsZeroKnowledge`) **(V)**. One definition, by the model (`IsZeroKnowledgeDrive()`), with the key copy following from it, is **(to build)** |
+| **zero-knowledge drive** | a drive whose sharing model is Private or Private Share. One definition, by the model: `StorageDrive.IsZeroKnowledge` asks `DriveSharingModel.IsZeroKnowledgeDrive()`, and the drive key's copies follow from it: a save refuses a zero-knowledge model with a master-key copy, a Server Share model without one, and a drive with neither (`DriveManager.AssertKeyCopies`) **(V)**. Creation sets the model, and so does conversion, since the model existed (`DriveManager.ApplyZeroKnowledgeKeysAsync`) **(V)** |
 | **client-locked file** | a file whose key header a client locked or made (drive-locked, sealed or file-key, below): the server can't open it, on any drive (`EncryptedKeyHeader.IsLockedByClient`) **(V)** |
 
 ## Sharing models
@@ -53,8 +53,8 @@ drive changes it only by conversion (`Drives.SharingModel`) **(V)**.
 
 **Community channel** is a drive attribute, not a kind of drive: `IsCollaborativeChannel` in the code, read through
 `StorageDrive.IsCollaborationDrive()` **(V)**. It needs the server to hold the drive key, so only a Server Share drive
-may carry it: a Private Share drive refuses it (`SelectiveShareDrives.AssertSettingsFit`) **(V)**, and a Private
-drive refusing it is **(to build)**. On a drive marked as a community channel:
+may carry it: a zero-knowledge drive, Private or Private Share, refuses it at creation, conversion and when its
+attributes change (`DriveSettings.AssertFit`, `FitForConversion`, `AssertChangeFits`) **(V)**. On a drive marked as a community channel:
 
 - **A member's post keeps the sender's ACL**, so other members see it; on other drives a peer's new file lands
   owner-only, except a comment, which takes its file's ACL, and on a Private Share drive a file a member sends with
@@ -116,8 +116,8 @@ A file's **key header** is its file key and IV, locked. Its kind says who locked
 | Term | Means |
 |---|---|
 | **copy** | what a recipient stores of a file another identity sent; it has its own file id and version tags **(V)** |
-| **outbox**, **inbox** | the sender's queue of files to send, and the recipient's queue of arrivals that wait for a key holder to sign in. Only a Server Share drive needs an inbox, since only there does the server re-lock what arrives. A Private Share drive has none **(V)**; a Private drive still keeps one for updates and deletes, and taking it out is **(to build)** |
-| **direct write** | an arrival written to the drive at once, without the inbox **(V)** |
+| **outbox**, **inbox** | the sender's queue of files to send, and the recipient's queue of arrivals that wait for a key holder to sign in. Only a Server Share drive keeps an inbox for a peer's files, since only there does the server re-lock what arrives: a zero-knowledge drive (`StorageDrive.HasInbox` false) writes a peer's new files, updates, deletes and reactions at once (`PeerDirectWrites.CanWriteAtOnce`, `PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync`, `PeerIncomingGroupReactionInboxRouterService`) **(V)**. Read receipts go through the inbox on every drive (`PeerDriveIncomingTransferService.MarkFileAsReadAsync`) **(V)** |
+| **direct write** | an arrival written to the drive at once, without the inbox. One check decides it for a peer's new files and updates alike (`PeerDirectWrites.CanWriteAtOnce`), made once on arrival and reused when the transfer finishes: at once unless it is encrypted, on a Server Share drive, with a key header the server must re-lock, and the caller lacks the drive key. A key header passed on as sent (sealed, share, file-key) needs no key; a comment that can't be written at once is refused, never queued **(V)** |
 
 ## Shares (Private Share)
 

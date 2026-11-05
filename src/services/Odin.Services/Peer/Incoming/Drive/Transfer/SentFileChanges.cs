@@ -37,7 +37,7 @@ internal static class SentFileChanges
         var sentIt = SharedSecretEncryptedFileHeader.IsOriginalSender(stored.FileMetadata.SenderOdinId, sender);
         if (drive.IsCollaborationDrive())
         {
-            return await fs.Storage.CallerMayReadFileOnLiveDrive(stored, odinContext)
+            return await fs.Storage.CallerMayReadFileOnLiveDrive(drive, stored, odinContext)
                 ? (odinContext, sentIt)
                 : throw new OdinSecurityException($"Cannot access file with globalTransitId: {stored.FileMetadata.GlobalTransitId}");
         }
@@ -55,6 +55,18 @@ internal static class SentFileChanges
         }
 
         throw new OdinSecurityException("Sender does not match original sender");
+    }
+
+    /// <summary>
+    /// A sent file's change: the context it is written in (<see cref="ContextForChangeAsync"/>), and whether it already
+    /// landed (<see cref="AlreadyLandedOrAssertMayChange"/>), which asserts it may go on when it hasn't.
+    /// </summary>
+    public static async Task<(IOdinContext Context, bool AlreadyLanded)> PrepareChangeAsync(IDriveFileSystem fs, StorageDrive drive,
+        ServerFileHeader stored, OdinId sender, bool memberMayUseShares, Guid sendersVersionTag, Guid? namedVersionTag,
+        IOdinContext odinContext)
+    {
+        var (writeContext, sentIt) = await ContextForChangeAsync(fs, drive, stored, sender, memberMayUseShares, odinContext);
+        return (writeContext, AlreadyLandedOrAssertMayChange(stored, sender, sentIt, sendersVersionTag, namedVersionTag));
     }
 
     /// <summary>
@@ -115,7 +127,7 @@ internal static class SentFileChanges
     /// names them and still has the file's version tag.  A file with no record (stored before it was kept) hasn't.
     /// </summary>
     private static bool UnchangedSinceSendersLastWrite(ServerFileHeader stored, OdinId sender) =>
-        stored.ServerMetadata.SendersWrite is { } last && last.Sender == sender && last.VersionTag == stored.FileMetadata.VersionTag;
+        stored.ServerMetadata.SendersWrite is { } last && last.Sender == sender && last.IsCurrentFor(stored.FileMetadata);
 
     /// <summary>
     /// The record of <paramref name="sender"/>'s write, whose own copy has <paramref name="sendersVersionTag"/>, giving the

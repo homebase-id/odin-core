@@ -37,8 +37,8 @@ public static class Deposits
     /// </summary>
     public static KeyHeader OpenWithDriveKey(ServerFileHeader header, IOdinContext odinContext)
     {
-        // A deposit, or a member's comment on its file's key: stored and sent on as it came (a stored file never has a
-        // share key header)
+        // A deposit, or a member's comment on its file's key: stored and sent on as it came.  A share key header, which
+        // only the transient drive stages, passes on too, and the recipient refuses it (ZkDriveFiles.AssertPeerMayWrite)
         if (header.FileMetadata.IsEncrypted && header.EncryptedKeyHeader?.IsPassedOnAsSent() == true)
         {
             return new ClientLockedKeyHeader(header.EncryptedKeyHeader);
@@ -75,7 +75,7 @@ public static class Deposits
     /// <summary>Refuses payloads added with a sealed key header, as <see cref="AssertValid"/> does for a new deposit.</summary>
     public static void AssertTakesNoPayloads(KeyHeader keyHeader, bool addsPayloads, StorageDrive drive)
     {
-        if (addsPayloads && keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed } && !MayCarryPayloads(drive))
+        if (addsPayloads && keyHeader is ClientLockedKeyHeader { IsSealed: true } && !MayCarryPayloads(drive))
         {
             ThrowCarriesNoPayloads();
         }

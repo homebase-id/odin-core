@@ -42,9 +42,22 @@ public static class DriveSettings
         }
     }
 
-    /// <summary>Every setting of <paramref name="drive"/> under <paramref name="sharingModel"/>, as a conversion asks.</summary>
-    public static void AssertFit(StorageDriveData drive, DriveSharingModel sharingModel) =>
-        AssertFit(sharingModel, drive.OwnerOnly, drive.AllowAnonymousReads, drive.AllowCdn, drive.AllowSubscriptions, drive.Attributes);
+    /// <summary>
+    /// Brings <paramref name="drive"/>'s settings into line with <paramref name="sharingModel"/>, as a conversion does:
+    /// anonymous reads, the CDN and subscriptions are turned off, since nothing serves or sends a zero-knowledge drive's
+    /// files on the server's behalf anyway, so no conversion (nor a re-key after recovery) fails on them.  The settings
+    /// that say what the drive is for (owner only, the community channel) aren't changed: a drive that has one the model
+    /// refuses isn't converted.  Whether anything was turned off.
+    /// </summary>
+    public static bool FitForConversion(StorageDriveData drive, DriveSharingModel sharingModel)
+    {
+        var turnedOff = drive.AllowAnonymousReads || drive.AllowCdn || drive.AllowSubscriptions;
+        drive.AllowAnonymousReads = false;
+        drive.AllowCdn = false;
+        drive.AllowSubscriptions = false;
+        AssertFit(sharingModel, drive.OwnerOnly, false, false, false, drive.Attributes);
+        return turnedOff;
+    }
 
     /// <summary>
     /// One setter's change under <paramref name="sharingModel"/>: only the setting it changes, as it will be, so a drive

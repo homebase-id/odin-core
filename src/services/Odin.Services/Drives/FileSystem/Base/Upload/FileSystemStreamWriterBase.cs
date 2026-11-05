@@ -655,7 +655,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.MissingPayloadKeys);
             }
             
-            if (keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed } sealedKeyHeader)
+            if (keyHeader is ClientLockedKeyHeader { IsSealed: true } sealedKeyHeader)
             {
                 // Where it may go was checked as it was opened (ZkDriveFiles.OpenForWrite)
                 Deposits.AssertValid(metadata, sealedKeyHeader.Locked, drive);

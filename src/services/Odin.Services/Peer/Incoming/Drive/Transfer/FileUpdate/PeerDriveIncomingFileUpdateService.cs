@@ -162,7 +162,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             await fileSystem.Storage.AssertCanWriteToDrive(_file.DriveId, odinContext);
 
-            var directWriteSuccess = await TryDirectWriteFileAsync(fileMetadata, odinContext);
+            var directWriteSuccess = await TryDirectWriteFileAsync(odinContext);
 
             if (directWriteSuccess)
             {
@@ -196,7 +196,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             await fileSystem.Storage.WriteUploadStream(_file, TenantPathManager.MetadataExtension, metadataStream, odinContext);
         }
 
-        private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext)
+        private async Task<bool> TryDirectWriteFileAsync(IOdinContext odinContext)
         {
             if (!_isDirectWrite)
             {

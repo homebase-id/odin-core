@@ -8,6 +8,7 @@ using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Shares;
@@ -39,6 +40,14 @@ internal static class ZkTestFiles
         QueryParams = new FileQueryParamsV1 { ClientUniqueIdAtLeastOne = [uniqueId] },
         ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 10, IncludeMetadataHeader = true }
     };
+
+    /// <summary>The header of <paramref name="caller"/>'s file with <paramref name="uniqueId"/>, which must be found.</summary>
+    public static async Task<SharedSecretEncryptedFileHeader> HeaderByUniqueIdAsync(IV2Caller caller, Guid uniqueId, TargetDrive? drive = null)
+    {
+        var read = await caller.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, (drive ?? Drive).Alias);
+        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.OK), read.Error?.Content);
+        return read.Content!;
+    }
 
     /// <summary>The same file key with a new IV, as an encrypted update needs.</summary>
     public static KeyHeader WithNewIv(KeyHeader fileKey) => new() { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = fileKey.AesKey };

@@ -28,8 +28,8 @@ public class SelectiveShareDrivesTests
     {
         var acl = new AccessControlList { RequiredSecurityGroup = group };
 
-        AssertTaken(() => SelectiveShareDrives.AssertAclFits(Drive(DriveSharingModel.SelectiveShare), acl), taken, $"{group}");
-        AssertTaken(() => SelectiveShareDrives.AssertAclFits(Drive(DriveSharingModel.Private), acl), true, $"{group}, another drive");
+        AssertTaken(() => SelectiveShareDrives.AssertAclFits(TestDrives.Of(DriveSharingModel.SelectiveShare), acl), taken, $"{group}");
+        AssertTaken(() => SelectiveShareDrives.AssertAclFits(TestDrives.Of(DriveSharingModel.Private), acl), true, $"{group}, another drive");
     }
 
     [Test]
@@ -39,10 +39,10 @@ public class SelectiveShareDrivesTests
         var identities = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Connected, OdinIdList = ["sam.dotyou.cloud"] };
         var empty = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Connected, CircleIdList = [], OdinIdList = [] };
 
-        AssertTaken(() => SelectiveShareDrives.AssertAclFits(Drive(DriveSharingModel.SelectiveShare), circles), false, "circles");
-        AssertTaken(() => SelectiveShareDrives.AssertAclFits(Drive(DriveSharingModel.SelectiveShare), identities), false, "identities");
-        AssertTaken(() => SelectiveShareDrives.AssertAclFits(Drive(DriveSharingModel.SelectiveShare), empty), true, "empty lists");
-        AssertTaken(() => SelectiveShareDrives.AssertAclFits(Drive(DriveSharingModel.Collaborative), circles), true, "circles, another drive");
+        AssertTaken(() => SelectiveShareDrives.AssertAclFits(TestDrives.Of(DriveSharingModel.SelectiveShare), circles), false, "circles");
+        AssertTaken(() => SelectiveShareDrives.AssertAclFits(TestDrives.Of(DriveSharingModel.SelectiveShare), identities), false, "identities");
+        AssertTaken(() => SelectiveShareDrives.AssertAclFits(TestDrives.Of(DriveSharingModel.SelectiveShare), empty), true, "empty lists");
+        AssertTaken(() => SelectiveShareDrives.AssertAclFits(TestDrives.Of(DriveSharingModel.Collaborative), circles), true, "circles, another drive");
     }
 
     [TestCase(DriveSharingModel.SelectiveShare, false)]
@@ -78,8 +78,6 @@ public class SelectiveShareDrivesTests
     private static void Fit(DriveSharingModel model, bool ownerOnly = false, bool anonymous = false, bool cdn = false,
         bool subscriptions = false, Dictionary<string, string>? attributes = null) =>
         DriveSettings.AssertFit(model, ownerOnly, anonymous, cdn, subscriptions, attributes);
-
-    private static StorageDrive Drive(DriveSharingModel model) => new(null, new StorageDriveData { SharingModel = model });
 
     /// <summary>Taken, or refused with a message naming <paramref name="model"/>.</summary>
     private static void AssertTaken(TestDelegate check, bool taken, string what,

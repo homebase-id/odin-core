@@ -86,6 +86,17 @@ public class TableDriveAclIndex(
     public static bool IsLive(DriveAclIndexRecord row, UnixTimeUtc now) =>
         (row.permissions & 1) == 1 && (row.expiresAt == null || row.expiresAt.Value.milliseconds > now.milliseconds);
 
+    /// <summary><see cref="IsLive"/> as SQL, for the rows aliased <paramref name="alias"/> in a query.</summary>
+    public static string IsLiveSql(string alias, UnixTimeUtc now) =>
+        $"({alias}.permissions & 1) = 1 AND ({alias}.expiresAt IS NULL OR {alias}.expiresAt > {now.milliseconds})";
+
+    /// <summary>Whether the file has any row, live or not: one read of its member ids, by the table's own key.</summary>
+    public async Task<bool> HasRowsAsync(Guid driveId, Guid fileId) => (await GetAsync(driveId, fileId)).Count > 0;
+
+    /// <summary>Every row of <paramref name="fileIds"/>, live or not (<see cref="GetRowsAsync"/>).</summary>
+    public async Task<List<DriveAclIndexRecord>> GetFileRowsAsync(Guid driveId, IReadOnlyCollection<Guid> fileIds) =>
+        (await GetRowsAsync(driveId, fileIds, [], null)).Select(r => r.Row).ToList();
+
     /// <summary>
     /// The rows of <paramref name="fileIds"/>, and of the standard files whose global transit ids are
     /// <paramref name="globalTransitIds"/> (the file a comment's group names, docs/selective-share-pr3-plan.md, section

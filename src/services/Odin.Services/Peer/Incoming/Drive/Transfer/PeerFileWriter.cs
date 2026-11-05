@@ -73,32 +73,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogDebug("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
             }
 
-            // Files coming from other systems are only accessible to the owner so
-            // the owner can use the UI to pass the file along
-            var targetAcl = AccessControlList.OwnerOnly;
-
             var isCollaborationChannel = drive.IsCollaborationDrive();
+            var targetAcl = await IncomingFileAcl.ForIncomingFileAsync(fileSystemResolver, fileSystemType, metadata,
+                isCollaborationChannel, encryptedRecipientTransferInstructionSet.OriginalAcl, odinContext);
 
-            //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
-            if (fileSystemType == FileSystemType.Comment)
+            // A member's new file, shared with their circles
+            if (fileSystemType != FileSystemType.Comment && drive.IsSelectiveShare &&
+                encryptedRecipientTransferInstructionSet.Shares is { Count: > 0 })
             {
-                targetAcl = await IncomingCommentAcl.ResetAclForComment(fileSystemResolver, metadata, odinContext);
-            }
-            else
-            {
-                //
-                // Collab channel hack
-                //
-                if (isCollaborationChannel)
-                {
-                    targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl ?? AccessControlList.OwnerOnly;
-                }
-
-                // A member's new file, shared with their circles
-                if (drive.IsSelectiveShare && encryptedRecipientTransferInstructionSet.Shares is { Count: > 0 })
-                {
-                    SelectiveShareDrives.LiftForShares(targetAcl);
-                }
+                SelectiveShareDrives.LiftForShares(targetAcl);
             }
 
             var serverMetadata = new ServerMetadata()
@@ -282,11 +265,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             var sender = (OdinId)newMetadata.SenderOdinId;
-            var (writeContext, sentIt) = await SentFileChanges.ContextForChangeAsync(fs, drive, stored, sender, memberMayUseShares: false,
-                odinContext);
             var sendersVersionTag = newMetadata.VersionTag.GetValueOrDefault();
-            if (SentFileChanges.AlreadyLandedOrAssertMayChange(stored, sender, sentIt, sendersVersionTag,
-                    encryptedRecipientTransferInstructionSet.ExpectedVersionTag))
+            var (writeContext, alreadyLanded) = await SentFileChanges.PrepareChangeAsync(fs, drive, stored, sender,
+                memberMayUseShares: false, sendersVersionTag, encryptedRecipientTransferInstructionSet.ExpectedVersionTag, odinContext);
+            if (alreadyLanded)
             {
                 return await SentFileChanges.AlreadyDeliveredAsync(fs, file, newMetadata.Payloads, markComplete, odinContext);
             }

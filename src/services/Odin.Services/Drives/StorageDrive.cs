@@ -3,9 +3,11 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
+using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Security.ZeroKnowledge;
+using Odin.Services.Util;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -219,6 +221,21 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 
     /// <summary>Shares are its index rows (docs/selective-share-pr3-plan.md); see <see cref="SelectiveShareDrives"/>.</summary>
     public bool IsSelectiveShare => SharingModel == DriveSharingModel.SelectiveShare;
+
+    /// <summary>An archived drive is the owner's alone: anyone else is refused as for a drive that isn't there.</summary>
+    public void AssertNotArchivedFor(IOdinContext odinContext)
+    {
+        if (!IsArchived)
+        {
+            return;
+        }
+
+        OdinValidationUtils.AssertNotNull(odinContext, "odinContext must not be null");
+        if (!odinContext.Caller.HasMasterKey)
+        {
+            throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
+        }
+    }
 
     /// <summary>
     /// Whether the CDN may read this drive's payloads.

@@ -536,7 +536,8 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        DriveSettings.AssertFit(storageDrive, sharingModel);
+        var (anonymous, cdn, subscriptions) = (storageDrive.AllowAnonymousReads, storageDrive.AllowCdn, storageDrive.AllowSubscriptions);
+        var settingsTurnedOff = DriveSettings.FitForConversion(storageDrive, sharingModel);
         storageDrive.MasterKeyEncryptedStorageKey = null;
         storageDrive.SharingModel = sharingModel; // how an existing drive becomes zero knowledge (a new one is created as one)
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
@@ -558,6 +559,19 @@ public class DriveManager : IDriveManager
         }
 
         _logger.LogInformation("Drive {driveId} is now zero knowledge", driveId);
+        if (settingsTurnedOff)
+        {
+            _logger.LogInformation("Converting drive {driveId} turned off anonymous reads: {anonymous}, CDN: {cdn}, subscriptions: {subscriptions}",
+                driveId, anonymous, cdn, subscriptions);
+
+            // As the setters do when they change one
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = ToStorageDrive(storageDrive),
+                OdinContext = odinContext
+            });
+        }
     }
 
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)

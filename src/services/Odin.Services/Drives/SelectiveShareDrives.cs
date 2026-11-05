@@ -28,6 +28,24 @@ public static class SelectiveShareDrives
         (caller?.IsOwner == true && caller.OdinClientContext?.AppId?.Value is { } appId && appId == drive.AppId);
 
     /// <summary>
+    /// Refuses unless <paramref name="drive"/> is Selective Share and <paramref name="caller"/> manages its shares
+    /// (<see cref="CallerManagesShares"/>), before anything reads or writes them: <paramref name="doing"/> names what was asked.
+    /// </summary>
+    public static void AssertCallerManagesShares(StorageDrive drive, CallerContext? caller, string doing)
+    {
+        if (!drive.IsSelectiveShare)
+        {
+            throw new OdinClientException($"Drive {drive.Id} isn't a SelectiveShare drive: its files have no shares",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        if (!CallerManagesShares(drive, caller))
+        {
+            throw new OdinSecurityException($"Only the owner console or the app that owns drive {drive.Id} {doing}");
+        }
+    }
+
+    /// <summary>
     /// A shared file is Connected, so its members reach its group: a share lifts an Owner file (decision A of
     /// docs/selective-share-pr3-plan.md).  True when it lifted.
     /// </summary>
@@ -60,10 +78,10 @@ public static class SelectiveShareDrives
     /// <summary>
     /// A file's ACL, on upload and update.  Named circles and identities are refused: the share rows say who.  Of the
     /// ladder only <c>Owner</c> and <c>Connected</c>: the drive is never public, and below <c>Connected</c> an
-    /// unreviewed connection could read an unencrypted shared file (decided 2026-10-31).  The ladder stays, so
+    /// unreviewed connection could read an unencrypted shared file.  The ladder stays, so
     /// the others can be allowed later (links).
     /// </summary>
-    public static void AssertAclFits(StorageDrive drive, AccessControlList acl)
+    internal static void AssertAclFits(StorageDrive drive, AccessControlList acl)
     {
         if (!drive.IsSelectiveShare)
         {

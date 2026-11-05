@@ -15,10 +15,11 @@ described, not checked here line by line.
 The model in short; the reasons, alternatives and work are in
 [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
 
-- **What makes a drive zero knowledge:** its sharing model is Private or Private Share
-  (`DriveSharingModel.IsZeroKnowledge()`), and its drive key has no master-key copy (`StorageDrive.IsZeroKnowledge`);
-  a save refuses a zero-knowledge model with a master-key copy (`DriveManager.AssertKeyCopies`) **(V)**. One
-  definition, by the model, with the key copy following from it, is **(to build)**.
+- **What makes a drive zero knowledge:** its sharing model is Private or Private Share, one definition
+  (`StorageDrive.IsZeroKnowledge` asks `DriveSharingModel.IsZeroKnowledgeDrive()`), and the drive key's copies
+  follow from it: a save refuses a zero-knowledge model with a master-key copy, a Server Share model without one,
+  and a drive with neither (`DriveManager.AssertKeyCopies`) **(V)**. Creation sets the model, and so does conversion
+  (`DriveManager.ApplyZeroKnowledgeKeysAsync`) **(V)**.
 - **One key header per file, the rest under FileKey.** A file's key header holds FileKey (its AES key)
   and an IV. `appData.content`, `localAppData.content` (its own IV), payloads and thumbnails (the
   payload's IV) are all encrypted with FileKey **(V)**. Only the key header is ever locked or re-locked;
@@ -42,18 +43,31 @@ The model in short; the reasons, alternatives and work are in
   only the server could open. Updates and overwrites go through their usual version-tag and IV checks.
   Nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (no recipients,
   feeds or CDN) (`ZkDriveFiles.AssertNotSent`) **(V)**.
-- **One "may a peer write directly" check** for new files and updates, by the key header's kind, is **(to build)**.
-- **Inbox:** a Private Share drive has none: a member's update or delete is written at once, through a live share
-  (`PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync`) **(V)**. A Private drive still takes a
-  peer's update or delete of a deposit through the inbox; writing it directly, as on Private Share, is
-  **(to build)**. Only Server Share drives then keep an inbox. A peer's delete must also find the deposit without
-  the read rule, as a sender's change does: today the delete looks the file up in the peer's context
-  (`AcceptDeleteLinkedFileRequestAsync`, `GetFileByGlobalTransitId`) **(V)**, which hides a `sealed` file from a peer
-  **(I: read in `ZkDriveFiles.VisibleTo`, not tested)**; finding it is **(to build)** with the direct write.
-- **Known limit, until then:** the read rule also gates the server's own lookups made in a caller's context, so
-  an inbox drained by an app misses a client-locked file: a peer's delete of a deposit on a Private drive applied
-  that way is lost. A sender's change finds and writes their deposit without the read rule
-  ([file-access.md](file-access.md), "Changing a file you sent").
+- **One "may a peer write directly" check** for new files and updates (`PeerDirectWrites.CanWriteAtOnce`): at once
+  unless the file is encrypted, on a Server Share drive, with a key header the server must re-lock, and the caller
+  lacks the drive's key. A key header passed on as sent (`sealed`, `share`, `fileKey`) needs no key; a comment that
+  can't be written at once is refused, never queued **(V)**. It is decided once, on arrival, and reused when the
+  transfer finishes (`PeerDriveIncomingTransferService`, `PeerDriveIncomingFileUpdateService`) **(V)**.
+- **No inbox for a peer's files:** only Server Share drives keep one for them (`StorageDrive.HasInbox`). On a
+  zero-knowledge drive a peer's new file, update, delete and reaction are all written at once **(V, tested)**. Read
+  receipts still go through the inbox on every drive (`PeerDriveIncomingTransferService.MarkFileAsReadAsync`)
+  **(V)**. A delete or a reaction finds the file without the read rule
+  (`GetServerFileHeaderByGlobalTransitIdSkippingFileAcl`), which would hide a deposit from its sender, in
+  `PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync` and
+  `PeerIncomingGroupReactionInboxRouterService.TryApplyToZeroKnowledgeDriveAsync` **(V)**. Who may delete is the rule
+  for changing a file you sent: the original sender, or on Private Share a member through a live share with `Write`
+  ([file-access.md](file-access.md), "Changing a file you sent") **(V, tested)**. The sender's delete is refused
+  unless the file's record of their last write (`ServerMetadata.SendersWrite`) names them and still matches the file's
+  version tag, so a file stored before that record was kept is refused too; on a drive still marked as a community
+  channel only the original sender deletes (`SentFileChanges.ContextForDeleteAsync`) **(V)**. The delete is of the
+  version judged (`expectedVersionTag`), and a write that lands in between is judged again, once, rather than lost
+  (`PeerDriveIncomingTransferService.DeleteAtOnceAsync`) **(V)**. A delete of a file already deleted does nothing
+  **(V)**. A reaction's lookup asks drive `React`, not `Read` or `Write`
+  (`GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(…, permission)`), in the request's file system, so a reaction
+  to a comment works; on Private Share the share's `React` bit is asked too **(V; I: the group-reaction route has no
+  test of its own for a peer holding `React` alone)**. The reaction summary is changed in one read inside storage,
+  without the read rule (`DriveStorageServiceBase.ChangeReactionSummary`, from all three `ReactionPreviewCalculator`
+  reaction handlers) **(V)**.
 - **Transforming `sealed` into `zkDrive` is optional**, designed and **(to build)** with Chat: a key holder
   re-locks the same IV and FileKey with DrvK. It keeps the file's version tag and `updated`, because
   nothing a reader or writer depends on changed, and a new version tag would break collaborators'
@@ -67,15 +81,19 @@ The model in short; the reasons, alternatives and work are in
 - **No content integrity, by decision:** out of the threat model ([security-model.md](security-model.md),
   section 8).
 - **Drive settings:** a zero-knowledge drive allows neither anonymous reads, the CDN nor subscriptions, and can't be
-  marked as a community channel. Creation refuses the first three (`CreateDriveRequest.AssertSharingModel`) **(V)**,
-  and a Private Share drive refuses the community channel at creation, conversion and when its attributes change
-  (`SelectiveShareDrives.AssertSettingsFit`) **(V)**. One settings check at creation, conversion and in every
-  setter, which refuses all four on any zero-knowledge drive, is **(to build)**: today conversion asks only the
-  Private Share check, and `SetDriveReadModeAsync`, `SetDriveAllowCdnAsync` and `SetDriveAllowSubscriptionsAsync`
-  ask none of it **(V)**.
+  marked as a community channel; a Private Share drive can't be `OwnerOnly` either. One rule, by the drive's model:
+  every setting at creation (`CreateDriveRequest.AssertSharingModel`, `DriveSettings.AssertFit`); a conversion
+  (`DriveManager.ApplyZeroKnowledgeKeysAsync`) turns anonymous reads, the CDN and subscriptions off and refuses the
+  rest (`DriveSettings.FitForConversion`), so a re-key after recovery never fails on them; an attribute change
+  (`UpdateAttributesAsync`) and `SetDriveReadModeAsync`, `SetDriveAllowSubscriptionsAsync` and `SetDriveAllowCdnAsync`
+  ask only the setting they change, as it will be (`DriveSettings.AssertChangeFits`), so turning a setting off always
+  works and a drive with a setting set before the rule can be brought into line **(V, tested)**.
 - **Comments and reactions:** on a Server Share drive members who may read comment; on a Private Share drive
-  members comment through shares ([file-access.md](file-access.md)). On a Private drive only owner callers comment, no
-  peer, **(to build)**; reactions stay allowed there (Chat needs them).
+  members comment through shares ([file-access.md](file-access.md)); a member's update of a comment never creates a
+  new one (`PeerFileUpdateWriter`) **(V)**. On a Private drive only owner callers comment (the server's own jobs, a comment's
+  TTL, pass too): any other caller's comment, new, an update or a delete, is refused, a local upload (a guest or YouAuth caller) as well as a peer's
+  (`CommentFileStorageService.AssertCanWriteToDrive` / `CanWriteToDrive`) **(V, tested for a peer)**; reactions stay
+  allowed there (Chat needs them).
 
 ## Goal
 
@@ -275,9 +293,9 @@ Keys open on the peer's devices.
   peer readers, and no drive grant on a zero-knowledge drive carries its storage key
   (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
 - **Deposits:** the sending client seals to the drive's public key. The sending server and the
-  receiving server store it as received, written directly or through the inbox. A deposit on a Private drive
-  carries no payloads (`Deposits.MayCarryPayloads`) **(V)**. Writing a peer's update or delete directly, with no
-  inbox, is **(to build)** (see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)).
+  receiving server store it as received, written directly. A deposit on a Private drive carries no payloads
+  (`Deposits.MayCarryPayloads`) **(V)**. There is no inbox for a peer's files (read receipts still use it): a peer's
+  update, delete and reaction are written at once too (see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)) **(V)**.
 
 ### Private Share
 
@@ -287,9 +305,12 @@ Keys open on the peer's devices.
   key), then the locked file key, then the file.
 - **No storage key in the grant:** the circle's drive grant for a Private Share drive carries no
   storage key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
-- **Deposits:** a member's new file may carry payloads (`Deposits.MayCarryPayloads`) **(V)**; taking them through
-  the payload-upload route too is **(to build)**. There is no inbox: a member's update or delete is written at
-  once, through a live share with `Write` **(V)**.
+- **Deposits:** a member's new file may carry payloads (`Deposits.MayCarryPayloads`) **(V)**, and the payload-upload
+  route adds payloads to a deposit too (`Deposits.AssertTakesNoPayloads`) **(V, tested)**. There is no inbox for a
+  member's files (read receipts still use it): a member's update or delete is written at once, through a live share
+  with `Write`, or as the file's sender while it has no share **(V, tested)**. A member's update never creates a file:
+  one with no stored file to update, a standard file or a comment, is refused, and a standard file keeps its ACL
+  (`PeerFileUpdateWriter`) **(V)**.
 
 ### Anonymous and temporal reads
 
@@ -299,8 +320,9 @@ Both can make the server open files for the reader.
     (`DriveFileUtility.CreateClientFileHeader`) **(V)**. Serving it opens nothing.
   - **Private and Private Share:** no anonymous reads. A zero-knowledge drive is created without them
     (`CreateDriveRequest.AssertSharingModel`) **(V)**, and a Private Share file's ACL is `Owner` or `Connected`
-    (`SelectiveShareDrives.AssertAclFits`) **(V)**. Refusing them in the setter too is **(to build)**
-    (see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)). So a public drive
+    (`SelectiveShareDrives.AssertAclFits`) **(V)**, and the read-mode setter refuses them too
+    (`DriveSettings.AssertChangeFits`; see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files))
+    **(V, tested)**. So a public drive
     (Homepage Config, Profile, WebDrop, Public Posts) stays Server Share.
 - **Temporal reads** (`DrivePermission.ConditionalTemporalRead`, a circle may read files changed
   in a recent window): on a Server Share drive the grant escrows the drive storage key so the server can rewrap
@@ -323,7 +345,8 @@ Built. Every key's shorthand is in [owner-keys.md](owner-keys.md).
     master key. Only the browser can open it.
   - `SharingModel`: Server Share (`Collaborative`), Private or Private Share.
   - `MasterKeyEncryptedStorageKeyJson`: nullable; a zero-knowledge drive has none, and a save refuses a
-    zero-knowledge drive that has one, or a drive with neither copy (`DriveManager.AssertKeyCopies`) **(V)**.
+    zero-knowledge drive that has one, a Server Share drive that has none, or a drive with neither copy
+    (`DriveManager.AssertKeyCopies`) **(V)**.
   - `WriteOnlyKeyPair`, and `ZkStorageKeyEncryptedWriteOnlyPrivateKey`: on a zero-knowledge drive the browser
     makes the pair and the private half is locked by the drive key; on a Server Share drive the server makes it
     (`DriveManager.CreateDriveAsync`, `DriveWriteOnlyKey`) **(V)**.

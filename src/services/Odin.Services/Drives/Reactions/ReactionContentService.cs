@@ -29,24 +29,16 @@ public class ReactionContentService(
     IMediator mediator)
 {
     /// <summary>
-    /// Whether the caller may <paramref name="permission"/> (React, or Read to see the reactions) on
-    /// <paramref name="file"/>: its drive permission, as always; on a Selective Share drive, for an outside caller, also a
-    /// live share of the file with that bit, so whoever may read a file sees its reactions, and a share's <c>React</c> bit
-    /// lets them react (docs/file-access.md, "A share row narrows its circle's grant").  A comment goes by its file's
-    /// shares.
+    /// Whether the caller may <paramref name="permission"/> (React, or Read to see the reactions) on <paramref name="file"/>,
+    /// by the one rule for every drive (<see cref="IDriveAclAuthorizationService.CallerMayAsync"/>): the bit on the drive,
+    /// and on a Private Share drive a live share with it too, so whoever may read a file sees its reactions, and a share's
+    /// <c>React</c> bit lets them react.  A comment goes by its file's shares.
     /// </summary>
     public async Task<StorageDrive> AssertMayAsync(InternalDriveFileId file, DrivePermission permission, IOdinContext odinContext)
     {
         var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
-        if (!SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller))
-        {
-            odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, permission);
-            return drive;
-        }
-
-        await driveAclAuthorizationService.AssertCallerHoldsShareAsync(await driveQuery.GetFileHeaderAsync(drive, file.FileId), permission,
-            odinContext);
-
+        var header = SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller) ? await driveQuery.GetFileHeaderAsync(drive, file.FileId) : null;
+        await driveAclAuthorizationService.AssertCallerMayAsync(drive, header, permission, odinContext);
         return drive;
     }
 

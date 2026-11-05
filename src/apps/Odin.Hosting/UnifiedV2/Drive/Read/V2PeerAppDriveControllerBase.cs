@@ -65,7 +65,8 @@ public abstract class V2PeerAppDriveControllerBase(PeerDriveQueryService peerDri
         };
     }
 
-    protected static FileQueryParamsV1 ToV1QueryParams(FileQueryParams p, TargetDrive targetDrive)
+    /// <summary>A V2 query's parameters, as the peer query service takes them (V1), for <paramref name="targetDrive"/>.</summary>
+    internal static FileQueryParamsV1 ToV1QueryParams(FileQueryParams p, TargetDrive targetDrive)
     {
         return new FileQueryParamsV1
         {

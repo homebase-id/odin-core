@@ -49,6 +49,10 @@ public class DriveShareService(
     /// <summary>The bits a share may hold, each narrowing the same bit of its circle's drive grant (docs/file-access.md).</summary>
     public const DrivePermission ShareBits = DrivePermission.Read | DrivePermission.Write | DrivePermission.React | DrivePermission.Comment;
 
+    // ShareBits, one bit each
+    private static readonly DrivePermission[] ShareBitList =
+        [DrivePermission.Read, DrivePermission.Write, DrivePermission.React, DrivePermission.Comment];
+
     public async Task<List<ShareRow>> GetSharesAsync(Guid driveId, Guid fileId, IOdinContext odinContext)
     {
         var drive = await GetDriveCallerMayShareOnAsync(driveId, odinContext);
@@ -84,7 +88,7 @@ public class DriveShareService(
     }
 
     /// <summary>
-    /// A share write raises the file's ordinary file-changed event (decided 2026-11-02, section 9): owner callers'
+    /// A share write raises the file's ordinary file-changed event (docs/selective-share-pr3-plan.md, section 9): owner callers'
     /// devices hear it as any change, and a member's socket gets the file through their share or, once it ends, its
     /// tombstone (<c>DriveEventMessage.MessageForAsync</c>).  A share changes no content, so the feed and the
     /// reaction previews have nothing to do.  The write stands whatever the event does.
@@ -230,7 +234,7 @@ public class DriveShareService(
 
     // Every row of the file: its shares, withdrawn ones included
     private async Task<List<DriveAclIndexRecord>> RowsOfAsync(StorageDrive drive, Guid fileId) =>
-        (await db.DriveAclIndex.GetRowsAsync(drive.Id, [fileId], [], null)).Select(r => r.Row).ToList();
+        await db.DriveAclIndex.GetFileRowsAsync(drive.Id, [fileId]);
 
     private static List<DriveAclIndexRecord> ToRows(IEnumerable<ShareRequest> shares) => shares.Select(s => new DriveAclIndexRecord
     {
@@ -243,16 +247,7 @@ public class DriveShareService(
     private async Task<StorageDrive> GetDriveCallerMayShareOnAsync(Guid driveId, IOdinContext odinContext)
     {
         var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
-        if (!drive!.IsSelectiveShare)
-        {
-            throw new OdinClientException($"Drive {driveId} isn't a SelectiveShare drive", OdinClientErrorCode.ArgumentError);
-        }
-
-        if (!SelectiveShareDrives.CallerManagesShares(drive, odinContext.Caller))
-        {
-            throw new OdinSecurityException($"Only the owner console or the app that owns drive {driveId} may share its files");
-        }
-
+        SelectiveShareDrives.AssertCallerManagesShares(drive!, odinContext.Caller, "may share its files");
         return drive;
     }
 
@@ -260,14 +255,11 @@ public class DriveShareService(
     private static void AssertCallerMayWrite(StorageDrive drive, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertCanWriteToDrive(drive.Id);
-        if (drive.IsArchived && !odinContext.Caller.HasMasterKey)
-        {
-            throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
-        }
+        drive.AssertNotArchivedFor(odinContext);
     }
 
     /// <summary>
-    /// The drive's app's own circle, as for its circle key (PR 2): never an owner circle, never another app's.
+    /// The drive's app's own circle, as for its circle key (CircleShareKeyService): never an owner circle, never another app's.
     /// </summary>
     private async Task<CircleRecord> GetCircleCallerMayShareWithAsync(StorageDrive drive, Guid circleId, IOdinContext odinContext)
     {
@@ -329,8 +321,7 @@ public class DriveShareService(
         if (memberContext != null)
         {
             // Bit by bit: each may come from a different circle
-            return new[] { DrivePermission.Read, DrivePermission.Write, DrivePermission.React, DrivePermission.Comment }
-                .Where(bit => asked.HasFlag(bit)).All(bit => memberContext.PermissionsContext.HasDrivePermission(drive.Id, bit));
+            return ShareBitList.Where(bit => asked.HasFlag(bit)).All(bit => memberContext.PermissionsContext.HasDrivePermission(drive.Id, bit));
         }
 
         var members = await db.CircleMemberCached.GetCircleMembersAsync(individualCircleId);

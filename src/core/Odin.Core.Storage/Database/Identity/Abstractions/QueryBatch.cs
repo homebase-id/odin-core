@@ -125,13 +125,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 //               "(fileId NOT IN (SELECT DISTINCT fileId FROM driveAclIndex WHERE driveMainIndex.fileId = driveAclIndex.fileId))))");
             }
 
-            // The files shared with any of these circles, through a live row (TableDriveAclIndex.IsLive): whom the owner shares
+            // The files shared with any of these circles, through a live row (TableDriveAclIndex.IsLiveSql): whom the owner shares
             // with (docs/file-access.md, "Who a file is shared with"). Found by the circle's index, as the rows above.
             if (IsSet(sharedWithAnyOf))
             {
                 listWhere.Add($"driveMainIndex.fileId IN (SELECT s.fileId FROM driveAclIndex s WHERE s.identityId = {odinIdentity.BytesToSql(_databaseType)} " +
                               $"AND s.driveId = {driveId.BytesToSql(_databaseType)} AND s.aclMemberId IN ({HexList(sharedWithAnyOf)}) " +
-                              $"AND (s.permissions & 1) = 1 AND (s.expiresAt IS NULL OR s.expiresAt > {UnixTimeUtc.Now().milliseconds}))");
+                              $"AND {TableDriveAclIndex.IsLiveSql("s", UnixTimeUtc.Now())})");
             }
 
             if (IsSet(filetypesAnyOf))

@@ -43,13 +43,6 @@ public class V2DrivePeerUpdateController(
         OdinValidationUtils.AssertNotEmptyGuid(driveId, "missing drive id");
         OdinValidationUtils.AssertNotEmptyGuid(gtid, "missing global transit id");
         var result = await ReceivePeerFileUpdateV2(new OdinId(odinId), driveId, gtid);
-        return new UpdateFileResult
-        {
-            GlobalTransitId = result.GlobalTransitId,
-            RecipientStatus = result.RecipientStatus,
-            NewVersionTag = result.NewVersionTag,
-            Updated = result.Updated,
-            Payloads = result.Payloads
-        };
+        return UpdateFileResult.From(result, withLocalFile: false);
     }
 }

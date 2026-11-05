@@ -20,10 +20,10 @@ namespace Odin.Services.Tests.AppNotifications;
 /// </summary>
 public class DriveEventMessageTests
 {
-    // The real read rule. The owner and the zero-knowledge checks it makes need none of the service's dependencies; a
-    // drive manager that knows no drive puts every other file on an ordinary drive, judged by its ACL as before
+    // The real read rule. The owner and the zero-knowledge checks it makes need none of the service's dependencies; an
+    // event with no drive puts every other file on an ordinary drive, judged by its ACL as before
     private static readonly IDriveAclAuthorizationService ReadRule =
-        new DriveAclAuthorizationService(null!, null!, null!, Substitute.For<IDriveManager>(), null!);
+        new DriveAclAuthorizationService(null!, null!, null!, null!);
 
     [TestCase(EncryptionType.ZkDrive, true, true, TestName = "AZkDriveFileReachesTheOwnerConsole")]
     [TestCase(EncryptionType.ZkDrive, false, false, TestName = "AZkDriveFileDoesNotReachAnApp")]

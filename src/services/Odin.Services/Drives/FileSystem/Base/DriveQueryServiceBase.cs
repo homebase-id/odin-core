@@ -454,8 +454,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 headers.Add(serverFileHeader);
             }
 
-            // On a Selective Share drive, the page's share rows in one read rather than one per file
-            var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(driveId, headers, odinContext);
+            // The drive once for the page, and on a Selective Share drive the page's share rows in one read, not one per file
+            var drive = await DriveManager.GetDriveAsync(driveId);
+            var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(drive, headers, odinContext);
 
             foreach (var serverFileHeader in headers)
             {
@@ -470,7 +471,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 var isClientLocked = ZkDriveFiles.IsClientLocked(serverFileHeader);
-                if (!await _storage.CallerMayReadFileOnLiveDrive(serverFileHeader, odinContext, sharedWithCaller))
+                if (!await _storage.CallerMayReadFileOnLiveDrive(drive, serverFileHeader, odinContext, sharedWithCaller))
                 {
                     // On a Selective Share drive, a file a row names the caller on that they may no longer read
                     // (withdrawn, expired, a level below its group) comes back as a deleted file's tombstone, so their sync
@@ -478,9 +479,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                     // on is missing, as a client-locked one is below
                     if (sharedWithCaller != null)
                     {
-                        if (sharedWithCaller.Names(file.FileId))
+                        if (DriveStorageServiceBase.NoLongerSharedViewOf(serverFileHeader, sharedWithCaller) is { } tombstone)
                         {
-                            visible.Add(DriveStorageServiceBase.NoLongerSharedTombstoneOf(serverFileHeader));
+                            visible.Add(tombstone);
                         }
 
                         continue;
@@ -526,8 +527,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
                     else
                     {
-                        var drive = await DriveManager.GetDriveAsync(file.DriveId);
-
                         // Allow anon will let the user get the file so only log
                         // if this is not the case as it means we have a problem
                         if (!drive.AllowAnonymousReads)
@@ -602,17 +601,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             return result;
         }
 
-        private async Task AssertDriveIsValidAndActive(Guid driveId, IOdinContext odinContext)
-        {
-            var theDrive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
-            if (theDrive.IsArchived)
-            {
-                if (!odinContext.Caller.HasMasterKey)
-                {
-                    throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
-                }
-            }
-        }
+        private async Task AssertDriveIsValidAndActive(Guid driveId, IOdinContext odinContext) =>
+            (await DriveManager.GetDriveAsync(driveId, failIfInvalid: true)).AssertNotArchivedFor(odinContext);
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueIdInternal(Guid driveId, Guid clientUniqueId,
             ResultOptions options, IOdinContext odinContext)

@@ -45,20 +45,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             // Validations
             var drive = await driveManager.GetDriveAsync(file.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
-            var targetAcl = await DetermineAclAsync(instructionSet, fileSystemType, incomingMetadata, isCollaborationChannel, odinContext);
+            var targetAcl = await IncomingFileAcl.ForIncomingFileAsync(fileSystemResolver, fileSystemType, incomingMetadata,
+                isCollaborationChannel, instructionSet.OriginalAcl, odinContext);
 
             // A sender's update changes the file the global transit id names, found by the server, not as the sender, who may
             // only write it (docs/file-access.md, "Changing a file you sent")
             var target = instructionSet.Request.File;
             var existingHeader = await fs.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(target.TargetDrive.Alias,
                 target.GlobalTransitId.GetValueOrDefault(), odinContext);
-            var (writeContext, sentIt) = existingHeader == null
-                ? (odinContext, true)
-                : await SentFileChanges.ContextForChangeAsync(fs, drive, existingHeader, sender, memberMayUseShares: true, odinContext);
 
             // On a Private Share drive a member edits a file shared with them, or a comment on one: never a new one.  A
             // standard file keeps its ACL, which an Owner one would close to every member (docs/selective-share-pr3-plan.md,
-            // section 7); a comment takes its file's, as on every drive (IncomingCommentAcl)
+            // section 7); a comment takes its file's, as on every drive (IncomingFileAcl)
             if (drive.IsSelectiveShare)
             {
                 var existingAcl = existingHeader?.ServerMetadata?.AccessControlList ??
@@ -115,8 +113,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return (success, incomingMetadata.Payloads ?? []);
             }
 
-            if (SentFileChanges.AlreadyLandedOrAssertMayChange(existingHeader, sender, sentIt, request.NewVersionTag,
-                    request.ExpectedVersionTag))
+            var (writeContext, alreadyLanded) = await SentFileChanges.PrepareChangeAsync(fs, drive, existingHeader, sender,
+                memberMayUseShares: true, request.NewVersionTag, request.ExpectedVersionTag, odinContext);
+            if (alreadyLanded)
             {
                 return await SentFileChanges.AlreadyDeliveredAsync(fs, file, incomingMetadata.Payloads, markComplete, odinContext);
             }
@@ -196,35 +195,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
 
             return incomingMetadata;
-        }
-
-        private async Task<AccessControlList> DetermineAclAsync(EncryptedRecipientFileUpdateInstructionSet instructionSet,
-            FileSystemType fileSystemType,
-            FileMetadata metadata,
-            bool isCollaborationChannel,
-            IOdinContext odinContext)
-        {
-            // Files coming from other systems are only accessible to the owner so
-            // the owner can use the UI to pass the file along
-            var targetAcl = AccessControlList.OwnerOnly;
-
-            //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
-            if (fileSystemType == FileSystemType.Comment)
-            {
-                targetAcl = await IncomingCommentAcl.ResetAclForComment(fileSystemResolver, metadata, odinContext);
-            }
-            else
-            {
-                //
-                // Collab channel hack; need to cleanup location of the IsCollaborativeChannel flag
-                //
-                if (isCollaborationChannel)
-                {
-                    targetAcl = instructionSet.OriginalAcl ?? AccessControlList.OwnerOnly;
-                }
-            }
-
-            return targetAcl;
         }
 
     }

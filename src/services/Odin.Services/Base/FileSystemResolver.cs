@@ -53,6 +53,17 @@ namespace Odin.Services.Base
             throw new OdinSystemException($"Could not resolve file system type for file {file}");
         }
 
+        /// <summary>
+        /// The file system <paramref name="file"/> is stored in, by its record, asking no permission: for a step that asks
+        /// its own (a reaction summary's change asks React, which doesn't let the caller read the file)
+        /// </summary>
+        public async Task<IDriveFileSystem> ResolveFileSystemOfStoredFileAsync(InternalDriveFileId file)
+        {
+            var fileSystemType = await driveQuery.GetFileSystemTypeAsync(file.DriveId, file.FileId) ??
+                                 throw new OdinSystemException($"Could not resolve file system type for file {file}");
+            return ResolveFileSystem(fileSystemType);
+        }
+
         public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(
             GlobalTransitIdFileIdentifier globalTransitFileId,
             IOdinContext odinContext,

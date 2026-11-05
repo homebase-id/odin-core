@@ -6,12 +6,21 @@ Status: steps 1 to 4 built and merged: step 1 (#2023, follow-up #2027), step 2 (
 [owner-keys.md](owner-keys.md), words [terminology.md](terminology.md): a Server Share drive (`Collaborative` in
 code) is one whose key the server holds, locked; Private and Private Share drives are the zero-knowledge ones.
 
-**Decided 2026-11-05, not built** (zero-knowledge-drives.md marks each **(to build)**): one definition of a
-zero-knowledge drive, by its sharing model; Private drives have no inbox, so a peer's update or delete of a deposit
-is written directly, as on Private Share; one "may a peer write directly" check for new files and updates, by the
-key header's kind; one drive-settings check at creation, conversion and every setter (no anonymous reads, CDN,
-subscriptions or community channel on a zero-knowledge drive); comments on a Private drive only by the owner, with
-reactions still allowed; a deposit on a Private Share drive taking payloads through the payload-upload route too.
+**Decided 2026-11-05, built 2026-11-05** (on `selective-share-shares`, with Private Share's PR 3): Private drives
+have no inbox for a peer's files, so a peer's update, delete and reaction on a deposit are written directly, as on
+Private Share, the file found without the read rule, and a delete goes by the rule for changing a file you sent
+(read receipts still go through the inbox on every drive, `PeerDriveIncomingTransferService.MarkFileAsReadAsync`);
+one "may a peer write directly" check for new files and updates (`PeerDirectWrites.CanWriteAtOnce`, made once on
+arrival); one drive-settings rule (no anonymous reads, CDN, subscriptions or community channel on a zero-knowledge
+drive): every setting at creation (`DriveSettings.AssertFit`), a conversion turning anonymous reads, the CDN and
+subscriptions off and refusing the rest (`DriveSettings.FitForConversion`, built 2026-11-05 so a re-key after recovery
+can't fail on them), and in each setter only the setting it changes, as it will be (`DriveSettings.AssertChangeFits`); comments on a Private drive only by owner callers, local
+uploads as well as peers refused, with reactions still allowed (`CommentFileStorageService.AssertCanWriteToDrive` /
+`CanWriteToDrive`); a deposit on a Private Share drive taking payloads through the payload-upload route too; one
+definition of a zero-knowledge drive, by its sharing model (`StorageDrive.IsZeroKnowledge` asks
+`DriveSharingModel.IsZeroKnowledgeDrive()`), a save refusing key copies that disagree with the model either way
+(`DriveManager.AssertKeyCopies`). No relabelling was needed: since the model existed, conversion has set it and
+creation sets it (`DriveManager.ApplyZeroKnowledgeKeysAsync`) **(V)**.
 
 **(V)** = read in code on 2026-10-26. **(I)** = inferred, to be checked while building.
 
@@ -246,8 +255,8 @@ What client-locked files cost, accepted:
 ### 2.3 Server: arrival (unchanged)
 A sealed item lands on the drive as today, by direct write (S1200) or through the server inbox
 (`DecryptOrPassSealed`) **(V)**. `Deposits.AssertValid` (no payloads) stays until Chat needs payloads. Since
-Private Share, a deposit there may carry payloads (`Deposits.MayCarryPayloads`) **(V, 2026-11-05)**; taking them
-through the payload-upload route too is decided (2026-11-05, a bug fix) and not built.
+Private Share, a deposit there may carry payloads (`Deposits.MayCarryPayloads`) **(V, 2026-11-05)**, through the
+payload-upload route too (`Deposits.AssertTakesNoPayloads`, built 2026-11-05) **(V)**.
 
 ### 2.4 Server: one read rule, one write rule
 - **Read:** `CallerMayReadAsync` (step 1's follow-up, #2027) hides a client-locked file from a caller
@@ -672,7 +681,7 @@ on 2026-10-29 (odin-core, odin-js main e3808e2e, chat-kmp main b7e8ebf60, filesy
 - The conversion (3.3) also takes the Filesync drive (`WellKnownAppDrives.FilesyncDrive`, alias
   `cfceb937-b868-496b-91cb-3402f18320f8`, filesync `app.rs:48`) **(V)**.
 - The request names the model, `SharingModel`: Private or SelectiveShare, and nothing else
-  (`DriveSharingModel.IsZeroKnowledge`). The owner console sends what the app's banner asked for.
+  (`DriveSharingModel.IsZeroKnowledgeDrive()`). The owner console sends what the app's banner asked for.
 - odin-core still keeps which old drives may be upgraded this way (Vault, Filesync), as a rollout guard.
 - The drive's `created` doesn't move: the upsert never sets it **(V)**, and the test checks it, because
   Filesync sets its records aside when `created` changes (filesync#319).
@@ -715,7 +724,8 @@ the install page (`/owner/appreg`) and the permission extension (`/owner/appupda
   - it refuses a zero-knowledge model without keys, keys without one, and anonymous reads, the CDN or
     subscriptions with one (the feed never distributes from a zero-knowledge drive);
   - the owner's zero-knowledge keys must exist first.
-- The save guard already refuses a zero-knowledge drive with a master-key copy.
+- The save guard refuses a zero-knowledge drive with a master-key copy, and a Server Share drive without one
+  (`DriveManager.AssertKeyCopies`).
 - The server can't check the encrypted drive id, as with the Shard Recovery drive: a wrong one only
   breaks the browser that sent it.
 
@@ -757,8 +767,8 @@ key: such a device gets nothing from the drive until it signs in again (3.4).
 - Shares (the Private Share key header table).
 - Turning on anonymous reads or the CDN later on a zero-knowledge drive (`SetDriveReadModeAsync`,
   `SetDriveAllowCdnAsync`): creation refuses both, the setters don't check yet. Listed in review, not fixed
-  here: it changes the existing drive-settings flow. Decided 2026-11-05, not built: one drive-settings check at
-  creation, conversion and every setter (status above).
+  here: it changes the existing drive-settings flow. Built 2026-11-05: one drive-settings check at creation,
+  conversion and every setter (status above).
 - Upgrading a drive without rewriting every file's key header label (3.3's relabel); the user accepted
   the per-file cost for now.
 - An upload already running when its drive is upgraded can save a key header nobody can open; the user
@@ -956,8 +966,8 @@ it as it is (read 2026-10-26) **(V)**.
   upload doesn't need the storage key either way.
 - **The CDN for a zero-knowledge drive: later.** Step 1 keeps zero-knowledge drives off the CDN, even
   with `AllowCdn` on. We may want a zero-knowledge drive's files on the CDN later, still encrypted, when
-  the owner ticks CDN for the drive. Until then the drive-settings check decided 2026-11-05 (status above), not built yet, is to refuse
-  `AllowCdn` on a zero-knowledge drive; today only creation refuses it.
+  the owner ticks CDN for the drive. Until then the drive-settings check (status above, built 2026-11-05) refuses
+  `AllowCdn` on a zero-knowledge drive, at creation and in the setter.
 
 ## Open from step 2's review
 
@@ -969,9 +979,10 @@ it as it is (read 2026-10-26) **(V)**.
   deposits, the Shamir lookup), and its replace rule (2.4) holds whoever drains. The general
   fix: hide client-locked files where responses are built (`CreateClientFileHeader`, client queries,
   socket events) and let internal flows look rows up in an explicit system context. Needed before Chat,
-  whose peers edit and delete what they sent. Decided 2026-11-05, not built: a Private drive has no inbox, so a
-  peer's update or delete of a deposit is written directly, as on Private Share (which has none), and the inbox
-  half of this goes; only Server Share drives keep an inbox.
+  whose peers edit and delete what they sent. Built 2026-11-05: a Private drive has no inbox, so a peer's update or
+  delete of a deposit is written directly, found without the read rule, as on Private Share (which has none), and
+  the inbox half of this is gone; only Server Share drives keep an inbox for a peer's files (read receipts use it on
+  every drive).
 - **Who reads the transient drive.** Its staged deposits reach any caller with Read there, so one app
   with transit sees another's staged deposit (the sealed key header and plain metadata, such as a gated
   shard's hashed recovery email). As before step 2; narrowing it needs knowing which app wrote a file.

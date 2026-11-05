@@ -93,10 +93,7 @@ public partial class SelectiveShareTests
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(owner, OwnerLogin.DefaultPassword);
         var appId = Guid.NewGuid();
         await owner.Admin.EnsureAppRegistered(appId);
-        var drive = TargetDrive.NewTargetDrive();
-        var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
-        await owner.Admin.CreateDrive(drive, "Shared", allowAnonymousReads: false, appId: appId,
-            sharingModel: DriveSharingModel.SelectiveShare, zkKeys: keys.Request);
+        var (drive, keys) = await ZkOwnerSteps.CreateZeroKnowledgeDriveAsync(owner, zkMasterKey, DriveSharingModel.SelectiveShare, appId);
         var app = await AppSession.SetupAsync(owner, drive, DrivePermission.All, permissionKeys, knownAppId: appId);
         return new OwnersDrive(owner, app, drive, keys.DriveKey, keys.WriteOnlyPublicKeyJwk);
     }

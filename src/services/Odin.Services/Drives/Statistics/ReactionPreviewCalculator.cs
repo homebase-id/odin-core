@@ -200,9 +200,7 @@ public class ReactionPreviewCalculator(
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;
 
-        // having issues looking the file system for comments
-
-        var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
+        var fs = await fileSystemResolver.ResolveFileSystemOfStoredFileAsync(targetFile);
         await fs.Storage.ChangeReactionSummary(targetFile, stored =>
         {
             var preview = stored ?? new ReactionSummary();
@@ -229,7 +227,7 @@ public class ReactionPreviewCalculator(
     {
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;
-        var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
+        var fs = await fileSystemResolver.ResolveFileSystemOfStoredFileAsync(targetFile);
         await fs.Storage.ChangeReactionSummary(targetFile, preview =>
         {
             if (null == preview)
@@ -267,7 +265,7 @@ public class ReactionPreviewCalculator(
     {
         var targetFile = notification.FileId;
         var odinContext = notification.OdinContext;
-        var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
+        var fs = await fileSystemResolver.ResolveFileSystemOfStoredFileAsync(targetFile);
         await fs.Storage.ChangeReactionSummary(targetFile, preview =>
         {
             preview?.Reactions?.Clear();

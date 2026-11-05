@@ -18,7 +18,9 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Tests.Drives;
 
 namespace Odin.Services.Tests.AppNotifications;
 
@@ -32,7 +34,7 @@ public class ShareEventMessageTests
     private static readonly Guid DriveId = Guid.NewGuid();
     private static readonly Guid FileId = Guid.NewGuid();
     private static readonly Guid CircleId = Guid.NewGuid();
-    private static readonly byte[] LockedFileKey = ByteArrayUtil.GetRndByteArray(45);
+    private static readonly byte[] LockedFileKey = ByteArrayUtil.GetRndByteArray(DriveShareService.LockedFileKeyLength);
 
     [Test]
     public async Task AMemberGetsTheFileWithTheirSharesKey()
@@ -82,7 +84,7 @@ public class ShareEventMessageTests
         aclService.FilesSharedWithCallerAsync(default, default!, default!).ReturnsForAnyArgs(Task.FromResult(shares));
         aclService.CallerMayReadAsync(default!, default!, default).ReturnsForAnyArgs(Task.FromResult(mayRead));
 
-        var message = new DriveEventMessage(ClientNotificationType.FileModified, null, Header(), null);
+        var message = new DriveEventMessage(ClientNotificationType.FileModified, TestDrives.Of(DriveSharingModel.SelectiveShare), Header(), null);
         return await message.MessageForAsync(MemberSocket(), aclService);
     }
 

@@ -155,8 +155,8 @@ public class GroupReactionService(
         FileSystemType fileSystemType)
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
-        await reactionContentService.AssertMayAsync(file, DrivePermission.React, odinContext);
 
+        // React is asked by the add or the delete below, before either changes anything
         var caller = odinContext.Caller.OdinId.GetValueOrDefault();
         var reactions = await reactionContentService.GetReactionsByIdentityAndFileAsync(caller, file, odinContext);
         var hasReaction = reactions.Any(r => r == reaction);

@@ -312,6 +312,14 @@ public abstract class V2Fixture
     /// <summary>Logs in as <see cref="PrimaryIdentity"/> — the common case for single-identity fixtures.</summary>
     protected Task<OwnerSession> LoginAsOwner() => LoginAsOwner(PrimaryIdentity);
 
+    /// <summary>Frodo logged in, with the zero-knowledge keys made as his first login since plan A makes them.</summary>
+    protected async Task<(OwnerSession Owner, byte[] ZkMasterKey)> ZeroKnowledgeFrodoAsync()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (zkMasterKey, _, _) = await ZeroKnowledge.ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, Auth.OwnerLogin.DefaultPassword);
+        return (frodo, zkMasterKey);
+    }
+
     /// <summary>
     /// Puts <paramref name="peer"/> back to unreviewed on <paramref name="owner"/>'s side.
     /// </summary>

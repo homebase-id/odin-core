@@ -32,4 +32,19 @@ public class UpdateFileResult
     /// One entry per payload uploaded in this request (append/overwrite operations); values match the stored file header
     /// </summary>
     public List<PayloadUploadReceipt> Payloads { get; init; } = new();
+
+    /// <summary>
+    /// The V2 answer for <paramref name="result"/>: with the local file's ids for an update of a local file, without them
+    /// for a peer-only one, which has no local file.
+    /// </summary>
+    public static UpdateFileResult From(FileUpdateResult result, bool withLocalFile) => new()
+    {
+        FileId = withLocalFile ? result.File.FileId : Guid.Empty,
+        DriveId = withLocalFile ? result.File.TargetDrive.Alias.Value : Guid.Empty,
+        GlobalTransitId = result.GlobalTransitId,
+        RecipientStatus = result.RecipientStatus,
+        NewVersionTag = result.NewVersionTag,
+        Updated = result.Updated,
+        Payloads = result.Payloads
+    };
 }

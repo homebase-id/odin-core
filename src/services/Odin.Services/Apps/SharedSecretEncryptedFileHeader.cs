@@ -62,28 +62,20 @@ namespace Odin.Services.Apps
             }
         }
 
-        public bool IsOriginalSender(OdinId odinId)
-        {
-            return new OdinId(this.FileMetadata.SenderOdinId) == odinId;
-        }
-        
         public bool IsOriginalAuthor(OdinId odinId)
         {
             return this.FileMetadata.OriginalAuthor == odinId;
         }
 
-        public void AssertOriginalSender(OdinId odinId) =>
-            AssertOriginalSender(this.FileMetadata.SenderOdinId, odinId, $"FileId: {this.FileId} on Drive: {this.TargetDrive}");
-
-        /// <summary>That <paramref name="odinId"/> sent the stored file, whose sender is <paramref name="storedSender"/>.</summary>
-        public static void AssertOriginalSender(string storedSender, OdinId odinId, string file)
+        public void AssertOriginalSender(OdinId odinId)
         {
-            if (string.IsNullOrEmpty(storedSender))
+            if (string.IsNullOrEmpty(this.FileMetadata.SenderOdinId))
             {
-                throw new OdinSecurityException($"Original file does not have a sender ({file})");
+                throw new OdinSecurityException(
+                    $"Original file does not have a sender (FileId: {this.FileId} on Drive: {this.TargetDrive})");
             }
 
-            if (!IsOriginalSender(storedSender, odinId))
+            if (!IsOriginalSender(this.FileMetadata.SenderOdinId, odinId))
             {
                 throw new OdinSecurityException("Sender does not match original sender");
             }

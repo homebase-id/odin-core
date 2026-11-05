@@ -164,7 +164,7 @@ public class CircleMembershipService(
     /// Makes a domain's membership rows of one type match its circle grants: rows of circles no longer granted
     /// are deleted, the rest written with the current grant when it differs from the row's.  A kept row keeps
     /// the member's sealed share key (docs/selective-share-plan.md), which a delete and re-insert would take.  A
-    /// circle whose row for this name is held by the other domain type is left alone, as it always was.
+    /// circle whose row for this name is held by the other domain type is left alone.
     /// </summary>
     public async Task ReconcileMemberCirclesAsync(AsciiDomainName domainName, DomainType domainType,
         IReadOnlyDictionary<Guid, CircleGrant> circleGrants)
@@ -255,7 +255,7 @@ public class CircleMembershipService(
     /// or the app that owns the circle, which may always see who is in its own circles.
     /// </summary>
     /// <remarks>
-    /// An app without the key is refused (403) for a circle that doesn't exist too, as it always was, so the answer
+    /// An app without the key is refused (403) for a circle that doesn't exist too, so the answer
     /// doesn't tell it which circle ids exist (<see cref="GetCircleCallerMayManageAsync"/>).
     /// </remarks>
     public async Task AssertCallerMayReadMembersAsync(GuidId circleId, IOdinContext odinContext)

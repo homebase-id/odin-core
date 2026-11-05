@@ -38,7 +38,7 @@ public class SelectiveShareHeaderTests : V2Fixture
     [Test]
     public async Task ADriveIsCreatedNeitherOwnerOnlyNorACollaborativeChannel()
     {
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
 
         await AssertCreationRefusedAsync(frodo, zkMasterKey, "owner only", ownerOnly: true);
         await AssertCreationRefusedAsync(frodo, zkMasterKey, "a collaborative channel", attributes: CollaborativeChannel);
@@ -47,7 +47,7 @@ public class SelectiveShareHeaderTests : V2Fixture
     [Test]
     public async Task ADrivesAttributesCantMakeItACollaborativeChannel()
     {
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         var (drive, _) = await CreateSelectiveShareDriveAsync(frodo, zkMasterKey);
         var svc = frodo.RefitFor<IRefitDriveManagement>();
 
@@ -66,7 +66,7 @@ public class SelectiveShareHeaderTests : V2Fixture
     [Test]
     public async Task AFileIsOwnerOrConnectedAndNamesNoOne()
     {
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         var (drive, driveKey) = await CreateSelectiveShareDriveAsync(frodo, zkMasterKey);
 
         foreach (var group in new[] { SecurityGroupType.Owner, SecurityGroupType.Connected })
@@ -86,7 +86,7 @@ public class SelectiveShareHeaderTests : V2Fixture
     [Test]
     public async Task AnUpdateCantNameAnyone()
     {
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         var (drive, driveKey) = await CreateSelectiveShareDriveAsync(frodo, zkMasterKey);
         var (upload, uniqueId, fileKey) = await UploadAsync(frodo, drive, driveKey, AccessControlList.OwnerOnly);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
@@ -151,17 +151,7 @@ public class SelectiveShareHeaderTests : V2Fixture
 
     private static async Task<(TargetDrive Drive, byte[] DriveKey)> CreateSelectiveShareDriveAsync(OwnerSession owner, byte[] zkMasterKey)
     {
-        var drive = TargetDrive.NewTargetDrive();
-        var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
-        await owner.Admin.CreateDrive(drive, "Shared", allowAnonymousReads: false, sharingModel: DriveSharingModel.SelectiveShare,
-            zkKeys: keys.Request);
+        var (drive, keys) = await ZkOwnerSteps.CreateZeroKnowledgeDriveAsync(owner, zkMasterKey, DriveSharingModel.SelectiveShare);
         return (drive, keys.DriveKey);
-    }
-
-    private async Task<(OwnerSession Owner, byte[] ZkMasterKey)> OwnerWithZeroKnowledgeKeysAsync()
-    {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
-        return (frodo, zkMasterKey);
     }
 }

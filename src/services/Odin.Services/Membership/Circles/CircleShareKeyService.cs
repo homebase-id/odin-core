@@ -17,7 +17,7 @@ using Odin.Services.Membership.Connections;
 namespace Odin.Services.Membership.Circles;
 
 /// <summary>
-/// Selective Share's circle keys (docs/selective-share-plan.md, PR 2).  A circle's share key is made on a device
+/// Selective Share's circle keys (docs/selective-share-plan.md).  A circle's share key is made on a device
 /// of the app that owns the circle, which stores it locked with the app's zero-knowledge key and stores a copy
 /// sealed to each member's matching drive.  The server opens none of them: it keeps them, checks their size and
 /// format version, and decides who may read or write which.

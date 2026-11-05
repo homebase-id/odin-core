@@ -366,7 +366,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             await fileSystem.Storage.AssertCanWriteToDrive(stateItem.File.DriveId, odinContext);
 
-            var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata, odinContext);
+            var directWriteSuccess = await TryDirectWriteFile(stateItem, odinContext);
 
             if (directWriteSuccess)
             {
@@ -402,7 +402,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fileSystem.Storage.WriteUploadStream(file, TenantPathManager.MetadataExtension, metadataStream, odinContext);
         }
 
-        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
+        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, IOdinContext odinContext)
         {
             if (!stateItem.IsDirectWrite)
             {
@@ -564,8 +564,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 try
                 {
-                    await fileSystem.Storage.SoftDeleteLongTermFile(stored.FileMetadata.File, writeContext, null,
-                        expectedVersionTag: stored.FileMetadata.VersionTag);
+                    // A tombstone that failed to write answers a server error, so the sender's outbox tries again
+                    _ = await fileSystem.Storage.SoftDeleteLongTermFile(stored.FileMetadata.File, writeContext, null,
+                            expectedVersionTag: stored.FileMetadata.VersionTag) ??
+                        throw new OdinSystemException($"File {stored.FileMetadata.File.FileId} could not be deleted");
                     return;
                 }
                 catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1)

@@ -87,14 +87,17 @@ public class ClientDriveNotification
 /// One drive event, as the message each socket gets in the shape it asked for. A minimal socket's message does not
 /// depend on the socket (no key header in it), so it is built once per event; full and noContent carry a key header
 /// encrypted for each socket. <paramref name="previousHeader"/> is set only for a delete (the publisher sees to that).
-/// A socket gets the event only if it may read the file (<see cref="VisibleToAsync"/>).
+/// A socket gets the event only if it may read the file (<see cref="VisibleToAsync"/>).  <paramref name="drive"/> is the
+/// file's, null when it is gone.
 /// </summary>
 public sealed class DriveEventMessage(
     ClientNotificationType notificationType,
-    TargetDrive? targetDrive,
+    StorageDrive? drive,
     ServerFileHeader? header,
     ServerFileHeader? previousHeader)
 {
+    private readonly TargetDrive? targetDrive = drive?.TargetDriveInfo;
+
     // A minimal event leaves out what it does not carry (the headers, an absent ref) instead of sending null;
     // full and noContent keep their nulls, as clients have always had them
     private static readonly JsonSerializerOptions MinimalOptions = new(OdinSystemSerializer.JsonSerializerOptions!)
@@ -115,7 +118,7 @@ public sealed class DriveEventMessage(
     {
         var deviceOdinContext = socket.DeviceOdinContext;
         var file = previousHeader ?? header;
-        return deviceOdinContext != null && await aclService.CallerMayReadAsync(file, deviceOdinContext);
+        return deviceOdinContext != null && await aclService.CallerMayReadAsync(drive, file, deviceOdinContext);
     }
 
     /// <summary>
@@ -131,7 +134,7 @@ public sealed class DriveEventMessage(
         try
         {
             var drive = await driveManager.GetDriveAsync(driveId);
-            driveEvent = new DriveEventMessage(notificationType, drive?.TargetDriveInfo, header, previousHeader);
+            driveEvent = new DriveEventMessage(notificationType, drive, header, previousHeader);
         }
         catch (Exception e)
         {
@@ -182,31 +185,25 @@ public sealed class DriveEventMessage(
         var deviceOdinContext = socket.DeviceOdinContext;
         var shape = socket.ResultShape; // read once, as JsonFor does: a handshake may change it while this runs
         var file = previousHeader ?? header;
-        var fileId = file?.FileMetadata?.File;
-        var shares = deviceOdinContext == null || fileId is not { } id
+        var shares = deviceOdinContext == null || file?.FileMetadata?.File == null
             ? null
-            : await aclService.FilesSharedWithCallerAsync(id.DriveId, [file!], deviceOdinContext);
+            : await aclService.FilesSharedWithCallerAsync(drive, [file], deviceOdinContext);
         if (shares == null)
         {
             return await VisibleToAsync(socket, aclService) ? JsonFor(socket) : null;
         }
 
-        var target = fileId!.Value;
-        if (await aclService.CallerMayReadAsync(file!, deviceOdinContext!, shares))
+        if (await aclService.CallerMayReadAsync(drive, file!, deviceOdinContext!, shares))
         {
             return Json(notificationType, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, header,
-                previousHeader, shares.LiveRowOf(target.FileId)), shape);
-        }
-
-        if (!shares.Names(target.FileId))
-        {
-            return null;
+                previousHeader, shares.LiveRowOf(file!.FileMetadata.File.FileId)), shape);
         }
 
         // From the header as it is now: a change that ended the share announces its own time, which a client goes by
-        var noLongerShared = DriveStorageServiceBase.NoLongerSharedTombstoneOf(header ?? file!);
-        return Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive,
-            noLongerShared, null), shape);
+        return DriveStorageServiceBase.NoLongerSharedViewOf(header ?? file!, shares) is { } noLongerShared
+            ? Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive,
+                noLongerShared, null), shape)
+            : null;
     }
 
     private static string Json(ClientNotificationType type, ClientDriveNotification notification, FileResultShape shape) =>

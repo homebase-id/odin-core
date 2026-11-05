@@ -262,7 +262,7 @@ public class ZkDriveFileTests : V2Fixture
     public async Task TheCdnNeverServesAZkDriveFile()
     {
         // The CDN reads as the system, which reaches a drive's own files for its jobs; a zero-knowledge drive
-        // is never one of the CDN's drives.  The owner can't turn CDN on for one (DriveSettings.AssertFit),
+        // is never one of the CDN's drives.  The owner can't turn CDN on for one (DriveSettings.AssertChangeFits),
         // so the flag is set in storage, as a drive whose flag predates that rule has it
         var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
         var refused = await frodo.RefitFor<IRefitDriveManagement>().SetAllowCdn(new UpdateDriveAllowCdnRequest { TargetDrive = Drive, AllowCdn = true });
@@ -357,6 +357,27 @@ public class ZkDriveFileTests : V2Fixture
 
         var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), read.Error?.Content);
+    }
+
+    [Test]
+    public async Task ARekeyTurnsOffTheCdnAZeroKnowledgeDriveCantHave()
+    {
+        // A conversion turns off what its model refuses rather than fail on it, so a re-key after a reset (the same
+        // conversion) still lands on a drive whose CDN flag predates the settings check
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
+        await SetFlagsInStorageAsync(frodo, details =>
+        {
+            details.AllowCdn = true;
+            details.AllowAnonymousReads = true;
+            details.AllowSubscriptions = true;
+        });
+
+        await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, zkMasterKey);
+
+        var drives = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<TableDrivesCached>();
+        var after = OdinSystemSerializer.Deserialize<StorageDriveDetails>((await drives.GetAsync(Drive.Alias))!.detailsJson)!;
+        Assert.That((after.AllowCdn, after.AllowAnonymousReads, after.AllowSubscriptions), Is.EqualTo((false, false, false)),
+            "all three turned off by the re-key");
     }
 
     [Test]
@@ -466,12 +487,15 @@ public class ZkDriveFileTests : V2Fixture
             "the client opens it with the file key and the payload's IV");
 
     /// <summary>Sets <paramref name="owner"/>'s Shard Recovery drive's CDN flag straight in the drives table.</summary>
-    private async Task SetAllowCdnInStorageAsync(OwnerSession owner)
+    private Task SetAllowCdnInStorageAsync(OwnerSession owner) => SetFlagsInStorageAsync(owner, details => details.AllowCdn = true);
+
+    /// <summary>Changes <paramref name="owner"/>'s Shard Recovery drive's settings straight in the drives table.</summary>
+    private async Task SetFlagsInStorageAsync(OwnerSession owner, Action<StorageDriveDetails> change)
     {
         var drives = Host.GetTenantScope(owner.Identity.DomainName).Resolve<TableDrivesCached>();
         var record = (await drives.GetAsync(Drive.Alias))!;
         var details = OdinSystemSerializer.Deserialize<StorageDriveDetails>(record.detailsJson)!;
-        details.AllowCdn = true;
+        change(details);
         record.detailsJson = OdinSystemSerializer.Serialize(details);
         await drives.UpsertAsync(record);
     }

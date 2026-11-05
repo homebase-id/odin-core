@@ -480,14 +480,14 @@ public partial class SelectiveShareTests : V2Fixture
         var s = await ArrangeAsync();
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "a new file", remoteDrive: s.Drive);
-        var received = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
+        var received = await s.HeaderByUniqueIdAsync(uniqueId);
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
         payload.Iv = ByteArrayUtil.GetRndByteArray(16);
         var upload = await s.Frodo.V1.Drive.UploadPayloads(new ExternalFileIdentifier { FileId = received.FileId, TargetDrive = s.Drive },
             received.FileMetadata.VersionTag, new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload]);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
-        Assert.That((await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!.FileMetadata.Payloads,
+        Assert.That((await s.HeaderByUniqueIdAsync(uniqueId)).FileMetadata.Payloads,
             Has.Count.EqualTo(1));
     }
 
@@ -1000,9 +1000,8 @@ public partial class SelectiveShareTests : V2Fixture
         /// <summary>The app sets the circle's key: a stand-in, which the server can't open.</summary>
         public async Task SetShareKeyAsync(Guid circleId)
         {
-            var key = new byte[61];
-            key[0] = CircleShareKeyService.FormatVersion;
-            var set = await App.RefitFor<ICircleShareKeyHttpClient>().SetShareKey(circleId, new CircleShareKeyData { AppKeyLockedShareKey = key });
+            var set = await App.RefitFor<ICircleShareKeyHttpClient>().SetShareKey(circleId,
+                new CircleShareKeyData { AppKeyLockedShareKey = AppCircles.ShareKeyBlob() });
             Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK), set.Error?.Content);
         }
 
@@ -1104,12 +1103,8 @@ public partial class SelectiveShareTests : V2Fixture
         }
 
         /// <summary>The header of the file with <paramref name="uniqueId"/> on Frodo's drive, a member's file found by its id.</summary>
-        public async Task<SharedSecretEncryptedFileHeader> HeaderByUniqueIdAsync(Guid uniqueId)
-        {
-            var response = await Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
-            return response.Content!;
-        }
+        public Task<SharedSecretEncryptedFileHeader> HeaderByUniqueIdAsync(Guid uniqueId) =>
+            ZkTestFiles.HeaderByUniqueIdAsync(Frodo, uniqueId, Drive);
 
         /// <summary>The app makes a circle of its own as <paramref name="request"/> says, sets its key and adds <paramref name="members"/>.</summary>
         public async Task<Guid> AppCircleAsync(CreateAppCircleRequest request, params string[] members)

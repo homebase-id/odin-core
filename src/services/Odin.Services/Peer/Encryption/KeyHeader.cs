@@ -119,5 +119,8 @@ namespace Odin.Services.Peer.Encryption
         public EncryptedKeyHeader Locked { get; }
 
         public EncryptionType Type => Locked.Type;
+
+        /// <summary>A deposit's key header: sealed to the drive's write-only key (<see cref="EncryptedKeyHeader.IsSealed"/>).</summary>
+        public bool IsSealed => Locked.IsSealed();
     }
 }

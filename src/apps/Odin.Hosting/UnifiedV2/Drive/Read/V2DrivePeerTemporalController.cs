@@ -52,7 +52,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             var fst = GetHttpFileSystemResolver().GetFileSystemType();
             var v1Request = new QueryBatchRequest
             {
-                QueryParams = ToV1QueryParams(request.QueryParams, driveId),
+                QueryParams = V2PeerAppDriveControllerBase.ToV1QueryParams(request.QueryParams, ToTargetDrive(driveId)),
                 ResultOptionsRequest = request.ResultOptionsRequest,
                 FileSystemType = fst
             };
@@ -64,28 +64,6 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         private static TargetDrive ToTargetDrive(Guid driveId)
         {
             return new TargetDrive { Alias = driveId, Type = Guid.Empty };
-        }
-
-        private static FileQueryParamsV1 ToV1QueryParams(FileQueryParams p, Guid driveId)
-        {
-            return new FileQueryParamsV1
-            {
-                TargetDrive = new TargetDrive { Alias = driveId, Type = Guid.Empty },
-                FileType = p.FileType,
-                FileState = p.FileState,
-                DataType = p.DataType,
-                ArchivalStatus = p.ArchivalStatus,
-                Sender = p.Sender,
-                GroupId = p.GroupId,
-                UserDate = p.UserDate,
-                ClientUniqueIdAtLeastOne = p.ClientUniqueIdAtLeastOne,
-                TagsMatchAtLeastOne = p.TagsMatchAtLeastOne,
-                TagsMatchAll = p.TagsMatchAll,
-                LocalTagsMatchAtLeastOne = p.LocalTagsMatchAtLeastOne,
-                LocalTagsMatchAll = p.LocalTagsMatchAll,
-                GlobalTransitId = p.GlobalTransitId,
-                SharedWith = p.SharedWith
-            };
         }
     }
 

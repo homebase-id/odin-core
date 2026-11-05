@@ -195,7 +195,7 @@ public static class ZkDriveFiles
     /// </summary>
     public static void AssertMayReplace(ServerFileHeader existing, KeyHeader? replacement)
     {
-        if (replacement is ClientLockedKeyHeader { Type: EncryptionType.Sealed } &&
+        if (replacement is ClientLockedKeyHeader { IsSealed: true } &&
             existing.FileMetadata.IsEncrypted && existing.EncryptedKeyHeader?.IsSealed() != true)
         {
             throw new OdinClientException("A sealed key header replaces only a sealed one: never one locked with the drive's key, " +

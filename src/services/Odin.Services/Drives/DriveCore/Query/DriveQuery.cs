@@ -172,16 +172,7 @@ public class DriveQuery(
             return null;
         }
 
-        if (!drive.IsSelectiveShare)
-        {
-            throw new OdinClientException($"Drive {drive.Id} isn't a SelectiveShare drive: its files have no shares",
-                OdinClientErrorCode.ArgumentError);
-        }
-
-        if (!SelectiveShareDrives.CallerManagesShares(drive, odinContext.Caller))
-        {
-            throw new OdinSecurityException($"Only the owner console or the app that owns drive {drive.Id} sees whom its files are shared with");
-        }
+        SelectiveShareDrives.AssertCallerManagesShares(drive, odinContext.Caller, "sees whom its files are shared with");
 
         return qp.SharedWith.ToList();
     }
@@ -253,7 +244,7 @@ public class DriveQuery(
 
         // On a Selective Share drive a stored file keeps its group, whatever the write sends: the server decides it,
         // Owner until the first share lifts it to Connected (decision A), so an owner client that sends Owner with an
-        // edit doesn't close a shared file to its members; withdrawing the shares un-shares it (decided 2026-11-02).
+        // edit doesn't close a shared file to its members; withdrawing the shares un-shares it.
         // Read with the row locked, in the write's transaction, so a share written meanwhile waits rather than being
         // written back.  Every header write through the file system comes here; the defragmenter's raw repair doesn't
         await using var tx = await db.BeginStackedTransactionAsync();
@@ -408,6 +399,13 @@ public class DriveQuery(
     {
         var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
         return record?.fileSystemType == (int)fileSystemType ? ServerFileHeader.FromDriveMainIndexRecord(record) : null;
+    }
+
+    /// <summary>The file system <paramref name="fileId"/> is stored in, or null when there is no such file.</summary>
+    public async Task<FileSystemType?> GetFileSystemTypeAsync(Guid driveId, Guid fileId)
+    {
+        var record = await tblDriveMainIndex.GetAsync(driveId, fileId);
+        return record == null ? null : (FileSystemType)record.fileSystemType;
     }
 
     /// <summary>The file's header, of whichever file system it is.</summary>

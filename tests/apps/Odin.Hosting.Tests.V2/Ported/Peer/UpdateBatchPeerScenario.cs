@@ -26,7 +26,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// The one thing that makes this scenario its own is the drive: it must carry
 /// <see cref="BuiltInDriveAttributes.IsCollaborativeChannel"/> (<see cref="DriveSpec.Collab"/> /
 /// <see cref="DriveSpec.CollabAttributes"/>). On a collaboration drive
-/// <c>PeerFileUpdateWriter.DetermineAclAsync</c> keeps the sending identity's ACL on the recipient's
+/// <c>IncomingFileAcl.ForIncomingFileAsync</c> keeps the sending identity's ACL on the recipient's
 /// copy instead of narrowing it to owner-only, which is what makes an update fanned out to a peer
 /// readable there.
 /// </remarks>

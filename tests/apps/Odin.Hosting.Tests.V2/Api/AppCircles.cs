@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -7,12 +8,24 @@ using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Membership.Circles;
 
 namespace Odin.Hosting.Tests.V2.Api;
 
 /// <summary>Arrange helpers for circles an app owns.</summary>
 public static class AppCircles
 {
+    /// <summary>
+    /// A stand-in for an app-locked circle share key, which the server can't open: format version 2, then
+    /// <paramref name="fill"/>; 61 bytes unless a test needs another length.
+    /// </summary>
+    public static byte[] ShareKeyBlob(int length = 61, byte fill = 0)
+    {
+        var blob = Enumerable.Repeat(fill, length).ToArray();
+        blob[0] = CircleShareKeyService.FormatVersion;
+        return blob;
+    }
+
     /// <summary>An app with no permission keys, its own drive, and a circle of its own granting Write on it.</summary>
     public static async Task<(AppSession App, Guid CircleId, TargetDrive Drive)> AppWithItsOwnCircleAsync(OwnerSession owner)
     {

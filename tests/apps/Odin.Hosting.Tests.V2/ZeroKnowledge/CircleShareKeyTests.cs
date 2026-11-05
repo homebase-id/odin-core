@@ -70,7 +70,7 @@ public class CircleShareKeyTests : V2Fixture
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key));
 
         // A second device racing the first loses, and the first key stays
-        var second = await keys.SetShareKey(circleId, Key(Blob(61, 2)));
+        var second = await keys.SetShareKey(circleId, Key(AppCircles.ShareKeyBlob(61, 2)));
         DriveAsserts.AssertRejected(second, OdinClientErrorCode.CircleShareKeyAlreadySet);
         Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(key));
 
@@ -122,7 +122,7 @@ public class CircleShareKeyTests : V2Fixture
         wrongVersion[0] = 1;
         DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key(wrongVersion)),
             OdinClientErrorCode.InvalidShareKey);
-        DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key(Blob(513, 1))),
+        DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key(AppCircles.ShareKeyBlob(513, 1))),
             OdinClientErrorCode.InvalidShareKey);
         DriveAsserts.AssertRejected(await keys.SetShareKey(circleId, Key([])),
             OdinClientErrorCode.InvalidShareKey);
@@ -224,14 +224,14 @@ public class CircleShareKeyTests : V2Fixture
         Assert.That(fetched.StatusCode, Is.EqualTo(HttpStatusCode.OK), fetched.Error?.Content);
         Assert.That(fetched.Content?.SealedKey, Is.Null, "Sam still gets the old copy");
 
-        Assert.That((await keys.SetShareKey(circleId, Key(Blob(61, 2)))).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(Blob(61, 2)));
+        Assert.That((await keys.SetShareKey(circleId, Key(AppCircles.ShareKeyBlob(61, 2)))).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await StoredKeyAsync(keys, circleId), Is.EqualTo(AppCircles.ShareKeyBlob(61, 2)));
 
         // Copies a device sealed from the old key before the reset are refused, and Sam stays listed for sealing
         DriveAsserts.AssertRejected(await keys.SetSealedShareKeys(circleId, Sealed((Identities.Sam, 7))),
             OdinClientErrorCode.CircleShareKeyChanged);
         Assert.That((await keys.GetUnsealedMembers(circleId)).Content, Is.EqualTo(new[] { Identities.Sam }));
-        Assert.That((await keys.SetSealedShareKeys(circleId, SealedFrom(Blob(61, 2), (Identities.Sam, 8)))).StatusCode,
+        Assert.That((await keys.SetSealedShareKeys(circleId, SealedFrom(AppCircles.ShareKeyBlob(61, 2), (Identities.Sam, 8)))).StatusCode,
             Is.EqualTo(HttpStatusCode.OK));
     }
 
@@ -335,14 +335,6 @@ public class CircleShareKeyTests : V2Fixture
         return response.Content!.AppKeyLockedShareKey;
     }
 
-    /// <summary>A stand-in for a blob the server can't open: format version 2, then <paramref name="fill"/>.</summary>
-    private static byte[] Blob(int length, byte fill)
-    {
-        var blob = Enumerable.Repeat(fill, length).ToArray();
-        blob[0] = CircleShareKeyService.FormatVersion;
-        return blob;
-    }
-
     private static CircleShareKeyData Key(byte[] appKeyLockedShareKey) => new() { AppKeyLockedShareKey = appKeyLockedShareKey };
 
     /// <summary>A member's own copy, fetched through their server from the circle owner's.</summary>
@@ -350,10 +342,10 @@ public class CircleShareKeyTests : V2Fixture
         member.RefitFor<ICircleShareKeyHttpClient>().GetMySealedShareKey(owner.Identity.DomainName, circleId);
 
     /// <summary>A stand-in for a member's sealed copy.</summary>
-    private static byte[] Copy(byte fill) => Blob(200, fill);
+    private static byte[] Copy(byte fill) => AppCircles.ShareKeyBlob(200, fill);
 
     /// <summary>The key every test sets first; a new array each time, so no test can change another's.</summary>
-    private static byte[] TheKey => Blob(61, 1);
+    private static byte[] TheKey => AppCircles.ShareKeyBlob(61, 1);
 
     /// <summary>Copies sealed from the key every test sets first, <see cref="TheKey"/>.</summary>
     private static SetSealedShareKeysRequest Sealed(params (string Identity, byte Fill)[] members) => SealedFrom(TheKey, members);

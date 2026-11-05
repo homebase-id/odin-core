@@ -70,9 +70,12 @@ public class CommentFileStorageService(
         }
     }
 
-    /// <summary>Only owner callers comment on a Private drive: nobody else may read its files (docs/terminology.md).</summary>
+    /// <summary>
+    /// Only owner callers comment on a Private drive: nobody else may read its files (docs/terminology.md).  The server's
+    /// own jobs (a comment's TTL) pass, as they pass every ACL.
+    /// </summary>
     private static bool PrivateDriveAllowsCaller(StorageDrive drive, IOdinContext odinContext) =>
-        drive.SharingModel != DriveSharingModel.Private || odinContext.Caller.IsOwner;
+        drive.SharingModel != DriveSharingModel.Private || DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller);
 
     public override async Task<bool> CanWriteToDrive(Guid driveId, IOdinContext odinContext)
     {
