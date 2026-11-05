@@ -22,8 +22,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public UnixTimeUtc TransitUpdated { get; init; }
 
-        public SendersWrite SendersWrite { get; init; }
-
         // public ReactionSummary ReactionPreview { get; init; }
 
         public bool IsEncrypted { get; init; }
@@ -56,7 +54,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // Updated = fileMetadata.Updated;
             TransitCreated = fileMetadata.TransitCreated;
             TransitUpdated = fileMetadata.TransitUpdated;
-            SendersWrite = fileMetadata.SendersWrite;
             // ReactionPreview = ReactionPreview
             IsEncrypted = fileMetadata.IsEncrypted;
             // SenderOdinId = fileMetadata.SenderOdinId;

@@ -160,7 +160,7 @@ the page comes back short.
 
 **A file's original sender changes it by sending it again or updating it, as long as no one else has written it since
 their last write; anyone else, and the sender once someone else has, names the version tag the file has**, on every
-drive **(V, tested)**. Anything else is refused with `VersionTagMismatch` (`SentFileChanges.LandedBefore`), and the SQL
+drive **(V, tested)**. Anything else is refused with `VersionTagMismatch` (`SentFileChanges.AlreadyLandedOrAssertMayChange`), and the SQL
 write that replaces the header checks the tag again (`TableDriveMainIndex`, `WHERE hdrVersionTag = @hdrVersionTag`)
 **(V)**, so of two writes from the same tag only the first lands. Both writers ask who may change the file and what it
 names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdateWriter`) **(V)**.
@@ -170,9 +170,9 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   **(V)**.
 - **The recipient records the last write by a peer.** Each new file, file sent again and update from a peer stores, in
   the header, who sent it, the version tag their copy had and the one the write gave the recipient's copy
-  (`FileMetadata.SendersWrite`) **(V, tested)**. The recipient's copy keeps version tags of its own server's making, as
+  (`ServerMetadata.SendersWrite`) **(V, tested)**. The recipient's copy keeps version tags of its own server's making, as
   for every file; only the update flow takes the sender's new tag, as it always has (`UpdateRemoteFileRequest.NewVersionTag`).
-  The record comes from this server, never from the sender's metadata **(V)**. A save that changes none of the file's
+  The record is in the server's own metadata, which never travels between identities, so a sender can't supply it **(V)**. A save that changes none of the file's
   content carries the record over to the new tag: the expiry of an expire-after-read file starting or hastened, and the
   owner's change of its archival status (`DriveStorageServiceBase.CarrySendersWrite`) **(V, tested for the archival status)**.
 - **A sender who can only write the file names no tag.** While the file still has the tag their last write gave it,

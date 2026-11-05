@@ -206,9 +206,8 @@ compatible with.
      the route.
    - **The member's public key** comes from #2045's endpoint and cache (`GET /api/v2/peer/{odinId}/apps/{appSlug}/
      drives/{driveSlug}/public-key`): `PublicKeyJwk`, `PublicKeyCrc32` (the key hint in the sealed copy) and
-     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. It is served to any connection the
-     member has reviewed, so sharing needs no grant on the member's drive; one not yet reviewed gets a 403 with
-     `ContactNotReviewed` (security-model.md, "A drive's public key"). The client must not seal to a drive whose
+     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. It is served to any identity, so
+     sharing needs no grant on the member's drive (security-model.md, "A drive's public key"). The client must not seal to a drive whose
      sharing model is `Collaborative`: its server and its members hold its key (file-access.md, "Terms"). The server
      may refuse it later.
    - **A developer's reset** (`DELETE .../share-key`, owner console only, no UI): clears the key and every member's
@@ -281,9 +280,8 @@ content with it and leaves the key headers alone. Two things are needed:
    The drive is browser-made on a zero-knowledge drive. Fetched by slug, never by drive id:
    `GET /api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/public-key`
    (`V2PeerAppDrivePublicKeyController`) **(V)**, which goes through the peer drive key cache from #2045.
-   That endpoint requires Write on the target drive (`PeerDriveQueryService.cs`,
-   `GetDriveWriteOnlyPublicKeyAsync`) **(V)**. **Decided (2026-10-30):** the app's circles grant Read and Write
-   on its drive, so the endpoint works as it is; whether a share is read-only is the Write bit of its row. To react
+   That endpoint serves any identity (`PeerDriveQueryService.cs`, `GetDriveWriteOnlyPublicKeyAsync`) **(V)**.
+   **Decided (2026-10-30):** whether a share is read-only is the Write bit of its row. To react
    and comment by a share, the circle grants `React` and `Comment` too: a row narrows its circle's grant, for every
    bit (decided 2026-11-02).
 2. **Owner circles** (no owning app): not shareable this way, or locked with the master key so only the owner

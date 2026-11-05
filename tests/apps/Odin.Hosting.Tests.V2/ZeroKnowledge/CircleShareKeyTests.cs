@@ -20,8 +20,8 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
-using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Network;
+using Odin.Services.Util;
 using Refit;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
@@ -246,12 +246,11 @@ public class CircleShareKeyTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var (_, circleId, _) = await CircleWithSamsCopyAsync(owner);
 
-        var tenant = Host.GetTenantScope(owner.Identity.DomainName);
-        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(sam.Identity, ConnectionStatus.Connected, null);
-        await tenant.Resolve<OdinContextCache>().ResetAsync();
+        await ClearReviewOnAsync(owner, sam.Identity);
 
         var unreviewed = await FetchCopyAsync(sam, owner, circleId);
-        Assert.That(unreviewed.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
+        Assert.That((unreviewed.StatusCode, unreviewed.ErrorCode()),
+            Is.EqualTo((HttpStatusCode.Forbidden, OdinClientErrorCode.NotReviewedByOwner)),
             $"an unreviewed connection was served: {unreviewed.Content?.SealedKey?.Length} bytes, {unreviewed.Error?.Content}");
 
         var review = await new V2ConnectionNetworkClient(owner.Identity, owner.Factory).MarkReviewedAsync(sam.Identity);

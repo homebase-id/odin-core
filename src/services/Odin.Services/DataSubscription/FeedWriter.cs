@@ -46,7 +46,6 @@ public class FeedWriter(
         // Clearing the UID for any files that go into the feed drive because the feed drive
         // comes from multiple channel drives from many different identities so there could be a clash
         fileMetadata.AppData.UniqueId = null;
-        fileMetadata.SendersWrite = null; // the channel's own record of who wrote its copy, not this one's
 
         var serverMetadata = new ServerMetadata()
         {
@@ -114,7 +113,6 @@ public class FeedWriter(
         // Clearing the UID for any files that go into the feed drive because the feed drive 
         // comes from multiple channel drives from many different identities so there could be a clash
         header.FileMetadata.AppData.UniqueId = null;
-        header.FileMetadata.SendersWrite = null; // the channel's own record of who wrote its copy, not this one's
 
         await _fileSystem.Storage.UpdateActiveFileHeader(targetFile, header, odinContext, raiseEvent: true);
         if (header.FileMetadata.ReactionPreview == null)

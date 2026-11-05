@@ -66,7 +66,7 @@ internal static class SentFileChanges
     public static bool AlreadyLandedOrAssertMayChange(ServerFileHeader stored, OdinId sender, bool sentIt, Guid sendersVersionTag,
         Guid? namedVersionTag)
     {
-        var lastWrite = stored.FileMetadata.SendersWrite is { } last && last.Sender == sender ? last : null;
+        var lastWrite = stored.ServerMetadata.SendersWrite is { } last && last.Sender == sender ? last : null;
         if (lastWrite != null && lastWrite.SendersVersionTag == sendersVersionTag)
         {
             return true;

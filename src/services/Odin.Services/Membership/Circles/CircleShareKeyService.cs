@@ -180,15 +180,17 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
     /// </summary>
     /// <remarks>
     /// An unreviewed connection is judged as a logged-in stranger wherever content is (<see cref="ReviewedSecurityTier"/>),
-    /// and the circle key opens content, so it waits for the review.  The copy can be sealed before then; it is
-    /// served once the review lands.
+    /// and the circle key opens content, so it waits for the review, refused with
+    /// <see cref="OdinClientErrorCode.NotReviewedByOwner"/> so its app can say so.  The copy can be sealed before then;
+    /// it is served once the review lands.
     /// </remarks>
     public async Task<byte[]> GetCallersSealedShareKeyAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsConnected();
         if (ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller) != SecurityGroupType.Connected)
         {
-            throw new OdinSecurityException("Caller is a connection the owner has not reviewed yet");
+            throw new OdinSecurityException("Caller is a connection the owner has not reviewed yet",
+                OdinClientErrorCode.NotReviewedByOwner);
         }
 
         // The caller's circles come from a peer context cached for up to an hour, which disabling a circle doesn't

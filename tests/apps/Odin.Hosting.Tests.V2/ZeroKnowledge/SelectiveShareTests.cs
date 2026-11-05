@@ -118,7 +118,7 @@ public partial class SelectiveShareTests : V2Fixture
         await AssertSeesAsync(pippin, s, shared, false, "Pippin, in no circle of the app", hasDriveAccess: false);
 
         // An unreviewed connection counts as Authenticated, below the file's Connected
-        await UnreviewSamAsync(s);
+        await ClearReviewOnAsync(s.Frodo, s.Sam.Identity);
         await AssertSamSeesAsync(s, shared, false, "unreviewed");
         await ReviewSamAsync(s);
         await AssertSamSeesAsync(s, shared, true, "reviewed again");
@@ -144,7 +144,7 @@ public partial class SelectiveShareTests : V2Fixture
         await OwnerCommentAsync(s, file, null, null);
         await AssertSamSeesAsync(s, fileId, true, "reviewed");
 
-        await UnreviewSamAsync(s);
+        await ClearReviewOnAsync(s.Frodo, s.Sam.Identity);
         try
         {
             await AssertSamSeesAsync(s, fileId, false, "unreviewed");
@@ -173,13 +173,6 @@ public partial class SelectiveShareTests : V2Fixture
         }
     }
 
-    // An unreviewed connection counts as Authenticated, below a shared file's Connected
-    private async Task UnreviewSamAsync(Arranged s)
-    {
-        var tenant = Host.GetTenantScope(s.Frodo.Identity.DomainName);
-        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(s.Sam.Identity, ConnectionStatus.Connected, null);
-        await tenant.Resolve<OdinContextCache>().ResetAsync();
-    }
 
     private static async Task ReviewSamAsync(Arranged s)
     {

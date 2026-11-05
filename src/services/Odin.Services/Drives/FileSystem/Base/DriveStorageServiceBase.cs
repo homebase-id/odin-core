@@ -1754,7 +1754,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
             // sets the new VersionTag and Updated on the header
-            await WriteFileHeaderInternal(header, odinContext, CarrySendersWrite(header.FileMetadata));
+            await WriteFileHeaderInternal(header, odinContext, CarrySendersWrite(header));
 
             if (await TryShouldRaiseDriveEventAsync(file))
             {
@@ -2513,12 +2513,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// archival status): a peer's last write the file still had carries over to it, so the save doesn't end its sender's
         /// right to change the file (docs/file-access.md, "Changing a file you sent").
         /// </summary>
-        private static Guid CarrySendersWrite(FileMetadata metadata)
+        private static Guid CarrySendersWrite(ServerFileHeader header)
         {
             var versionTag = DriveFileUtility.CreateVersionTag();
-            if (metadata.SendersWrite is { } last && last.VersionTag == metadata.VersionTag)
+            if (header.ServerMetadata.SendersWrite is { } last && last.VersionTag == header.FileMetadata.VersionTag)
             {
-                metadata.SendersWrite = new SendersWrite
+                header.ServerMetadata.SendersWrite = new SendersWrite
                     { Sender = last.Sender, SendersVersionTag = last.SendersVersionTag, VersionTag = versionTag };
             }
 
@@ -2608,7 +2608,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
 
                     fresh.FileMetadata.Ttl = resolved;
-                    await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: CarrySendersWrite(fresh.FileMetadata));
+                    await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: CarrySendersWrite(fresh));
                     tx.Commit();
                 }
 
@@ -2684,7 +2684,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // Shorten-only by construction: now is earlier than any live absolute Ttl, and a
                 // pending negative Ttl resolves to at-least-now. Never extend, never resurrect.
                 fresh.FileMetadata.Ttl = nowMs;
-                await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: CarrySendersWrite(fresh.FileMetadata));
+                await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: CarrySendersWrite(fresh));
                 tx.Commit();
             }
 

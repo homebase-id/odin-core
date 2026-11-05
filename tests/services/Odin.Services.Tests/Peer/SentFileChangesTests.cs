@@ -53,7 +53,7 @@ public class SentFileChangesTests
                      ("its sender's, once someone else changed it", Header(Guid.NewGuid()), Sam, true, null),
                      ("its sender's, after another peer's write", Header(Stored, Pippin), Sam, true, null),
                      ("its sender's, with no write of theirs recorded",
-                         new ServerFileHeader { FileMetadata = new FileMetadata { VersionTag = Stored } }, Sam, true, null)
+                         new ServerFileHeader { FileMetadata = new FileMetadata { VersionTag = Stored }, ServerMetadata = new ServerMetadata() }, Sam, true, null)
                  })
         {
             var refused = Assert.Throws<OdinClientException>(
@@ -71,9 +71,9 @@ public class SentFileChangesTests
     // it has <paramref name="versionTag"/> now
     private static ServerFileHeader Header(Guid versionTag, OdinId? writer = null) => new()
     {
-        FileMetadata = new FileMetadata
+        FileMetadata = new FileMetadata { VersionTag = versionTag },
+        ServerMetadata = new ServerMetadata
         {
-            VersionTag = versionTag,
             SendersWrite = new SendersWrite { Sender = writer ?? Sam, SendersVersionTag = SamsLast, VersionTag = Stored }
         }
     };

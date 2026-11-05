@@ -277,7 +277,7 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   **Changed 2026-11-04, one rule on every drive** (file-access.md, "Changing a file you sent"): the recipient records
   the sender's last write (`SendersWrite`); the sender changes the file, naming no tag, while no one else has written it
   since, and anyone else names the file's tag. On a Selective Share drive any share freezes it for the sender. The same
-  delivery is the sender's tag already recorded (`SentFileChanges.LandedBefore`); `IsSameDelivery` is gone.
+  delivery is the sender's tag already recorded (`SentFileChanges.AlreadyLandedOrAssertMayChange`); `IsSameDelivery` is gone.
 
 ## 8. Members sync with the query batch
 

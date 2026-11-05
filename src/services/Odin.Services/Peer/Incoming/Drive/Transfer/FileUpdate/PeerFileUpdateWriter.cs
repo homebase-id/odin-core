@@ -67,16 +67,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
             incomingMetadata!.SenderOdinId = sender;
 
-            // Its sender's write, which their next change goes by; the update gives the file the sender's new tag
-            // (docs/file-access.md, "Changing a file you sent")
             var request = instructionSet.Request;
-            incomingMetadata.SendersWrite = SentFileChanges.SendersWriteOf(sender, request.NewVersionTag, request.NewVersionTag);
-
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
                 AllowDistribution = isCollaborationChannel,
-                AccessControlList = targetAcl
+                AccessControlList = targetAcl,
+                // Its sender's write, which their next change goes by; the update gives the file the sender's new tag
+                // (docs/file-access.md, "Changing a file you sent")
+                SendersWrite = SentFileChanges.SendersWriteOf(sender, request.NewVersionTag, request.NewVersionTag)
             };
 
             if (null == existingHeader)

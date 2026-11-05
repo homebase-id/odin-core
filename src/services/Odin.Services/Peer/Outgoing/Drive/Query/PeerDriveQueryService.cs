@@ -120,7 +120,8 @@ public class PeerDriveQueryService(
 
     /// <summary>
     /// The write-only public key of <paramref name="odinId"/>'s <c>/apps/{appSlug}/drives/{driveSlug}</c>, so this
-    /// identity can seal a deposit to a drive it may write but never read.
+    /// identity can seal a deposit to a drive it may write but never read, or a key for that identity to open (a
+    /// Selective Share circle key).
     /// </summary>
     /// <remarks>
     /// Cached for <c>Host:PeerDriveKeyCacheSeconds</c> (docs/drive-public-keys-plan.md), and only for a
@@ -131,7 +132,7 @@ public class PeerDriveQueryService(
     public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, OdinSlug appSlug,
         OdinSlug driveSlug, IOdinContext odinContext)
     {
-        // Write, not read: this key exists to put data on someone else's drive.
+        // Write, not read: the key exists to put data on someone else's drive, or a key for them to open
         if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.UseTransitWrite))
         {
             throw new OdinSecurityException(
@@ -141,8 +142,8 @@ public class PeerDriveQueryService(
         OdinSlug.Required(appSlug, nameof(appSlug));
         OdinSlug.Required(driveSlug, nameof(driveSlug));
 
-        // v2: the answer carries the drive's SharingModel; a copy cached before it would read as Collaborative
-        return await cache.GetOrSetAsync($"peer-drive-key-v2:{odinId}:{appSlug}:{driveSlug}",
+        // v3: the answer carries CallerMayWrite; a copy cached before it would read as false
+        return await cache.GetOrSetAsync($"peer-drive-key-v3:{odinId}:{appSlug}:{driveSlug}",
             _ => FetchRemoteDriveWriteOnlyPublicKeyAsync(odinId, appSlug, driveSlug, odinContext),
             odinConfiguration.Host.PeerDriveKeyCacheAge, _ => EntrySize.Small, tags: [DriveKeysTag(odinId)],
             storeIf: key => key.IsZeroKnowledge);
@@ -185,13 +186,6 @@ public class PeerDriveQueryService(
         {
             throw new OdinClientException($"{odinId} has no drive at /apps/{appSlug}/drives/{driveSlug}",
                 OdinClientErrorCode.InvalidDrive);
-        }
-
-        // A 403 is the remote refusing this identity. Surfaced as-is rather than folded into "no such
-        // drive", and with its reason when the remote hasn't reviewed the connection, so the app can say so
-        if (response?.StatusCode == HttpStatusCode.Forbidden && response.ErrorCode() == OdinClientErrorCode.ContactNotReviewed)
-        {
-            throw new OdinSecurityException($"{odinId} hasn't reviewed the connection yet", OdinClientErrorCode.ContactNotReviewed);
         }
 
         await HandleInvalidResponseAsync(odinId, response, odinContext);

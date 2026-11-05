@@ -109,7 +109,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             metadata!.SenderOdinId = sender; //in a collab channel this is not the right sender;
-            metadata.SendersWrite = null; // this server's own record, never the sender's say
             switch (transferFileType)
             {
                 case TransferFileType.Normal:
@@ -216,7 +215,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
                 // Its sender's write, which their next change goes by (docs/file-access.md, "Changing a file you sent")
                 var versionTag = DriveFileUtility.CreateVersionTag();
-                metadata.SendersWrite = SentFileChanges.SendersWriteOf((OdinId)metadata.SenderOdinId, metadata.VersionTag.GetValueOrDefault(),
+                serverMetadata.SendersWrite = SentFileChanges.SendersWriteOf((OdinId)metadata.SenderOdinId, metadata.VersionTag.GetValueOrDefault(),
                     versionTag);
                 (success, payloads) = await fs.Storage.CommitNewFile(file, keyHeader, metadata,
                     serverMetadata, ignorePayloads, odinContext, useThisVersionTag: versionTag, markComplete: markComplete,
@@ -310,7 +309,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // The tag the header write replaces, which its SQL checks again, and the one it gives the file
             newMetadata.VersionTag = stored.FileMetadata.VersionTag;
             var versionTag = DriveFileUtility.CreateVersionTag();
-            newMetadata.SendersWrite = SentFileChanges.SendersWriteOf(sender, sendersVersionTag, versionTag);
+            serverMetadata.SendersWrite = SentFileChanges.SendersWriteOf(sender, sendersVersionTag, versionTag);
 
             //note: we also update the key header because it might have been changed by the sender
             return await UpdateExistingFile(fs, file, stored.FileMetadata.File, keyHeader, newMetadata, serverMetadata, ignorePayloads,

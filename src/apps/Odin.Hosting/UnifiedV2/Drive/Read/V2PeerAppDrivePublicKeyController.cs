@@ -18,9 +18,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     /// holder of that drive's storage key can open it, so collecting deposits costs the recipient no new
     /// grant (docs/security-model.md, Drive addressing).
     /// <para>
-    /// Served to <b>a caller with Write on the target drive, or a connection its owner has reviewed</b>; anyone
-    /// else is refused rather than told the drive is missing.  A connection not yet reviewed gets 403 with
-    /// <c>ContactNotReviewed</c>, so the app can say the owner must review it first.
+    /// Served to <b>any identity</b>, on every drive: the key is public, and a deposit sealed to it still needs Write
+    /// on the drive when it arrives.
     /// </para>
     /// </remarks>
     [ApiController]
@@ -34,8 +33,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// <remarks>
         /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
         /// no guid constants shared with them — a hostname and two slugs is the whole address.</para>
-        /// <para>400 when nothing there answers to the address; 403 when you may neither write to it nor are a
-        /// connection its owner has reviewed, with <c>ContactNotReviewed</c> when they haven't reviewed you yet.</para>
+        /// <para>400 when nothing there answers to the address.</para>
         /// </remarks>
         /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
         /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>

@@ -225,8 +225,9 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// Refuses a gated shard unless its holder's Shard Recovery drive is zero knowledge (their server
-    /// can't open the write-only private key) and it is sealed to that drive's current key.
+    /// Refuses a gated shard unless its holder lets this identity write to their Shard Recovery drive (else their
+    /// server refuses the shard when it arrives, and the deal would replace a working one), the drive is zero knowledge
+    /// (their server can't open the write-only private key), and the shard is sealed to that drive's current key.
     /// </summary>
     private async Task AssertSealedToHolderAsync(DealtShard shard, IOdinContext odinContext)
     {
@@ -236,6 +237,11 @@ public class ShamirConfigurationService(
         await peerDriveQueryService.ForgetDriveKeysAsync(holder);
         var key = await peerDriveQueryService.GetRemoteDriveWriteOnlyPublicKeyAsync(holder, RecoveryAppSlug,
             BuiltinDrives.ShardRecoveryDrive.DriveSlug, odinContext);
+
+        if (!key.CallerMayWrite)
+        {
+            throw new OdinSecurityException($"{holder} doesn't let you write to their Shard Recovery drive; they can't hold a shard yet");
+        }
 
         if (!key.IsZeroKnowledge)
         {

@@ -5,7 +5,6 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Exceptions;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
@@ -15,7 +14,6 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Util;
 using Refit;
 
 namespace Odin.Hosting.Tests.V2.Addressing;
@@ -26,9 +24,9 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 /// </summary>
 /// <remarks>
 /// The key exists so a caller can write to a drive it cannot read -- seal to the public half and only
-/// a holder of that drive's storage key can open it (docs/security-model.md, Drive addressing).  So the gate is Write
-/// on the drive, or a connection the owner has reviewed, and the test that matters is not "a key came back" but that the key which came back
-/// is the one the drive actually holds: sealed to it, the owner can open it.
+/// a holder of that drive's storage key can open it (docs/security-model.md, Drive addressing).  The key is public:
+/// any identity gets it.  The test that matters is not "a key came back" but that the key which came back is the one
+/// the drive actually holds: sealed to it, the owner can open it.
 /// </remarks>
 [TestFixture]
 public class PeerAppDrivePublicKeyTests : V2Fixture
@@ -44,6 +42,14 @@ public class PeerAppDrivePublicKeyTests : V2Fixture
     private async Task<(OwnerSession frodo, OwnerSession sam, TargetDrive drive)> SetupAsync(
         DrivePermission frodoPermission)
     {
+        var (frodo, sam, drive) = await SamsUnsharedDriveAsync();
+        await PeerFlow.ConnectAsync(frodo, sam, drive, frodoPermission);
+        return (frodo, sam, drive);
+    }
+
+    /// <summary>Sam hosts an app-owned drive; Frodo isn't connected to him.</summary>
+    private async Task<(OwnerSession frodo, OwnerSession sam, TargetDrive drive)> SamsUnsharedDriveAsync()
+    {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
 
@@ -53,8 +59,6 @@ public class PeerAppDrivePublicKeyTests : V2Fixture
         await sam.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: AppSlug);
         await sam.Admin.CreateDrive(drive, "Sam's inbox", allowAnonymousReads: false, appId: appId,
             driveSlug: DriveSlug, driveTypeSlug: new OdinSlug("inbox"));
-
-        await PeerFlow.ConnectAsync(frodo, sam, drive, frodoPermission);
 
         return (frodo, sam, drive);
     }
@@ -99,51 +103,33 @@ public class PeerAppDrivePublicKeyTests : V2Fixture
         Assert.That(PeerKeyStoreWriteOnlyKey.Unseal(samsDrive.WriteOnlyKeyPair, storageKey, envelope),
             Is.EqualTo(secret), "the served key must be the one the drive holds");
         Assert.That(response.Content.PublicKeyCrc32, Is.EqualTo(samsDrive.WriteOnlyKeyPair.crc32c));
+        Assert.That(response.Content.CallerMayWrite, Is.True, "the answer says Frodo may deposit");
         Assert.That((response.Content.SharingModel, samsDrive.SharingModel), Is.EqualTo((DriveSharingModel.Collaborative,
             DriveSharingModel.Collaborative)), "the key says what it is bound to: a drive every member holds the key of");
     }
 
     [Test]
-    public async Task AReviewedConnectionGetsTheKeyWithoutWrite()
+    public async Task AnyIdentityGetsTheKey()
     {
-        // Sealing to the key puts nothing on the drive, so a connection Sam has reviewed gets it with Read only: it
-        // seals a key for Sam to open, as a Selective Share circle key is
-        var (frodo, sam, drive) = await SetupAsync(DrivePermission.Read);
+        // The key is public on every drive: sealing to it puts nothing on the drive, and a deposit still needs Write when
+        // it arrives, which the answer says they may not.  Frodo before he is connected to Sam, as a reader, and as a
+        // connection Sam hasn't reviewed
+        var (frodo, sam, drive) = await SamsUnsharedDriveAsync();
+        var expected = (await SamsDriveAsync(sam, drive)).WriteOnlyKeyPair.crc32c;
+        await AssertGetsTheKeyAsync(frodo, sam, expected, "someone not connected");
 
-        var response = await SlugClient(frodo).GetDriveWriteOnlyPublicKey(sam.Identity.DomainName, AppSlug, DriveSlug);
+        await PeerFlow.ConnectAsync(frodo, sam, drive, DrivePermission.Read);
+        await AssertGetsTheKeyAsync(frodo, sam, expected, "a reader");
 
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"expected 200, got {response.StatusCode}: {response.Error?.Content}");
-        Assert.That(response.Content!.PublicKeyCrc32, Is.EqualTo((await SamsDriveAsync(sam, drive)).WriteOnlyKeyPair.crc32c));
+        await ClearReviewOnAsync(sam, frodo.Identity);
+        await AssertGetsTheKeyAsync(frodo, sam, expected, "a connection not yet reviewed");
     }
 
-    [Test]
-    public async Task AConnectionNotYetReviewedIsRefusedAndToldWhy()
+    private static async Task AssertGetsTheKeyAsync(OwnerSession caller, OwnerSession sam, uint expectedCrc32, string who)
     {
-        // Frodo, with Read only, before Sam has reviewed him: refused, not told the drive is missing, and with the
-        // reason, so his app can say Sam must review him first
-        var (frodo, sam, _) = await SetupAsync(DrivePermission.Read);
-        var tenant = sam.Host.GetTenantScope(sam.Identity.DomainName);
-        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(frodo.Identity, ConnectionStatus.Connected, null);
-        await tenant.Resolve<OdinContextCache>().ResetAsync();
-
-        var response = await SlugClient(frodo).GetDriveWriteOnlyPublicKey(sam.Identity.DomainName, AppSlug, DriveSlug);
-
-        Assert.That((response.StatusCode, response.ErrorCode()),
-            Is.EqualTo((HttpStatusCode.Forbidden, OdinClientErrorCode.ContactNotReviewed)), response.Error?.Content);
-    }
-
-    [Test]
-    public async Task AWriterNotYetReviewedGetsTheKey()
-    {
-        // Write alone is enough, as for any deposit
-        var (frodo, sam, _) = await SetupAsync(DrivePermission.Write);
-        var tenant = sam.Host.GetTenantScope(sam.Identity.DomainName);
-        await tenant.Resolve<CircleNetworkStorage>().UpdateReviewedAtAsync(frodo.Identity, ConnectionStatus.Connected, null);
-        await tenant.Resolve<OdinContextCache>().ResetAsync();
-
-        var response = await SlugClient(frodo).GetDriveWriteOnlyPublicKey(sam.Identity.DomainName, AppSlug, DriveSlug);
-
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"expected 200, got {response.StatusCode}: {response.Error?.Content}");
+        var response = await SlugClient(caller).GetDriveWriteOnlyPublicKey(sam.Identity.DomainName, AppSlug, DriveSlug);
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"{who}: expected 200, got {response.StatusCode}: {response.Error?.Content}");
+        Assert.That((response.Content!.PublicKeyCrc32, response.Content.CallerMayWrite), Is.EqualTo((expectedCrc32, false)), who);
     }
 
     [Test]

@@ -166,11 +166,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         /// <summary>
         /// Serves the write-only public key of the drive <c>/apps/{appSlug}/drives/{driveSlug}</c>
-        /// names here, to a caller with Write on it or a connection the owner has reviewed.
+        /// names here, to any identity.
         /// </summary>
         /// <remarks>
-        /// 404 when nothing answers to the address; anyone else gets a security exception rather than a
-        /// 404, with <c>ContactNotReviewed</c> for a connection not yet reviewed
+        /// 404 when nothing answers to the address
         /// (<see cref="Odin.Services.Peer.Incoming.Drive.Query.PeerDriveQueryService.GetDriveWriteOnlyPublicKeyAsync"/>).
         /// </remarks>
         [HttpPost("metadata/by-slug/public-key")]

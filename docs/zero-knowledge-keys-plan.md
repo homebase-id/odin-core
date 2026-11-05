@@ -52,8 +52,9 @@ Built on branches `zk-keys-plan-a` (odin-core, odin-js) and `zk-drive-columns`
   JWK; the private half (PKCS8, locked by the drive key) is in a third new column,
   `ZkStorageKeyEncryptedWriteOnlyPrivateKey`.
 - **B's check 2 holds**: a dealer has Write on a holder's Shard Recovery drive through the
-  `shard_recovery_drive_writer` grant (`CircleNetworkService`) **(V)**, which is what
-  `GetDriveWriteOnlyPublicKey` asks for.
+  `shard_recovery_drive_writer` grant (`CircleNetworkService`) **(V)**. The key itself is served to any identity;
+  its answer's `CallerMayWrite` says whether the dealer holds that grant, and dealing refuses a holder without it
+  (`ShamirConfigurationService.AssertSealedToHolderAsync`) **(V)**.
 - **One shared vector** pins the formats: odin-core's `ZeroKnowledgeKeysTests.TheSharedVectorOpens`
   and js-lib's `ZeroKnowledgeKeys.test.ts` open the same value, made with Python's hashlib and
   cryptography.

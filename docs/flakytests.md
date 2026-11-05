@@ -995,6 +995,13 @@ for a `pknt0001` payload, the only failure in 1710; postgres and Windows passed 
 caused by the PR: it adds `GET /api/v2/plan` and a recipient-out-of-storage transfer status, and changes
 no overwrite or hard-delete code.
 
+**Again 2026-11-05, and locally for the first time.** Branch `selective-share-shares` (PR 3) on top of
+`a988cae62`, a full V2 run on a busy machine (V1 and services ran right after): the same single
+`HardDeletePayloadFile -> source payload does not exist` event for a `pknt0001` payload ("Threads 9,
+Iterations 100"), the only failure in 1979. 5 of 5 reruns of the test alone were green. Not caused by the
+branch's change in that round: it serves drive public keys to any identity and moves a peer-write record
+into `ServerMetadata`, and an owner overwrite passes no record and takes the same path as before.
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`

@@ -171,6 +171,26 @@ public class FriendRecoveryTests : ShamirFixture
         }
     }
 
+    /// <summary>
+    /// A friend who doesn't let the dealer write to their Shard Recovery drive (they haven't reviewed the dealer) would
+    /// refuse the shard when it arrives, so the deal is refused up front and the working one stays.
+    /// </summary>
+    [Test]
+    public async Task ADealToAFriendWhoWouldRefuseTheShardIsRefusedAndTheOldDealStays()
+    {
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
+        await ClearReviewOnAsync(players[0], frodo.Identity);
+
+        var deal = await ZkFriends.MakeDealAsync(frodo, ZkMasterKeyOf(frodo), players.Select(p => (p, PlayerType.Delegate)).ToList(),
+            ShamirConfigurationService.CalculateMinAllowedShardCount(players.Count));
+        var refused = await SecurityOf(frodo).ConfigureShards(deal.Request);
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), refused.Error?.Content);
+
+        var kept = await GetDealerShardConfigAsync(frodo);
+        Assert.That(kept.Envelopes.Select(e => e.ShardId), Is.EquivalentTo(config.Envelopes.Select(e => e.ShardId)),
+            "the working deal stays");
+    }
+
     [Test]
     public async Task OnlyTheShardsPlayerCanDeliverIt()
     {

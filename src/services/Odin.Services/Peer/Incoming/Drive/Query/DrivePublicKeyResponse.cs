@@ -34,4 +34,11 @@ public class DrivePublicKeyResponse
     /// the key.
     /// </summary>
     public DriveSharingModel SharingModel { get; set; }
+
+    /// <summary>
+    /// Whether the caller may write to the drive, which a deposit sealed to the key needs when it arrives: the key is
+    /// served to anyone, so a sender asks this before committing to a deposit (Shamir dealing does).  As of when the
+    /// key was fetched; a cached copy can be stale.
+    /// </summary>
+    public bool CallerMayWrite { get; set; }
 }
