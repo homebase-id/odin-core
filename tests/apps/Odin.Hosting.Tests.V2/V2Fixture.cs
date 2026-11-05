@@ -324,10 +324,11 @@ public abstract class V2Fixture
     {
         var tenant = Host.GetTenantScope(owner.Identity.DomainName);
         var storage = tenant.Resolve<CircleNetworkStorage>();
-        await storage.UpdateReviewedAtAsync(peer, ConnectionStatus.Connected, null);
+        var connection = await storage.GetAsync(peer);
+        Assert.That(connection?.Status, Is.EqualTo(ConnectionStatus.Connected), $"precondition: {owner.Identity} is connected to {peer}");
+        await storage.UpdateReviewedAtAsync(peer, connection!.Status, null);
 
         var icr = await storage.GetAsync(peer);
-        Assert.That(icr, Is.Not.Null, $"precondition: {owner.Identity} is connected to {peer}");
         Assert.That(icr!.ReviewedAt, Is.Null, $"precondition: {peer} is unreviewed on {owner.Identity}");
 
         await tenant.Resolve<OdinContextCache>().ResetAsync();

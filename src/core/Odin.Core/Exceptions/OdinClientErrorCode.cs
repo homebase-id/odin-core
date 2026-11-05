@@ -49,7 +49,7 @@ public enum OdinClientErrorCode
     NotACircleMember = 3025,
     InvalidShareKey = 3026,
     CircleShareKeyChanged = 3027,
-    NotReviewedByOwner = 3028, // the identity asked hasn't reviewed the caller's connection yet
+    NotReviewedByOwner = 3028, // the identity asked hasn't reviewed the caller's connection yet (a circle key copy, a shard)
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,

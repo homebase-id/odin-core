@@ -281,7 +281,8 @@ content with it and leaves the key headers alone. Two things are needed:
    `GET /api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/public-key`
    (`V2PeerAppDrivePublicKeyController`) **(V)**, which goes through the peer drive key cache from #2045.
    That endpoint serves any identity (`PeerDriveQueryService.cs`, `GetDriveWriteOnlyPublicKeyAsync`) **(V)**.
-   **Decided (2026-10-30):** whether a share is read-only is the Write bit of its row. To react
+   **Decided (2026-10-30):** the app's circles grant Read and Write on its drive, and whether a share is read-only
+   is the Write bit of its row. To react
    and comment by a share, the circle grants `React` and `Comment` too: a row narrows its circle's grant, for every
    bit (decided 2026-11-02).
 2. **Owner circles** (no owning app): not shareable this way, or locked with the master key so only the owner

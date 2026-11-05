@@ -215,7 +215,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 PublicKeyCrc32 = drive.WriteOnlyKeyPair.crc32c,
                 IsZeroKnowledge = drive.IsZeroKnowledge,
                 SharingModel = drive.SharingModel,
-                CallerMayWrite = odinContext.PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Write)
+                CallerMayWrite = await fileSystem.Storage.CanWriteToDrive(drive.Id, odinContext)
             };
         }
 

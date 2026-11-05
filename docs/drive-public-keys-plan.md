@@ -51,8 +51,10 @@ Decided 2026-10-28: build the cache and the key check now, and **leave retired k
    (7 days; at least the cache's 2-second minimum), in `PeerDriveQueryService`'s tenant cache.
    - Only a zero-knowledge drive's answer is kept: one that isn't yet takes no deposits, and becomes
      one at its owner's next login.
-   - Per identity, not per host, as every other cache here is per tenant. The recipient serves the key to
-     any identity; a deposit sealed to it is still refused at the transfer without Write.
+   - Per identity, not per host: the answer's `CallerMayWrite` is per asker, and every other cache here is
+     per tenant. The recipient serves the key to any identity; an answer that this identity may not write
+     isn't kept, so a grant made since is seen at once. One that it may is served until it expires, even
+     after a revoke; the deposit is then refused at the transfer.
    - The file outbox workers forget a recipient's keys when a deposit is refused with
      `SealedToUnknownKey`. The sending device learns of it through its outbox failure, and seals again
      with the key it fetches next.

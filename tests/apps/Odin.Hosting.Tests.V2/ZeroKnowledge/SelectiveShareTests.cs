@@ -173,7 +173,6 @@ public partial class SelectiveShareTests : V2Fixture
         }
     }
 
-
     private static async Task ReviewSamAsync(Arranged s)
     {
         var review = await new V2ConnectionNetworkClient(s.Frodo.Identity, s.Frodo.Factory).MarkReviewedAsync(s.Sam.Identity);

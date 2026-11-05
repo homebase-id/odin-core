@@ -16,6 +16,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Services.Base;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -184,7 +185,8 @@ public class FriendRecoveryTests : ShamirFixture
         var deal = await ZkFriends.MakeDealAsync(frodo, ZkMasterKeyOf(frodo), players.Select(p => (p, PlayerType.Delegate)).ToList(),
             ShamirConfigurationService.CalculateMinAllowedShardCount(players.Count));
         var refused = await SecurityOf(frodo).ConfigureShards(deal.Request);
-        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), refused.Error?.Content);
+        Assert.That((refused.StatusCode, refused.ErrorCode()), Is.EqualTo((HttpStatusCode.Forbidden, OdinClientErrorCode.NotReviewedByOwner)),
+            refused.Error?.Content);
 
         var kept = await GetDealerShardConfigAsync(frodo);
         Assert.That(kept.Envelopes.Select(e => e.ShardId), Is.EquivalentTo(config.Envelopes.Select(e => e.ShardId)),

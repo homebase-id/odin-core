@@ -142,11 +142,13 @@ public class PeerDriveQueryService(
         OdinSlug.Required(appSlug, nameof(appSlug));
         OdinSlug.Required(driveSlug, nameof(driveSlug));
 
-        // v3: the answer carries CallerMayWrite; a copy cached before it would read as false
+        // v3: the answer carries CallerMayWrite; a copy cached before it would read as false.  An answer that
+        // this identity may not write isn't kept, so a grant made since is seen at once; one that it may can outlive a
+        // revoke, and the deposit is then refused when it arrives
         return await cache.GetOrSetAsync($"peer-drive-key-v3:{odinId}:{appSlug}:{driveSlug}",
             _ => FetchRemoteDriveWriteOnlyPublicKeyAsync(odinId, appSlug, driveSlug, odinContext),
             odinConfiguration.Host.PeerDriveKeyCacheAge, _ => EntrySize.Small, tags: [DriveKeysTag(odinId)],
-            storeIf: key => key.IsZeroKnowledge);
+            storeIf: key => key.IsZeroKnowledge && key.CallerMayWrite);
     }
 
     /// <summary>

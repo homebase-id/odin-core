@@ -1001,6 +1001,10 @@ no overwrite or hard-delete code.
 Iterations 100"), the only failure in 1979. 5 of 5 reruns of the test alone were green. Not caused by the
 branch's change in that round: it serves drive public keys to any identity and moves a peer-write record
 into `ServerMetadata`, and an owner overwrite passes no record and takes the same path as before.
+The next full local run on the branch, under heavier load (V2 took 10 minutes instead of 6), failed the
+same way once more. CI passed the branch's commits that day on all three platforms (runs 41997783602,
+41997783776, 41997783347 for `861076d08`), and main's recent CI runs are green. Not run on a clean `main`
+tree locally.
 
 ---
 

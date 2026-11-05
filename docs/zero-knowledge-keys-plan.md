@@ -223,8 +223,7 @@ Check each before A merges. B's plan is the reference.
 1. The login keys are always current: saved at first run, at first login and at every password
    change. B locks them with the Shamir secret.
 2. The Shard Recovery write-only public key is served to a dealer. `GetDriveWriteOnlyPublicKey`
-   exists **(V)**, but I haven't checked whether a Recovery circle member may call it for this
-   drive. If not, A fixes the permission.
+   serves it to any identity, and says whether the dealer may write there **(V)**.
 3. The browser can open the write-only private half with the ZK master key: ZK master key → drive
    key → private half. A's tests open it with the C# helper.
 4. Readiness can tell a converted drive (`SharingModel` Private with a ZK-locked key). B uses it to
