@@ -97,6 +97,8 @@ public class PeerAppDrivePublicKeyTests : V2Fixture
         Assert.That(PeerKeyStoreWriteOnlyKey.Unseal(samsDrive.WriteOnlyKeyPair, storageKey, envelope),
             Is.EqualTo(secret), "the served key must be the one the drive holds");
         Assert.That(response.Content.PublicKeyCrc32, Is.EqualTo(samsDrive.WriteOnlyKeyPair.crc32c));
+        Assert.That((response.Content.SharingModel, samsDrive.SharingModel), Is.EqualTo((DriveSharingModel.Collaborative,
+            DriveSharingModel.Collaborative)), "the key says what it is bound to: a drive every member holds the key of");
     }
 
     [Test]

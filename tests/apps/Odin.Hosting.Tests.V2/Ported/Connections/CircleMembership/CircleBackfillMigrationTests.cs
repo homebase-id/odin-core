@@ -254,7 +254,7 @@ public class CircleBackfillMigrationTests : V2Fixture
         var broken = await storage.GetAsync(merry.Identity);
         broken!.PeerKeyStore.MasterKeyEncryptedPeerKey = null!;
         broken.TempWeakKeyStoreKey = null;
-        await storage.UpsertAsync(broken, ctx);
+        await storage.UpsertAsync(broken);
 
         var migration = scope.Resolve<V17ToV18VersionMigrationService>();
         await migration.UpgradeAsync(ctx, CancellationToken.None);

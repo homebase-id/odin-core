@@ -6,9 +6,9 @@ permission check, a file's ACL, the `DriveAclIndex` rows or the query's ACL filt
 names of the keys), [zero-knowledge-drives.md](zero-knowledge-drives.md) (the drive sharing models) and
 [selective-share-plan.md](selective-share-plan.md) (how shares are built, PR by PR).
 
-**Status:** "Today" describes `main` plus Selective Share PR 1 (the share columns and the index, #2053), read in the
-code on 2026-11-01, partly by subagents. "With Selective Share" is the plan: circle keys (PR 2, #2056) are built and in
-review, PR 3 (shares and members, which took in what was planned as PR 4) is not built. Markers follow security-model.md: **(V)**
+**Status:** "Today" describes `main` plus Selective Share PR 1 and PR 2 (the share columns and the index, #2053, and
+circle keys, #2056), read in the code on 2026-11-01, partly by subagents. "With Selective Share" is the plan for PR 3
+(shares and members, which took in what was planned as PR 4), not built. Markers follow security-model.md: **(V)**
 read in the code (file named), **(I)** inferred.
 
 ## Terms
@@ -177,8 +177,8 @@ Nothing else writes them **(V)**.
 
 **Peers' contexts are cached** for up to an hour (`OdinContextCache`): their level, enabled circles and whether they
 are reviewed (`TransitAuthenticationService`) **(V)**. The cache is reset when a connection is finalized, blocked or
-deleted, not when a circle is disabled **(V)**, so a check that must see a disable asks at the time (as PR 2's
-circle share key read does).
+deleted, not when a circle is disabled **(V)**, so a check that must see a disable asks at the time (as the circle
+share key read does, `CircleShareKeyService`) **(V)**.
 
 ## Copies sent to others
 

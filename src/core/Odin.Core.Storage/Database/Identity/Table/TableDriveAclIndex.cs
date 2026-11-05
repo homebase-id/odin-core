@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -43,37 +42,25 @@ public class TableDriveAclIndex(
     /// Makes the file's rows match the list, in one transaction: deletes the rows of members no longer in it and
     /// inserts the new ones. A row whose member stays is not touched, so its created and modified stay put, and so
     /// would its key header, permissions and expiry (docs/selective-share-plan.md). A member listed twice gets
-    /// one row.
+    /// one row. An unchanged list, the usual header write, costs one read.
     /// </summary>
     internal async Task ReconcileRowsAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
     {
-        if (accessControlList == null || accessControlList.Count == 0)
-        {
-            await DeleteAllRowsAsync(driveId, fileId);
-            return;
-        }
+        var wanted = accessControlList?.ToHashSet() ?? [];
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        await using (var deleteCommand = cn.CreateCommand())
+        var existing = await GetAsync(driveId, fileId);
+        foreach (var memberId in existing.Where(m => !wanted.Contains(m)))
         {
-            for (var i = 0; i < accessControlList.Count; i++)
-                deleteCommand.AddParameter($"@member{i}", DbType.Binary, accessControlList[i]);
-
-            deleteCommand.CommandText = "DELETE FROM DriveAclIndex " +
-                                        "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId " +
-                                        $"AND aclMemberId NOT IN ({string.Join(",", accessControlList.Select((_, i) => $"@member{i}"))});";
-            deleteCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-            deleteCommand.AddParameter("@driveId", DbType.Binary, driveId);
-            deleteCommand.AddParameter("@fileId", DbType.Binary, fileId);
-            await deleteCommand.ExecuteNonQueryAsync();
+            await base.DeleteAsync(odinIdentity, driveId, fileId, memberId);
         }
 
         // permissions keeps the record's default, 1 (DrivePermission.Read): until Selective Share writes its own,
-        // every row means "may read"
+        // every row means "may read". TryInsert, as a row added meanwhile by another writer is no conflict.
         var item = new DriveAclIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId };
-        foreach (var memberId in accessControlList)
+        foreach (var memberId in wanted.Except(existing))
         {
             item.aclMemberId = memberId;
             await base.TryInsertAsync(item);

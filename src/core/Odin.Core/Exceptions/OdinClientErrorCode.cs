@@ -44,6 +44,11 @@ public enum OdinClientErrorCode
     CannotDeleteBuiltInCircle = 3020,
     CircleSlugTaken = 3021,
     ContactNotReviewed = 3022,
+    CircleShareKeyAlreadySet = 3023,
+    CircleShareKeyNotSet = 3024,
+    NotACircleMember = 3025,
+    InvalidShareKey = 3026,
+    CircleShareKeyChanged = 3027,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
@@ -132,6 +137,7 @@ public enum OdinClientErrorCode
 
     //Transit errors
     RemoteServerReturnedForbidden = 7403,
+    RemoteServerReturnedNotFound = 7404,
     RemoteServerReturnedInternalServerError = 7500,
     RemoteServerReturnedUnavailable = 7503,
     RemoteServerTransitRejected = 7900,

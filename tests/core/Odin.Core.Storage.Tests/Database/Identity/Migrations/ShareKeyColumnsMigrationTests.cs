@@ -17,8 +17,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Migrations;
 /// <summary>
 /// <see cref="TableCircleMigrationV202610301200"/>, <see cref="TableCircleMemberMigrationV202610301200"/> and
 /// <see cref="TableDriveAclIndexMigrationV202610301200"/> add the Selective Share columns
-/// (docs/selective-share-plan.md).  Every existing row is carried over with them NULL: no circle has a key, no
-/// member a sealed copy, no share expires or holds a locked file key, and every index row means read.
+/// (docs/selective-share-plan.md), run as the whole migrator from the version before.  Every existing row is
+/// carried over: no circle has a key, no member a sealed copy, no share expires or holds a locked file key, and
+/// every index row means read.  That upserts keep the keys is <c>TableCircleTests</c>' and
+/// <c>TableCircleMemberTests</c>' to check.
 /// </summary>
 public class ShareKeyColumnsMigrationTests : IocTestBase
 {
@@ -100,19 +102,6 @@ public class ShareKeyColumnsMigrationTests : IocTestBase
         var aclRow = (await scope.Resolve<TableDriveAclIndex>().PagingByRowIdAsync(10, null)).Item1[0];
         Assert.That((aclRow.expiresAt, aclRow.lockedFileKey), Is.EqualTo((expiresAt, lockedFileKey)));
 
-        // Writing the circle or the membership again keeps both keys: the generated upsert leaves them out of its SET
-        var circle = circles[0];
-        circle.circleName = "Family renamed";
-        circle.appKeyLockedShareKey = null;
-        await scope.Resolve<TableCircle>().UpsertAsync(circle);
-        var member = members[0];
-        member.sealedShareKey = null;
-        await scope.Resolve<TableCircleMember>().UpsertAsync(member);
-
-        var rewritten = (await scope.Resolve<TableCircle>().PagingByRowIdAsync(10, null)).Item1[0];
-        Assert.That((rewritten.circleName, rewritten.appKeyLockedShareKey), Is.EqualTo(("Family renamed", lockedKey)));
-        Assert.That((await scope.Resolve<TableCircleMember>().PagingByRowIdAsync(10, null)).Item1[0].sealedShareKey,
-            Is.EqualTo(sealedKey));
     }
 
     /// <summary>The index definitions on DriveAclIndex, without spaces and in lower case.</summary>
