@@ -59,6 +59,7 @@ namespace Odin.Hosting.Middleware
             [
                 PeerApiPathConstants.BasePathV1, //TODO: temporarily allowing all perimeter traffic not use shared secret
                 $"{HomeApiPathConstants.AuthV1}/is-authenticated",
+                $"{UnifiedApiRouteConstants.HomeAuth}/is-authenticated",
 
                 OwnerApiPathConstants.YouAuthV1,
                 OwnerApiPathConstants.AuthV1,

@@ -164,6 +164,33 @@ public class PeerDirectSendTests : V2Fixture
         Assert.That(updatedReceivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
     }
 
+    /// <summary>What js-lib's <c>saveComment</c> does for a comment on another identity, on the V2 peer update route.</summary>
+    [Test]
+    public async Task CanUpdate_Unencrypted_Comment_OnTheV2PeerUpdateRoute()
+    {
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
+
+        var scenario = await TransferCommentToFreshDrive(sender, recipient, encrypted: false);
+
+        var metadata = SampleMetadataData.CreateWithContent(default, UpdatedCommentFileContent, AccessControlList.Connected);
+        metadata.AllowDistribution = true;
+        metadata.IsEncrypted = false;
+        metadata.ReferencedFile = scenario.StandardFile.GlobalTransitIdFileIdentifier;
+
+        var response = await V2PeerUpdateByGtidTests.UpdateAsync(sender, recipient.Identity, scenario.RemoteComment.TargetDrive,
+            scenario.RemoteComment.GlobalTransitId, metadata,
+            V2PeerUpdateByGtidTests.Instructions(scenario.RemoteComment.TargetDrive, new UploadManifest { PayloadDescriptors = [] }),
+            fileSystemType: FileSystemType.Comment);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        await sender.Sync.DrainOutboxAsync();
+        await recipient.Sync.ProcessInboxAsync(scenario.RemoteComment.TargetDrive, int.MaxValue);
+
+        var updated = await ReadSingleComment(recipient, scenario.Query);
+        AssertCommentHeader(updated, sender, false, UpdatedCommentFileContent, scenario.RemoteComment.GlobalTransitId);
+    }
+
     [Test]
     public async Task CanDelete_Unencrypted_Comment()
     {

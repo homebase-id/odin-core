@@ -28,6 +28,21 @@ public static class UnifiedApiRouteConstants
     public const string Plan = BasePath + "/plan";
     public const string Capi = BasePath + "/capi";
 
+    // The owner console's management APIs, and what it publishes and reads alongside them
+    public const string DriveManagement = BasePath + "/drive-management";
+    public const string AppManagement = BasePath + "/app-management";
+    public const string Configuration = BasePath + "/config";
+    public const string YouAuthDomains = BasePath + "/youauth-domains";
+    public const string StaticContent = BasePath + "/optimization/cdn";
+    public const string PublicKeys = BasePath + "/public/keys";
+    // Owner console: security, recovery, health and system
+    public const string Security = BasePath + "/security";
+    public const string SecurityZk = Security + "/zk";
+    public const string SecurityRecovery = Security + "/recovery";
+    public const string Dns = BasePath + "/dns";
+    public const string MailOwner = Mail + "/owner";
+    public const string DataConversion = BasePath + "/data-conversion";
+
     // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/security-model.md, Drive addressing). Rooted at
     // /apps rather than nested under /drives, because /drives/feed would read as "the drive named
     // feed" rather than "the feed app's drives".
@@ -72,4 +87,21 @@ public static class UnifiedApiRouteConstants
     public const string PeerSubscriptions = PeerNotifyRoot + "/subscriptions";
     public const string PeerNotifySocket = PeerNotifyRoot + "/ws-token";
     public const string PeerNotifySocketWasm = PeerNotifyRoot + "/ws-token-wasm";
+
+    // Cookie-authenticated notification sockets for browsers (the owner console, apps with no bearer token).
+    // One route per cookie, as V1 has one per API: an app served from the identity's own host sends the owner
+    // cookie too, so the route, not the cookies present, says which caller this is.
+    public const string NotifySocketOwnerCookie = BasePath + "/notify/ws-cookie-owner";
+    public const string NotifySocketAppCookie = BasePath + "/notify/ws-cookie-app";
+    public const string NotifyPreAuth = BasePath + "/notify/preauth";
+    // Sign-in. The controllers under SignIn/ are V1's own with these routes; see docs/youauth-unified-authorization.md,
+    // "The V2 routes", for why they keep V1's authentication schemes.
+    public const string Ident = Auth + "/ident";
+    public const string OwnerAuth = Auth + "/owner";
+    public const string YouAuth = BasePath + "/youauth";
+    public const string YouAuthAuthorize = YouAuth + "/authorize";
+    public const string YouAuthToken = YouAuth + "/token";
+    public const string Home = BasePath + "/home";
+    public const string HomeAuth = Home + "/auth";
+    public const string HomeCacheable = Home + "/data/cacheable";
 }

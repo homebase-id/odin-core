@@ -214,7 +214,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             return TryGetClientAuthTokenFromCookie(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
         }
 
-        private static bool TryGetClientAuthTokenFromHeader(HttpContext context, out ClientAuthenticationToken clientAuthToken)
+        internal static bool TryGetClientAuthTokenFromHeader(HttpContext context, out ClientAuthenticationToken clientAuthToken)
         {
             clientAuthToken = default!;
 

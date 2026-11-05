@@ -13,6 +13,7 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Ported.Shamir;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
+using Odin.Hosting.UnifiedV2;
 using Odin.Services.Base;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -257,6 +258,22 @@ public class FriendRecoveryTests : ShamirFixture
         // The next owner request removes the deal: it could recover nothing
         var owner = await OwnerSession.LoginAsync(Host, frodo.Identity.DomainName, NewPassword);
         await AssertDealGoneAndFlaggedAsync(owner);
+    }
+
+    /// <summary>As above, with V2 the first thing the owner calls: its owner handler removes the deal as V1's does.</summary>
+    [Test]
+    public async Task AV2RequestRemovesAFriendDealWhoseCopiesAreForgotten()
+    {
+        var (frodo, _, _) = await ArrangeDelegateShardsAsync();
+
+        var phrase = (await ZkOwnerSteps.HandOverPhraseAsync(frodo, Password)).Content!.Phrase;
+        var reset = await OwnerPasswordFlow.ResetPasswordUsingRecoveryKeyAsync(Host, frodo.Identity.DomainName, phrase, NewPassword);
+        Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.OK), reset.Error?.Content);
+
+        var owner = await OwnerSession.LoginAsync(Host, frodo.Identity.DomainName, NewPassword);
+        var (client, _) = owner.NewAdminHttpClient();
+        var config = await client.GetAsync($"{UnifiedApiRouteConstants.SecurityRecovery}/config");
+        Assert.That(config.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), "no deal left to read");
     }
 
     [Test]

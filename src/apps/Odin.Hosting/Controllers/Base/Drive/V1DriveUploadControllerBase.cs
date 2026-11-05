@@ -6,7 +6,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Services.Base;
@@ -89,7 +91,32 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return ReceiveFileUpdateInternal(driveId, null, uniqueId);
         }
 
-        private async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId, Guid? uniqueId = null)
+        /// <summary>
+        /// Updates a file on another identity (<see cref="UpdateLocale.Peer"/>), so there is no local file or drive to
+        /// look up. The path names the recipient, the remote drive and the file, and wins over the instructions. A
+        /// drive type the instructions state is passed along, so the request a recipient sees is the one V1 sends; the
+        /// recipient finds the drive by alias alone.
+        /// </summary>
+        protected Task<FileUpdateResult> ReceivePeerFileUpdateV2(OdinId recipient, Guid remoteDriveId, Guid globalTransitId)
+        {
+            return ReceiveFileUpdateInternal(null, null, null, sent => new FileUpdateInstructionSet
+            {
+                TransferIv = sent.TransferIv,
+                File = new FileIdentifier
+                {
+                    GlobalTransitId = globalTransitId,
+                    TargetDrive = new TargetDrive { Alias = remoteDriveId, Type = sent.File?.TargetDrive?.Type ?? GuidId.Empty }
+                },
+                Locale = UpdateLocale.Peer,
+                Recipients = [recipient],
+                Manifest = sent.Manifest,
+                UseAppNotification = sent.UseAppNotification,
+                AppNotificationOptions = sent.AppNotificationOptions
+            });
+        }
+
+        private async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId, Guid? uniqueId = null,
+            Func<FileUpdateInstructionSet, FileUpdateInstructionSet> mapToPeerUpdate = null)
         {
             FileSystemType fileSystemType;
             FileSystemUpdateWriterBase updateWriter = null;
@@ -109,9 +136,15 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                 var instructionSet = await BoundedRead.DeserializeAsync<FileUpdateInstructionSet>(section!.Body);
 
+                if (mapToPeerUpdate != null)
+                {
+                    instructionSet = mapToPeerUpdate(instructionSet);
+                    fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
+                    updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
+                }
                 //v2 reads from the driveId and fileId params, so we overwrite it. this stops callers
                 //from being bound to the TargetDrive type
-                if (WebOdinContext.ApiVersion == 2)
+                else if (WebOdinContext.ApiVersion == 2)
                 {
                     OdinValidationUtils.AssertNotEmptyGuid(driveId.GetValueOrDefault(), "Version 2 requires DriveId to be set");
                     var theDrive = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());
