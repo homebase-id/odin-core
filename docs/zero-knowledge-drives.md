@@ -112,8 +112,8 @@ Naming notes:
   That's one row per member.
 - **Files:** each shared file gets one locked file key per share: the file key locked with the share key
   (`lockedFileKey`), in the file's `DriveAclIndex` row for that circle, with the share's expiry, what it may do
-  and its own `modified`, and only there, not in the file's ACL (decided 2026-10-31; the columns come
-  with PR 1, #2053, and nothing writes them before PR 3). A share changes who may read the file, not its
+  and its own `modified`, and only there, not in the file's ACL (decided 2026-10-31; the columns exist,
+  `TableDriveAclIndexCRUD` **(V)**, nothing writes them yet). A share changes who may read the file, not its
   version tag (decision 6 of the plan).
 - **Cost:** sharing new files is free, because the locked file keys ride in the upload. Sharing many
   existing files is a client bulk job.

@@ -9,6 +9,7 @@ public class TableCircleMemberMigrationList : MigrationListBase
     {
         Migrations = new List<MigrationBase>() {
             new TableCircleMemberMigrationV0(-1),
+            new TableCircleMemberMigrationV202610301200(0),
             // AUTO-INSERT-MARKER
         };
     }
