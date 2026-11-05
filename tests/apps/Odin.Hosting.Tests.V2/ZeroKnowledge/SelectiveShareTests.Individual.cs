@@ -149,7 +149,7 @@ public partial class SelectiveShareTests
     }
 
     [TestCase(true, TestName = "AMemberKeepsTheirNewFileThroughTheirIndividualCircle")]
-    [TestCase(false, TestName = "AMembersNewFileWithoutTheirRowIsTheOwnersAlone")]
+    [TestCase(false, TestName = "AMembersNewFileWithoutTheirRowIsStillTheirsToDelete")]
     public async Task AMemberKeepsTheirNewFile(bool withTheirRow)
     {
         var s = await ArrangeAsync();
@@ -166,8 +166,9 @@ public partial class SelectiveShareTests
             received.FileMetadata.GlobalTransitId!.Value);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
         await s.Sam.Sync.DrainOutboxAsync();
-        Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(withTheirRow ? FileState.Deleted : FileState.Active),
-            "his delete");
+        // With his row, through its Write; without, as the file's sender, whom no one else has changed it for since
+        // (file-access.md, "Changing a file you sent")
+        Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Deleted), "his delete");
     }
 
     /// <summary>The app makes <paramref name="member"/> an individual circle of its own, sets its key and adds them.</summary>

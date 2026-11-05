@@ -66,13 +66,12 @@ internal static class SentFileChanges
     public static bool AlreadyLandedOrAssertMayChange(ServerFileHeader stored, OdinId sender, bool sentIt, Guid sendersVersionTag,
         Guid? namedVersionTag)
     {
-        var lastWrite = stored.ServerMetadata.SendersWrite is { } last && last.Sender == sender ? last : null;
-        if (lastWrite != null && lastWrite.SendersVersionTag == sendersVersionTag)
+        if (stored.ServerMetadata.SendersWrite is { } last && last.Sender == sender && last.SendersVersionTag == sendersVersionTag)
         {
             return true;
         }
 
-        if (namedVersionTag == stored.FileMetadata.VersionTag || (sentIt && lastWrite?.VersionTag == stored.FileMetadata.VersionTag))
+        if (namedVersionTag == stored.FileMetadata.VersionTag || (sentIt && UnchangedSinceSendersLastWrite(stored, sender)))
         {
             return false;
         }
@@ -80,6 +79,43 @@ internal static class SentFileChanges
         throw new OdinClientException($"File {stored.FileMetadata.File.FileId} was changed since its sender's last write; a change " +
                                       "names the version tag it has", OdinClientErrorCode.VersionTagMismatch);
     }
+
+    /// <summary>
+    /// The context <paramref name="sender"/>'s delete of <paramref name="stored"/> is written in, on a drive with no inbox;
+    /// null when the file is deleted already, which is done.  Who may: as for any change (<see cref="ContextForChangeAsync"/>),
+    /// except that a post on a drive marked as a community channel is deleted only by its sender, as everywhere; and its
+    /// sender, marked to change it unread, only while no one else has changed the file since their last write, as their
+    /// change naming no tag.  A file with no record of their last write (one stored before it was kept) is refused too.
+    /// </summary>
+    public static async Task<IOdinContext> ContextForDeleteAsync(IDriveFileSystem fs, StorageDrive drive, ServerFileHeader stored,
+        OdinId sender, IOdinContext odinContext)
+    {
+        if (stored.FileMetadata.FileState == FileState.Deleted)
+        {
+            return null;
+        }
+
+        var (writeContext, sentIt) = await ContextForChangeAsync(fs, drive, stored, sender, memberMayUseShares: true, odinContext);
+        if (drive.IsCollaborationDrive() && !sentIt)
+        {
+            throw new OdinSecurityException("Only its original sender deletes a post on a community channel");
+        }
+
+        if (writeContext.SendersOwnFile != null && !UnchangedSinceSendersLastWrite(stored, sender))
+        {
+            throw new OdinClientException($"File {stored.FileMetadata.File.FileId} was changed since its sender's last write",
+                OdinClientErrorCode.VersionTagMismatch);
+        }
+
+        return writeContext;
+    }
+
+    /// <summary>
+    /// Whether no one has changed <paramref name="stored"/> since <paramref name="sender"/>'s last write: the record of it
+    /// names them and still has the file's version tag.  A file with no record (stored before it was kept) hasn't.
+    /// </summary>
+    private static bool UnchangedSinceSendersLastWrite(ServerFileHeader stored, OdinId sender) =>
+        stored.ServerMetadata.SendersWrite is { } last && last.Sender == sender && last.VersionTag == stored.FileMetadata.VersionTag;
 
     /// <summary>
     /// The record of <paramref name="sender"/>'s write, whose own copy has <paramref name="sendersVersionTag"/>, giving the

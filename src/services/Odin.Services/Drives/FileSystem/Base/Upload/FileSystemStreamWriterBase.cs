@@ -617,13 +617,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             }
         }
 
-        if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
-        {
-            throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
-                OdinClientErrorCode.DriveSecurityAndAclMismatch);
-        }
-
-        SelectiveShareDrives.AssertAclFits(drive, serverMetadata.AccessControlList);
+        SelectiveShareDrives.AssertAclFitsDrive(drive, serverMetadata.AccessControlList);
 
         // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
         PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);

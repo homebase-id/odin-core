@@ -59,15 +59,30 @@ public class CommentFileStorageService(
         // On a Selective Share drive the share's Comment bit is asked too, of each comment where its header is written
         // (DriveStorageServiceBase.AssertMayWriteSharedCommentAsync)
         var drive = await DriveManager.GetDriveAsync(driveId, true);
+        if (!PrivateDriveAllowsCaller(drive, odinContext))
+        {
+            throw new OdinSecurityException("Only owner callers comment on a Private drive");
+        }
+
         if (!drive.AllowAnonymousReads)
         {
             odinContext.PermissionsContext.AssertHasDrivePermission(driveId, DrivePermission.Comment);
         }
     }
 
+    /// <summary>Only owner callers comment on a Private drive: nobody else may read its files (docs/terminology.md).</summary>
+    private static bool PrivateDriveAllowsCaller(StorageDrive drive, IOdinContext odinContext) =>
+        drive.SharingModel != DriveSharingModel.Private || odinContext.Caller.IsOwner;
+
     public override async Task<bool> CanWriteToDrive(Guid driveId, IOdinContext odinContext)
     {
         var drive = await DriveManager.GetDriveAsync(driveId, true);
+
+        if (!PrivateDriveAllowsCaller(drive, odinContext))
+        {
+            return false;
+        }
+
         if (!drive.AllowAnonymousReads)
         {
             return odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write);

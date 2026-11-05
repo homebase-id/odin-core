@@ -72,7 +72,7 @@ public class CreateDriveRequest
     /// <summary>Whether the drive is created zero knowledge; refuses a request whose model and keys disagree.</summary>
     public bool AssertSharingModel()
     {
-        if (!SharingModel.IsZeroKnowledge())
+        if (!SharingModel.IsZeroKnowledgeDrive())
         {
             if (SharingModel != DriveSharingModel.Collaborative)
             {
@@ -97,15 +97,7 @@ public class CreateDriveRequest
 
         ZkKeys.Validate();
 
-        // The server can't open what such a drive holds, so nothing may read it on the server's behalf, and the feed
-        // never distributes from it (FeedDriveDistributionRouter)
-        if (AllowAnonymousReads || AllowCdn || AllowSubscriptions)
-        {
-            throw new OdinClientException($"A {SharingModel} drive allows neither anonymous reads, the CDN nor subscriptions",
-                OdinClientErrorCode.ArgumentError);
-        }
-
-        SelectiveShareDrives.AssertSettingsFit(SharingModel, OwnerOnly, Attributes);
+        DriveSettings.AssertFit(SharingModel, OwnerOnly, AllowAnonymousReads, AllowCdn, AllowSubscriptions, Attributes);
         return true;
     }
 }

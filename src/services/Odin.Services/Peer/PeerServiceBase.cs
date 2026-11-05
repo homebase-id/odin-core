@@ -16,6 +16,8 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Util;
@@ -142,6 +144,18 @@ namespace Odin.Services.Peer
             await Task.CompletedTask;
             return OdinSystemSerializer.Deserialize<T>(json);
         }
+
+        /// <summary>
+        /// The stored header of the file a peer writes to on a drive with no inbox, found without the read rule, which
+        /// hides a client-locked file from a peer; what they may do with it is asked after.  Refused when there is none.
+        /// <paramref name="permission"/> is the drive permission the write needs, when it isn't Read or Write.
+        /// </summary>
+        protected static async Task<ServerFileHeader> GetHeaderForPeerWriteAsync(IDriveFileSystem fileSystem,
+            GlobalTransitIdFileIdentifier file, IOdinContext odinContext, DrivePermission? permission = null) =>
+            await fileSystem.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(file.TargetDrive.Alias, file.GlobalTransitId,
+                odinContext, permission)
+            ?? throw new OdinClientException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}",
+                OdinClientErrorCode.InvalidGlobalTransitId);
 
         /// <summary>
         /// Looks up a file by a global transit identifier

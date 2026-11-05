@@ -1231,7 +1231,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
             AssertActiveForUpdate(existingServerHeader);
-            Deposits.AssertTakesNoPayloads(existingServerHeader);
+            Deposits.AssertTakesNoPayloads(existingServerHeader, drive);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
@@ -1317,7 +1317,31 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        /// <summary>
+        /// Changes the file's reaction summary: <paramref name="change"/> gets the stored one (null when it has none) and
+        /// returns the new one, or null to leave it.  One read, as a reaction asks: drive <c>React</c>, <c>Comment</c> or
+        /// <c>Write</c>, not the read rule, since reacting reads nothing of the file (a peer reacting on a Private drive
+        /// can't read it).
+        /// </summary>
+        public async Task ChangeReactionSummary(InternalDriveFileId targetFile, Func<ReactionSummary, ReactionSummary> change,
+            IOdinContext odinContext)
+        {
+            var (drive, existingHeader) = await ReactionSummaryHeaderAsync(targetFile, odinContext);
+            var summary = existingHeader == null ? null : change(existingHeader.FileMetadata.ReactionPreview);
+            if (summary != null)
+            {
+                await SaveReactionSummaryAsync(drive, existingHeader, summary, odinContext);
+            }
+        }
+
         public async Task UpdateReactionSummary(InternalDriveFileId targetFile, ReactionSummary summary, IOdinContext odinContext)
+        {
+            var (drive, existingHeader) = await ReactionSummaryHeaderAsync(targetFile, odinContext);
+            await SaveReactionSummaryAsync(drive, existingHeader, summary ?? new ReactionSummary(), odinContext);
+        }
+
+        private async Task<(StorageDrive drive, ServerFileHeader header)> ReactionSummaryHeaderAsync(InternalDriveFileId targetFile,
+            IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             odinContext.PermissionsContext.AssertHasAtLeastOneDrivePermission(targetFile.DriveId,
@@ -1325,10 +1349,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 DrivePermission.Comment,
                 DrivePermission.Write);
 
-            summary ??= new ReactionSummary();
-
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            var existingHeader = await longTermStorageManager.GetServerFileHeader(drive, targetFile.FileId, GetFileSystemType());
+            return (drive, await longTermStorageManager.GetServerFileHeader(drive, targetFile.FileId, GetFileSystemType()));
+        }
+
+        private async Task SaveReactionSummaryAsync(StorageDrive drive, ServerFileHeader existingHeader, ReactionSummary summary,
+            IOdinContext odinContext)
+        {
+            var targetFile = existingHeader.FileMetadata.File;
             existingHeader.FileMetadata.ReactionPreview = summary;
 
             await longTermStorageManager.SaveReactionHistory(drive, targetFile.FileId, summary);
@@ -2451,7 +2479,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 : null;
 
             // Left out like a query does, when the caller asks for that
-            if (!await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext, shares))
+            if (!await driveAclAuthorizationService.CallerMayReadAsync(header, odinContext, shares, drive))
             {
                 return aclDeniedAsMissing ? (null, null) : throw new OdinSecurityException("No access permitted to the file");
             }

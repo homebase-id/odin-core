@@ -65,9 +65,17 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     /// <summary>
     /// The server holds no copy of the drive key it can open, so it never encrypts or decrypts for
     /// this drive: the only copy is locked by the owner's zero-knowledge master key, which only the
-    /// browser can open.
+    /// browser can open.  By its sharing model (<see cref="DriveSharingModelExtensions.IsZeroKnowledgeDrive"/>); a save
+    /// keeps its key copies to match (<c>DriveManager.AssertKeyCopies</c>).
     /// </summary>
-    public bool IsZeroKnowledge => Data.MasterKeyEncryptedStorageKey == null;
+    public bool IsZeroKnowledge => Data.SharingModel.IsZeroKnowledgeDrive();
+
+    /// <summary>
+    /// Whether a peer's write may wait in the inbox for a key holder to sign in: only where the server re-locks what
+    /// arrives, a drive whose key it holds.  On a zero-knowledge drive every peer write is written at once
+    /// (docs/terminology.md, "Files from others").
+    /// </summary>
+    public bool HasInbox => !IsZeroKnowledge;
 
     /// <summary>Whether <paramref name="sealedValue"/> was sealed to this drive's write-only key (<see cref="ZkSeal"/>).</summary>
     public bool IsSealedToWriteOnlyKey(byte[] sealedValue) =>

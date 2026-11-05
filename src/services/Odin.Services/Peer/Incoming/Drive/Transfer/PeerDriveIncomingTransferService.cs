@@ -65,8 +65,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 await quotaGuard.AssertCanAddPayloadBytesAsync();
             }
 
-            // Before anything is staged: an aes key header for a zero-knowledge drive would be accepted here and
-            // dropped by the inbox, where no storage key can lock it
+            // Before anything is staged or the sender is told it was accepted: what the drive can't take is refused here
             var driveId = transferInstructionSet.TargetDrive.Alias;
             var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
             if (IsDeposit(metadata, transferInstructionSet))
@@ -91,7 +90,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 await shares.AssertMemberMayShareAsync(drive, sentShares, metadata.IsEncrypted, odinContext);
             }
 
-            var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
+            var canDirectWrite = PeerDirectWrites.CanWriteAtOnce(drive, metadata.IsEncrypted,
+                transferInstructionSet.SharedSecretEncryptedKeyHeader, transferInstructionSet.FileSystemType, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
             var file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
@@ -238,14 +238,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             var drive = await driveManager.GetDriveAsync(driveId);
 
-            // No inbox on a Selective Share drive: a member deletes a file shared with them through a live share with
-            // Write, at once, as themselves (docs/selective-share-pr3-plan.md, section 7), which the tombstone's header
-            // write asks.  A soft delete, so the share rows stay and members' sync sees the tombstone
-            if (drive.IsSelectiveShare && fileSystemType == FileSystemType.Standard)
+            // No inbox on a zero-knowledge drive: the delete is written at once, as the peer, who may change the file
+            // (SentFileChanges), of the version they were judged on.  A soft delete, so share rows stay and members' sync
+            // sees the tombstone
+            if (!drive.HasInbox && fileSystemType == FileSystemType.Standard)
             {
-                var shared = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext)
-                             ?? throw new OdinSecurityException("No share with Write on the file");
-                await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId(driveId, shared.FileId), odinContext, null);
+                await DeleteAtOnceAsync(drive, new GlobalTransitIdFileIdentifier { TargetDrive = targetDrive, GlobalTransitId = globalTransitId },
+                    odinContext);
                 return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
             }
 
@@ -405,7 +404,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
         {
-            if (!await CanDirectWriteFile(stateItem.File.DriveId, metadata, stateItem.TransferInstructionSet, odinContext))
+            if (!stateItem.IsDirectWrite)
             {
                 return false;
             }
@@ -422,43 +421,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
                 odinContext);
 
-            if (metadata.IsEncrypted == false)
-            {
-                //S1110 - Write to disk and send notifications
-                await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                    odinContext, sourceArea: stateItem.IsDirectWrite ? StagingArea.Upload : StagingArea.Inbox,
-                        markComplete: writeShares);
-
-                return true;
-            }
-
-            //S1100
-            if (metadata.IsEncrypted)
-            {
-                // Next determine if we can direct write the file
-                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(stateItem.File.DriveId, out _);
-
-                //S1200 - a deposit needs no key: it is stored sealed, as it came; so is a comment on its file's key
-                if (hasStorageKey || IsStoredAsSent(metadata, stateItem.TransferInstructionSet))
-                {
-                    //S1205
-                    await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                        odinContext, sourceArea: stateItem.IsDirectWrite ? StagingArea.Upload : StagingArea.Inbox,
-                        markComplete: writeShares);
-                    return true;
-                }
-
-                logger.LogDebug("Caller can direct-write to drive [{drive}] but does not have storage " +
-                                "key for encrypted file", stateItem.File.DriveId);
-
-                //S2210 - comments cannot fall back to inbox
-                if (stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Comment)
-                {
-                    throw new OdinSecurityException("Sender cannot write the comment");
-                }
-            }
-
-            return false;
+            // S1110 unencrypted, S1205 with the storage key, as sent, or on a zero-knowledge drive: decided on arrival
+            await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
+                odinContext, sourceArea: StagingArea.Upload, markComplete: writeShares);
+            return true;
         }
 
         private KeyHeader DecryptKeyHeaderWithSharedSecret(EncryptedKeyHeader sharedSecretEncryptedKeyHeader, IOdinContext odinContext)
@@ -580,47 +546,36 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 
+        /// <summary>
+        /// A peer's delete on a drive with no inbox, of the version they were judged on: a write that lands in between is
+        /// judged again, once, rather than lost (a refused delete isn't retried by the sender's outbox).
+        /// </summary>
+        private async Task DeleteAtOnceAsync(StorageDrive drive, GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                var stored = await GetHeaderForPeerWriteAsync(fileSystem, file, odinContext);
+                var writeContext = await SentFileChanges.ContextForDeleteAsync(fileSystem, drive, stored,
+                    odinContext.GetCallerOdinIdOrFail(), odinContext);
+                if (writeContext == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    await fileSystem.Storage.SoftDeleteLongTermFile(stored.FileMetadata.File, writeContext, null,
+                        expectedVersionTag: stored.FileMetadata.VersionTag);
+                    return;
+                }
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1)
+                {
+                    // Changed since it was read: judge the delete again on what is there now
+                }
+            }
+        }
+
         private static bool IsDeposit(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>
             Deposits.IsDeposit(metadata.IsEncrypted, instructionSet.SharedSecretEncryptedKeyHeader);
-
-        private static bool IsStoredAsSent(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>
-            Deposits.IsStoredAsSent(metadata.IsEncrypted, instructionSet.SharedSecretEncryptedKeyHeader);
-
-        private async Task<bool> CanDirectWriteFile(Guid driveId, FileMetadata metadata,
-            EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)
-        {
-            await Task.CompletedTask;
-
-            //HACK: if it's not a connected token
-            if (odinContext.AuthContext.ToLower() != "TransitCapiAuthScheme".ToLower() &&
-                odinContext.AuthContext.ToLower() != "AutomatedIdentityAuthScheme".ToLower())
-            {
-                return false;
-            }
-
-            if (metadata.IsEncrypted == false)
-            {
-                return true;
-            }
-
-            //S1100
-            if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(driveId, out _))
-            {
-                return true;
-            }
-
-            if (IsStoredAsSent(metadata, transferInstructionSet))
-            {
-                return true;
-            }
-
-            //S2210 - comments cannot fall back to inbox
-            if (transferInstructionSet.FileSystemType == FileSystemType.Comment)
-            {
-                throw new OdinSecurityException("Sender cannot write the comment");
-            }
-
-            return false;
-        }
     }
 }

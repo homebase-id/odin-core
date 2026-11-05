@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests.V2.Api;
@@ -22,6 +23,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Security.ZeroKnowledge;
 using Odin.Test.Helpers;
+using Refit;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkAppSteps;
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
@@ -115,6 +117,40 @@ public class ZkDriveCreationTests : V2Fixture
         var created = await frodo.Admin.GetDrive(drive);
         Assert.That(created.SharingModel, Is.EqualTo(DriveSharingModel.Private));
         Assert.That(ZkBrowser.Open(created.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(keys.DriveKey));
+    }
+
+    [Test]
+    public async Task APrivateDrivesSettersRefuseWhatItsCreationRefuses()
+    {
+        // One settings check, at creation and at every setter: anonymous reads, the CDN, subscriptions and the
+        // community channel attribute all need the server to hold the drive's key
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "Kept", allowAnonymousReads: false, sharingModel: DriveSharingModel.Private,
+            zkKeys: ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey).Request);
+        var svc = frodo.RefitFor<IRefitDriveManagement>();
+
+        foreach (var (what, refused) in new (string, Func<Task<IApiResponse>>)[]
+                 {
+                     ("anonymous reads", async () => await svc.SetDriveReadMode(new UpdateDriveReadModeRequest
+                         { TargetDrive = drive, AllowAnonymousReads = true })),
+                     ("subscriptions", async () => await svc.SetAllowSubscriptions(new UpdateDriveAllowSubscriptionsRequest
+                         { TargetDrive = drive, AllowSubscriptions = true })),
+                     ("the CDN", async () => await svc.SetAllowCdn(new UpdateDriveAllowCdnRequest { TargetDrive = drive, AllowCdn = true })),
+                     ("the community channel", async () => await svc.UpdateAttributes(new UpdateDriveDefinitionRequest
+                     {
+                         TargetDrive = drive,
+                         Attributes = new Dictionary<string, string> { [BuiltInDriveAttributes.IsCollaborativeChannel] = "true" }
+                     }))
+                 })
+        {
+            var response = await refused();
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"{what}: {response.Error?.Content}");
+        }
+
+        var after = await frodo.Admin.GetDrive(drive);
+        Assert.That((after.AllowAnonymousReads, after.AllowSubscriptions, after.AllowCdn), Is.EqualTo((false, false, false)),
+            "nothing changed");
     }
 
     [Test]

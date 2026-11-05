@@ -203,26 +203,26 @@ public class ReactionPreviewCalculator(
         // having issues looking the file system for comments
 
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
-        var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
-        var preview = header.FileMetadata.ReactionPreview ?? new ReactionSummary();
-
-        var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
-
-        var key = ByteArrayUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
-        if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
+        await fs.Storage.ChangeReactionSummary(targetFile, stored =>
         {
-            reactionPreview = new ReactionContentPreview();
-        }
+            var preview = stored ?? new ReactionSummary();
+            var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
 
-        reactionPreview.Count++;
-        reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
-        reactionPreview.Key = key;
+            var key = ByteArrayUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
+            if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
+            {
+                reactionPreview = new ReactionContentPreview();
+            }
 
-        dict[key] = reactionPreview;
+            reactionPreview.Count++;
+            reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
+            reactionPreview.Key = key;
 
-        preview.Reactions = dict;
+            dict[key] = reactionPreview;
 
-        await fs.Storage.UpdateReactionSummary(targetFile, preview, odinContext);
+            preview.Reactions = dict;
+            return preview;
+        }, odinContext);
     }
 
     public async Task Handle(ReactionContentDeletedNotification notification, CancellationToken cancellationToken)
@@ -230,38 +230,37 @@ public class ReactionPreviewCalculator(
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
-        var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
-        var preview = header?.FileMetadata.ReactionPreview;
-
-        if (null == preview)
+        await fs.Storage.ChangeReactionSummary(targetFile, preview =>
         {
-            return;
-        }
+            if (null == preview)
+            {
+                return null;
+            }
 
-        var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
+            var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
 
-        var key = ByteArrayUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
-        if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
-        {
-            return;
-        }
+            var key = ByteArrayUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
+            if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
+            {
+                return null;
+            }
 
-        reactionPreview.Count--;
+            reactionPreview.Count--;
 
-        if (reactionPreview.Count == 0)
-        {
-            dict.Remove(key);
-        }
-        else
-        {
-            reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
-            reactionPreview.Key = key;
-            dict[key] = reactionPreview;
-        }
+            if (reactionPreview.Count == 0)
+            {
+                dict.Remove(key);
+            }
+            else
+            {
+                reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
+                reactionPreview.Key = key;
+                dict[key] = reactionPreview;
+            }
 
-        preview.Reactions = dict;
-
-        await fs.Storage.UpdateReactionSummary(targetFile, preview, odinContext);
+            preview.Reactions = dict;
+            return preview;
+        }, odinContext);
     }
 
     public async Task Handle(AllReactionsByFileDeleted notification, CancellationToken cancellationToken)
@@ -269,19 +268,10 @@ public class ReactionPreviewCalculator(
         var targetFile = notification.FileId;
         var odinContext = notification.OdinContext;
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
-        var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
-        var preview = header?.FileMetadata.ReactionPreview;
-
-        if (null == preview)
+        await fs.Storage.ChangeReactionSummary(targetFile, preview =>
         {
-            return;
-        }
-
-        if (null != preview.Reactions)
-        {
-            preview.Reactions.Clear();
-        }
-
-        await fs.Storage.UpdateReactionSummary(targetFile, preview, odinContext);
+            preview?.Reactions?.Clear();
+            return preview;
+        }, odinContext);
     }
 }

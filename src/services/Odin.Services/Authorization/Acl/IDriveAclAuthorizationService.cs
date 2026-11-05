@@ -23,7 +23,9 @@ namespace Odin.Services.Authorization.Acl
         /// </summary>
         /// <param name="sharedWithCaller">On a Selective Share drive, the caller's share rows for the page
         /// (<see cref="FilesSharedWithCallerAsync"/>), so a page costs one read; read for this file when not given.</param>
-        Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext, CallerShares sharedWithCaller = null);
+        /// <param name="drive">The file's drive, when the caller holds it already; looked up when not given.</param>
+        Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext, CallerShares sharedWithCaller = null,
+            StorageDrive drive = null);
 
         /// <summary>
         /// On a Selective Share drive, the share rows naming the caller for <paramref name="headers"/>, in one read: a

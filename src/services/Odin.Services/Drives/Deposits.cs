@@ -29,13 +29,6 @@ public static class Deposits
     public static bool IsDeposit(ServerFileHeader header) => IsDeposit(header.FileMetadata.IsEncrypted, header.EncryptedKeyHeader);
 
     /// <summary>
-    /// A deposit, or a member's comment on a Selective Share drive encrypted with its file's key (section 10): the key
-    /// header is stored and sent on as it came, so neither needs the drive's key.
-    /// </summary>
-    public static bool IsStoredAsSent(bool isEncrypted, EncryptedKeyHeader keyHeader) =>
-        IsDeposit(isEncrypted, keyHeader) || (isEncrypted && keyHeader?.IsFileKey() == true);
-
-    /// <summary>
     /// A stored file's key header, opened with the drive key the caller holds; a deposit's comes back
     /// sealed, as stored, and needs no drive key.  Any other file needs the caller to hold the drive
     /// key, even an unencrypted one (sending a file always has).  So does a member's comment on its file's key
@@ -44,7 +37,9 @@ public static class Deposits
     /// </summary>
     public static KeyHeader OpenWithDriveKey(ServerFileHeader header, IOdinContext odinContext)
     {
-        if (IsStoredAsSent(header.FileMetadata.IsEncrypted, header.EncryptedKeyHeader))
+        // A deposit, or a member's comment on its file's key: stored and sent on as it came (a stored file never has a
+        // share key header)
+        if (header.FileMetadata.IsEncrypted && header.EncryptedKeyHeader?.IsPassedOnAsSent() == true)
         {
             return new ClientLockedKeyHeader(header.EncryptedKeyHeader);
         }
@@ -87,9 +82,9 @@ public static class Deposits
     }
 
     /// <summary>Refuses payloads for a stored deposit, as <see cref="AssertValid"/> does for a new one.</summary>
-    public static void AssertTakesNoPayloads(ServerFileHeader existingHeader)
+    public static void AssertTakesNoPayloads(ServerFileHeader existingHeader, StorageDrive drive)
     {
-        if (IsDeposit(existingHeader))
+        if (IsDeposit(existingHeader) && !MayCarryPayloads(drive))
         {
             ThrowCarriesNoPayloads();
         }

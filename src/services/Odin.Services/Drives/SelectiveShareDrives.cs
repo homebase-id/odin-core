@@ -1,5 +1,4 @@
 #nullable enable
-using System.Collections.Generic;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -44,30 +43,18 @@ public static class SelectiveShareDrives
     }
 
     /// <summary>
-    /// A drive's settings, when it is created, converted or its attributes change.  <c>OwnerOnly</c> keeps every file
-    /// <c>Owner</c>, so such a drive could share nothing; the collaborative channel's edit rule is what a share row's
-    /// <c>Write</c> bit says, and its other effects move copies, which a zero-knowledge drive never sends
-    /// (docs/file-access.md, "Collaborative channels").
+    /// A file's ACL against its drive, on an upload or update by an owner caller: an owner-only drive's files are all
+    /// <c>Owner</c>, and a Private Share drive's ACL is what <see cref="AssertAclFits"/> allows.
     /// </summary>
-    public static void AssertSettingsFit(DriveSharingModel sharingModel, bool ownerOnly, IReadOnlyDictionary<string, string>? attributes)
+    public static void AssertAclFitsDrive(StorageDrive drive, AccessControlList acl)
     {
-        if (sharingModel != DriveSharingModel.SelectiveShare)
+        if (drive.OwnerOnly && acl.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
-            return;
+            throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
+                OdinClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
-        if (ownerOnly)
-        {
-            throw new OdinClientException("A SelectiveShare drive can't be owner only: none of its files could be shared",
-                OdinClientErrorCode.ArgumentError);
-        }
-
-        if (BuiltInDriveAttributes.IsCollaborativeChannelIn(attributes))
-        {
-            throw new OdinClientException($"A SelectiveShare drive can't be a collaborative channel " +
-                                          $"({BuiltInDriveAttributes.IsCollaborativeChannel}): its share rows say who may write",
-                OdinClientErrorCode.ArgumentError);
-        }
+        AssertAclFits(drive, acl);
     }
 
     /// <summary>

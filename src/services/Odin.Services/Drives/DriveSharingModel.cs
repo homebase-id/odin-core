@@ -4,10 +4,10 @@ namespace Odin.Services.Drives;
 /// Who holds which key to a drive (docs/zero-knowledge-drives.md, "Three sharing models").
 /// </summary>
 /// <remarks>
-/// A drive is Collaborative unless its app asked for Private or SelectiveShare when it was created, with keys made in the
-/// owner's browser; an existing drive becomes one only by conversion.  So the label never claims
-/// more than <see cref="StorageDrive.IsZeroKnowledge"/>.  Stored as an int in the Drives table; the
-/// values are frozen.
+/// A drive is Collaborative (Server Share, docs/terminology.md) unless its app asked for Private or SelectiveShare (Private
+/// Share) when it was created, with keys made in the owner's browser; an existing drive becomes one only by conversion.  The
+/// model is what makes a drive zero knowledge (<see cref="DriveSharingModelExtensions.IsZeroKnowledgeDrive"/>), and a save
+/// keeps the drive's key copies to it.  Stored as an int in the Drives table; the values are frozen.
 /// </remarks>
 public enum DriveSharingModel
 {
@@ -29,7 +29,10 @@ public enum DriveSharingModel
 
 public static class DriveSharingModelExtensions
 {
-    /// <summary>The models whose drives the server holds no key to: Private and SelectiveShare.</summary>
-    public static bool IsZeroKnowledge(this DriveSharingModel model) =>
+    /// <summary>
+    /// The models whose drives the server holds no key to: Private and SelectiveShare.  The one definition of a
+    /// zero-knowledge drive (docs/terminology.md); a drive's key copies follow it (<c>DriveManager.AssertKeyCopies</c>).
+    /// </summary>
+    public static bool IsZeroKnowledgeDrive(this DriveSharingModel model) =>
         model is DriveSharingModel.Private or DriveSharingModel.SelectiveShare;
 }

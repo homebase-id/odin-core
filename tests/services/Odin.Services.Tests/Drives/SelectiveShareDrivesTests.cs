@@ -50,24 +50,40 @@ public class SelectiveShareDrivesTests
     [TestCase(DriveSharingModel.Collaborative, true)]
     public void OnlyASelectiveShareDriveRefusesOwnerOnly(DriveSharingModel model, bool taken)
     {
-        AssertTaken(() => SelectiveShareDrives.AssertSettingsFit(model, ownerOnly: true, attributes: null), taken, $"{model}");
-        AssertTaken(() => SelectiveShareDrives.AssertSettingsFit(model, ownerOnly: false, attributes: null), true, $"{model}, not owner only");
+        AssertTaken(() => Fit(model, ownerOnly: true), taken, $"{model}");
+        AssertTaken(() => Fit(model), true, $"{model}, not owner only");
     }
 
     [TestCase(DriveSharingModel.SelectiveShare, false)]
-    [TestCase(DriveSharingModel.Private, true)]
+    [TestCase(DriveSharingModel.Private, false)]
     [TestCase(DriveSharingModel.Collaborative, true)]
-    public void OnlyASelectiveShareDriveRefusesTheCollaborativeChannel(DriveSharingModel model, bool taken)
+    public void OnlyAServerShareDriveMayBeMarkedAsACommunityChannel(DriveSharingModel model, bool taken)
     {
         var notSet = new Dictionary<string, string> { [BuiltInDriveAttributes.IsCollaborativeChannel] = "false" };
 
-        AssertTaken(() => SelectiveShareDrives.AssertSettingsFit(model, ownerOnly: false, CollaborativeChannel), taken, $"{model}");
-        AssertTaken(() => SelectiveShareDrives.AssertSettingsFit(model, ownerOnly: false, notSet), true, $"{model}, set to false");
+        AssertTaken(() => Fit(model, attributes: CollaborativeChannel), taken, $"{model}", model);
+        AssertTaken(() => Fit(model, attributes: notSet), true, $"{model}, set to false");
     }
+
+    [TestCase(DriveSharingModel.SelectiveShare, false)]
+    [TestCase(DriveSharingModel.Private, false)]
+    [TestCase(DriveSharingModel.Collaborative, true)]
+    public void OnlyAServerShareDriveAllowsAnonymousReadsTheCdnAndSubscriptions(DriveSharingModel model, bool taken)
+    {
+        AssertTaken(() => Fit(model, anonymous: true), taken, $"{model}, anonymous reads", model);
+        AssertTaken(() => Fit(model, cdn: true), taken, $"{model}, the CDN", model);
+        AssertTaken(() => Fit(model, subscriptions: true), taken, $"{model}, subscriptions", model);
+    }
+
+    private static void Fit(DriveSharingModel model, bool ownerOnly = false, bool anonymous = false, bool cdn = false,
+        bool subscriptions = false, Dictionary<string, string>? attributes = null) =>
+        DriveSettings.AssertFit(model, ownerOnly, anonymous, cdn, subscriptions, attributes);
 
     private static StorageDrive Drive(DriveSharingModel model) => new(null, new StorageDriveData { SharingModel = model });
 
-    private static void AssertTaken(TestDelegate check, bool taken, string what)
+    /// <summary>Taken, or refused with a message naming <paramref name="model"/>.</summary>
+    private static void AssertTaken(TestDelegate check, bool taken, string what,
+        DriveSharingModel model = DriveSharingModel.SelectiveShare)
     {
         if (taken)
         {
@@ -76,7 +92,7 @@ public class SelectiveShareDrivesTests
         else
         {
             var e = Assert.Throws<OdinClientException>(check, what);
-            Assert.That(e!.Message, Does.Contain("SelectiveShare"), what);
+            Assert.That(e!.Message, Does.Contain(model.ToString()), what);
         }
     }
 }

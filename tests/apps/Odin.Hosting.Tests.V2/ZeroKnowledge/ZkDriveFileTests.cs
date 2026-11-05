@@ -4,10 +4,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -19,6 +24,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.Management;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
@@ -256,9 +262,12 @@ public class ZkDriveFileTests : V2Fixture
     public async Task TheCdnNeverServesAZkDriveFile()
     {
         // The CDN reads as the system, which reaches a drive's own files for its jobs; a zero-knowledge drive
-        // is never one of the CDN's drives, even when the owner turns CDN on for it
+        // is never one of the CDN's drives.  The owner can't turn CDN on for one (DriveSettings.AssertFit),
+        // so the flag is set in storage, as a drive whose flag predates that rule has it
         var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
-        await frodo.Admin.SetAllowCdn(Drive, true);
+        var refused = await frodo.RefitFor<IRefitDriveManagement>().SetAllowCdn(new UpdateDriveAllowCdnRequest { TargetDrive = Drive, AllowCdn = true });
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"the setter refuses it: {refused.Error?.Content}");
+        await SetAllowCdnInStorageAsync(frodo);
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
         var (upload, _, _) = await UploadAsync(frodo, driveKey, Guid.NewGuid(), payload);
 
@@ -455,4 +464,15 @@ public class ZkDriveFileTests : V2Fixture
     private static void AssertNoKeyHeader(Refit.IApiResponse response) =>
         Assert.That(response.Headers.Contains(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64), Is.False,
             "the client opens it with the file key and the payload's IV");
+
+    /// <summary>Sets <paramref name="owner"/>'s Shard Recovery drive's CDN flag straight in the drives table.</summary>
+    private async Task SetAllowCdnInStorageAsync(OwnerSession owner)
+    {
+        var drives = Host.GetTenantScope(owner.Identity.DomainName).Resolve<TableDrivesCached>();
+        var record = (await drives.GetAsync(Drive.Alias))!;
+        var details = OdinSystemSerializer.Deserialize<StorageDriveDetails>(record.detailsJson)!;
+        details.AllowCdn = true;
+        record.detailsJson = OdinSystemSerializer.Serialize(details);
+        await drives.UpsertAsync(record);
+    }
 }

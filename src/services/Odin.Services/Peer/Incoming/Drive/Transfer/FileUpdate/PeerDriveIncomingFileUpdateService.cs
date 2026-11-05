@@ -65,7 +65,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             await AssertMemberMayChangeAsync(drive, transferInstructionSet, odinContext);
 
-            _isDirectWrite = await CanDirectWriteFile(driveId, fileMetadata, transferInstructionSet.FileSystemType, odinContext);
+            _isDirectWrite = PeerDirectWrites.CanWriteAtOnce(drive, fileMetadata.IsEncrypted, transferInstructionSet.EncryptedKeyHeader,
+                transferInstructionSet.FileSystemType, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
             _file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
@@ -197,7 +198,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext)
         {
-            if (!await CanDirectWriteFile(_file.DriveId, metadata, _updateInstructionSet.FileSystemType, odinContext))
+            if (!_isDirectWrite)
             {
                 return false;
             }
@@ -205,11 +206,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
-            var sourceArea = _isDirectWrite ? StagingArea.Upload : StagingArea.Inbox;
-
-            // S1110 unencrypted, S1205 with the storage key or on a Selective Share drive: CanDirectWriteFile decided which
+            // S1110 unencrypted, S1205 with the storage key, as sent, or on a zero-knowledge drive: decided on arrival
             await updateWriter.UpsertFileAsync(_file, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null,
-                sourceArea: sourceArea);
+                sourceArea: StagingArea.Upload);
             return true;
         }
 
@@ -311,44 +310,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             });
 
             return PeerResponseCode.AcceptedIntoInbox;
-        }
-
-        private async Task<bool> CanDirectWriteFile(Guid driveId,
-            FileMetadata metadata,
-            FileSystemType fileSystemType,
-            IOdinContext odinContext)
-        {
-            //HACK: if it's not a connected token
-            if (odinContext.AuthContext.ToLower() != "TransitCapiAuthScheme".ToLower())
-            {
-                return false;
-            }
-
-            if (metadata.IsEncrypted == false)
-            {
-                return true;
-            }
-
-            //S1100
-            if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(driveId, out _))
-            {
-                return true;
-            }
-
-            // No inbox on a Selective Share drive: a member's update is applied as the member, who was checked on arrival
-            if ((await driveManager.GetDriveAsync(driveId))?.IsSelectiveShare == true)
-            {
-                return true;
-            }
-
-            //S2210 - comments cannot fall back to inbox
-            if (fileSystemType == FileSystemType.Comment)
-            {
-                throw new OdinSecurityException($"Sender cannot direct-write the comment to drive {driveId}");
-            }
-
-            await Task.CompletedTask;
-            return false;
         }
     }
 }

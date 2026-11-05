@@ -67,7 +67,8 @@ namespace Odin.Services.Authorization.Acl
             return Allows(acl, ReviewedSecurityTier.For(tenantContext.DataVersionNumber, icr), circles, odinId);
         }
 
-        public async Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext, CallerShares sharedWithCaller = null)
+        public async Task<bool> CallerMayReadAsync(ServerFileHeader header, IOdinContext odinContext, CallerShares sharedWithCaller = null,
+            StorageDrive drive = null)
         {
             var visible = ZkDriveFiles.VisibleTo(header, odinContext);
             var caller = odinContext.Caller;
@@ -84,7 +85,7 @@ namespace Odin.Services.Authorization.Acl
 
             var file = header.FileMetadata.File;
             // Shares given: the caller's on a Selective Share drive, already looked up
-            if (sharedWithCaller != null || await IsSelectiveShareAsync(file.DriveId))
+            if (sharedWithCaller != null || (drive?.IsSelectiveShare ?? await IsSelectiveShareAsync(file.DriveId)))
             {
                 // The share rows say who, not the ACL's names (docs/file-access.md, "With Selective Share"); a live
                 // share also opens a client-locked file to the member, who gets the share's locked file key (section 6).

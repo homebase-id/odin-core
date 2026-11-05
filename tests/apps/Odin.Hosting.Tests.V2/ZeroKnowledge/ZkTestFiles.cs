@@ -48,13 +48,13 @@ internal static class ZkTestFiles
     /// its key header.
     /// </summary>
     public static Task<Refit.ApiResponse<UpdateFileResult>> UpdateAsync(OwnerSession owner, Guid fileId, Guid uniqueId,
-        KeyHeader keyHeader, EncryptedKeyHeader locked, Guid versionTag, List<OdinId>? recipients = null)
+        KeyHeader keyHeader, EncryptedKeyHeader locked, Guid versionTag, List<OdinId>? recipients = null, TargetDrive? drive = null)
     {
         var metadata = Metadata(uniqueId, "updated", versionTag);
         metadata.AppData.Content = keyHeader.EncryptDataAes(metadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
         metadata.IsEncrypted = true;
 
-        return owner.Drives.Writer.UpdateFileByFileId(Drive.Alias, fileId, new FileUpdateInstructionSetV2
+        return owner.Drives.Writer.UpdateFileByFileId((drive ?? Drive).Alias, fileId, new FileUpdateInstructionSetV2
         {
             Locale = UpdateLocale.Local,
             TransferIv = ByteArrayUtil.GetRndByteArray(16),

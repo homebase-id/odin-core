@@ -47,7 +47,7 @@ public class GroupReactionService(
         var result = new AddReactionResult();
 
         // Update the local-reactions cache BEFORE adding the reaction content. The reaction-content
-        // add raises statisticsChanged (via ReactionPreviewCalculator -> UpdateReactionSummary),
+        // add raises statisticsChanged (via ReactionPreviewCalculator -> ChangeReactionSummary),
         // whose header snapshot must already include this reaction in localReactions. The server is
         // the source of truth for localReactions, so every emitted notification must be consistent;
         // doing this after the add is what made statisticsChanged announce a reaction its own

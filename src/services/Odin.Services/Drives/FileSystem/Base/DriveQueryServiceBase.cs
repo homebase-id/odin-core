@@ -215,10 +215,20 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <inheritdoc cref="GetServerFileHeaderByClientUniqueIdSkippingFileAcl"/>
+        /// <param name="permission">The drive permission the caller's write needs, asked instead of Read or Write: a
+        /// reaction needs only <c>React</c>.</param>
         public async Task<ServerFileHeader> GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(Guid driveId, Guid globalTransitId,
-            IOdinContext odinContext)
+            IOdinContext odinContext, DrivePermission? permission = null)
         {
-            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
+            if (permission is { } asked)
+            {
+                odinContext.PermissionsContext.AssertHasDrivePermission(driveId, asked);
+            }
+            else
+            {
+                await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
+            }
+
             await AssertDriveIsValidAndActive(driveId, odinContext);
 
             var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, globalTransitId);

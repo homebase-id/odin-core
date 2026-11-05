@@ -38,7 +38,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
         OdinValidationUtils.AssertNotNull(request.File, nameof(request.File));
         request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        if (await TryApplyToSelectiveShareDriveAsync(TransferInstructionType.AddReaction, request, odinContext))
+        if (await TryApplyToZeroKnowledgeDriveAsync(TransferInstructionType.AddReaction, request, odinContext))
         {
             return PeerResponseCode.AcceptedDirectWrite;
         }
@@ -56,7 +56,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
         OdinValidationUtils.AssertNotNull(request.File, nameof(request.File));
         request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        if (await TryApplyToSelectiveShareDriveAsync(TransferInstructionType.DeleteReaction, request, odinContext))
+        if (await TryApplyToZeroKnowledgeDriveAsync(TransferInstructionType.DeleteReaction, request, odinContext))
         {
             return PeerResponseCode.AcceptedDirectWrite;
         }
@@ -68,25 +68,28 @@ public class PeerIncomingGroupReactionInboxRouterService(
     }
 
     /// <summary>
-    /// No inbox on a Selective Share drive: a member's reaction is applied at once, as the member, by a share's
-    /// <c>React</c> bit in place of the drive's (docs/selective-share-pr3-plan.md, sections 7 and 10).  False for any
-    /// other drive.
+    /// No inbox on a zero-knowledge drive: a peer's reaction is applied at once, as the peer, by drive <c>React</c>, and on
+    /// Private Share by a share's <c>React</c> bit in place of the drive's (docs/selective-share-pr3-plan.md, sections 7
+    /// and 10).  The file is found without the read rule, which hides a client-locked file from a peer; reacting reads
+    /// nothing of it.  False for a Server Share drive.
     /// </summary>
-    private async Task<bool> TryApplyToSelectiveShareDriveAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request,
+    private async Task<bool> TryApplyToZeroKnowledgeDriveAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request,
         IOdinContext odinContext)
     {
         var drive = await driveManager.GetDriveAsync(request.File.TargetDrive.Alias);
-        if (drive?.IsSelectiveShare != true)
+        if (drive == null || drive.HasInbox)
         {
             return false;
         }
 
-        var file = await ResolveInternalFile(request.File.ToGlobalTransitIdFileIdentifier(), odinContext, failIfNull: true);
+        // The file reacted to, a comment as much as a standard file, by drive React alone
+        var file = (await GetHeaderForPeerWriteAsync(FileSystemResolver.ResolveFileSystem(request.FileSystemType),
+            request.File.ToGlobalTransitIdFileIdentifier(), odinContext, DrivePermission.React)).FileMetadata.File;
         var reaction = await DecryptUsingSharedSecretAsync<string>(request.Payload, odinContext);
         var sender = odinContext.GetCallerOdinIdOrFail();
         _ = instruction == TransferInstructionType.AddReaction
-            ? await reactionContentService.AddReactionAsync(file!.Value, reaction, sender, odinContext, null)
-            : await reactionContentService.DeleteReactionAsync(file!.Value, reaction, sender, odinContext, null);
+            ? await reactionContentService.AddReactionAsync(file, reaction, sender, odinContext, null)
+            : await reactionContentService.DeleteReactionAsync(file, reaction, sender, odinContext, null);
         return true;
     }
 

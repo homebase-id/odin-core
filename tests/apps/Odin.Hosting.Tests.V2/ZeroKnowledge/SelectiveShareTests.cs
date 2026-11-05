@@ -472,6 +472,25 @@ public partial class SelectiveShareTests : V2Fixture
             "a soft delete keeps the shares, so members' sync sees the tombstone");
     }
 
+    [Test]
+    public async Task ThePayloadRouteAddsAPayloadToADeposit()
+    {
+        // A deposit here may carry payloads (file-access.md, "With Private Share"), so the payload route takes one too,
+        // as the file's update does; on a Private drive it is refused (DepositTests.APayloadCannotBeAddedToADeposit)
+        var s = await ArrangeAsync();
+        var uniqueId = Guid.NewGuid();
+        await SendDepositAsync(s.Sam, s.Sam, s.Frodo, s.WriteOnlyPublicKeyJwk, uniqueId, "a new file", remoteDrive: s.Drive);
+        var received = (await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!;
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        payload.Iv = ByteArrayUtil.GetRndByteArray(16);
+        var upload = await s.Frodo.V1.Drive.UploadPayloads(new ExternalFileIdentifier { FileId = received.FileId, TargetDrive = s.Drive },
+            received.FileMetadata.VersionTag, new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload]);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        Assert.That((await s.Frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, s.Drive.Alias)).Content!.FileMetadata.Payloads,
+            Has.Count.EqualTo(1));
+    }
+
     [TestCase(true, TestName = "AMemberWithDriveWriteAddsAFileWithItsContent")]
     [TestCase(false, TestName = "AConnectionWithoutDriveWriteAddsNoFile")]
     public async Task AFileIsAddedWithDriveWriteAlone(bool member)

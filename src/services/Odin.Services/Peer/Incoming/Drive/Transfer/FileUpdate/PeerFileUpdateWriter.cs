@@ -56,12 +56,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 ? (odinContext, true)
                 : await SentFileChanges.ContextForChangeAsync(fs, drive, existingHeader, sender, memberMayUseShares: true, odinContext);
 
-            // On a Selective Share drive a member edits a file shared with them: never a new one, and the file keeps its
-            // ACL, which an Owner one would close to every member (docs/selective-share-pr3-plan.md, section 7)
+            // On a Private Share drive a member edits a file shared with them, or a comment on one: never a new one.  A
+            // standard file keeps its ACL, which an Owner one would close to every member (docs/selective-share-pr3-plan.md,
+            // section 7); a comment takes its file's, as on every drive (IncomingCommentAcl)
             if (drive.IsSelectiveShare)
             {
-                targetAcl = existingHeader?.ServerMetadata?.AccessControlList ??
-                            throw new OdinSecurityException("No shared file to update");
+                var existingAcl = existingHeader?.ServerMetadata?.AccessControlList ??
+                                  throw new OdinSecurityException("No shared file to update");
+                if (fileSystemType == FileSystemType.Standard)
+                {
+                    targetAcl = existingAcl;
+                }
             }
 
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
