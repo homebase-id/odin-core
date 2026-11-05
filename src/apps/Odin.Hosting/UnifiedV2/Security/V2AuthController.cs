@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authorization;
@@ -52,6 +53,8 @@ namespace Odin.Hosting.UnifiedV2.Security
         [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
         public async Task DeleteClient()
         {
+            // The cookie might have been set by AppAuthPathHandler
+            Response.Cookies.Delete(YouAuthConstants.AppCookieName);
             var tokenId = WebOdinContext.Caller.OdinClientContext.AccessRegistrationId;
             await storage.DeleteAsync(tokenId);
         }
