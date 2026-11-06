@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -1774,12 +1775,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
-            var header = await GetServerFileHeaderForWriting(file, odinContext, aclDeniedAsMissing: true);
-            AssertActiveForUpdate(header);
-
-            // Checked here for a clear answer; the header write repeats the check atomically against the row.
-            AssertVersionTagMatches(header, expectedVersionTag);
-
+            var header = await GetActiveHeaderAtVersionAsync(file, expectedVersionTag, odinContext);
             if (header.FileMetadata.AppData.ArchivalStatus == archivalStatus)
             {
                 // Nothing to change: no new version tag, and modified (a client's "removed at") stays put
@@ -1801,6 +1797,66 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             return (header.FileMetadata.VersionTag.GetValueOrDefault(), UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
+        }
+
+        /// <summary>
+        /// A key holder's transform of deposits into the drive's own key headers (docs/zero-knowledge-drives.md): each
+        /// file's sealed key header is replaced by the zkDrive one sent, locking the same file key under the same IV
+        /// (<see cref="ZkDriveFiles.TransformedKeyHeader"/>), if the file is still at the version tag the caller read.
+        /// Nothing else changes: not the version tag, not modified, and no file-changed event, so no reader re-fetches,
+        /// every writer's cached version tag stays valid, and a deposit's sender may still delete it (though no longer
+        /// change it with a sealed key header, <see cref="ZkDriveFiles.AssertMayReplace"/>).  One result per file, in
+        /// request order; a file's client error is its result, never the request's.
+        /// </summary>
+        public async Task<List<KeyHeaderTransformResult>> TransformKeyHeadersAsync(Guid driveId,
+            IReadOnlyList<KeyHeaderTransform> files, IOdinContext odinContext)
+        {
+            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
+            ZkDriveFiles.AssertCallerMayTransform(drive, odinContext);
+
+            var results = new KeyHeaderTransformResult[files.Count];
+            var transformed = new List<(Guid FileId, Guid VersionTag, string EncryptedKeyHeader)>();
+            for (var i = 0; i < files.Count; i++)
+            {
+                var f = files[i];
+                try
+                {
+                    var header = await GetActiveHeaderAtVersionAsync(new InternalDriveFileId(driveId, f.FileId), f.VersionTag, odinContext);
+                    var keyHeader = ZkDriveFiles.TransformedKeyHeader(header.EncryptedKeyHeader, f.KeyHeader);
+                    transformed.Add((f.FileId, f.VersionTag, OdinSystemSerializer.Serialize(keyHeader)));
+                    results[i] = new KeyHeaderTransformResult(f.FileId, keyHeader, null);
+                }
+                catch (OdinClientException e)
+                {
+                    results[i] = new KeyHeaderTransformResult(f.FileId, null, e.ErrorCode);
+                }
+            }
+
+            if (transformed.Count == 0)
+            {
+                return results.ToList();
+            }
+
+            // A file that moved on or went since it was read: 0 rows, answered as a stale version tag
+            var moved = (await longTermStorageManager.SaveKeyHeadersKeepingVersionTagAsync(driveId, transformed)).ToHashSet();
+            return results.Select(r => moved.Contains(r.FileId)
+                ? new KeyHeaderTransformResult(r.FileId, null, OdinClientErrorCode.VersionTagMismatch)
+                : r).ToList();
+        }
+
+        /// <summary>
+        /// The header a batch write changes, refused per file with the codes the batches report: 4106 when it doesn't
+        /// exist or the caller may not see it, as a query would leave it out; 4002 when it isn't active; 4160 when it isn't
+        /// at <paramref name="expectedVersionTag"/>, checked here for a clear answer, as the write checks it again against
+        /// the row.
+        /// </summary>
+        private async Task<ServerFileHeader> GetActiveHeaderAtVersionAsync(InternalDriveFileId file, Guid expectedVersionTag,
+            IOdinContext odinContext)
+        {
+            var header = await GetServerFileHeaderForWriting(file, odinContext, aclDeniedAsMissing: true);
+            AssertActiveForUpdate(header);
+            AssertVersionTagMatches(header, expectedVersionTag);
+            return header;
         }
 
         /// <summary>

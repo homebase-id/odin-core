@@ -1,7 +1,8 @@
 # Zero-knowledge drive API: plan
 
 Status: steps 1 to 4 built and merged: step 1 (#2023, follow-up #2027), step 2 (#2029, odin-js #1006), step 3
-(#2037) and step 4 (#2046). The transform and a sender's edit are deferred to Chat. It details items 1-3 and 6 of
+(#2037) and step 4 (#2046). The transform's server part is built (2026-11-06, branch `transform-key-headers`; see
+[Deferred to Chat: the transform](#deferred-to-chat-the-transform)); its clients and a sender's edit are deferred to Chat. It details items 1-3 and 6 of
 "odin-core API changes" in [zero-knowledge-drives.md](zero-knowledge-drives.md). Key names follow
 [owner-keys.md](owner-keys.md), words [terminology.md](terminology.md): a Server Share drive (`Collaborative` in
 code) is one whose key the server holds, locked; Private and Private Share drives are the zero-knowledge ones.
@@ -812,6 +813,21 @@ app, and created Private on a new identity as Vault is (4.7).
 
 Designed and reviewed with step 2 (2026-10-27), built with Chat, which reads every incoming message and
 gains most from transforming once. Kept as reviewed.
+
+**Server built 2026-11-06** (`DriveStorageServiceBase.TransformKeyHeadersAsync`, `KeyHeaderTransformTests`); the
+present-tense description is in [zero-knowledge-drives.md](zero-knowledge-drives.md). Where it differs from the design
+below:
+- **Who:** any caller holding the drive's key (`ZkDriveFiles.CallerHoldsDriveKey`), not the owner console only: an app
+  device handed its app's zero-knowledge key holds it too, and chat-kmp is one.
+- **Batch size:** up to 1000, the limit every V2 batch write shares (`FileVersionTagBatchV2.MaxFiles`), not 100.
+- **A deleted file** answers `cannotUpdateNonActiveFile`, as the other batch writes do.
+- **The Shard Recovery drive is refused:** the server releases a friend's shard only as the sealed deposit it holds,
+  so "Shamir leaves its shards sealed" is enforced, not left to clients.
+- **Drive permission first:** `Write` on the drive is asked before the drive is looked at, as the other batch writes do.
+- **A sender's update after the transform** is refused, not "sealed again": the guard that a `sealed` key header
+  replaces only a `sealed` one (`ZkDriveFiles.AssertMayReplace`) was built after this design. Whether the sender may
+  keep editing (see [a sender's edit](#deferred-to-chat-a-senders-edit)) is not decided.
+- **The cache:** the batch update clears the drive's main-index cache once (`TableDriveMainIndexCached.UpdateEncryptedKeyHeadersAsync`).
 
 ### The transform (server)
 **Request:** `POST /api/v2/drives/{driveId}/files/transform-key-headers`, owner console only

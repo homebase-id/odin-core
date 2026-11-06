@@ -50,6 +50,19 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.SaveFileHeaderAsync(drive, header, useThisVersionTag);
         }
 
+        /// <summary>
+        /// Sets only the key header of each file still at the version tag it was read at, leaving the version tag and
+        /// modified as they are, in one transaction; returns the files that had moved on.
+        /// </summary>
+        public async Task<List<Guid>> SaveKeyHeadersKeepingVersionTagAsync(Guid driveId,
+            IReadOnlyCollection<(Guid FileId, Guid VersionTag, string EncryptedKeyHeader)> headers)
+        {
+            await using var tx = await scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
+            var moved = await driveMainIndex.UpdateEncryptedKeyHeadersAsync(driveId, headers);
+            tx.Commit();
+            return moved;
+        }
+
         public async Task SaveLocalMetadataAsync(InternalDriveFileId file, LocalAppMetadata metadata, Guid newVersionTag)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
