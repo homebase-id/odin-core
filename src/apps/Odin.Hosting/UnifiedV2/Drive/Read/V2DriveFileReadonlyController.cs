@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -184,6 +185,38 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             };
         }
 
+        /// <summary>
+        /// What a browser got, for a read the server calls a 200 and the app calls a failure: who asked and from where,
+        /// the headers the app decrypts by and CORS decides by, and whether the browser stayed for the whole response.
+        /// </summary>
+        private void LogPayloadResponse(Guid driveId, Guid fileId, string key, IActionResult payload)
+        {
+            if (!logger.IsEnabled(LogLevel.Debug))
+            {
+                return;
+            }
+
+            var context = HttpContext;
+            var caller = WebOdinContext.Caller;
+            context.Response.OnCompleted(() =>
+            {
+                var response = context.Response;
+                logger.LogDebug(
+                    "V2 payload response: drive {driveId} file {fileId} key {key} caller {caller} level {level} token {tokenType} " +
+                    "origin {origin} fetchMode {fetchMode} result {result} status {status} contentType {contentType} " +
+                    "payloadEncrypted {payloadEncrypted} decryptedContentType {decryptedContentType} " +
+                    "allowOrigin {allowOrigin} contentLength {contentLength} clientAborted {clientAborted}",
+                    driveId, fileId, key, caller.OdinId?.ToString(), caller.SecurityLevel, caller.ClientTokenType,
+                    context.Request.Headers.Origin.ToString(), context.Request.Headers["Sec-Fetch-Mode"].ToString(),
+                    payload.GetType().Name, response.StatusCode, response.ContentType,
+                    response.Headers[HttpHeaderConstants.PayloadEncrypted].ToString(),
+                    response.Headers[HttpHeaderConstants.DecryptedContentType].ToString(),
+                    response.Headers.AccessControlAllowOrigin.ToString(), response.ContentLength,
+                    context.RequestAborted.IsCancellationRequested);
+                return Task.CompletedTask;
+            });
+        }
+
         private async Task<IActionResult> GetPayloadInternal(
             Guid driveId,
             Guid fileId,
@@ -207,6 +240,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
             }
 
+            LogPayloadResponse(driveId, fileId, key, payload);
             return payload;
         }
     }
