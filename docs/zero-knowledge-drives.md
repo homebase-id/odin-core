@@ -76,7 +76,10 @@ The model in short; the reasons, alternatives and work are in
     device handed its app's zero-knowledge key, such as chat-kmp's, with Write on the drive. Anyone else is refused
     (403), before the drive is looked at **(V, tested for an app device without the key; I: a guest, by the same
     check)**. Never on the Shard Recovery drive: the server releases a friend's shard only as the sealed deposit it
-    holds (`ShamirBaseService`), so shards stay `sealed` **(V, tested)**.
+    holds (`ShamirBaseService`), so shards stay `sealed` **(V, tested)**. That is Shamir's need, not a rule of drives:
+    the server tells whether a friend's browser can still open a shard from the key its seal names, and a `zkDrive`
+    key header names none. Once Shamir keeps its own record of the key a shard is locked under, the exception goes
+    **(to build)**.
   - **Per file**, in request order, one file's refusal stopping no other: the file exists and is active
     (`fileNotFound`, `cannotUpdateNonActiveFile`); its stored key header is `sealed` (`notSealed`); the new one is a
     valid `zkDrive` key header with the stored IV, which the content was encrypted under (`invalidKeyHeader`); the

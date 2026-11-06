@@ -200,6 +200,13 @@ public static class ZkDriveFiles
         }
 
         AssertCallerHoldsDriveKey(drive.Id, odinContext);
+
+        // An exception for Shamir, not a rule of drives.  Before it releases a gated friend's shard, the server asks
+        // whether the friend's browser can still open it, and answers from the seal: a sealed key header names the
+        // write-only key it was sealed to, which a reset with a new master key replaces (ShamirBaseService.CanReleaseAsync).
+        // A zkDrive key header names no key, so a transformed shard could no longer be released.  The real fix is in
+        // Shamir: it keeps its own record of which key a shard is locked under, rather than reading it off the key
+        // header, and then this exception goes and shards transform like any deposit.
         if (drive.Id == WellKnownAppDrives.ShardRecoveryDrive.Alias.Value)
         {
             throw new OdinClientException("Shards stay sealed: the server releases them only as they were deposited",
