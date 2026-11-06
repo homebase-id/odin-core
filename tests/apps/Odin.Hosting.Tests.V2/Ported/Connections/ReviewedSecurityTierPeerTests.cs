@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
@@ -151,7 +150,7 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         // The disconnect notice travels through Sam's outbox.
         await sam.Sync.DrainOutboxAsync();
 
-        var frodoRecordOfSam = await Storage(frodo).GetAsync(sam.Identity);
+        var frodoRecordOfSam = await Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>().GetAsync(sam.Identity);
         Assert.That(frodoRecordOfSam == null || !frodoRecordOfSam.IsConnected(), Is.True,
             "when an unreviewed connection disconnects, the other side must drop the connection too");
     }
@@ -268,31 +267,6 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         });
         Assert.That(response.IsSuccessStatusCode, Is.True, $"peer query failed: {response.StatusCode}");
         return response.Content!.SearchResults.Count();
-    }
-
-    /// <summary>
-    /// Puts <paramref name="peer"/> back to unreviewed on <paramref name="owner"/>'s side.
-    /// </summary>
-    /// <remarks>
-    /// Written to storage rather than through <c>review/clear</c>: the peer-flow setup puts the peer in a
-    /// personal circle, which the clear refuses by design.  A storage write bypasses the cache reset the real
-    /// clear does, so the cache is reset here.
-    /// </remarks>
-    private async Task ClearReviewOnAsync(OwnerSession owner, OdinId peer)
-    {
-        var storage = Storage(owner);
-        await storage.UpdateReviewedAtAsync(peer, ConnectionStatus.Connected, null);
-
-        var icr = await storage.GetAsync(peer);
-        Assert.That(icr, Is.Not.Null, $"precondition: {owner.Identity} is connected to {peer}");
-        Assert.That(icr!.ReviewedAt, Is.Null, $"precondition: {peer} is unreviewed on {owner.Identity}");
-
-        await Host.GetTenantScope(owner.Identity.DomainName).Resolve<OdinContextCache>().ResetAsync();
-    }
-
-    private CircleNetworkStorage Storage(OwnerSession owner)
-    {
-        return Host.GetTenantScope(owner.Identity.DomainName).Resolve<CircleNetworkStorage>();
     }
 
     private static async Task<Guid> SendFileAsync(OwnerSession sender, OwnerSession recipient, TargetDrive drive)

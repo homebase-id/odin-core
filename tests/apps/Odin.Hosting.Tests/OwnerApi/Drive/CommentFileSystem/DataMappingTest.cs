@@ -68,7 +68,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 {
                     AccessControlList = new Services.Authorization.Acl.AccessControlList()
                         { RequiredSecurityGroup = SecurityGroupType.Anonymous },
-                    AllowDistribution = false, FileByteCount = 42, OriginalRecipientCount = 69
+                    AllowDistribution = false, FileByteCount = 42, OriginalRecipientCount = 69,
+                    SendersWrite = new SendersWrite
+                        { Sender = new OdinId("sam.gamgee.me"), SendersVersionTag = Guid.NewGuid(), VersionTag = Guid.NewGuid() }
                 }),
                 hdrTmpDriveAlias = Guid.NewGuid(),
                 hdrTmpDriveType = Guid.NewGuid(),
@@ -93,6 +95,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(sfh.FileMetadata.LocalAppData.VersionTag != Guid.Empty);
             ClassicAssert.IsTrue(sfh.FileMetadata.ReactionPreview != null);
             ClassicAssert.IsTrue(sfh.ServerMetadata.TransferHistory != null);
+            Assert.That(sfh.ServerMetadata.SendersWrite?.Sender, Is.EqualTo(new OdinId("sam.gamgee.me")));
 
             var targetDrive = new TargetDrive() { Alias = driveMainRecord.hdrTmpDriveAlias, Type = driveMainRecord.hdrTmpDriveType };
             var dmr2 = sfh.ToDriveMainIndexRecord(targetDrive, driveMainRecord.identityId);

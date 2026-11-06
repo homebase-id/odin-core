@@ -26,6 +26,9 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
 
         public bool IsUpdateOperation { get; init; }
 
+        /// <summary>A new file's shares, from its descriptor (<see cref="UploadFileDescriptor.Shares"/>); null when none.</summary>
+        public List<Shares.ShareRequest> Shares { get; set; }
+
         /// <summary>
         /// List of payloads uploaded
         /// </summary>

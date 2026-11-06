@@ -15,7 +15,7 @@ public interface IDriveReaderHttpClientApiV2
 
     [Get(Endpoint + "/header")]
     Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([AliasAs("driveId:guid")] Guid driveId,
-        [AliasAs("fileId:guid")] Guid fileId, FileSystemType fileSystemType);
+        [AliasAs("fileId:guid")] Guid fileId, FileSystemType fileSystemType, bool? includeShares = null);
 
     [Get(Endpoint + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> GetPayload([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid uid,

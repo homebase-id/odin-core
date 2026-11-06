@@ -42,7 +42,8 @@ namespace Odin.Services.Membership.Circles
     /// <summary>
     /// What kind of relationship a circle represents.  Presentation and filtering only -- it never
     /// participates in ACL evaluation, which was considered and rejected as ambient authority resting on
-    /// a distributed judgment.
+    /// a distributed judgment.  <see cref="Individual"/> also shapes the circle (one member, no grant) and a share's ceiling, still
+    /// without any ACL check reading it.
     /// </summary>
     /// <remarks>
     /// An enum rather than a boolean because history says new kinds appear: <see cref="Vendor"/> was
@@ -66,6 +67,14 @@ namespace Odin.Services.Membership.Circles
         /// Vendor and institution relationships: the hotel writing purchase history, the bank uploading
         /// statements.  Write-only in practice.
         /// </summary>
-        Vendor = 3
+        Vendor = 3,
+
+        /// <summary>
+        /// One person, so that a share with them is a share row like any other (docs/file-access.md, "Sharing with one
+        /// person").  At most one member, and no grant of its own: the member's other circles grant the drive, and the
+        /// circle's share rows narrow that.  Made by the owning app's client, which holds the circle's key; circle lists
+        /// hide it.
+        /// </summary>
+        Individual = 4
     }
 }

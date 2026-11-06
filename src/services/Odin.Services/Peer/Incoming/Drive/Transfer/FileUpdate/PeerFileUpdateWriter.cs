@@ -43,21 +43,42 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var incomingMetadata = await LoadMetadata(file, fs, sourceArea, metadataOverride, odinContext);
 
             // Validations
-            var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext);
-            var (targetAcl, isCollaborationChannel) = await DetermineAclAsync(file,
-                instructionSet,
-                fileSystemType,
-                incomingMetadata,
-                odinContext);
+            var drive = await driveManager.GetDriveAsync(file.DriveId);
+            var isCollaborationChannel = drive.IsCollaborationDrive();
+            var targetAcl = await IncomingFileAcl.ForIncomingFileAsync(fileSystemResolver, fileSystemType, incomingMetadata,
+                isCollaborationChannel, instructionSet.OriginalAcl, odinContext);
+
+            // A sender's update changes the file the global transit id names, found by the server, not as the sender, who may
+            // only write it (docs/file-access.md, "Changing a file you sent")
+            var target = instructionSet.Request.File;
+            var existingHeader = await fs.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(target.TargetDrive.Alias,
+                target.GlobalTransitId.GetValueOrDefault(), odinContext);
+
+            // On a Private Share drive a member edits a file shared with them, or a comment on one: never a new one.  A
+            // standard file keeps its ACL, which an Owner one would close to every member (docs/selective-share-pr3-plan.md,
+            // section 7); a comment takes its file's, as on every drive (IncomingFileAcl)
+            if (drive.IsSelectiveShare)
+            {
+                var existingAcl = existingHeader?.ServerMetadata?.AccessControlList ??
+                                  throw new OdinSecurityException("No shared file to update");
+                if (fileSystemType == FileSystemType.Standard)
+                {
+                    targetAcl = existingAcl;
+                }
+            }
 
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
             incomingMetadata!.SenderOdinId = sender;
 
+            var request = instructionSet.Request;
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
                 AllowDistribution = isCollaborationChannel,
-                AccessControlList = targetAcl
+                AccessControlList = targetAcl,
+                // Its sender's write, which their next change goes by; the update gives the file the sender's new tag
+                // (docs/file-access.md, "Changing a file you sent")
+                SendersWrite = SentFileChanges.SendersWriteOf(sender, request.NewVersionTag, request.NewVersionTag)
             };
 
             if (null == existingHeader)
@@ -92,6 +113,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return (success, incomingMetadata.Payloads ?? []);
             }
 
+            var (writeContext, alreadyLanded) = await SentFileChanges.PrepareChangeAsync(fs, drive, existingHeader, sender,
+                memberMayUseShares: true, request.NewVersionTag, request.ExpectedVersionTag, odinContext);
+            if (alreadyLanded)
+            {
+                return await SentFileChanges.AlreadyDeliveredAsync(fs, file, incomingMetadata.Payloads, markComplete, odinContext);
+            }
+
             //Update existing file
             await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter UpdateExistingFile", async () =>
             {
@@ -100,16 +128,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     incomingMetadata.Payloads?.Count,
                     incomingMetadata.GlobalTransitId);
                 
-                if (!isCollaborationChannel)
-                {
-                    existingHeader.AssertOriginalSender((OdinId)existingHeader.FileMetadata.SenderOdinId);
-                }
-
-                //Use the version tag from the recipient's server because it won't match the sender
-                //(this is due to the fact a new one is written any time you save a header)
                 incomingMetadata.VersionTag = existingHeader.FileMetadata.VersionTag;
 
-                var request = instructionSet.Request;
                 var manifest = new BatchUpdateManifest()
                 {
                     NewVersionTag = request.NewVersionTag,
@@ -124,7 +144,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, targetFile.Value, manifest, odinContext, markComplete, sourceArea: sourceArea);
+                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, existingHeader.FileMetadata.File, manifest, writeContext, markComplete, sourceArea: sourceArea);
                 
                 logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - success: {success} committed payload count {pc}",
                     success,
@@ -177,62 +197,5 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return incomingMetadata;
         }
 
-        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(InternalDriveFileId file,
-            EncryptedRecipientFileUpdateInstructionSet instructionSet,
-            FileSystemType fileSystemType,
-            FileMetadata metadata,
-            IOdinContext odinContext)
-        {
-            // Files coming from other systems are only accessible to the owner so
-            // the owner can use the UI to pass the file along
-            var targetAcl = AccessControlList.OwnerOnly;
-
-            var drive = await driveManager.GetDriveAsync(file.DriveId);
-            var isCollaborationChannel = drive.IsCollaborationDrive();
-
-            //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
-            if (fileSystemType == FileSystemType.Comment)
-            {
-                targetAcl = await IncomingCommentAcl.ResetAclForComment(fileSystemResolver, metadata, odinContext);
-            }
-            else
-            {
-                //
-                // Collab channel hack; need to cleanup location of the IsCollaborativeChannel flag
-                //
-                if (isCollaborationChannel)
-                {
-                    targetAcl = instructionSet.OriginalAcl ?? AccessControlList.OwnerOnly;
-                }
-            }
-
-            return (targetAcl, isCollaborationChannel);
-        }
-
-        private async Task<(InternalDriveFileId? targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(
-            FileIdentifier file,
-            IDriveFileSystem fs,
-            IOdinContext odinContext)
-        {
-            var targetDriveId = file.TargetDrive.Alias;
-
-            SharedSecretEncryptedFileHeader header =
-                await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext);
-
-            if (header == null)
-            {
-                return (null, null);
-                // throw new OdinClientException("File does not exist", OdinClientErrorCode.InvalidFile);
-            }
-
-            header.AssertFileIsActive();
-            var targetFile = new InternalDriveFileId
-            {
-                DriveId = targetDriveId,
-                FileId = header.FileId
-            };
-
-            return (targetFile, header);
-        }
     }
 }

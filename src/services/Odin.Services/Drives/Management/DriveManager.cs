@@ -255,6 +255,8 @@ public class DriveManager : IDriveManager
         //only change if needed
         if (storageDrive.AllowAnonymousReads != allowAnonymous)
         {
+            // Asked before the drive changes: it may be the cached instance
+            DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowAnonymousReads: allowAnonymous);
             storageDrive.AllowAnonymousReads = allowAnonymous;
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
@@ -291,6 +293,7 @@ public class DriveManager : IDriveManager
         //only change if needed
         if (storageDrive.AllowSubscriptions != allowSubscriptions)
         {
+            DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowSubscriptions: allowSubscriptions);
             storageDrive.AllowSubscriptions = allowSubscriptions;
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
@@ -348,6 +351,7 @@ public class DriveManager : IDriveManager
         //only change if needed
         if (storageDrive.IsCdnEnabled() != allowCdn)
         {
+            DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowCdn: allowCdn);
             storageDrive.SetCdnEnabled(allowCdn);
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
@@ -521,7 +525,7 @@ public class DriveManager : IDriveManager
         string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        if (!sharingModel.IsZeroKnowledge())
+        if (!sharingModel.IsZeroKnowledgeDrive())
         {
             throw new OdinSystemException($"A drive without a master-key copy can't be {sharingModel}");
         }
@@ -532,6 +536,8 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
+        var (anonymous, cdn, subscriptions) = (storageDrive.AllowAnonymousReads, storageDrive.AllowCdn, storageDrive.AllowSubscriptions);
+        var settingsTurnedOff = DriveSettings.FitForConversion(storageDrive, sharingModel);
         storageDrive.MasterKeyEncryptedStorageKey = null;
         storageDrive.SharingModel = sharingModel; // how an existing drive becomes zero knowledge (a new one is created as one)
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
@@ -553,6 +559,19 @@ public class DriveManager : IDriveManager
         }
 
         _logger.LogInformation("Drive {driveId} is now zero knowledge", driveId);
+        if (settingsTurnedOff)
+        {
+            _logger.LogInformation("Converting drive {driveId} turned off anonymous reads: {anonymous}, CDN: {cdn}, subscriptions: {subscriptions}",
+                driveId, anonymous, cdn, subscriptions);
+
+            // As the setters do when they change one
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = ToStorageDrive(storageDrive),
+                OdinContext = odinContext
+            });
+        }
     }
 
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
@@ -771,6 +790,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
+        DriveSettings.AssertChangeFits(storageDrive.SharingModel, attributes: attributes);
         storageDrive.Attributes = attributes;
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
@@ -938,17 +958,20 @@ public class DriveManager : IDriveManager
     /// <summary>The rule every drive row is written under, by a save and by creation alike.</summary>
     private static void AssertKeyCopies(Guid driveId, DriveSharingModel sharingModel, bool hasMasterKeyCopy, bool hasZkCopy)
     {
-        // A missing master-key copy is what makes a drive zero knowledge, so a drive with neither
-        // copy would pass for one with no key anywhere.
-        if (!hasMasterKeyCopy && !hasZkCopy)
+        // A zero-knowledge drive's only copy is the browser's
+        if (sharingModel.IsZeroKnowledgeDrive() && !hasZkCopy)
         {
-            throw new OdinSystemException($"Drive {driveId} has no copy of its key");
+            throw new OdinSystemException($"Drive {driveId} is {sharingModel} but has no copy of its key");
         }
 
-        // A zero-knowledge drive whose key the server can still open would only pose as one.
-        if (sharingModel.IsZeroKnowledge() && hasMasterKeyCopy)
+        // The model is what says a drive is zero knowledge, so its copies follow: a zero-knowledge drive whose key the
+        // server can still open would only pose as one, and a Server Share drive the server holds no key to would fail
+        // whatever the server does for it
+        if (sharingModel.IsZeroKnowledgeDrive() == hasMasterKeyCopy)
         {
-            throw new OdinSystemException($"Drive {driveId} is {sharingModel} but the server holds its key");
+            throw new OdinSystemException(hasMasterKeyCopy
+                ? $"Drive {driveId} is {sharingModel} but the server holds its key"
+                : $"Drive {driveId} is {sharingModel} but the server holds no copy of its key");
         }
     }
 

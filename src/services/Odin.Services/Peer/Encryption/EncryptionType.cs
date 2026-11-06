@@ -16,6 +16,21 @@ namespace Odin.Services.Peer.Encryption
         /// The server holds no key that opens it, so it stores and returns it as it is
         /// (docs/zero-knowledge-drive-api-plan.md).
         /// </summary>
-        ZkDrive = 13
+        ZkDrive = 13,
+
+        /// <summary>
+        /// What a member of a Selective Share circle gets for a file shared with it: the file key locked with the
+        /// circle's key (the share row's locked file key) and the file's own IV.  Only ever sent to a member, never
+        /// taken or stored as a file's key header (docs/selective-share-pr3-plan.md, section 6).
+        /// </summary>
+        Share = 14,
+
+        /// <summary>
+        /// A comment's key header on a Selective Share drive: the comment is encrypted with the key of the file it
+        /// comments on, which everyone who may read that file holds, so this holds the comment's own IV and nothing
+        /// else.  A member gets it as the file's share key with the comment's IV (docs/selective-share-pr3-plan.md,
+        /// section 10).
+        /// </summary>
+        FileKey = 15
     }
 }

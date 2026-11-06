@@ -40,4 +40,11 @@ public class ResultOptions
     /// If true, the transfer history with-in the server metadata will be including (assuming you have set ExcludeServerMetaData = false)
     /// </summary>
     public bool IncludeTransferHistory { get; set; }
+
+    /// <summary>
+    /// On a Selective Share drive, each file's live shares for an owner caller, read once for the page
+    /// (docs/selective-share-pr3-plan.md, section 5).  Not serialized: peers are never owner callers.
+    /// </summary>
+    [JsonIgnore]
+    public bool IncludeShares { get; set; }
 }

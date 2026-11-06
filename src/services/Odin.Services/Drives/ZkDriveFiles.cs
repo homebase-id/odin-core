@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
@@ -34,15 +35,27 @@ public static class ZkDriveFiles
     /// may deposit, on a zero-knowledge drive or on the transient drive to send it.  What it may replace in an
     /// update or an overwrite is <see cref="AssertMayReplace"/>'s.
     /// </summary>
-    private static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, ref SensitiveByteArray sharedSecret,
-        IOdinContext odinContext)
+    private static KeyHeader OpenForWrite(EncryptedKeyHeader? sent, StorageDrive drive, FileSystemType fileSystem,
+        ref SensitiveByteArray sharedSecret, IOdinContext odinContext)
     {
         if (sent == null)
         {
             throw new OdinClientException("An encrypted file needs its key header", OdinClientErrorCode.InvalidKeyHeader);
         }
 
-        AssertDriveTakes(drive, sent.Type);
+        AssertDriveTakes(drive, sent.Type, fileSystem);
+        if (sent.IsFileKey())
+        {
+            sent.AssertValidFileKey();
+            return new ClientLockedKeyHeader(sent);
+        }
+
+        if (sent.IsShare())
+        {
+            sent.AssertKeepsKey();
+            return new ClientLockedKeyHeader(sent);
+        }
+
         if (sent.IsSealed())
         {
             if (drive.IsZeroKnowledge && CallerHoldsDriveKey(drive.Id, odinContext))
@@ -65,12 +78,12 @@ public static class ZkDriveFiles
     }
 
     /// <summary>The key header a client sent, for the drive it writes to (<see cref="OpenForWrite"/>).</summary>
-    public static async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader? sent, Guid driveId, IDriveManager driveManager,
-        IOdinContext odinContext)
+    public static async Task<KeyHeader> OpenForWriteAsync(EncryptedKeyHeader? sent, Guid driveId, FileSystemType fileSystem,
+        IDriveManager driveManager, IOdinContext odinContext)
     {
         var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
         var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-        return OpenForWrite(sent, drive, ref sharedSecret, odinContext);
+        return OpenForWrite(sent, drive, fileSystem, ref sharedSecret, odinContext);
     }
 
     /// <summary>
@@ -80,18 +93,74 @@ public static class ZkDriveFiles
     /// Asked for an encrypted file only.  The local rule is <see cref="OpenForWrite"/>; what an update or an
     /// overwrite may replace is <see cref="AssertMayReplace"/>'s, where the existing file is known.
     /// </summary>
-    public static void AssertPeerMayWrite(StorageDrive drive, EncryptedKeyHeader? keyHeader)
+    public static void AssertPeerMayWrite(StorageDrive drive, EncryptedKeyHeader? keyHeader, FileSystemType fileSystem)
     {
         if (keyHeader?.IsZkDrive() == true)
         {
             throw new OdinClientException("A peer can't lock a key header with this drive's key", OdinClientErrorCode.InvalidKeyHeader);
         }
 
-        AssertDriveTakes(drive, keyHeader?.Type ?? EncryptionType.Aes);
+        AssertDriveTakes(drive, keyHeader?.Type ?? EncryptionType.Aes, fileSystem);
         if (keyHeader?.IsSealed() == true)
         {
             AssertSealedToItsKey(drive, keyHeader);
         }
+
+        if (keyHeader?.IsFileKey() == true)
+        {
+            keyHeader.AssertValidFileKey();
+        }
+    }
+
+    /// <summary>
+    /// Which key header a peer's update may send to <paramref name="drive"/>: on a Selective Share drive, a member's
+    /// keeping the shared file's key (<see cref="EncryptedKeyHeader.AssertKeepsKey"/>, decision C); otherwise what a
+    /// peer may write (<see cref="AssertPeerMayWrite"/>).
+    /// </summary>
+    public static void AssertPeerMayUpdate(StorageDrive drive, EncryptedKeyHeader? keyHeader, FileSystemType fileSystem)
+    {
+        if (keyHeader?.IsShare() != true)
+        {
+            AssertPeerMayWrite(drive, keyHeader, fileSystem);
+            return;
+        }
+
+        if (!drive.IsSelectiveShare)
+        {
+            throw new OdinClientException("Only a SelectiveShare drive's member keeps a file's key", OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        keyHeader.AssertKeepsKey();
+    }
+
+    /// <summary>
+    /// A member's update keeping a shared file's key (decision C), as the key header to store: the file's own, locked
+    /// with the drive's key by an owner device, with the member's new IV.  Sound for a version 1 key header, which locks
+    /// <c>IV ‖ key</c> under the IV it shows, so the IV it shows is the one that counts (security-model.md); key header
+    /// version 2 (#2024) would need this revisited.  A file the member deposited takes a new sealed key header instead.
+    /// Any other key header is returned as it is.
+    /// </summary>
+    public static KeyHeader KeepFileKey(ServerFileHeader existing, KeyHeader update)
+    {
+        if (update is not ClientLockedKeyHeader { Type: EncryptionType.Share } keepKey)
+        {
+            return update;
+        }
+
+        var stored = existing.EncryptedKeyHeader;
+        if (stored?.IsZkDrive() != true)
+        {
+            throw new OdinClientException("Only a file an owner device locked keeps its key on a member's update; " +
+                                          "a deposit takes a new sealed key header", OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        return new ClientLockedKeyHeader(new EncryptedKeyHeader
+        {
+            EncryptionVersion = stored.EncryptionVersion,
+            Type = EncryptionType.ZkDrive,
+            Iv = keepKey.Iv,
+            EncryptedAesKey = stored.EncryptedAesKey
+        });
     }
 
     /// <summary>
@@ -117,6 +186,64 @@ public static class ZkDriveFiles
     }
 
     /// <summary>
+    /// Who may transform deposits into the drive's own key headers: a caller holding the key of a zero-knowledge drive,
+    /// which is how it opened the deposits and locked their file keys again (docs/zero-knowledge-drives.md).  Never on the
+    /// Shard Recovery drive: the server releases a friend's shard only as the sealed deposit it holds
+    /// (<c>ShamirBaseService</c>).
+    /// </summary>
+    public static void AssertCallerMayTransform(StorageDrive drive, IOdinContext odinContext)
+    {
+        if (!drive.IsZeroKnowledge)
+        {
+            throw new OdinClientException("Only a zero-knowledge drive's deposits are transformed",
+                OdinClientErrorCode.ZkDriveKeyHeaderNeedsZeroKnowledgeDrive);
+        }
+
+        AssertCallerHoldsDriveKey(drive.Id, odinContext);
+
+        // An exception for Shamir, not a rule of drives.  Before it releases a gated friend's shard, the server asks
+        // whether the friend's browser can still open it, and answers from the seal: a sealed key header names the
+        // write-only key it was sealed to, which a reset with a new master key replaces (ShamirBaseService.CanReleaseAsync).
+        // A zkDrive key header names no key, so a transformed shard could no longer be released.  The real fix is in
+        // Shamir: it keeps its own record of which key a shard is locked under, rather than reading it off the key
+        // header, and then this exception goes and shards transform like any deposit.
+        if (drive.Id == WellKnownAppDrives.ShardRecoveryDrive.Alias.Value)
+        {
+            throw new OdinClientException("Shards stay sealed: the server releases them only as they were deposited",
+                OdinClientErrorCode.InvalidDrive);
+        }
+    }
+
+    /// <summary>
+    /// The key header a transform stores in place of <paramref name="stored"/>: a deposit's sealed one, replaced by the
+    /// <see cref="EncryptionType.ZkDrive"/> one <paramref name="sent"/> with its IV, since the content was encrypted under
+    /// it (payloads keep their own).  The server can't check that it locks the same file key; the client opens what it
+    /// locked before sending it.
+    /// </summary>
+    public static EncryptedKeyHeader TransformedKeyHeader(EncryptedKeyHeader? stored, EncryptedKeyHeader? sent)
+    {
+        if (stored?.IsSealed() != true)
+        {
+            throw new OdinClientException("Only a sealed key header is transformed", OdinClientErrorCode.NotSealed);
+        }
+
+        if (sent?.IsZkDrive() != true)
+        {
+            throw new OdinClientException("A transform sends a key header locked with the drive's key (zkDrive)",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        sent.AssertValidZkDrive();
+        if (stored.Iv == null || !ByteArrayUtil.EquiByteArrayCompare(sent.Iv, stored.Iv))
+        {
+            throw new OdinClientException("A transform keeps the key header's IV, which the content was encrypted under",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        return sent;
+    }
+
+    /// <summary>
     /// What a sealed key header may replace, in an update or an overwrite of <paramref name="existing"/>: only
     /// another sealed one (a deposit's sender updating it).  Never a key header locked with the drive's key
     /// (zkDrive): a file a key holder has taken over doesn't go back to sealed.  Never an aes one either: the
@@ -126,7 +253,7 @@ public static class ZkDriveFiles
     /// </summary>
     public static void AssertMayReplace(ServerFileHeader existing, KeyHeader? replacement)
     {
-        if (replacement is ClientLockedKeyHeader { Type: EncryptionType.Sealed } &&
+        if (replacement is ClientLockedKeyHeader { IsSealed: true } &&
             existing.FileMetadata.IsEncrypted && existing.EncryptedKeyHeader?.IsSealed() != true)
         {
             throw new OdinClientException("A sealed key header replaces only a sealed one: never one locked with the drive's key, " +
@@ -138,10 +265,44 @@ public static class ZkDriveFiles
     /// Which drive takes which key header: a zero-knowledge drive refuses one locked with the shared secret
     /// (the server would see the file key, and store a key header nobody could open), and any other drive
     /// refuses a zero-knowledge drive's own.  A deposit (<see cref="EncryptionType.Sealed"/>) goes where
-    /// <see cref="Deposits.AssertCanHold"/> says.
+    /// <see cref="Deposits.AssertCanHold"/> says.  On a Selective Share drive an encrypted comment takes only
+    /// <see cref="EncryptionType.FileKey"/>, the key of the file it comments on, so whoever may read that file reads
+    /// its comments; nothing else does (docs/selective-share-pr3-plan.md, section 10).
     /// </summary>
-    public static void AssertDriveTakes(StorageDrive drive, EncryptionType type)
+    public static void AssertDriveTakes(StorageDrive drive, EncryptionType type, FileSystemType fileSystem)
     {
+        var selectiveShareComment = drive.IsSelectiveShare && fileSystem == FileSystemType.Comment;
+        if (type == EncryptionType.FileKey)
+        {
+            // Staged on the transient drive on its way to the owner's (a member's comment)
+            if (!selectiveShareComment && !SystemDriveConstants.IsTransientTempDrive(drive.Id))
+            {
+                throw new OdinClientException("Only a comment on a SelectiveShare drive is encrypted with its file's key",
+                    OdinClientErrorCode.InvalidKeyHeader);
+            }
+
+            return;
+        }
+
+        if (selectiveShareComment)
+        {
+            throw new OdinClientException("A comment on a SelectiveShare drive is encrypted with the key of the file it comments on",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        if (type == EncryptionType.Share)
+        {
+            // Never a file's key header.  A member's update keeping a shared file's key is staged on the transient
+            // drive on its way to the owner's (AssertPeerMayUpdate)
+            if (!SystemDriveConstants.IsTransientTempDrive(drive.Id))
+            {
+                throw new OdinClientException("A share's key goes only to a member: it is never a file's key header",
+                    OdinClientErrorCode.InvalidKeyHeader);
+            }
+
+            return;
+        }
+
         if (type == EncryptionType.Sealed)
         {
             Deposits.AssertCanHold(drive);

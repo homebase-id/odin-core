@@ -20,6 +20,7 @@ using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -56,6 +57,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FeedWriter _feedWriter;
         private readonly TenantQuotaGuard _quotaGuard;
+        private readonly DriveShareService _shares;
         private readonly IDriveManager _driveManager;
 
         private readonly FileSystemResolver _fileSystemResolver;
@@ -77,9 +79,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             ILogger<PeerIncomingDriveUploadController> logger,
             TransitInboxBoxStorage transitInboxBoxStorage,
             FeedWriter feedWriter,
-            TenantQuotaGuard quotaGuard)
+            TenantQuotaGuard quotaGuard,
+            DriveShareService shares)
         {
             _driveManager = driveManager;
+            _shares = shares;
 
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
@@ -460,7 +464,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _odinConfiguration,
                 _transitInboxBoxStorage,
                 _feedWriter,
-                _quotaGuard);
+                _quotaGuard,
+                _shares);
         }
     }
 }

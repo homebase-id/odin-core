@@ -108,6 +108,19 @@ internal static class ZkOwnerSteps
     }
 
     /// <summary>
+    /// A new drive of <paramref name="model"/> (Private or SelectiveShare), created with keys the browser makes under
+    /// <paramref name="zkMasterKey"/>, and owned by <paramref name="appId"/> when given.  Returns the drive and its keys.
+    /// </summary>
+    public static async Task<(TargetDrive Drive, ZkBrowser.DriveKeys Keys)> CreateZeroKnowledgeDriveAsync(OwnerSession owner,
+        byte[] zkMasterKey, DriveSharingModel model, Guid? appId = null, string name = "Shared")
+    {
+        var drive = TargetDrive.NewTargetDrive();
+        var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
+        await owner.Admin.CreateDrive(drive, name, allowAnonymousReads: false, appId: appId, sharingModel: model, zkKeys: keys.Request);
+        return (drive, keys);
+    }
+
+    /// <summary>
     /// The browser's part at setup or a password login (plan 4.7): each built-in private drive the identity is missing,
     /// created with keys it makes.  Returns them by drive alias.
     /// </summary>

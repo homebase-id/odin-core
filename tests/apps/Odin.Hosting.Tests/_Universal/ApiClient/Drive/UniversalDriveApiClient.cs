@@ -582,7 +582,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         FileUpdateInstructionSet uploadInstructionSet,
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard,
+        EncryptedKeyHeader lockedKeyHeader = null)
     {
         var keyHeader = KeyHeader.NewRandom16();
 
@@ -592,7 +593,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var descriptor = new UpdateFileDescriptor()
             {
-                EncryptedKeyHeader = null,
+                // A key header a client locked (sealed, zkDrive, a member's share) goes as it is
+                EncryptedKeyHeader = lockedKeyHeader,
                 FileMetadata = fileMetadata
             };
 

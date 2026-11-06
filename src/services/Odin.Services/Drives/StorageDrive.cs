@@ -3,9 +3,11 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
+using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Security.ZeroKnowledge;
+using Odin.Services.Util;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -65,9 +67,17 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     /// <summary>
     /// The server holds no copy of the drive key it can open, so it never encrypts or decrypts for
     /// this drive: the only copy is locked by the owner's zero-knowledge master key, which only the
-    /// browser can open.
+    /// browser can open.  By its sharing model (<see cref="DriveSharingModelExtensions.IsZeroKnowledgeDrive"/>); a save
+    /// keeps its key copies to match (<c>DriveManager.AssertKeyCopies</c>).
     /// </summary>
-    public bool IsZeroKnowledge => Data.MasterKeyEncryptedStorageKey == null;
+    public bool IsZeroKnowledge => Data.SharingModel.IsZeroKnowledgeDrive();
+
+    /// <summary>
+    /// Whether a peer's write may wait in the inbox for a key holder to sign in: only where the server re-locks what
+    /// arrives, a drive whose key it holds.  On a zero-knowledge drive every peer write is written at once
+    /// (docs/terminology.md, "Files from others").
+    /// </summary>
+    public bool HasInbox => !IsZeroKnowledge;
 
     /// <summary>Whether <paramref name="sealedValue"/> was sealed to this drive's write-only key (<see cref="ZkSeal"/>).</summary>
     public bool IsSealedToWriteOnlyKey(byte[] sealedValue) =>
@@ -205,21 +215,26 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         }
     }
 
-    public bool AttributeHasTrueValue(string attribute)
+    public bool AttributeHasTrueValue(string attribute) => BuiltInDriveAttributes.IsTrue(Attributes, attribute);
+
+    public bool IsCollaborationDrive() => BuiltInDriveAttributes.IsCollaborativeChannelIn(Attributes);
+
+    /// <summary>Shares are its index rows (docs/selective-share-pr3-plan.md); see <see cref="SelectiveShareDrives"/>.</summary>
+    public bool IsSelectiveShare => SharingModel == DriveSharingModel.SelectiveShare;
+
+    /// <summary>An archived drive is the owner's alone: anyone else is refused as for a drive that isn't there.</summary>
+    public void AssertNotArchivedFor(IOdinContext odinContext)
     {
-        if (null == Attributes)
+        if (!IsArchived)
         {
-            return false;
+            return;
         }
 
-        return this.Attributes.TryGetValue(attribute, out string value) &&
-               bool.TryParse(value, out bool flagValue) &&
-               flagValue;
-    }
-
-    public bool IsCollaborationDrive()
-    {
-        return this.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
+        OdinValidationUtils.AssertNotNull(odinContext, "odinContext must not be null");
+        if (!odinContext.Caller.HasMasterKey)
+        {
+            throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
+        }
     }
 
     /// <summary>
