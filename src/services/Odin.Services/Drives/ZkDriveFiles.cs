@@ -64,9 +64,8 @@ public static class ZkDriveFiles
                 ThrowNotItsOwnKeyHeader();
             }
 
-            if (drive.ServerOpensDeposits && odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
+            if (drive.ServerOpensDeposits && odinContext.PermissionsContext.HoldsDriveStorageKey(drive.Id))
             {
-                storageKey.Wipe();
                 throw new OdinClientException("A caller holding a Server Share drive's key writes its key header to be locked " +
                                               "with it, not sealed", OdinClientErrorCode.InvalidKeyHeader);
             }

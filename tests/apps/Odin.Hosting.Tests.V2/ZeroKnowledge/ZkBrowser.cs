@@ -72,7 +72,9 @@ internal static class ZkBrowser
     public static byte[] Unseal(byte[] sealedValue, byte[] privateKeyPkcs8)
     {
         Assert.That(ZkSeal.IsSealed(sealedValue), Is.True, "not a version 1 sealed value");
-        return ZkSeal.Open(sealedValue, privateKeyPkcs8);
+        using var me = ECDiffieHellman.Create();
+        me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
+        return ZkSeal.Open(sealedValue, me);
     }
 
     public sealed record Keys(byte[] MasterKey, ZkKeysRequest Request);

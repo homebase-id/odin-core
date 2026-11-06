@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using Serilog;
 using Odin.Core;
 using Odin.Core.Storage;
@@ -72,28 +74,69 @@ public static class Deposits
     }
 
     /// <summary>
-    /// On a Server Share drive, a deposit's key header as the server's own: the seal opened with the drive's write-only
-    /// private key, which the drive key the caller's request carries opens, and the file key locked with the drive key under
-    /// the same IV, as any file there.  Null when it isn't one the server converts for this caller: not a deposit, not a
-    /// Server Share drive, sealed to another key, or no drive key in the request.  The private key is opened for this call
-    /// only (<see cref="Odin.Core.Cryptography.Data.EccFullKeyData.OpenPrivateKey"/>).
+    /// On a Server Share drive, the deposits among <paramref name="headers"/> whose key header the server makes its own for
+    /// this caller, each with that key header: the seal opened with the drive's write-only private key, which the drive key
+    /// the caller's request carries opens, and the file key locked with the drive key under the same IV, as any file there.
+    /// Empty when the drive isn't a Server Share drive the server opens deposits on or the request carries no drive key;
+    /// a header that isn't a deposit, is sealed to another key or doesn't open is left out.  The drive key and the private
+    /// key are opened once for the batch, and for this call only
+    /// (<see cref="Odin.Core.Cryptography.Data.EccFullKeyData.OpenPrivateKey"/>).
     /// </summary>
-    public static EncryptedKeyHeader ConvertedOnServerShare(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext)
+    public static List<(ServerFileHeader Header, EncryptedKeyHeader KeyHeader)> ConvertedOnServerShare(StorageDrive drive,
+        IEnumerable<ServerFileHeader> headers, IOdinContext odinContext)
     {
-        if (drive?.ServerOpensDeposits != true || header == null || !IsDeposit(header) ||
-            !drive.IsSealedToWriteOnlyKey(header.EncryptedKeyHeader.EncryptedAesKey) ||
-            !odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
+        if (drive?.ServerOpensDeposits != true)
         {
-            return null;
+            return [];
         }
 
-        byte[] plain = null;
-        byte[] privateScalar = null;
+        var deposits = headers.Where(h => IsDeposit(h) && drive.IsSealedToWriteOnlyKey(h.EncryptedKeyHeader.EncryptedAesKey))
+            .ToList();
+        if (deposits.Count == 0 || !odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
+        {
+            return [];
+        }
+
+        var privateKey = default(ECParameters);
         try
         {
-            var privateKey = drive.WriteOnlyKeyPair.OpenPrivateKey(storageKey);
-            privateScalar = privateKey.D;
-            plain = ZkSeal.Open(header.EncryptedKeyHeader.EncryptedAesKey, privateKey);
+            privateKey = drive.WriteOnlyKeyPair.OpenPrivateKey(storageKey);
+            using var me = ECDiffieHellman.Create(privateKey);
+            var converted = new List<(ServerFileHeader, EncryptedKeyHeader)>();
+            foreach (var header in deposits)
+            {
+                if (Converted(drive, header, me, ref storageKey) is { } keyHeader)
+                {
+                    converted.Add((header, keyHeader));
+                }
+            }
+
+            return converted;
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            Log.Warning(e, "The write-only private key of drive {driveId} could not be opened; its deposits left sealed", drive.Id);
+            return [];
+        }
+        finally
+        {
+            if (privateKey.D != null)
+            {
+                Array.Clear(privateKey.D);
+            }
+
+            storageKey.Wipe();
+        }
+    }
+
+    private static EncryptedKeyHeader Converted(StorageDrive drive, ServerFileHeader header, ECDiffieHellman me,
+        ref SensitiveByteArray storageKey)
+    {
+        byte[] plain = null;
+        KeyHeader opened = null;
+        try
+        {
+            plain = ZkSeal.Open(header.EncryptedKeyHeader.EncryptedAesKey, me);
 
             // Exactly the file's IV and key, under the IV the header shows: anything else would lock a key that isn't the
             // file's over its only sealed copy
@@ -103,15 +146,8 @@ public static class Deposits
                 return null;
             }
 
-            var opened = KeyHeader.FromCombinedBytes(plain);
-            try
-            {
-                return EncryptedKeyHeader.EncryptKeyHeaderAes(opened, opened.Iv, ref storageKey);
-            }
-            finally
-            {
-                opened.AesKey.Wipe();
-            }
+            opened = KeyHeader.FromCombinedBytes(plain);
+            return EncryptedKeyHeader.EncryptKeyHeaderAes(opened, opened.Iv, ref storageKey);
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
@@ -126,12 +162,7 @@ public static class Deposits
                 Array.Clear(plain);
             }
 
-            if (privateScalar != null)
-            {
-                Array.Clear(privateScalar);
-            }
-
-            storageKey.Wipe();
+            opened?.AesKey.Wipe();
         }
     }
 }

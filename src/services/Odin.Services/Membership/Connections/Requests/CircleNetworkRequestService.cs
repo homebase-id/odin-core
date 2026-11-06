@@ -1530,7 +1530,7 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             try
             {
-                if (!odinContext.PermissionsContext.TryGetDriveStorageKey(WellKnownAppDrives.ContactDrive.Alias, out _))
+                if (!odinContext.PermissionsContext.HoldsDriveStorageKey(WellKnownAppDrives.ContactDrive.Alias))
                 {
                     // No ContactDrive storage key here (peer/introduction context). The peer's card is
                     // preserved on the ICR; an owner-keyed /sync can materialize the contact later.

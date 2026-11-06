@@ -397,8 +397,7 @@ public class ContactService(
                 return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
             }
 
-            var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-            var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
             var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
 
             if (requireExistingBlob && (content.AppData == null || !content.AppData.ContainsKey(appKey)))
@@ -528,8 +527,7 @@ public class ContactService(
                 return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
             }
 
-            var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-            var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
             var appExtData = await ReadAppExtDataAsync(existing, keyHeader, writeContext) ?? new ContactAppData();
 
             if (requireExistingBlob && (appExtData.AppData == null || !appExtData.AppData.ContainsKey(appKey)))
@@ -768,8 +766,7 @@ public class ContactService(
         ContactExtData extData, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
-        var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-        var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
 
         // Merge incoming over existing without clobbering fields the caller left null. Capture the set
         // of overwritten field values for the merge log before we replace the content.
@@ -931,8 +928,7 @@ public class ContactService(
         IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
-        var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-        var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
         var aesKey = keyHeader.AesKey;
 
         // Preserve the existing content; the content IV must rotate on every update.
@@ -1003,8 +999,7 @@ public class ContactService(
     private async Task<Guid> RemoveImagePayloadAsync(ServerFileHeader existing, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
-        var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-        var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
 
         var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
         var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = keyHeader.AesKey };

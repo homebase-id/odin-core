@@ -114,12 +114,15 @@ public sealed class DriveEventMessage(
     /// file as it was, since the deleted header no longer says who could read it (it keeps the key header).
     /// Unlike a query, this doesn't leave out an encrypted file the socket holds no storage key for.
     /// </summary>
-    public Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService) =>
-        VisibleToAsync(socket.DeviceOdinContext, HeadersFor(socket.DeviceOdinContext), aclService);
+    public Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
+    {
+        var (current, previous) = HeadersFor(socket.DeviceOdinContext);
+        return MayReadAsync(socket.DeviceOdinContext, previous ?? current, aclService);
+    }
 
-    private async Task<bool> VisibleToAsync(IOdinContext? deviceOdinContext, (ServerFileHeader? Header, ServerFileHeader? Previous) headers,
+    private async Task<bool> MayReadAsync(IOdinContext? deviceOdinContext, ServerFileHeader? file,
         IDriveAclAuthorizationService aclService) =>
-        deviceOdinContext != null && await aclService.CallerMayReadAsync(drive, headers.Previous ?? headers.Header, deviceOdinContext);
+        deviceOdinContext != null && await aclService.CallerMayReadAsync(drive, file, deviceOdinContext);
 
     /// <summary>
     /// The event's headers as <paramref name="deviceOdinContext"/> gets them: on a Server Share drive a deposit its request
@@ -131,35 +134,30 @@ public sealed class DriveEventMessage(
 
     private ServerFileHeader? OpenedFor(ServerFileHeader? stored, IOdinContext? deviceOdinContext)
     {
-        if (stored == null || deviceOdinContext == null || drive?.ServerOpensDeposits != true || !Deposits.IsDeposit(stored))
+        if (stored == null || deviceOdinContext == null)
         {
             return stored;
         }
 
         // The same for every device whose request opens the drive key, so opened once per event; each device still has to
         // hold the key to get it
-        if (_opened.TryGetValue(stored, out var opened))
+        if (_opened?.TryGetValue(stored, out var opened) == true)
         {
-            if (!deviceOdinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
-            {
-                return stored;
-            }
-
-            storageKey.Wipe();
-            return opened;
+            return deviceOdinContext.PermissionsContext.HoldsDriveStorageKey(drive!.Id) ? opened : stored;
         }
 
-        if (Deposits.ConvertedOnServerShare(drive, stored, deviceOdinContext) is not { } keyHeader)
+        if (Deposits.ConvertedOnServerShare(drive, [stored], deviceOdinContext) is not [var (_, keyHeader)])
         {
             return stored;
         }
 
         opened = new ServerFileHeader { EncryptedKeyHeader = keyHeader, FileMetadata = stored.FileMetadata, ServerMetadata = stored.ServerMetadata };
-        _opened[stored] = opened;
+        (_opened ??= new Dictionary<ServerFileHeader, ServerFileHeader>(ReferenceEqualityComparer.Instance))[stored] = opened;
         return opened;
     }
 
-    private readonly Dictionary<ServerFileHeader, ServerFileHeader> _opened = new(ReferenceEqualityComparer.Instance);
+    // Only for an event that carried a deposit someone could open
+    private Dictionary<ServerFileHeader, ServerFileHeader>? _opened;
 
     /// <summary>
     /// A dispatcher's drive event, sent to each of its <paramref name="sockets"/> on the drive that gets it (#1966): when
@@ -232,7 +230,7 @@ public sealed class DriveEventMessage(
             : await aclService.FilesSharedWithCallerAsync(drive, [file], deviceOdinContext);
         if (shares == null)
         {
-            return await VisibleToAsync(deviceOdinContext, headers, aclService) ? JsonFor(socket, headers) : null;
+            return await MayReadAsync(deviceOdinContext, file, aclService) ? JsonFor(socket, headers) : null;
         }
 
         if (await aclService.CallerMayReadAsync(drive, file!, deviceOdinContext!, shares))
@@ -256,8 +254,6 @@ public sealed class DriveEventMessage(
                 ? OdinSystemSerializer.Serialize(notification, MinimalOptions)
                 : OdinSystemSerializer.Serialize(notification)
         });
-
-    public string JsonFor(DeviceSocket socket) => JsonFor(socket, HeadersFor(socket.DeviceOdinContext));
 
     private string JsonFor(DeviceSocket socket, (ServerFileHeader? Header, ServerFileHeader? Previous) headers)
     {

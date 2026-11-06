@@ -127,6 +127,10 @@ if the sender kept the same file key (the server can't check that) and leans on 
   change event carries, and throws on a sealed one: only for a deposit taken before the drive was marked as a community
   channel (I: not tested). Opening a deposit in the server's one opener, `DriveFileUtility.OpenWithStorageKey`, would
   cover it and any later caller (a step 2 candidate).
+- One open-and-save already exists: conversion and its save happen where headers are loaded for a caller
+  (`ConvertDepositsAsync`, from `ReadForCallerAsync` and `FilterVisibleAsync`), which opens the drive key and the
+  write-only private key once per batch. `DriveFileUtility.OpenWithStorageKey` is the one opener of a stored key header,
+  static and called while responses are built and inside writes; it holds no drive and no storage, so it doesn't save.
 
 ## Races
 

@@ -1846,19 +1846,16 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// tag read, keeping it and modified, and set on the header in hand, so the read rule and what the caller gets treat
         /// it as any file (docs/server-share-sealed-arrivals-plan.md).  A file that moved on since it was read isn't written,
         /// but its header in hand is still opened, being the version read.  Asked where a read loads headers, before the read
-        /// rule; not on an archived drive, whose reads are refused anyway.
+        /// rule; not for an expired file, which no read serves, nor on an archived drive, whose reads are refused anyway.
         /// </summary>
-        public async Task ConvertDepositsAsync(StorageDrive drive, IReadOnlyList<ServerFileHeader> headers, IOdinContext odinContext)
+        public async Task ConvertDepositsAsync(StorageDrive drive, IEnumerable<ServerFileHeader> headers, IOdinContext odinContext)
         {
             if (drive?.ServerOpensDeposits != true || drive.IsArchived)
             {
                 return;
             }
 
-            var converted = headers
-                .Select(h => (Header: h, KeyHeader: Deposits.ConvertedOnServerShare(drive, h, odinContext)))
-                .Where(c => c.KeyHeader != null)
-                .ToList();
+            var converted = Deposits.ConvertedOnServerShare(drive, headers.Where(h => !IsExpired(h)), odinContext);
             if (converted.Count == 0)
             {
                 return;

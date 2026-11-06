@@ -81,7 +81,7 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 
     /// <summary>Whether <paramref name="sealedValue"/> was sealed to this drive's write-only key (<see cref="ZkSeal"/>).</summary>
     public bool IsSealedToWriteOnlyKey(byte[] sealedValue) =>
-        WriteOnlyKeyId() is { } keyId && ZkSeal.IsSealed(sealedValue) && ZkSeal.ReadKeyId(sealedValue) == keyId;
+        WriteOnlyKeyId() is { } keyId && ZkSeal.IsSealedTo(sealedValue, keyId);
 
     // The write-only key's id, worked out once per key pair: every deposit a read, query or socket sees asks it
     private (EccFullKeyData KeyPair, uint KeyId)? _writeOnlyKeyId;

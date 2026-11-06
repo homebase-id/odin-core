@@ -456,7 +456,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // The drive once for the page, and on a Selective Share drive the page's share rows in one read, not one per file
             var drive = await DriveManager.GetDriveAsync(driveId);
-            await _storage.ConvertDepositsAsync(drive, headers.Where(h => !DriveStorageServiceBase.IsExpired(h)).ToList(), odinContext);
+            await _storage.ConvertDepositsAsync(drive, headers, odinContext);
             var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(drive, headers, odinContext);
 
             foreach (var serverFileHeader in headers)
@@ -517,7 +517,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
 
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
-                    var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out _);
+                    var hasStorageKey = odinContext.PermissionsContext.HoldsDriveStorageKey(file.DriveId);
 
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key
                     // A client-locked file needs no storage key to return: its key header goes back as stored
