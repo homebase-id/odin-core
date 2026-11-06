@@ -101,4 +101,52 @@ public class OwnerGrantConversionTests : V2Fixture
         Assert.That(after.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleA), Is.False,
             "circleA should no longer be a pending deposit");
     }
+
+    [Test]
+    public async Task ARevokeCancelsAPendingDeposit()
+    {
+        // An app's revoke takes a member out of its circle before the deposit is converted: nothing is left to convert
+        // when the owner next touches the connection, so the member never gets the circle's grant (a client that takes
+        // a pending member out with a plain revoke depends on it)
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var driveA = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(driveA, "driveA", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read, permissionKeys: Array.Empty<int>());
+        var circleA = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleA, "circleA", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = driveA, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        }, appId: app.AppId);
+
+        var appNetwork = new V2ConnectionNetworkClient(app.Identity, app.Factory);
+        var deposit = await appNetwork.GrantCircleAsync(circleA, sam.Identity);
+        Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
+        var storage = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
+        Assert.That((await storage.GetAsync(sam.Identity))!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleA), Is.True,
+            "precondition: circleA is a pending deposit");
+
+        var revoke = await appNetwork.RevokeCircleAsync(circleA, sam.Identity);
+        Assert.That(revoke.IsSuccessStatusCode, Is.True, $"revoke failed: {revoke.StatusCode}");
+        Assert.That((await storage.GetAsync(sam.Identity))!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleA), Is.False,
+            "the revoke took the deposit");
+
+        // The owner's next touch converts what is pending: circleA no longer is
+        var circleB = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleB, "circleB", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>(),
+            PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
+        });
+        var ownerGrant = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory).GrantCircleAsync(circleB, sam.Identity);
+        Assert.That(ownerGrant.IsSuccessStatusCode, Is.True, $"owner grant failed: {ownerGrant.StatusCode}");
+        Assert.That((await storage.GetAsync(sam.Identity))!.PeerKeyStore.CircleGrants.ContainsKey(circleA), Is.False,
+            "Sam never gets circleA");
+    }
 }

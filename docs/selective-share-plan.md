@@ -1,7 +1,10 @@
-# Selective Share: sharing files on a zero-knowledge drive
+# Private Share: sharing files on a zero-knowledge drive
 
-**Status:** PR 1 (the database) and PR 2 (circle keys) built and in review; PR 3 onwards planned. The design is in
-[zero-knowledge-drives.md](zero-knowledge-drives.md#selective-share); this plan says how to build it.
+Private Share was called Selective Share until 2026-11-05; the code still says `SelectiveShare`, and this file keeps its name.
+
+**Status:** PR 1 (the database), PR 2 (circle keys) and PR 3 (shares and members,
+[selective-share-pr3-plan.md](selective-share-pr3-plan.md)) built and in review, none merged yet; the clients next.
+The design is in [zero-knowledge-drives.md](zero-knowledge-drives.md#private-share); this plan says how to build it.
 Markers follow [security-model.md](security-model.md): **(V)** verified in the code (file named), **(I)**
 inferred.
 
@@ -19,7 +22,7 @@ inferred.
 - **Each member row keeps the circle key sealed to that member** (decision 1 says to which key). A member who
   leaves takes their copy with them: the row is deleted.
 - **A share is the file's ACL index row.** Today `DriveAclIndex` has one row per circle or person a file's ACL
-  names, so a query can find "files Family may read" **(V)**. On a Selective Share drive that row is the share:
+  names, so a query can find "files Family may read" **(V)**. On a Private Share drive that row is the share:
   it says who may do what with the file (`permissions`), until when (`expiresAt`) and how to decrypt it
   (`lockedFileKey`, the file key locked with that circle's key), and it keeps its own `created` and
   `modified`. The file's content, its own key header (locked with the drive key) and its payloads are not
@@ -38,7 +41,7 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
   the index built from it, one row per named circle or person **(V)**. A separate share table would be a copy of
   `DriveAclIndex` with more columns, so the shares go into `DriveAclIndex` itself.
 - **Not in the header's ACL as well.** Two copies could disagree, and keeping them equal would make every share
-  change a write of the file's header (see "Changing a share"). On a Selective Share drive the header's ACL keeps
+  change a write of the file's header (see "Changing a share"). On a Private Share drive the header's ACL keeps
   only `RequiredSecurityGroup` (Connected for a shared file); the rows are the record of who the file is shared
   with.
 - **What it buys:**
@@ -53,12 +56,12 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 
 ## The share row
 
-`DriveAclIndex`, one row per file and circle (later per person or link, decisions 3 and 4):
+`DriveAclIndex`, one row per file and circle (a person is an individual circle, decision 3; later a link, decision 4):
 
 | Column | Type | Meaning |
 |---|---|---|
 | `aclMemberId` | Guid | the circle (and later a link's id, decision 4) |
-| `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), narrowing the drive grant per file: Read, and Write to update it or, on a folder, add files to it (see "Who may write"). No bits = a withdrawn share. Every row before Selective Share means read, hence the default |
+| `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), per file, each narrowing the same bit of the drive grant: a member needs the bit in both (Write to update the file or, on a folder, add files to it; see "Who may write"; file-access.md, "A share row narrows its circle's grant", decided 2026-11-02). No bits = a withdrawn share. Every row before Private Share means read, hence the default |
 | `expiresAt` | UnixTimeUtc (ms), null | when this share of this file ends, so queries skip expired shares. NULL = never |
 | `lockedFileKey` | ByteArray (≤ 128), null | the file key locked with the circle key: AES-GCM, format 2, no IV, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
 | `created`, `modified` | UnixTimeUtc (ms), not null | the share's own times, apart from the file's (the generator's `FinallyAddCreatedModified`): the cursor a member syncs their shares by. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
@@ -77,11 +80,12 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
   once every read and query checks the Read bit, which must happen before such a row is written (PR 3; see "Before
   any row is written without Read", below).
   Something still has to remove withdrawn rows in the end, and a member offline longer than they are kept needs a
-  full resync (open, PR 3).
-- **Today a file with no rows is open to every caller who reaches its required group:** the query lists it
-  (`QueryBatch.SharedWhereAnd`, `cir.fileId IS NULL`) **(V)**. On a Selective Share drive PR 3 closes that: a file
+  full resync (open: a later PR's, PR 3 plan decision D).
+- **On other drives a file with no rows is open to every caller who reaches its required group:** the query lists it
+  (`QueryBatch.SharedWhereAnd`, `cir.fileId IS NULL`) **(V)**. On a Private Share drive PR 3 closes that: a file
   with no live row for the caller is the owner callers' alone, in the query and in the read rule alike
-  ([selective-share-pr3-plan.md](selective-share-pr3-plan.md), section 2).
+  ([selective-share-pr3-plan.md](selective-share-pr3-plan.md), section 2;
+  `DriveAclAuthorizationService.CallerMayReadAsync`) **(V)**.
 
 ## Changing a share: `modified` moves, the version tag doesn't
 
@@ -108,8 +112,9 @@ is no way to change only the ACL.
   re-checked).
 
 **PR 3 adds the share writes:** a row's insert, update and withdrawal, each on its own, with the drive cache
-cleared as `MainIndexMetaCached` does for a header write. The file's header isn't written at all. Not yet checked:
-whether anything that listens for a changed file needs to hear about a share.
+cleared as `MainIndexMetaCached` does for a header write. The file's header isn't written at all. Listeners hear of a
+share through the file's ordinary `DriveFileChangedNotification`, which the share write publishes itself, with no feed
+distribution and no reaction previews (`DriveShareService.PublishChangedAsync`; PR 3 plan, section 9) **(V)**.
 
 ## PR 1: the database
 
@@ -125,7 +130,7 @@ time (none of the existing rows is a share yet).
 | `DriveAclIndex` | `permissions`, `expiresAt`, `lockedFileKey`, `created`, `modified` | | see "The share row" |
 
 **`DriveAclIndex` gets an index on a circle's rows** (decided 2026-11-01): `(identityId, driveId, aclMemberId,
-modified, rowId)`. A member's query batch on a Selective Share drive starts from their circles' rows (PR 3 plan,
+modified, rowId)`. A member's query batch on a Private Share drive starts from their circles' rows (PR 3 plan,
 section 2), which its prefix finds. It is in the generated table and in the same unreleased migration, so the table is
 copied once.
 
@@ -137,9 +142,9 @@ unnamed one is ambiguous.
 ACL, in the same transaction as the header (`MainIndexMeta.BaseUpsertEntryZapZapAsync`,
 `TableDriveAclIndex.ReconcileRowsAsync`) **(V)**: rows of circles and identities no longer named go, new ones are
 added, and a row that stays is not touched, so it keeps its times (and would keep its locked file key, bits and
-expiry). A member named twice gets one row; before, the write failed on the unique key. On a Selective Share drive
-the header's ACL names no circles, so reconciling against it would delete every share: there a header write must
-leave the rows alone entirely (PR 3).
+expiry). A member named twice gets one row; before, the write failed on the unique key. On a Private Share drive
+the header's ACL names no circles, so reconciling against it would delete every share: there a header write leaves
+the rows alone entirely (PR 3: `MainIndexMeta.BaseUpsertEntryZapZapAsync`'s `reconcileAcl`) **(V)**.
 
 **Before any row is written without Read** (PR 3, e.g. an upload-only folder), every query that reads through
 `DriveAclIndex` must check the Read bit, or a write-only row would let its circle list the files. A row that
@@ -148,10 +153,10 @@ stored as given, and 0 is a withdrawn share: only a withdrawal may write it, so 
 share with no bits from a client.
 
 **Who owns a row's bits and expiry depends on the drive** (PR 3). The reconcile leaves a staying row's
-`permissions` and `expiresAt` alone. On a Selective Share drive that is the point: the row is the share. On any
+`permissions` and `expiresAt` alone. On a Private Share drive that is the point: the row is the share. On any
 other drive the header's ACL is the record, and the delete-and-insert used to reset both on every header write; so
 if anything ever narrows a row there, the header write must reset it, or the header and the index disagree.
-Nothing writes them yet **(V)**.
+Nothing writes them there: the share API takes only a Private Share drive (`DriveShareService`) **(V)**.
 
 ## Blob formats: AES-GCM, format 2, from the start
 
@@ -179,8 +184,18 @@ compatible with.
   threat model (next point).
 - **No content integrity:** out of the threat model ([security-model.md](security-model.md), section 8). The file's
   own key header (locked with the drive key) stays version 1 until #2024 is built.
-- One golden vector for all three, checked in odin-core, odin-js, chat-kmp and filesync, as
-  `ClientLockedKeyHeaderVectorTests` **(V)**.
+- **Exactly, for every client** (decided 2026-11-03): a circle key is 16 random bytes (AES-128). Every id in an AAD
+  is a Guid's .NET `ToByteArray()` (the first three fields little-endian), as the zero-knowledge drive key check
+  already uses, and a drive's id is its alias.
+  - `lockedFileKey` = `0x02 ‖ nonce (12) ‖ ciphertext (16) ‖ tag (16)`, AES-128-GCM under the circle key, AAD
+    `driveId ‖ fileId ‖ circleId`: 45 bytes.
+  - `appKeyLockedShareKey` = the same under `AppZkK`, AAD `circleId`: 45 bytes.
+  - `sealedShareKey` = the `sealed` key header's layout (`ZkSeal`) with format byte 2 and an AAD:
+    `0x02 ‖ key id (4, big-endian CRC-32 of the recipient's 0x04 ‖ x ‖ y) ‖ throwaway public key (97) ‖ nonce (12) ‖
+    ciphertext (16) ‖ tag (16)`, the AES key hkdf-sha256(ECDH, no salt, info "homebase-zk-seal", 16 bytes), AAD
+    `circleId ‖ UTF-8 of the member's lowercased odinId`: 146 bytes.
+- **The golden vector** for all three is `SelectiveShareKeyVectorTests` (odin-core, with the reference implementation
+  `ShareKeys`), which odin-js, chat-kmp and filesync check against, as `ClientLockedKeyHeaderVectorTests` **(V)**.
 
 ## Later PRs
 
@@ -196,9 +211,9 @@ compatible with.
      the route.
    - **The member's public key** comes from #2045's endpoint and cache (`GET /api/v2/peer/{odinId}/apps/{appSlug}/
      drives/{driveSlug}/public-key`): `PublicKeyJwk`, `PublicKeyCrc32` (the key hint in the sealed copy) and
-     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. The client must not seal to a drive whose
-     sharing model is `Collaborative`: its server and its members hold its key (file-access.md, "Terms"). The server
-     may refuse it later.
+     `IsZeroKnowledge`, and the drive's `SharingModel`, cached with the key. It is served to any identity, so
+     sharing needs no grant on the member's drive (security-model.md, "A drive's public key"). The client must not seal to a drive whose
+     sharing model is Server Share (`Collaborative` in code): its server and its members hold its key ([terminology.md](terminology.md)). The server may refuse it later.
    - **A developer's reset** (`DELETE .../share-key`, owner console only, no UI): clears the key and every member's
      copy, so a key stored by mistake (a client bug, the wrong app key) can be replaced. Not for ordinary users:
      files already shared under the old key can't be opened with the new one.
@@ -208,22 +223,36 @@ compatible with.
 4. **Clients.** odin-js, chat-kmp and filesync crypto against the golden vector; Filesync's share UI.
 5. **Links**, once decision 4 is made.
 
+**Distant future, maybe never: converting a drive to Private Share** (noted 2026-11-02). Not needed now (user). If
+it is ever built, a converted drive's files that name circles in their ACL already have index rows, written as V1
+rows (`Read`, no expiry, no locked file key): on a Private Share drive those would be live shares, and their
+members would get a share key header with no key. A conversion would have to withdraw or rewrite them, and clear the
+ACLs' names, which `SelectiveShareDrives.AssertAclFits` refuses on any later header write **(I: not checked)**.
+
 ## Who may write
 
-The app's circles have Read and Write on the whole drive (decision 1). The drive grant is generic; the ACL
-narrows it per file, as it already does for reading **(V)**. Today nothing narrows writing per file **(V)**
-(`AccessControlList`: required group, named circles, named identities), so the Write bit in a share row's `permissions` is new:
+What each of the app's circles grants on the drive is the app's choice; the share row narrows it per file, for every
+bit, as the ACL already does for reading on other drives **(V)** (file-access.md, "A share row narrows its circle's
+grant"). Filesync's share UI puts every recipient in one circle granting what a View share needs (`Read`, `React`,
+`Comment`), and grants `Write` through a separate editors circle that holds exactly the people a live Edit share
+reaches; an individual circle grants nothing **(V: chat-kmp `FilesyncSharing.kt` on branch `filesync-share-person`, not
+on main; filesync's own registration on main still declares `Read` only)**. On other drives nothing narrows writing
+per file **(V)** (`AccessControlList`: required group, named circles, named identities), so the Write bit in a share row's
+`permissions` is new. A writer needs drive Write and the row's Write (file-access.md, "A share row narrows its circle's
+grant"):
 
 - **Updating or deleting a file** needs a share row for one of the writer's circles with Write.
-- **Adding a file to a folder** needs that on the folder (Filesync's folders are files, and a file names its
-  folder as its group **(I)**, from the Filesync design).
+- **Adding a file** needs drive Write alone, as on any drive (changed 2026-11-03; it first asked a Write share on the
+  file its `GroupId` names, which built a Filesync convention into the server).
 - **A writer may only add shares for circles they belong to**, only on files they write in that request.
   Every other share is the owning app's.
 
 ## A member adds a file to a shared folder
 
 Michael shares a folder with Family, with read and write. John, a Family member, adds a file. John's Filesync
-app does all of it in the upload, with no help from Michael's devices:
+app does all of it in the upload, with no help from Michael's devices (since 2026-11-03 the server asks only Family's
+drive Write; the folder is Filesync's, and the file also carries John's row for his individual circle, so he keeps
+it: file-access.md, "Sharing with one person"):
 
 1. **The file**, encrypted with a new file key.
 2. **The file's own key header, `sealed` to Michael's drive's write-only public key.** John has no DrvK, so
@@ -242,12 +271,12 @@ content with it and leaves the key headers alone. Two things are needed:
 
 - **A rule to update content without the key header.** Today a `sealed` header replaces only a `sealed` one
   **(V)** (design doc), so once Michael's device has transformed John's file, John can't send a new key
-  header. Updating content while keeping the stored key header is new, and a security decision (decision 5).
+  header. Updating content while keeping the stored key header is new: decision 5, decided below.
 - **The member's own server must be able to find the file** (design doc, "Known limit" **(V)**): when John
-  updates or deletes, the lookup on Michael's server runs as John, and today's read rule lets only the owner
-  read a client-locked file, so John's update finds nothing. PR 3 widens the read rule to a member whose
-  circle has a share row for the file; that should make the same lookup find it **(I)**, to be checked when PR 3
-  is built.
+  updates or deletes, the lookup on Michael's server runs as John, and before PR 3 the read rule let only the owner
+  read a client-locked file, so John's update found nothing. PR 3 lets a member with a live share row through the read
+  rule, client-locked or not (`CallerMayReadAsync`) **(V)**, and applies a member's update or delete directly, finding
+  the file by its global transit id through that share (PR 3 plan, section 7).
 
 ## Decisions for the user
 
@@ -259,19 +288,25 @@ content with it and leaves the key headers alone. Two things are needed:
    The drive is browser-made on a zero-knowledge drive. Fetched by slug, never by drive id:
    `GET /api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/public-key`
    (`V2PeerAppDrivePublicKeyController`) **(V)**, which goes through the peer drive key cache from #2045.
-   That endpoint requires Write on the target drive (`PeerDriveQueryService.cs`,
-   `GetDriveWriteOnlyPublicKeyAsync`) **(V)**. **Decided (2026-10-30):** the app's circles grant Read and Write
-   on its drive, so the endpoint works as it is; whether a share is read-only is the Write bit of its row.
-2. **Owner circles** (no owning app): not shareable this way, or locked with the master key so only the owner
-   console can share with them.
-3. **Sharing with one person** outside any circle. The ACL already names people (`OdinIdList`) **(V)**, so a
-   person's row could carry the key header sealed straight to their matching drive, with no circle at all;
-   or the app makes a small circle of its own for that person, so every share is a circle's.
+   That endpoint serves any identity (`PeerDriveQueryService.cs`, `GetDriveWriteOnlyPublicKeyAsync`) **(V)**.
+   **Decided (2026-10-30):** the app's circles grant Read and Write on its drive, and whether a share is read-only
+   is the Write bit of its row. **Amended (2026-11-02):** a row narrows its circle's grant, for every bit, so a share
+   gets a bit only where its circle grants it too, and what each circle grants is the app's choice (see "Who may
+   write" for Filesync's).
+2. ~~Owner circles~~ (no owning app) **Settled in PR 3:** not shareable. A share's circle is always the drive's
+   app's own, for the owner console too (`DriveShareService.GetCircleCallerMayShareWithAsync`) **(V)**. Not chosen:
+   locking it with the master key so only the owner console could share with it.
+3. ~~Sharing with one person~~ **Decided and built in PR 3 (2026-11-03):** the app makes a circle of one for that
+   person (`CircleDesignation.Individual`), so every share is a circle's (file-access.md, "Sharing with one person:
+   individual circles") **(V)**. Not chosen: a row naming the person (`OdinIdList`) with the key sealed straight to
+   their matching drive, with no circle at all.
 4. **Links**, for someone not on Homebase (design doc, "Links"): a row with the link's id and the key
    header locked with the link's key. Still open: where the link's own record lives (its expiry, the app's
    copy of its key), a small table of its own or a hidden app circle with no members.
-5. **Members editing existing files:** whether a writer may update a file's content while keeping its stored
-   key header, and on which drives (see "A member adds a file").
+5. ~~Members editing existing files.~~ **Decided (2026-11-01):** a member with a `Write` row updates a file's
+   content keeping the file key and the stored key header, sending a new IV only (PR 3 plan, section 7). The server
+   can't check the member kept the file key; a member with `Write` can write garbage either way, which follows
+   from zero knowledge.
 6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31), amended 2026-11-01:** a share is its
    `DriveAclIndex` row, with times of its own, and writing it moves the file's `modified` but not its version
    tag (see "Changing a share").
@@ -279,7 +314,7 @@ content with it and leaves the key headers alone. Two things are needed:
    a member takes the IV from the file (Blob formats). Every update of an encrypted file must carry a new IV: a
    metadata-only update is refused without one (`FileSystemStreamWriterBase`, "You must specify a new IV") **(V)**.
    A row that locked `IV ‖ FileKey` would go stale on the file's next update.
-   - **The rule that comes with it:** on a Selective Share drive an update keeps the file key and changes only the
+   - **The rule that comes with it:** on a Private Share drive an update keeps the file key and changes only the
      IV. A client that changes the key must re-lock every share row. The server can't check it: on a
      zero-knowledge drive the client-locked key header is stored as sent **(V)**. Inferred, not read in the
      clients: they already keep the key on update.
@@ -291,11 +326,11 @@ content with it and leaves the key headers alone. Two things are needed:
 
 - Key rotation (design doc: not in the first version). What rotating would take is listed below, so it isn't
   rediscovered later.
-- Collaborative drives: unchanged.
+- Server Share drives: unchanged.
 
 ## Work to do if keys are ever rotated
 
-Nothing below is built. Each key in Selective Share has a copy somewhere that rotating it leaves behind.
+Nothing below is built. Each key in Private Share has a copy somewhere that rotating it leaves behind.
 
 - **A member's drive key** (the matching drive's write-only key pair, which their circle-key copy is sealed to).
   #2045 already keeps retired drive keys and accepts deposits to them for a grace period, but:

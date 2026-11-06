@@ -151,9 +151,11 @@ public class ShamirConfigurationService(
         OdinValidationUtils.AssertValidRecipientList(request.Shards.Select(s => s.Player.OdinId), false, odinContext.Tenant);
         await zeroKnowledgeKeyService.AssertKeysExistAsync();
 
-        foreach (var shard in request.Shards.Where(s => s.IsGated))
+        // A friend's shard goes to their Shard Recovery drive, gated or automatic; the automated deal's to this host's
+        // automated identities, reached with the AutomatedIdentityKey
+        foreach (var shard in automatedDeal ? [] : request.Shards)
         {
-            await AssertSealedToHolderAsync(shard, odinContext);
+            await AssertHolderTakesShardAsync(shard, odinContext);
         }
 
         var hashedRecoveryEmail = await passwordKeyRecoveryService.GetHashedRecoveryEmail();
@@ -225,10 +227,12 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// Refuses a gated shard unless its holder's Shard Recovery drive is zero knowledge (their server
-    /// can't open the write-only private key) and it is sealed to that drive's current key.
+    /// Refuses a friend's shard unless its holder lets this identity write to their Shard Recovery drive, which they do
+    /// once they have reviewed it: else their server refuses the shard when it arrives, and the deal would replace a
+    /// working one (<see cref="OdinClientErrorCode.NotReviewedByOwner"/>).  A gated shard also needs the drive to be zero
+    /// knowledge (their server can't open the write-only private key) and to be sealed to that drive's current key.
     /// </summary>
-    private async Task AssertSealedToHolderAsync(DealtShard shard, IOdinContext odinContext)
+    private async Task AssertHolderTakesShardAsync(DealtShard shard, IOdinContext odinContext)
     {
         var holder = shard.Player.OdinId;
         // Not by a copy: a holder's key changes when their drive is converted again after a reset, and the browser may
@@ -236,6 +240,17 @@ public class ShamirConfigurationService(
         await peerDriveQueryService.ForgetDriveKeysAsync(holder);
         var key = await peerDriveQueryService.GetRemoteDriveWriteOnlyPublicKeyAsync(holder, RecoveryAppSlug,
             BuiltinDrives.ShardRecoveryDrive.DriveSlug, odinContext);
+
+        if (!key.CallerMayWrite)
+        {
+            throw new OdinSecurityException($"{holder} doesn't let you write to their Shard Recovery drive; they can't hold a shard " +
+                                            "until they review your connection", OdinClientErrorCode.NotReviewedByOwner);
+        }
+
+        if (!shard.IsGated)
+        {
+            return;
+        }
 
         if (!key.IsZeroKnowledge)
         {

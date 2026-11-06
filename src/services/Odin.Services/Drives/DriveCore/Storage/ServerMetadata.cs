@@ -32,6 +32,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public RecipientTransferHistory TransferHistory { get; set; }
 
+        /// <summary>
+        /// A received file's last write by a peer, which that peer's next change goes by (docs/file-access.md, "Changing
+        /// a file you sent"); null for a file of this identity's own.
+        /// </summary>
+        public SendersWrite SendersWrite { get; set; }
+
         public ServerMetadata()
         {
         }
@@ -45,6 +51,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // FileSystemType = serverMetadataDto.FileSystemType;
             FileByteCount = serverMetadataDto.FileByteCount;
             OriginalRecipientCount = serverMetadataDto.OriginalRecipientCount;
+            SendersWrite = serverMetadataDto.SendersWrite;
 
             TransferHistory = string.IsNullOrEmpty(record.hdrTransferHistory)
                 ? null

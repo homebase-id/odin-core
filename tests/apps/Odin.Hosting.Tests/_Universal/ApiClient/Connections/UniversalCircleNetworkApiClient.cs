@@ -26,7 +26,7 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
     /// behaviour that keys off circle ownership, such as which app may complete a pending enrollment.
     /// </param>
     public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string circleName, PermissionSetGrantRequest grant,
-        Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None)
+        Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None, CircleDesignation designation = CircleDesignation.Personal)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
@@ -40,7 +40,8 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
                 DriveGrants = grant.Drives,
                 Permissions = grant.PermissionSet,
                 AppId = appId,
-                GrantOn = grantOn
+                GrantOn = grantOn,
+                Designation = designation
             };
 
             var createCircleResponse = await svc.CreateCircleDefinition(request);

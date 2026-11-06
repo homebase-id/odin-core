@@ -995,6 +995,17 @@ for a `pknt0001` payload, the only failure in 1710; postgres and Windows passed 
 caused by the PR: it adds `GET /api/v2/plan` and a recipient-out-of-storage transfer status, and changes
 no overwrite or hard-delete code.
 
+**Again 2026-11-05, and locally for the first time.** Branch `selective-share-shares` (PR 3) on top of
+`a988cae62`, a full V2 run on a busy machine (V1 and services ran right after): the same single
+`HardDeletePayloadFile -> source payload does not exist` event for a `pknt0001` payload ("Threads 9,
+Iterations 100"), the only failure in 1979. 5 of 5 reruns of the test alone were green. Not caused by the
+branch's change in that round: it serves drive public keys to any identity and moves a peer-write record
+into `ServerMetadata`, and an owner overwrite passes no record and takes the same path as before.
+The next full local run on the branch, under heavier load (V2 took 10 minutes instead of 6), failed the
+same way once more. CI passed the branch's commits that day on all three platforms (runs 41997783602,
+41997783776, 41997783347 for `861076d08`), and main's recent CI runs are green. Not run on a clean `main`
+tree locally.
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`
@@ -1088,6 +1099,15 @@ node's service provider, and StackExchange.Redis throws while closing the connec
 
 **Cause, a hypothesis:** a race inside the Redis client while a multiplexer is disposed with its own connect or
 background tasks still settling. Undiagnosed; the failed job was re-run.
+
+**Again 2026-11-03:** `ubuntu/postgres/release` on PR #2059 (`selective-share-shares`) commit `b3e13951b`, run
+41618641608, the same `TearDown` NullReferenceException. `ubuntu/sqlite/release` and `windows/sqlite/debug` passed on
+the same commit, which changes circles and drive shares, nothing in the cache, Redis or this fixture. The failed job
+was re-run.
+
+**Again 2026-11-05:** `ubuntu/sqlite/release` on PR #2056 (`selective-share-circle-keys`) commit `5f250abd6`, run
+42092307328, the same `TearDown` NullReferenceException; the re-run passed. Filed as #2069, with a hypothesis: the
+multiplexer is disposed twice, once by FusionCache's Redis L2/backplane and once by the container.
 
 ## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
 

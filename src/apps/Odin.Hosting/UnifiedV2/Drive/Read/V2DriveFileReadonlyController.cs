@@ -31,7 +31,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetFileHeader(
             [FromRoute] Guid driveId,
-            [FromRoute] Guid fileId)
+            [FromRoute] Guid fileId,
+            [FromQuery] bool includeShares = false)
         {
             logger.LogDebug("V2 call to get file header");
             var storage = this.GetHttpFileSystemResolver().ResolveFileSystem().Storage;
@@ -46,6 +47,11 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             if (result == null)
             {
                 return NotFound();
+            }
+
+            if (includeShares)
+            {
+                await storage.AttachSharesAsync(driveId, [result], WebOdinContext);
             }
 
             return new JsonResult(result);

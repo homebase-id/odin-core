@@ -37,6 +37,16 @@ namespace Odin.Services.Base
         void MarkAsRequestContext(RequestOwnWrites ownWrites = null);
 
         /// <summary>
+        /// The file this context changes for its original sender, who changes a file they sent without reading it
+        /// (docs/file-access.md, "Changing a file you sent"); null otherwise.  Set only by the peer writers once they found
+        /// the sender is the stored file's (<c>OdinContextUpgrades.ForSendersOwnFile</c>); a plain copy drops it.
+        /// </summary>
+        SendersOwnFile SendersOwnFile { get; }
+
+        /// <summary>Marks this as the context changing <paramref name="file"/> for its original sender.</summary>
+        void MarkSendersOwnFile(SendersOwnFile file);
+
+        /// <summary>
         /// The age of the <see cref="ClientAuthenticationToken"/>
         /// </summary>
         UnixTimeUtc? AuthTokenCreated { get; set; }
@@ -62,6 +72,10 @@ namespace Odin.Services.Base
         public CallerContext Caller { get; set; }
 
         public RequestOwnWrites OwnWrites { get; private set; }
+
+        public SendersOwnFile SendersOwnFile { get; private set; }
+
+        public void MarkSendersOwnFile(SendersOwnFile file) => SendersOwnFile = file;
 
         public Guid? RequestTokenId => OwnWrites != null ? Caller?.OdinClientContext?.AccessRegistrationId?.Value : null;
 

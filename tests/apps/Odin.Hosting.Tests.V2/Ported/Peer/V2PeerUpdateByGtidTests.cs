@@ -76,7 +76,7 @@ public class V2PeerUpdateByGtidTests : V2Fixture
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         Assert.That(response.Content!.FileId, Is.EqualTo(Guid.Empty), "the recipient's file id isn't the sender's to know");
-        Assert.That(response.Content.DriveId, Is.EqualTo((Guid)drive.Alias));
+        Assert.That(response.Content.DriveId, Is.EqualTo(Guid.Empty), "there is no local file");
         Assert.That(response.Content.GlobalTransitId, Is.EqualTo(sent));
         Assert.That(response.Content.Updated, Is.Null, "there is no local file");
         Assert.That(response.Content.RecipientStatus.Keys, Is.EquivalentTo(new[] { frodo.Identity.DomainName }));

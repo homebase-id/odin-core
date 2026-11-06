@@ -518,7 +518,8 @@ public class TableDriveMainIndex(
 
     /// <summary>
     /// Sets only the key header of a file still at <paramref name="versionTag"/>: version tag and modified stay as they
-    /// are.  For relabelling key headers when a drive goes zero knowledge.  0 when the file moved on (or is gone).
+    /// are.  For relabelling key headers when a drive goes zero knowledge, and for a key holder's transform of deposits.
+    /// 0 when the file moved on (or is gone).
     /// </summary>
     internal async Task<int> UpdateEncryptedKeyHeaderAsync(Guid driveId, Guid fileId, Guid versionTag, string hdrEncryptedKeyHeader)
     {
@@ -538,6 +539,59 @@ public class TableDriveMainIndex(
         return await cmd.ExecuteNonQueryAsync();
     }
 
+
+    /// <summary>
+    /// The file's row, locked until the caller's transaction ends (FOR UPDATE on Postgres; SQLite serialises writers
+    /// anyway), or null when there is none: for a write that must see the row stay as it read it, such as a share, which
+    /// a hard delete running alongside mustn't outlive (docs/selective-share-pr3-plan.md, section 3).
+    /// </summary>
+    internal async Task<DriveMainIndexRecord> GetLockedAsync(Guid driveId, Guid fileId)
+    {
+        return await GetLockedRequiredSecurityGroupAsync(driveId, fileId) == null ? null : await GetAsync(driveId, fileId);
+    }
+
+    /// <summary>
+    /// The file's required security group, its row locked until the caller's transaction ends, in one statement; null
+    /// when there is no file.
+    /// </summary>
+    internal async Task<int?> GetLockedRequiredSecurityGroupAsync(Guid driveId, Guid fileId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        var forUpdate = _scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite ? "" : "FOR UPDATE";
+        cmd.CommandText = "SELECT requiredSecurityGroup FROM driveMainIndex " +
+                          $"WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+        return await cmd.ExecuteScalarAsync() is { } group and not DBNull ? Convert.ToInt32(group) : null;
+    }
+
+    /// <summary>
+    /// Moves the file's modified and keeps its version tag: a change to who may see the file, not to the file (decision
+    /// 6 of docs/selective-share-plan.md). With <paramref name="requiredSecurityGroup"/>, also sets the file's group, in
+    /// the column the query filters on and in the header's server data the readers take it from.
+    /// </summary>
+    internal async Task<int> TouchKeepingVersionTagAsync(Guid driveId, Guid fileId, int? requiredSecurityGroup = null,
+        string hdrServerData = null)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var touchCommand = cn.CreateCommand();
+        var group = requiredSecurityGroup.HasValue ? ", requiredSecurityGroup = @requiredSecurityGroup, hdrServerData = @hdrServerData" : "";
+        touchCommand.CommandText =
+            $"UPDATE driveMainIndex SET modified = {touchCommand.SqlMax()}(driveMainIndex.modified+1,{touchCommand.SqlNow()}){group} " +
+            "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+        touchCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        touchCommand.AddParameter("@driveId", DbType.Binary, driveId);
+        touchCommand.AddParameter("@fileId", DbType.Binary, fileId);
+        if (requiredSecurityGroup.HasValue)
+        {
+            touchCommand.AddParameter("@requiredSecurityGroup", DbType.Int32, requiredSecurityGroup.Value);
+            touchCommand.AddParameter("@hdrServerData", DbType.String, hdrServerData);
+        }
+
+        return await touchCommand.ExecuteNonQueryAsync();
+    }
 
     /// <summary>
     /// For testing only. Updates the updatedTimestamp for the supplied item.

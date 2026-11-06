@@ -26,7 +26,7 @@ public sealed record DriveSpec(
 
     /// <summary>
     /// Fresh collaboration-channel drive. The attribute is load-bearing rather than cosmetic:
-    /// <c>PeerFileUpdateWriter.DetermineAclAsync</c> keeps the sender's ACL on the recipient's copy
+    /// <c>IncomingFileAcl.ForIncomingFileAsync</c> keeps the sender's ACL on the recipient's copy
     /// for a collaboration drive instead of narrowing it to owner-only.
     /// </summary>
     public static DriveSpec Collab(bool allowAnonymousReads = true) =>

@@ -1,67 +1,144 @@
 # Zero-knowledge drives
 
-**Status:** direction, partly built. Built: the `zkDrive` key header type (#2023, #2027); being built:
-client-locked files for Shamir (step 2 of [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md)).
-[How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files) has the model and the
-decisions in short. Everything else is the starting point; details get settled as each piece is designed.
+**Status:** built for Private and Private Share drives: client-locked files, the zero-knowledge app key, and drives
+created or upgraded zero knowledge (Vault, Email and Shard Recovery are Private, Filesync is Private Share). Shares
+are built in the open Private Share PRs ([file-access.md](file-access.md), Status). Chat is **(to build)**. [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)
+has the model in short. Words follow [terminology.md](terminology.md): the three sharing models are Server Share
+(`Collaborative` in code), Private and Private Share (`SelectiveShare` in code).
 
-Markers follow [security-model.md](security-model.md): **(V)** verified in the code (file named).
-Anything without a marker is the proposed design.
+Markers follow [security-model.md](security-model.md): **(V)** verified in the code (file named). **(to build)**
+marks what is decided and not built, **Not decided** what is open. Anything without a marker is the design as
+described, not checked here line by line.
 
 ## How a zero-knowledge drive holds files
 
-The model in short: the `zkDrive` type is built (step 1); `sealed` under the same rules is step 2 (#2029,
-merged 2026-10-27); the reasons, alternatives and work are in
+The model in short; the reasons, alternatives and work are in
 [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
 
+- **What makes a drive zero knowledge:** its sharing model is Private or Private Share, one definition
+  (`StorageDrive.IsZeroKnowledge` asks `DriveSharingModel.IsZeroKnowledgeDrive()`), and the drive key's copies
+  follow from it: a save refuses a zero-knowledge model with a master-key copy, a Server Share model without one,
+  and a drive with neither (`DriveManager.AssertKeyCopies`) **(V)**. Creation sets the model, and so does conversion
+  (`DriveManager.ApplyZeroKnowledgeKeysAsync`) **(V)**.
 - **One key header per file, the rest under FileKey.** A file's key header holds FileKey (its AES key)
   and an IV. `appData.content`, `localAppData.content` (its own IV), payloads and thumbnails (the
   payload's IV) are all encrypted with FileKey **(V)**. Only the key header is ever locked or re-locked;
   content and payloads never are.
 - **On a zero-knowledge drive every encrypted file is client-locked,** in one of two ways, and the server
   opens neither:
-  - `zkDrive`: locked with the drive key (DrvK) by a device holding it, the owner console for now;
+  - `zkDrive` (drive-locked): locked with the drive key (DrvK) by a device holding it: the owner console, or a
+    device handed its app's zero-knowledge key at sign-in (`ZkDriveFiles.CallerHoldsDriveKey`) **(V)**;
   - `sealed`: sealed to the drive's write-only public key (`WO-PK-Pub`) by anyone with Write, so a
     friend or a sender can write without DrvK; opened with `WO-PK-Priv` (P-384 ECDH, HKDF, AES-GCM).
   - A key header locked with the shared secret (`aes`) is refused by its type, before it is opened.
 - **One read rule** (`IDriveAclAuthorizationService.CallerMayReadAsync`): the file's ACL, and a
-  client-locked file only for a caller that can open it (owner console, or the system's own jobs).
-  Reads, queries and sockets all ask it. A client-locked key header is returned as stored, and payload
-  and thumbnail responses carry no packed key header: the client uses FileKey and the payload's IV.
-- **One write rule:** the owner writes `zkDrive`, and can't upload a `sealed` file to their own drive; a
+  client-locked file only for a caller that can open it (a device holding the drive key, as above, or the
+  system's own jobs); on a Private Share drive a member reads through a live share, and gets the `share` key
+  header (`DriveFileUtility.CreateClientFileHeader`) **(V)**. Reads, queries and sockets all ask it. A
+  client-locked key header is returned as stored, and payload and thumbnail responses carry no packed key header:
+  the client uses FileKey and the payload's IV.
+- **One write rule:** a key holder writes `zkDrive`, and can't upload a `sealed` file to the drive; a
   sender's `sealed` new file is stored as sent. **A `sealed` key header replaces only a `sealed` one**: a
   file a key holder took over (`zkDrive`) never goes back to sealed, and an `aes` file never loses the key
   only the server could open. Updates and overwrites go through their usual version-tag and IV checks.
   Nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (no recipients,
-  feeds or CDN).
-- **Known limit:** the read rule also gates the server's own lookups made in a caller's context, so a
-  sender's own server can't find a client-locked file to update or delete it, and an inbox drained by an
-  app misses one: a peer's delete of a deposit applied that way is lost. Deposits are never edited or
-  deleted by peers today (Shamir); a sender's edit (Chat) needs the deeper fix in the plan's open items.
-- **Transforming `sealed` into `zkDrive` is optional**, and designed for Chat (deferred): a key holder
-  re-locks the same IV and FileKey with DrvK. It keeps the file's version tag and `updated`, because
-  nothing a reader or writer depends on changed, and a new version tag would break collaborators'
-  updates. Shamir leaves its shards `sealed`.
-- **Decided against** (2026-10-27): a separate client inbox (it became the drive query in a second
+  feeds or CDN) (`ZkDriveFiles.AssertNotSent`) **(V)**.
+- **One "may a peer write directly" check** for new files and updates (`PeerDirectWrites.CanWriteAtOnce`): at once
+  unless the file is encrypted, on a Server Share drive, with a key header the server must re-lock, and the caller
+  lacks the drive's key. A key header passed on as sent (`sealed`, `share`, `fileKey`) needs no key; a comment that
+  can't be written at once is refused, never queued **(V)**. It is decided once, on arrival, and reused when the
+  transfer finishes (`PeerDriveIncomingTransferService`, `PeerDriveIncomingFileUpdateService`) **(V)**.
+- **No inbox for a peer's files:** only Server Share drives keep one for them (`StorageDrive.HasInbox`). On a
+  zero-knowledge drive a peer's new file, update, delete and reaction are all written at once **(V, tested)**. Read
+  receipts still go through the inbox on every drive (`PeerDriveIncomingTransferService.MarkFileAsReadAsync`)
+  **(V)**. A delete or a reaction finds the file without the read rule
+  (`GetServerFileHeaderByGlobalTransitIdSkippingFileAcl`), which would hide a deposit from its sender, in
+  `PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync` and
+  `PeerIncomingGroupReactionInboxRouterService.TryApplyToZeroKnowledgeDriveAsync` **(V)**. Who may delete is the rule
+  for changing a file you sent: the original sender, or on Private Share a member through a live share with `Write`
+  ([file-access.md](file-access.md), "Changing a file you sent") **(V, tested)**. The sender's delete is refused
+  unless the file's record of their last write (`ServerMetadata.SendersWrite`) names them and still matches the file's
+  version tag, so a file stored before that record was kept is refused too; on a drive still marked as a community
+  channel only the original sender deletes (`SentFileChanges.ContextForDeleteAsync`) **(V)**. The delete is of the
+  version judged (`expectedVersionTag`), and a write that lands in between is judged again, once, rather than lost
+  (`PeerDriveIncomingTransferService.DeleteAtOnceAsync`) **(V)**. A delete of a file already deleted does nothing
+  **(V)**. A reaction's lookup asks drive `React`, not `Read` or `Write`
+  (`GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(…, permission)`), in the request's file system, so a reaction
+  to a comment works; on Private Share the share's `React` bit is asked too **(V; I: the group-reaction route has no
+  test of its own for a peer holding `React` alone)**. The reaction summary is changed in one read inside storage,
+  without the read rule (`DriveStorageServiceBase.ChangeReactionSummary`, from all three `ReactionPreviewCalculator`
+  reaction handlers) **(V)**.
+- **Transforming `sealed` into `zkDrive`** is optional: a key holder opens a deposit's `sealed` key header and
+  locks the same FileKey and IV with DrvK, and sends it to `POST /api/v2/drives/{driveId}/files/transform-key-headers`
+  with the version tag it read alongside the sealed one (`DriveStorageServiceBase.TransformKeyHeadersAsync`) **(V,
+  tested)**:
+  - **Who:** a caller holding the drive's key (`ZkDriveFiles.CallerHoldsDriveKey`): the owner console, or an app
+    device handed its app's zero-knowledge key, such as chat-kmp's, with Write on the drive. Anyone else is refused
+    (403), before the drive is looked at **(V, tested for an app device without the key; I: a guest, by the same
+    check)**. Never on the Shard Recovery drive: the server releases a friend's shard only as the sealed deposit it
+    holds (`ShamirBaseService`), so shards stay `sealed` **(V, tested)**. That is Shamir's need, not a rule of drives:
+    the server tells whether a friend's browser can still open a shard from the key its seal names, and a `zkDrive`
+    key header names none. Once Shamir keeps its own record of the key a shard is locked under, the exception goes
+    **(to build)**.
+  - **Per file**, in request order, one file's refusal stopping no other: the file exists and is active
+    (`fileNotFound`, `cannotUpdateNonActiveFile`); its stored key header is `sealed` (`notSealed`); the new one is a
+    valid `zkDrive` key header with the stored IV, which the content was encrypted under (`invalidKeyHeader`); the
+    file is still at the version tag read (`versionTagMismatch`, also for a file hard-deleted since)
+    (`ZkDriveFiles.TransformedKeyHeader`) **(V, tested)**.
+  - **Only the key header changes:** one statement per file, guarded by its version tag
+    (`TableDriveMainIndex.UpdateEncryptedKeyHeaderAsync`, the one a drive's conversion relabels with), leaves the
+    version tag and `modified` as they are **(V, tested)**, and raises no file-changed event **(V; not tested)**, all in
+    one transaction. So no reader re-fetches,
+    every writer's cached version tag stays valid, and a deposit's sender may still delete it, as their record of their
+    last write still matches ([file-access.md](file-access.md), "Changing a file you sent") **(V, tested)**.
+  - **Races:** a sender's change that lands between the read and the transform stands (`versionTagMismatch`), and the
+    key holder transforms the new one when it reads it **(V, tested)**. After the transform, a sender's `sealed`
+    change is refused like any `sealed` key header over a taken-over one **(V, tested)**: whether a deposit's sender
+    may keep editing it (keeping the drive's key header, with a new IV) is **not decided**. Two devices transforming
+    the same file send the same bytes, since a `zkDrive` key header depends only on DrvK, FileKey and the IV; the
+    second to arrive gets `notSealed`, as the stored key header is no longer sealed (I: not tested).
+  - **Known race:** a full header write that read the file before the transform keeps the same version tag, so its
+    version-tag guard still passes and it writes the `sealed` key header it read back over the transformed one. The
+    file is then `sealed` again, which still opens to the same FileKey; a key holder transforms it again when it next
+    reads it (I: not tested; on SQLite the stale writer more likely fails).
+  - **Not adjusted:** the file's byte count, which counted the larger `sealed` key header, until the defragmenter
+    recounts it (I).
+  - **What the server can't check:** that the new key header locks the same FileKey. The client opens what it locked
+    before sending it.
+  - **Golden vector:** `ClientLockedKeyHeaderVectorTests` (and odin-js's copy) holds a `sealed` key header and the
+    `zkDrive` one a transform makes of it **(V)**. Shamir leaves its shards `sealed`.
+- **Decided against:** a separate client inbox (it became the drive query in a second
   place), and a hidden "waiting" file on the drive (updates would hide files that were already
   readable).
 - **Known weakness of key header version 1:** the CBC format lets the IV cancel out, so the server sees
   which key headers share a FileKey. Version 2 fixes it
   ([#2024](https://github.com/homebase-id/odin-core/issues/2024)).
-- **No content integrity, by decision (2026-11-01):** out of the threat model ([security-model.md](security-model.md),
+- **No content integrity, by decision:** out of the threat model ([security-model.md](security-model.md),
   section 8).
+- **Drive settings:** a zero-knowledge drive allows neither anonymous reads, the CDN nor subscriptions, and can't be
+  marked as a community channel; a Private Share drive can't be `OwnerOnly` either. One rule, by the drive's model:
+  every setting at creation (`CreateDriveRequest.AssertSharingModel`, `DriveSettings.AssertFit`); a conversion
+  (`DriveManager.ApplyZeroKnowledgeKeysAsync`) turns anonymous reads, the CDN and subscriptions off and refuses the
+  rest (`DriveSettings.FitForConversion`), so a re-key after recovery never fails on them; an attribute change
+  (`UpdateAttributesAsync`) and `SetDriveReadModeAsync`, `SetDriveAllowSubscriptionsAsync` and `SetDriveAllowCdnAsync`
+  ask only the setting they change, as it will be (`DriveSettings.AssertChangeFits`), so turning a setting off always
+  works and a drive with a setting set before the rule can be brought into line **(V, tested)**.
+- **Comments and reactions:** on a Server Share drive members who may read comment; on a Private Share drive
+  members comment through shares ([file-access.md](file-access.md)); a member's update of a comment never creates a
+  new one (`PeerFileUpdateWriter`) **(V)**. On a Private drive only owner callers comment (the server's own jobs, a comment's
+  TTL, pass too): any other caller's comment, new, an update or a delete, is refused, a local upload (a guest or YouAuth caller) as well as a peer's
+  (`CommentFileStorageService.AssertCanWriteToDrive` / `CanWriteToDrive`) **(V, tested for a peer)**; reactions stay
+  allowed there (Chat needs them).
 
 ## Goal
 
-- **Today:** files are encrypted at rest, but the server briefly holds the keys in memory while
-  the user calls the API.
-- **Goal:** for private and selective share drives, the server shall never sees a drive key or a file key, even briefly. 
-  Keys are opened only on the user's own devices. Collaborative drives will keep working like today.
+- **Server Share drives:** zero knowledge at rest. The server stores the keys locked, but holds them in memory
+  while the owner, an app or a member calls the API.
+- **Private and Private Share drives:** zero knowledge. The server never sees a drive key or a file key, even
+  briefly. Keys are opened only on the owner's own devices, and a member's.
 - **Also:** a peer you share with never gets your drive key.
-- **Scope:** this applies to the Private and Selective Share drives below. Collaborative drives keep
-  today's model.
 
-## Where the server sees keys today
+## Where the server sees keys on a Server Share drive
 
 - **Upload:** the client sends the KeyHeader wrapped in its shared secret, and the server
   rewraps it with the storage key (`DriveStorageServiceBase.cs`, `EncryptKeyHeaderAes`) **(V)**.
@@ -76,17 +153,19 @@ merged 2026-10-27); the reasons, alternatives and work are in
 
 ## Three sharing models
 
-Every drive picks one sharing model when it is created. All three are encrypted at rest.
-Private and Selective Share are fully zero knowledge: no key is ever on the server, not even in
-memory. Collaborative works exactly as today, with in-memory blips.
+A drive's app picks its sharing model when the drive is created; nothing said means Server Share
+(`CreateDriveRequest.SharingModel`) **(V)**. An existing drive changes it only by conversion (below). All three
+are encrypted at rest. Private and Private Share are zero knowledge: no key is ever on the server, not even in
+memory. Server Share is zero knowledge at rest, with in-memory blips.
 
 | Sharing model | In one line | Example |
 |---|---|---|
-| **Private** | Zero knowledge, nothing shared. Others can only deposit. | Vault, chat |
-| **Selective Share** | Zero knowledge, plus an extra key per circle or per person | Filesync: share one folder |
-| **Collaborative** (as today) | Encrypted at rest, with in-memory blips, exactly as today. No per-file client work, however many files | Community, secure feed channel |
+| **Private** | Zero knowledge, nothing shared. Others can only deposit. | Vault, Email, Shard Recovery **(V)**; Chat **(to build)** |
+| **Private Share** | Zero knowledge, plus a key per circle, and a share per file and circle | Filesync: share one folder **(V)** |
+| **Server Share** (`Collaborative` in code) | Zero knowledge at rest, with in-memory blips. No per-file client work, however many files | every other drive, among them the drives marked as a community channel, and Chat today |
 
 Naming notes:
+- "Collaborative" is the code's name for Server Share, not a name in the docs ([terminology.md](terminology.md)).
 - "Type" is taken by `DriveType` / `TargetDrive.Type`.
 - "Key model" is already used for key vocabulary in
   [app-circle-membership-plan.md](app-circle-membership-plan.md).
@@ -98,26 +177,28 @@ Naming notes:
 - **Who holds the drive key:** the owner's devices and apps only.
 - **Others:** deposit by locking to the drive's public key (`WriteOnlyKeyPair`, private half
   escrowed under the storage key, `StorageDrive.cs`) **(V)**. They can write but never read.
-- **Chat:** the sending client locks each message key to every recipient's chat drive public key,
-  all in the one upload. The recipient's server stores the result as-is.
+- **Chat (to build):** the sending client locks each message key to every recipient's chat drive public key,
+  and the recipient's server stores each as a deposit, as received. How the sender's own copy on a Private drive
+  goes out is **Not decided**: a zero-knowledge drive sends nothing today (`ZkDriveFiles.AssertNotSent`) **(V)**.
 
-### Selective Share
+### Private Share
 
 - **For:** a private drive where you share chosen files or folders. Example: sharing one filesync
   folder with John.
 - **Who holds the drive key:** the owner only, as with Private.
-- **Share key:** each circle (or a one-off share with one or more persons) has its own key, kept under the
-  App Key of the app that owns the circle.
-- **Members:** each member gets the share key, locked to the public key of their matching drive.
-  That's one row per member.
-- **Files:** each shared file gets one locked file key per share: the file key locked with the share key
-  (`lockedFileKey`), in the file's `DriveAclIndex` row for that circle, with the share's expiry, what it may do
-  and its own `modified`, and only there, not in the file's ACL (decided 2026-10-31; the columns exist,
-  `TableDriveAclIndexCRUD` **(V)**, nothing writes them yet). A share changes who may read the file, not its
-  version tag (decision 6 of the plan).
-- **Cost:** sharing new files is free, because the locked file keys ride in the upload. Sharing many
-  existing files is a client bulk job.
-- **Links (to consider):** sharing with someone not on Homebase by a link that carries the key. It fits
+- **Circle key:** each circle that shares has its own key. The owner's app holds it locked
+  (`Circle.appKeyLockedShareKey`), and each member a copy sealed to their own drive's public key
+  (`CircleMember.sealedShareKey`) **(V)**. One person is an individual circle, a group a group circle
+  ([file-access.md](file-access.md), "Sharing with one person").
+- **Files:** a shared file has one share per circle: its `DriveAclIndex` row for that circle, holding the file key
+  locked with the circle key (`lockedFileKey`), the share's expiry, what it may do and its own `modified`, and only
+  there, not in the file's ACL. The share API writes them (`DriveShareService`) **(V)**. A share changes who may read
+  the file, not its version tag **(V)**.
+- **Never public:** a file's ACL is `Owner` or `Connected`, and names no circles or identities
+  (`SelectiveShareDrives.AssertAclFits`) **(V)**.
+- **Cost:** sharing new files is free, because the shares ride in the upload (`UploadFileDescriptor.Shares`)
+  **(V)**. Sharing many existing files is a client bulk job.
+- **Links (Not decided):** sharing with someone not on Homebase by a link that carries the key. It fits
   the same share rows, as a third kind of share target next to circles and persons: see
   [Links: sharing with someone not on Homebase](#links-sharing-with-someone-not-on-homebase).
   Plan and exact columns: [selective-share-plan.md](selective-share-plan.md).
@@ -153,23 +234,25 @@ a reader gets the share key differs:
 - **Optional password:** the client can lock the entries with a key made from the fragment key and a
   password. The server doesn't change.
 
-### Collaborative
+### Server Share
 
-- **For:** spaces where every member reads basically everything, such as a community or a secure feed
-  channel. Things on the master that members cannot read are protected by ACL, not encryption.
-- **Works exactly as today.** Encrypted at rest. The server briefly unlocks the drive key in
-  memory to rewrap headers for members and peers.
-- **Why not fully zero knowledge:** a big community drive can easily hold a million files. Any
+- **For:** spaces where every member reads basically everything, such as a drive marked as a community channel
+  or a secure feed channel. Things on the drive that members cannot read are protected by ACL, not encryption.
+- **Zero knowledge at rest.** The server briefly unlocks the drive key in memory to rewrap headers for
+  members and peers.
+- **Only it may be marked as a community channel**, since that needs the server to hold the drive key
+  ([terminology.md](terminology.md), "Community channel").
+- **Why not zero knowledge:** a big community channel can easily hold a million files. Any
   scheme where clients write keys per file would in some scenarios require clients update 
   very large volume of file records over the network. Today's model needs no client work at all.
 - **Writing:** the server enforces who may write, as today.
 
 ## Direction: how we get there
 
-For Private and Selective Share drives:
+For Private and Private Share drives:
 
 - **A second master key, the zero-knowledge master key.**
-  - Today's master key stays as it is, and keeps serving Collaborative drives and the server-side
+  - Today's master key stays as it is, and keeps serving Server Share drives and the server-side
     features.
   - The new one is random and stored on the server locked by a second password key. It is unlocked
     only in the browser.
@@ -177,11 +260,12 @@ For Private and Selective Share drives:
     (`PasswordDataManager.cs`) **(V)**. It is made from the password itself, never from the KEK,
     because the KEK is sent to the server today **(V)**.
   - Password change works as today. The browser also re-locks the new master key.
-- **ZK Drive keys are random and stored**, locked by the zero-knowledge master key (see
-  [Schema additions](#schema-additions)).
+- **ZK drive keys are stored locked by the zero-knowledge master key** (see
+  [Schema additions](#schema-additions)): a new zero-knowledge drive's key is made in the browser, and a converted
+  drive keeps its key, re-locked (see [Converting an existing drive](#converting-an-existing-drive)).
 - **ZK Keys open on devices only.**
-  - Apps and devices get their keys sealed to their own ECC P-384 public key, in the same
-    hand-off as today's app sign-in (see [Getting drive keys to an app](#getting-drive-keys-to-an-app)).
+  - App devices get their app's zero-knowledge key sealed to their own ECC P-384 public key, in the same
+    hand-off as today's app sign-in (see [Getting ZK drive keys to an app](#getting-zk-drive-keys-to-an-app)).
 - **Lock-to-public-key is the one primitive.** Plain ECDH P-384 plus AES, the shape of today's
   `EccEncryptedPayload` (throwaway key pair + hint) **(V)**.
 - **The receive key is the receiving drive's public key**, not a new identity or app key. Drives
@@ -192,11 +276,10 @@ For Private and Selective Share drives:
 ## Order of work
 
 Recovery comes before any drive goes zero knowledge, so nobody ever has a zero-knowledge drive
-without a way back.
-
-Plans: A, keys and database, is built ([zero-knowledge-keys-plan.md](zero-knowledge-keys-plan.md)).
-B, recovery in the browser (steps 2 and 3 together), follows
-([zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md)).
+without a way back. Steps 1 to 4 are built: plan A, keys and database
+([zero-knowledge-keys-plan.md](zero-knowledge-keys-plan.md)); plan B, recovery in the browser
+([zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md)); and the drive steps
+([zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md)), except where marked below.
 
 1. **Database and browser keys.**
    - The new password data and drive columns (see [Schema additions](#schema-additions)). They
@@ -217,18 +300,19 @@ B, recovery in the browser (steps 2 and 3 together), follows
    phrase they wrote down; from the takeover it opens the ZK master key and so the password, the
    same way the Shamir secret does, and the server deletes its copies.
 4. **Private drives and conversion,** Vault first (see
-   [Private drives and conversion](#private-drives-and-conversion)).
-   - Every drive gets a ZK copy of its key, whatever its sharing model, and every new drive
-     always gets one from then on (see [Every drive gets a ZK copy](#every-drive-gets-a-zk-copy)).
-   - Consent seals the keys of every drive an app is granted to the app.
-5. **Chat,** once deposits exist (see [Work for Chat and Vault](#work-for-chat-and-vault)).
+   [Private drives and conversion](#private-drives-and-conversion)). Vault, Email and Filesync convert from
+   their app; a new identity's Vault and Email are created Private; an app may ask for a new drive's model
+   (`ZkDriveConversionService`, `BuiltinDrives`, `CreateDriveRequest.SharingModel`) **(V)**.
+   - Consent seals the app's zero-knowledge key to the app, which opens the keys of the zero-knowledge
+     drives it is granted (see [Getting ZK drive keys to an app](#getting-zk-drive-keys-to-an-app)).
+5. **Chat (to build),** with deposits (see [Work for Chat](#work-for-chat)).
 
 ## Peers
 
 The goal for both zero-knowledge models: no server opens anything for a peer read or a deposit.
 Keys open on the peer's devices.
 
-### Today **(V)**
+### Server Share **(V)**
 
 - **Peer read, on your server:** the incoming peer query (`PeerDriveQueryService`, incoming) builds
   the header with `DriveFileUtility.CreateClientFileHeader`. That unwraps the KeyHeader with the
@@ -241,18 +325,27 @@ Keys open on the peer's devices.
 ### Private
 
 - **Reads:** the Peer API does no encryption or decryption for any read. A Private drive has no
-  peer readers, so no circle's drive grant carries its storage key.
-- **Deposits:** the sending client locks to the drive's public key. The sending server, the
-  receiving server and the inbox store it as received.
+  peer readers, and no drive grant on a zero-knowledge drive carries its storage key
+  (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
+- **Deposits:** the sending client seals to the drive's public key. The sending server and the
+  receiving server store it as received, written directly. A deposit on a Private drive carries no payloads
+  (`Deposits.MayCarryPayloads`) **(V)**. There is no inbox for a peer's files (read receipts still use it): a peer's
+  update, delete and reaction are written at once too (see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)) **(V)**.
 
-### Selective Share
+### Private Share
 
-- **Reads:** the Peer API returns the member's row's locked file key as stored, locked with the share key.
-  Neither server opens it.
-- **On the peer's device:** open the Peers row (the share key, locked to the peer's drive public
+- **Reads:** the Peer API returns the member's share as a `share` key header: the share row's locked file key,
+  as stored, and the file's IV (`EncryptedKeyHeader.ForShare`) **(V)**. Neither server opens it.
+- **On the peer's device:** open the member's copy of the circle key (sealed to the peer's drive public
   key), then the locked file key, then the file.
-- **No storage key in the grant:** the circle's drive grant for a Selective Share drive carries no
-  storage key (`KeyStoreKeyEncryptedStorageKey` stays empty).
+- **No storage key in the grant:** the circle's drive grant for a Private Share drive carries no
+  storage key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
+- **Deposits:** a member's new file may carry payloads (`Deposits.MayCarryPayloads`) **(V)**, and the payload-upload
+  route adds payloads to a deposit too (`Deposits.AssertTakesNoPayloads`) **(V, tested)**. There is no inbox for a
+  member's files (read receipts still use it): a member's update or delete is written at once, through a live share
+  with `Write`, or as the file's sender while it has no share **(V, tested)**. A member's update never creates a file:
+  one with no stored file to update, a standard file or a comment, is refused, and a standard file keeps its ACL
+  (`PeerFileUpdateWriter`) **(V)**.
 
 ### Anonymous and temporal reads
 
@@ -260,66 +353,73 @@ Both can make the server open files for the reader.
 - **Anonymous reads** (`AllowAnonymousReads`): an anonymous reader has no keys.
   - An unencrypted file needs no key: the server returns an empty key header
     (`DriveFileUtility.CreateClientFileHeader`) **(V)**. Serving it opens nothing.
-  - **Private:** no anonymous reads. Today an `OwnerOnly` drive already can't allow them
-    (`DriveManager.cs`, `CannotAllowAnonymousReadsOnOwnerOnlyDrive`) **(V)**.
-  - **Selective Share:** anonymous reads are for unencrypted files. An anonymous reader who gets
-    hold of an encrypted file gets nothing useful: it is locked, and the server has no key to open
-    it. Examples: Homepage Config, Profile, WebDrop.
+  - **Private and Private Share:** no anonymous reads. A zero-knowledge drive is created without them
+    (`CreateDriveRequest.AssertSharingModel`) **(V)**, and a Private Share file's ACL is `Owner` or `Connected`
+    (`SelectiveShareDrives.AssertAclFits`) **(V)**, and the read-mode setter refuses them too
+    (`DriveSettings.AssertChangeFits`; see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files))
+    **(V, tested)**. So a public drive
+    (Homepage Config, Profile, WebDrop, Public Posts) stays Server Share.
 - **Temporal reads** (`DrivePermission.ConditionalTemporalRead`, a circle may read files changed
-  in a recent window): the grant escrows the drive storage key so the server can rewrap for the
-  reader (`ExchangeGrantService.cs`) **(V)**. Proposed: not allowed on Private or Selective Share.
-  On Selective Share, share the recent files instead.
+  in a recent window): on a Server Share drive the grant escrows the drive storage key so the server can rewrap
+  for the reader (`ExchangeGrantService.cs`) **(V)**. On a zero-knowledge drive the grant carries no key
+  (`StorageDrive.GrantCarriesStorageKey`) **(V)**, so the server can't open a file for it. Proposed:
+  a zero-knowledge drive refuses the permission (**Not decided**); on Private Share, share the recent files
+  instead.
 
 ## Schema additions
 
-Agreed so far. Names may still change. SQLGenerator for anything SQL.
+Built. Every key's shorthand is in [owner-keys.md](owner-keys.md).
 
-- **Password data** (JSON in the KeyValue table, `PasswordData`, `OwnerSecretService.cs`) **(V)**:
-  - `ZkSaltKek`, new: the second salt. The browser works out the second password key as
-    pbkdf2(password, `ZkSaltKek`), with the same algorithm and iterations as `SaltKek`.
-  - `ZkKekEncryptedZkMasterKey`, new: the zero-knowledge master key, locked by the second password
-    key. A `SymmetricKeyEncryptedAes` carries its own IV **(V)**, so no extra IV is stored.
+- **The owner's zero-knowledge keys** have their own record in the KeyValue table, not `PasswordData`
+  (`ZeroKnowledgeKeys.cs`) **(V)**:
+  - `ZkSaltKek64`: the second salt. The browser works out the second password key as
+    pbkdf2(password, salt), with the same algorithm and iterations as `SaltKek`.
+  - `ZkKekEncryptedZkMasterKey`: the zero-knowledge master key, locked by the second password key.
 - **Drives** (`TableDrivesCRUD.cs`) **(V)**:
-  - `ZkMasterKeyEncryptedStorageKey`, new: the drive storage key, locked by the zero-knowledge
-    master key. Only the browser can open it. Its data type follows the SQL generator.
-  - `SharingModel`, new: Private, Selective Share or Collaborative.
-  - `MasterKeyEncryptedStorageKeyJson`, existing and `NOT NULL` today **(V)**: on a
-    zero-knowledge drive it must not hold a copy the server can open. Nullable, or a placeholder.
-  - `WriteOnlyKeyPair`, existing **(V)**: its private half is locked by the storage key, so on a
-    zero-knowledge drive the browser creates it. Today the server does
-    (`DriveManager.EnsureWriteOnlyKeyPairAsync`) **(V)**.
-- **New drives:** an app opens the owner console to create a drive, as it does today. The
-  browser makes the storage key and the key pair there.
+  - `ZkMasterKeyEncryptedStorageKey`: the drive storage key, locked by the zero-knowledge
+    master key. Only the browser can open it.
+  - `SharingModel`: Server Share (`Collaborative`), Private or Private Share.
+  - `MasterKeyEncryptedStorageKeyJson`: nullable; a zero-knowledge drive has none, and a save refuses a
+    zero-knowledge drive that has one, a Server Share drive that has none, or a drive with neither copy
+    (`DriveManager.AssertKeyCopies`) **(V)**.
+  - `WriteOnlyKeyPair`, and `ZkStorageKeyEncryptedWriteOnlyPrivateKey`: on a zero-knowledge drive the browser
+    makes the pair and the private half is locked by the drive key; on a Server Share drive the server makes it
+    (`DriveManager.CreateDriveAsync`, `DriveWriteOnlyKey`) **(V)**.
+- **New drives:** an app opens the owner console to create a drive, as it does today. For a zero-knowledge
+  drive the browser makes the storage key and the key pair there, and sends them with the create request
+  (`CreateDriveRequest.ZkKeys`) **(V)**.
 
-### Migration: setting the sharing model on existing drives
+### The sharing model of existing and new drives
 
-The migration that adds `SharingModel` labels nothing: every existing drive stays Collaborative,
-which is today's behaviour, and so is every new drive. A drive takes its model only when the
-browser converts it, so the label never claims zero knowledge the drive doesn't have, and
-`DriveManager` refuses to save a Private drive that still has a master-key copy **(V)**. Shard
-Recovery is the first (plan A).
+A drive made before sharing models existed is Server Share. A new
+drive takes the model its app asks for, Server Share when it asks nothing (`CreateDriveRequest.SharingModel`)
+**(V)**. An existing drive becomes zero knowledge only when the browser converts it, so the label never claims
+zero knowledge the drive doesn't have, and `DriveManager` refuses to save a zero-knowledge drive that still has a
+master-key copy **(V)**. Only Vault, Filesync and Email convert this way (`ZkDriveConversionService.ConvertibleDrives`),
+and the Shard Recovery drive (`ZeroKnowledgeKeyService.ConvertShardRecoveryDriveAsync`) **(V)**, which the owner's
+browser does at login **(I: client behaviour not read)**.
 
-- **The model each built-in drive gets when it is converted** (the drives in `BuiltinDrives.cs` **(V)**):
+- **The built-in drives** (`BuiltinDrives.cs` **(V)**):
 
   | Drive | Sharing model | Why |
   |---|---|---|
-  | Contacts, Email, Feed, Wallet, Vault | Private | `OwnerOnly = true` today **(V)** |
-  | Chat, Mail, Shard Recovery | Private | Owner reads; others only deposit |
-  | Photo Library, Sticker, Location, Lists, Moments | Selective Share | Private, with chosen shares |
-  | Homepage Config, Profile, WebDrop | Selective Share | Anonymous reads are for unencrypted files |
-  | Community, Public Posts | Collaborative | Members read everything |
-  | Transient temp | Unclassified for now | `SharingModel` has an "unclassified" value |
+  | Vault, Email | Private: created so on a new identity; an older one's converts from its app **(V)** | Owner reads; others only deposit |
+  | Shard Recovery | Private, converted by the owner's browser (at login, **I**) | Friends deposit shards |
+  | Chat | Server Share; Private **(to build)** | Owner reads; others only deposit |
+  | Contacts, Feed, Wallet, Mail | Server Share; whether they become Private is **Not decided** | Contacts, Feed and Wallet are `OwnerOnly` **(V)** |
+  | Photo Library, Sticker, Location, Moments | Server Share; Private Share is **Not decided**: converting a drive to Private Share may never be built ([selective-share-plan.md](selective-share-plan.md)) | Private, with chosen shares |
+  | Lists | Server Share **(V)** | marked as a community channel **(V)**, which a zero-knowledge drive can't be |
+  | Homepage Config, Profile, WebDrop, Public Posts | Server Share **(V)** | public (`AllowAnonymousReads`) **(V)**, which a zero-knowledge drive can't be |
+  | Community, transient temp | Server Share **(V)** | Members read everything; the transient drive stages sends |
 
-- **Anonymous reads and temporal read grants limit which model a drive can take** (see
-  [Anonymous and temporal reads](#anonymous-and-temporal-reads)).
-- **Every other drive, including third-party app drives:** Collaborative, which is today's
-  behaviour.
+- Filesync's drive (an app drive, not built in) is Private Share: created so at its app's request, or an older
+  one converted from its app (`WellKnownAppDrives.FilesyncDrive` in `ConvertibleDrives`) **(V)**; that Filesync asks
+  for Private Share is (I: filesync not read here).
+- **Every other drive, including third-party app drives:** Server Share unless its app asks for another model.
+- `DriveSharingModel.Unclassified` exists, and nothing sets it **(V)**.
 - **To check before a drive becomes Private:**
-  - Email, Feed and Contacts may have server features that read plaintext (see [Open](#open)).
+  - Feed and Contacts may have server features that read plaintext (see [Open](#open)).
   - Chat and Mail have `OwnerOnly = false` today **(V)**, so check what reads them besides the owner.
-- **Converting sets the label.** The server already knows an existing drive's storage key. A
-  drive becomes zero knowledge, and gets its model, only when the browser converts it (see
-  [Converting an existing drive](#converting-an-existing-drive)).
 
 ## Getting ZK drive keys to an app
 
@@ -346,9 +446,9 @@ sealed to the app's own key, so nobody in between can open it.
 5. The app works out the same exchange secret and fetches the sealed result once, by its hash.
    The server then deletes it (`ExchangeDigestForEncryptedToken`).
 
-**New:** the same steps, carrying one **zero-knowledge app key** (`AppZkK`, proposed 2026-10-27; the
-plan is step 3 of [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md)). The browser
-locks, and the server only carries.
+**For zero-knowledge drives:** the same steps, carrying one **zero-knowledge app key** (`AppZkK`; the
+plan is step 3 of [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md)), only when the app asks
+for it (`zk_app_key=1`). The browser locks, and the server only carries (`YouAuthTokenResponse.ZkAppKey`) **(V)**.
 
 - `AppZkK` is 16 random bytes per app, made by the browser. The server keeps `aes(ZKMK, AppZkK)` for the
   browser, and `aes(AppZkK, DrvK)` for each zero-knowledge drive the app is granted, both on the app
@@ -423,7 +523,7 @@ drive key with MK, the browser locks it with ZK, and the MK copy is deleted (see
 
 ## Private drives and conversion
 
-The smallest change that makes Private drives zero knowledge, and moves existing drives over
+The smallest change that makes Private and Private Share drives zero knowledge, and moves existing drives over
 without re-encrypting any file header.
 
 ### Converting an existing drive
@@ -438,15 +538,16 @@ header stays locked with the same drive key, so nothing is re-encrypted.
    locked to the owner's shared secret, as reads do today. This is the server's last look at
    that key.
 3. The browser locks the key with the zero-knowledge master key and sends that copy back.
-4. In one step, the server stores the new copy, sets the drive to Private, and deletes every copy
-   it could open:
+4. In one step, the server stores the new copy, sets the drive to the model the app asked for (Private or
+   Private Share), relabels every encrypted file's key header `zkDrive`, and deletes every copy it could open
+   (`ZkDriveConversionService`) **(V)**:
    - the master key copy (`MasterKeyEncryptedStorageKeyJson`)
    - the copy in each app and circle grant (`DriveGrant.KeyStoreKeyEncryptedStorageKey`) **(V)**
    - cached permission contexts (`OdinContextCache`, 60 minutes) **(V)**
 
 ### What changes
 
-Server:
+Built, except item 7 **(to build)**. Server:
 1. Password data: the two new fields, and endpoints to save them (first login, password change).
 2. Drives: `ZkMasterKeyEncryptedStorageKey` and `SharingModel`. The master key copy becomes
    nullable.
@@ -454,66 +555,34 @@ Server:
    re-locking. That covers four places: building a reader's header
    (`DriveFileUtility.CreateClientFileHeader`), upload, metadata update, and payload key headers
    (`DriveStorageServiceBase`) **(V)**.
-4. Grants on a Private drive carry no key. `ExchangeGrantService.CreateDriveGrant` already takes
-   a key source, and a keyless one exists (`NoStorageKeySource`) **(V)**. Every caller is still to
-   be traced.
+4. Grants on a zero-knowledge drive carry no key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
 5. Consent carries the browser's sealed `AppZkK`: one more field, `ZkAppKey`, in `EncryptedTokenExchange`
    (see [Getting ZK drive keys to an app](#getting-zk-drive-keys-to-an-app)).
 6. An owner-only conversion endpoint for steps 2 to 4 above.
-7. An owner-only endpoint that adds a ZK copy of a drive's key without converting the drive (see
-   [Every drive gets a ZK copy](#every-drive-gets-a-zk-copy)).
 
 Owner console (browser): the second password key at login, the zero-knowledge master key,
-sealing at consent, the conversion, and a ZK copy for every drive.
+sealing at consent, and the conversion.
 
 Apps: lock and open file headers with the drive key instead of the shared secret, and keep the
 drive keys in the device key store.
 
 ### Not in this step
 
-- **Deposits.** Chat, Mail and Feed receive files from peers, and today the receiving server
-  re-locks them with the drive key (`PeerInboxProcessor`) **(V)**. They convert once deposits
-  exist.
-- Selective Share, and the recovery phrase redesign.
-- Collaborative sharing, which doesn't change. Collaborative drives still get a ZK copy of their
-  key (below).
-
-### Every drive gets a ZK copy
-
-Decided 2026-10-23: from step 4 on, every drive has a copy of its key locked by the
-zero-knowledge master key, whatever its sharing model. Every app is handed the keys of the drives
-it is granted, locked to the app at consent. Whether it uses them is up to the app.
-
-- **A ZK copy is not conversion.** Collaborative drives keep their master-key copy, and the server
-  keeps working with it as today. Private and Selective Share drives hold their key the same way: both
-  lose the master-key copy, at creation or at conversion, and differ only in the shares a Selective
-  Share drive adds later (corrected 2026-10-29; this said Selective Share kept its copy). Zero knowledge means "no master-key copy" (`StorageDrive.IsZeroKnowledge`),
-  so a drive with both copies isn't mistaken for zero knowledge **(V)**.
-- **New drives always get one.**
-  - When the owner console creates a drive, the browser is there: it adds the ZK copy right away.
-  - Some drives are created on the server with no browser present: built-in drives at first run
-    and at version upgrades (`BuiltinProvisioner.EnsureDrivesAsync`, called from
-    `TenantConfigService`) **(V)**. The login backfill below picks those up.
-- **Existing drives, at the next login.** The browser lists the drives with no ZK copy. For each
-  one, the server opens the key with today's master key and sends it locked to the owner's shared
-  secret, as in step 2 of the conversion. The browser locks it with the ZK master key and sends
-  the copy back. This is the same login step that converts the Shard Recovery drive today.
-- **The server never had less.** For these drives it already holds the master-key copy, so
-  sending the key to the owner's browser shows it nothing new.
-- **When the copy no longer opens.** After a reset with the recovery key the ZK master key is new.
-  The browser replaces the copy of every drive that still has a master-key copy. A Private drive
-  has none, so only a recovery that gives back the second password key can reach it: Shamir does
-  that in plan B, and the recovery phrase in step 3.
+- **Deposits.** Chat, Mail and Feed receive files from peers, and the receiving server
+  re-locks them with the drive key (`PeerInboxProcessor`) **(V)**. They stay Server Share until Chat's deposits
+  are built.
+- Server Share sharing, which doesn't change. A Server Share drive has only the server's copy of its key: the
+  console and apps get zero-knowledge copies only of zero-knowledge drives (`AppRegistrationService`) **(V)**.
 
 ### First drive: Vault
 
 - Owner only, and no server feature uses its content: the server code names it only in the
   built-in app and circle definitions (`BuiltinApps.cs`, `BuiltinCircles.cs`,
   `SystemAppConstants.cs`) **(V)**.
-- **To check:** the built-in Vault circle ("Members can use your vault") grants ReadWrite on the
-  Vault drive (`BuiltinCircles.cs`) **(V)**. A read grant carries the drive key, and a Private
-  drive has no peer readers, so that circle loses read on conversion. Whether `OwnerOnly`
-  already stops the grant being used is not checked.
+- The built-in Vault circle ("Members can use your vault") grants ReadWrite on the
+  Vault drive (`BuiltinCircles.cs`) **(V)**. `OwnerOnly` doesn't stop that grant; conversion strips the key from
+  it, as from every grant, and it keeps its permission
+  ([zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md), 3.3 and 3.7).
 
 ### Catches
 
@@ -538,15 +607,17 @@ it is granted, locked to the app at consent. Whether it uses them is up to the a
   - Re-encrypting old headers under the new key is a separate, optional bulk job. It is only
     worth doing if old files must also be safe from a key leaked in the past.
 
-## Work for Chat and Vault
+## Work for Chat
 
-Chat and Vault are the only apps that change. Every other app keeps working as today, because
-its drives stay Collaborative. Vault goes first, because it needs no deposits.
+Vault, Email and Filesync already read and write their zero-knowledge drives (steps 3 and 4 of
+[zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md)). Chat is the app still to change
+**(to build)**. Every other app keeps working as today, because its drives stay Server Share.
 
-chat-kmp paths are relative to the chat-kmp repo (read 2026-10-22, at `13f06b94f`). `api/` means
+chat-kmp paths are relative to the chat-kmp repo, read at `13f06b94f`; its Vault parts may differ now (I: not
+re-read). `api/` means
 `homebase-api/src/commonMain/kotlin/id/homebase/api/`.
 
-### What chat-kmp does today **(V)**
+### How chat-kmp handles drive keys (read at `13f06b94f`) **(V)**
 
 - **One app, one sign-in.** Chat and Vault ship in one binary per platform and share one app
   registration (`APP_ID`, slug "chat"). Vault is a permission extension of that app
@@ -579,6 +650,8 @@ chat-kmp paths are relative to the chat-kmp repo (read 2026-10-22, at `13f06b94f
 
 ### chat-kmp changes
 
+Items 1 to 3 are built for Vault (plan, step 3; I: not read in chat-kmp here); 4 to 6 are Chat's **(to build)**.
+
 1. **Sign-in:** open the new `ZkAppKey` field in the token response (sealed with `ZkSeal`, AES-GCM),
    keep `AppZkK` in `SecureStorage`, and fetch and open the app's locked drive keys with it.
 2. **One switch for headers:** on a zero-knowledge drive, open and lock headers with the drive key
@@ -595,36 +668,39 @@ chat-kmp paths are relative to the chat-kmp repo (read 2026-10-22, at `13f06b94f
    notification, or the text as a deposit opened on the device (push decrypt is a TODO today,
    `homebase-common/.../notifications/NotificationService.kt`).
 7. **Device storage becomes the security boundary.** The drive keys join the shared secret in
-   `SecureStorage`. Web (`localStorage`) and desktop (hardcoded keystore password) are weaker
-   than mobile. To decide: accept, harden, or keep zero-knowledge drives off web and desktop.
+   `SecureStorage` on every platform. Web (`localStorage`) and desktop (hardcoded keystore password) are weaker
+   than mobile; memory-only keys on the web and proper key storage on desktop are follow-ups (plan, 3.6).
 
 Not changing: peer reads, the peer websocket, temporal reads and sending to a peer's drive
-(`PeerDriveUploadProvider.kt`). Those all reach other people's Collaborative drives.
+(`PeerDriveUploadProvider.kt`). Those all reach other people's Server Share drives.
 
 ### odin-core API changes
 
-1. **Drive info carries `SharingModel`,** so a client knows which key opens a header.
+Items 1 to 6 are built; 7 is **(to build)**.
+
+1. **Drive info carries `SharingModel`,** so a client knows which key opens a header (`ClientDriveData`,
+   `OwnerClientDriveData`) **(V)**.
 2. **Uploads, updates and local metadata on a zero-knowledge drive:** the key header arrives
    locked with the drive key. The server stores it as is, and the upload response carries no
    re-locked header.
 3. **Reads on a zero-knowledge drive return the stored header as is:** file header, query batch,
    websocket notifications (`ClientDriveNotification`) and the payload/thumbnail response header
-   (`DriveStorageControllerBase`) **(V)**. The field keeps its name (decided 2026-10-25).
-   - **The key header's `type` gets a third value, `zkDrive`** (decided 2026-10-26): the header is
+   (`DriveStorageControllerBase`) **(V)**. The field keeps its name.
+   - **The key header's `type` has the value `zkDrive`** (`EncryptionType.ZkDrive`) **(V)**: the header is
      `aes(DrvK, FileKey)`, locked by an owner device. The format is the same CBC format as `aes`.
      - A zero-knowledge drive refuses `aes` by its type, before opening it. Released apps always
        send `aes`.
      - Readers choose the key from the drive.
      - A `sealed` header from someone without DrvK is stored on the drive as it is; a key holder
-       may transform it into `zkDrive` later (decided 2026-10-27, replacing the 2026-10-26 idea of
-       a drive inbox; see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)).
+       may transform it into `zkDrive` later (see
+       [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)).
    - **No packed response header for `zkDrive` or `sealed` files.** The client uses FileKey and
      the payload's IV from the file metadata. The packed format stays for `aes`, and isn't
      replaced with JSON. GCM isn't used.
    - The plan, with the reasons and the work: [zero-knowledge-drive-api-plan.md](zero-knowledge-drive-api-plan.md).
 4. **Sign-in:** consent accepts the browser's sealed `AppZkK`, and `YouAuthTokenResponse` gets one new
    field, `ZkAppKey` (`YouAuthTokenResponse.cs`) **(V)**. The YouAuth reference client too.
-   Trusted apps that skip consent go through the consent page without a screen (see
+   Trusted apps that skip consent go through the consent page when they ask for the key (see
    [Trusted apps](#getting-zk-drive-keys-to-an-app)).
 5. **Grants carry no storage key on a zero-knowledge drive** (see
    [What changes](#what-changes)).
@@ -632,8 +708,9 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
    fields.
 7. **Chat deposits:**
    - An upload with recipients carries one locked header per recipient. The sending server
-     forwards each as is, and the receiving inbox stores it as is instead of re-locking
-     (`PeerInboxProcessor`) **(V)**.
+     forwards each as is, and the receiving server stores it as a deposit instead of re-locking it
+     (`PeerInboxProcessor` re-locks today) **(V)**. How the sender's copy on a zero-knowledge drive goes out
+     is **Not decided** (see [Private](#private)).
    - The client fetches a recipient's drive public key with the existing endpoint
      `V2PeerAppDrivePublicKeyController.GetDriveWriteOnlyPublicKey` **(V)**.
    - The app fetches its own drive's `WriteOnlyKeyPair` private half, still locked, to open
@@ -641,9 +718,8 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
 
 ## Decisions so far
 
-- **Client-locked files** (2026-10-27): `sealed` and `zkDrive` side by side on a zero-knowledge drive,
-  one read rule and one write rule; the transform is optional, keeps the version tag, and is built
-  with Chat. See [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files).
+- **Client-locked files:** `sealed` and `zkDrive` side by side on a zero-knowledge drive,
+  one read rule and one write rule; the transform is optional and keeps the version tag and `modified`. See [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files).
 
 - **V1: no key rotation when a member is removed.** Removing someone deletes their row, and the
   server stops serving them. Accepted risk: the removed person would also have to break into the
@@ -651,15 +727,16 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
 - **No proxy re-encryption** (server-side "tickets", e.g. Umbral). It is novel crypto, and a
   colluding server plus member could recover the shared key.
 - **The limit we accept:** you can't have exact per-file sharing, zero knowledge, and no per-file
-  client work all at once. Selective Share gives up the last one for sharing existing files.
+  client work all at once. Private Share gives up the last one for sharing existing files.
 - **Ruled out:**
   - a drive-wide "share key": for reading content it's the same as handing out the drive key.
   - a header per member per file: the rows grow as files × members.
 - **The password is asked for at login only.** The browser keeps the zero-knowledge master key
   for the owner session, locked by a session key the server holds. See decision 3 in
   [plan B](zero-knowledge-recovery-plan.md#decisions-first).
-- **Trusted apps keep skipping the consent screen.** They pass through the consent page, which
-  hands over the drive keys and continues on its own with no click.
+- **Trusted apps keep skipping the consent screen** unless they ask for their zero-knowledge key. Then they pass
+  through the consent page, which as built shows the consent form and needs a click (see
+  [Trusted apps](#getting-zk-drive-keys-to-an-app)); a page that continues on its own is possible later.
 
 ## Open
 
@@ -675,11 +752,14 @@ Not changing: peer reads, the peer websocket, temporal reads and sending to a pe
 
 Every key named here, and what locks it: [owner-keys.md](owner-keys.md).
 
-- **Today:** recovery (phrase and Shamir) brings back only today's master key.
+- **Built** ([plan B](zero-knowledge-recovery-plan.md)): recovery gives back the password, so the zero-knowledge
+  master key opens again; the browser takes the phrase over (`OwnerZeroKnowledgeController`, `phrase-takeover`)
+  **(V)**. The server-side reset, which brings back only today's master key, stays for automated recovery and an
+  old phrase not yet taken over.
 
 ### Redesign recovery
 
-- **Why:** the server can reach the phrase today **(V)**, so anything worked out from it could
+- **Why:** on the server-side path the server can reach the phrase **(V)**, so anything worked out from it could
   be worked out by the server too:
   - It is stored locked by today's master key (`MasterKeyEncryptedRecoverKey`,
     `PasswordKeyRecoveryService.cs`), which the server unlocks at every owner login.
@@ -690,8 +770,8 @@ Every key named here, and what locks it: [owner-keys.md](owner-keys.md).
 - **The password itself is never on the server.** Login sends only a hash and today's password
   key (`PasswordReply`) **(V)**. So recovery can't just email the old password.
 
-**Direction (decided 2026-10-24, details in [plan B](zero-knowledge-recovery-plan.md)):
-recovery gives you back your password,** shown only in your own browser. You log in as usual and
+**The design (details in [plan B](zero-knowledge-recovery-plan.md)): recovery gives you back your password,**
+shown only in your own browser. You log in as usual and
 may then change it.
 
 - The recovery phrase locks the zero-knowledge master key and a key pair the password is sealed
@@ -704,7 +784,7 @@ may then change it.
 - **Shamir, dealt in the browser:** each shard is sealed to its holder's Shard Recovery drive
   public key. On recovery each holder's browser re-seals its shard to the recovering browser's
   throwaway key, and the recovering browser rebuilds the secret.
-- Why each holder's public key, and not today's way: today the dealer's server keeps a key per
+- Why each holder's public key, and not the server-side way: there the dealer's server keeps a key per
   shard (`DealerShardEnvelope`) and opens the returned shards itself
   (`ShamirRecoveryService.PrepareFinalKeys`) **(V)**. Many identities are on the same hosting, so
   the hosting could gather enough shards.

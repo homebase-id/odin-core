@@ -42,12 +42,12 @@ public class GroupReactionService(
 
         var localFile = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
+        await reactionContentService.AssertMayAsync(localFile, DrivePermission.React, odinContext);
 
         var result = new AddReactionResult();
 
         // Update the local-reactions cache BEFORE adding the reaction content. The reaction-content
-        // add raises statisticsChanged (via ReactionPreviewCalculator -> UpdateReactionSummary),
+        // add raises statisticsChanged (via ReactionPreviewCalculator -> ChangeReactionSummary),
         // whose header snapshot must already include this reaction in localReactions. The server is
         // the source of truth for localReactions, so every emitted notification must be consistent;
         // doing this after the add is what made statisticsChanged announce a reaction its own
@@ -87,7 +87,7 @@ public class GroupReactionService(
 
         var localFile = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
+        await reactionContentService.AssertMayAsync(localFile, DrivePermission.React, odinContext);
 
         var result = new DeleteReactionResult();
 
@@ -126,8 +126,6 @@ public class GroupReactionService(
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
-
         return await reactionContentService.GetReactionCountsByFileAsync(file, odinContext);
     }
 
@@ -140,8 +138,6 @@ public class GroupReactionService(
 
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
-
         return await reactionContentService.GetReactionsByIdentityAndFileAsync(identity, file, odinContext);
     }
 
@@ -149,8 +145,6 @@ public class GroupReactionService(
         FileSystemType fileSystemType)
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
-
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
         return await reactionContentService.GetReactionsAsync(file, cursor, maxCount, odinContext);
     }
@@ -161,8 +155,8 @@ public class GroupReactionService(
         FileSystemType fileSystemType)
     {
         var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
-        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
+        // React is asked by the add or the delete below, before either changes anything
         var caller = odinContext.Caller.OdinId.GetValueOrDefault();
         var reactions = await reactionContentService.GetReactionsByIdentityAndFileAsync(caller, file, odinContext);
         var hasReaction = reactions.Any(r => r == reaction);

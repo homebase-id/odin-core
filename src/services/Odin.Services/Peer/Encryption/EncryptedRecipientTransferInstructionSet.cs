@@ -1,6 +1,9 @@
+using System;
+using System.Collections.Generic;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.Peer.Encryption
@@ -30,6 +33,18 @@ namespace Odin.Services.Peer.Encryption
         public AppNotificationOptions AppNotificationOptions { get; set; }
 
         public AccessControlList OriginalAcl { get; set; }
+
+        /// <summary>
+        /// A member's shares for the file they add to a Selective Share drive, as their upload carried
+        /// them (docs/selective-share-pr3-plan.md, section 7); checked and written by the owner's server.
+        /// </summary>
+        public List<ShareRequest> Shares { get; set; }
+
+        /// <summary>
+        /// For a file sent from the transient drive, the version tag the recipient's copy has, as the client named it: a
+        /// member who may read it names it (docs/file-access.md, "Changing a file you sent").
+        /// </summary>
+        public Guid? ExpectedVersionTag { get; set; }
         
         public bool IsValid()
         {
@@ -38,9 +53,10 @@ namespace Odin.Services.Peer.Encryption
                 return false;
             }
 
+            // A comment on its file's key holds its IV alone (EncryptionType.FileKey)
             var isValid = this.TargetDrive.IsValid() &&
                           this.SharedSecretEncryptedKeyHeader.Iv?.Length > 0 &&
-                          this.SharedSecretEncryptedKeyHeader.EncryptedAesKey?.Length > 0;
+                          (this.SharedSecretEncryptedKeyHeader.EncryptedAesKey?.Length > 0 || this.SharedSecretEncryptedKeyHeader.IsFileKey());
 
             return isValid;
         }

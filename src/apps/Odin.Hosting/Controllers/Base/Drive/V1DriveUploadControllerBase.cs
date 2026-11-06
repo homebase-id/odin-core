@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -92,31 +91,17 @@ namespace Odin.Hosting.Controllers.Base.Drive
         }
 
         /// <summary>
-        /// Updates a file on another identity (<see cref="UpdateLocale.Peer"/>), so there is no local file or drive to
-        /// look up. The path names the recipient, the remote drive and the file, and wins over the instructions. A
-        /// drive type the instructions state is passed along, so the request a recipient sees is the one V1 sends; the
-        /// recipient finds the drive by alias alone.
+        /// A V2 update of a file on <paramref name="recipient"/>'s drive, named by its global transit id: staged here
+        /// and sent there (Locale=Peer), as a member of a Selective Share circle edits a shared file
+        /// (docs/selective-share-pr3-plan.md, section 7).  The route's recipient, drive and file replace the body's.
         /// </summary>
-        protected Task<FileUpdateResult> ReceivePeerFileUpdateV2(OdinId recipient, Guid remoteDriveId, Guid globalTransitId)
+        protected Task<FileUpdateResult> ReceivePeerFileUpdateV2(OdinId recipient, Guid driveId, Guid globalTransitId)
         {
-            return ReceiveFileUpdateInternal(null, null, null, sent => new FileUpdateInstructionSet
-            {
-                TransferIv = sent.TransferIv,
-                File = new FileIdentifier
-                {
-                    GlobalTransitId = globalTransitId,
-                    TargetDrive = new TargetDrive { Alias = remoteDriveId, Type = sent.File?.TargetDrive?.Type ?? GuidId.Empty }
-                },
-                Locale = UpdateLocale.Peer,
-                Recipients = [recipient],
-                Manifest = sent.Manifest,
-                UseAppNotification = sent.UseAppNotification,
-                AppNotificationOptions = sent.AppNotificationOptions
-            });
+            return ReceiveFileUpdateInternal(driveId, null, null, (recipient, globalTransitId));
         }
 
         private async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId, Guid? uniqueId = null,
-            Func<FileUpdateInstructionSet, FileUpdateInstructionSet> mapToPeerUpdate = null)
+            (OdinId Recipient, Guid GlobalTransitId)? onPeer = null)
         {
             FileSystemType fileSystemType;
             FileSystemUpdateWriterBase updateWriter = null;
@@ -136,9 +121,23 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                 var instructionSet = await BoundedRead.DeserializeAsync<FileUpdateInstructionSet>(section!.Body);
 
-                if (mapToPeerUpdate != null)
+                if (onPeer is var (recipient, globalTransitId))
                 {
-                    instructionSet = mapToPeerUpdate(instructionSet);
+                    // The peer's drive is named by its id alone, as V2 peer reads name it; the recipient goes by the alias
+                    instructionSet = new FileUpdateInstructionSet
+                    {
+                        TransferIv = instructionSet.TransferIv,
+                        File = new FileIdentifier
+                        {
+                            GlobalTransitId = globalTransitId,
+                            TargetDrive = new TargetDrive { Alias = driveId.GetValueOrDefault(), Type = Guid.Empty }
+                        },
+                        Locale = UpdateLocale.Peer,
+                        Recipients = [recipient],
+                        Manifest = instructionSet.Manifest,
+                        UseAppNotification = instructionSet.UseAppNotification,
+                        AppNotificationOptions = instructionSet.AppNotificationOptions
+                    };
                     fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
                     updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
                 }

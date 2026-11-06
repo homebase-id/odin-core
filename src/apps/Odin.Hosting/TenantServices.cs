@@ -22,6 +22,7 @@ using Odin.Services.Configuration;
 using Odin.Services.DataSubscription;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.FileSystem.Comment.Attachments;
 using Odin.Services.Drives.FileSystem.Standard;
@@ -46,6 +47,7 @@ using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Peer.Outgoing.Network;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
@@ -332,6 +334,9 @@ public static class TenantServices
             .InstancePerLifetimeScope();
 
         cb.RegisterType<CircleMembershipService>().InstancePerLifetimeScope();
+        cb.RegisterType<CircleShareKeyService>().InstancePerLifetimeScope();
+        cb.RegisterType<DriveShareService>().InstancePerLifetimeScope();
+        cb.RegisterType<PeerCircleShareKeyService>().InstancePerLifetimeScope();
         cb.RegisterType<IcrKeyService>().InstancePerLifetimeScope();
         cb.RegisterType<CircleDefinitionService>().InstancePerLifetimeScope();
 

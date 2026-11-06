@@ -52,7 +52,7 @@ public class V2DriveManagementController(
     [HttpPost("create")]
     public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
     {
-        var _ = request.SharingModel.IsZeroKnowledge()
+        var _ = request.SharingModel.IsZeroKnowledgeDrive()
             ? await zeroKnowledgeKeyService.CreateZeroKnowledgeDriveAsync(request, WebOdinContext)
             : await driveManager.CreateDriveAsync(request, WebOdinContext);
         return true;

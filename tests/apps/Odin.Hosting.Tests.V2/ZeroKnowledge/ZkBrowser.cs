@@ -196,6 +196,10 @@ internal static class ZkBrowser
         return (fileKey, EncryptedKeyHeader.SealedTo(fileKey, publicKeyJwk));
     }
 
+    /// <summary>A deposit's file key: its sealed key header opened with the drive's write-only private key.</summary>
+    public static KeyHeader OpenDepositFileKey(SharedSecretEncryptedFileHeader header, byte[] writeOnlyPrivateKey) =>
+        KeyHeader.FromCombinedBytes(Unseal(header.SharedSecretEncryptedKeyHeader.EncryptedAesKey, writeOnlyPrivateKey));
+
     /// <summary>
     /// A deposit's content as the drive owner's browser opens it: the key header came back sealed, as
     /// stored, and the drive's write-only private key opens it.
@@ -205,8 +209,7 @@ internal static class ZkBrowser
         Assert.That(header.FileMetadata.IsEncrypted, Is.True, "a deposit is encrypted");
         Assert.That(header.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Sealed),
             "a deposit's key header comes back sealed, as stored");
-        var fileKey = KeyHeader.FromCombinedBytes(Unseal(header.SharedSecretEncryptedKeyHeader.EncryptedAesKey, writeOnlyPrivateKey));
-        return fileKey.Decrypt(header.FileMetadata.AppData.Content.FromBase64());
+        return OpenDepositFileKey(header, writeOnlyPrivateKey).Decrypt(header.FileMetadata.AppData.Content.FromBase64());
     }
 
     /// <summary>

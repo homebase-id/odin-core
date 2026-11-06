@@ -67,19 +67,58 @@ public class MainIndexMetaCached : AbstractTableCaching
 
     //
 
+    /// <inheritdoc cref="MainIndexMeta.GetLockedRequiredSecurityGroupAsync"/>
+    public Task<int?> GetLockedRequiredSecurityGroupAsync(Guid driveId, Guid fileId) =>
+        _meta.GetLockedRequiredSecurityGroupAsync(driveId, fileId);
+
+    /// <summary>
+    /// Writes each file's shares (<see cref="MainIndexMeta.WriteSharesAsync"/>), then clears the drive's cache once.
+    /// Returns the first file that doesn't exist, writing nothing after it; null when all were written.
+    /// </summary>
+    public async Task<Guid?> WriteSharesAsync(Guid driveId, IEnumerable<FileShares> files)
+    {
+        try
+        {
+            foreach (var file in files)
+            {
+                if (!await _meta.WriteSharesAsync(driveId, file.FileId, file.Rows, file.CheckFile))
+                {
+                    return file.FileId;
+                }
+            }
+
+            return null;
+        }
+        finally
+        {
+            await InvalidateDriveAsync(driveId);
+        }
+    }
+
     public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
         List<Guid>? accessControlList = null,
         List<Guid>? tagIdList = null,
-        Guid? useThisNewVersionTag = null)
+        Guid? useThisNewVersionTag = null,
+        bool reconcileAcl = true)
     {
         var result = await _meta.BaseUpsertEntryZapZapAsync(
             driveMainIndexRecord,
             accessControlList,
             tagIdList,
-            useThisNewVersionTag);
+            useThisNewVersionTag,
+            reconcileAcl);
 
         await InvalidateDriveAsync(driveMainIndexRecord.driveId);
 
         return result;
     }
 }
+
+/// <summary>
+/// A file's share rows to write, with the check of its row, read locked, that may refuse it or lift its group
+/// (<see cref="MainIndexMeta.WriteSharesAsync"/>).
+/// </summary>
+public sealed record FileShares(
+    Guid FileId,
+    IReadOnlyCollection<DriveAclIndexRecord> Rows,
+    Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> CheckFile);
