@@ -68,7 +68,7 @@ namespace Odin.Services.Authorization.Acl
         public async Task<bool> CallerMayReadAsync(StorageDrive drive, ServerFileHeader header, IOdinContext odinContext,
             CallerShares sharedWithCaller = null)
         {
-            var visible = ZkDriveFiles.VisibleTo(header, odinContext);
+            var visible = ZkDriveFiles.VisibleTo(drive, header, odinContext);
             var caller = odinContext.Caller;
             if (PassesEveryAcl(caller))
             {

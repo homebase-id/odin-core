@@ -55,8 +55,10 @@ public static class DriveFileUtility
     /// through: the header comes with that share, and an encrypted file's key header is the share's locked file key
     /// with the file's IV (docs/selective-share-pr3-plan.md, section 6), never the file's own.  For a comment, the share
     /// of the file it comments on: its key header is that file's locked file key with the comment's own IV (section 10).</param>
-    public static SharedSecretEncryptedFileHeader CreateClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
-        bool forceIncludeServerMetadata = false, DriveAclIndexRecord callerShare = null)
+    /// <param name="drive">The file's drive, for the read rule's backstop (<see cref="ZkDriveFiles.VisibleTo"/>); null where it
+    /// isn't known, which leaves out a sealed key header on a Server Share drive for a caller without a zero-knowledge key.</param>
+    public static SharedSecretEncryptedFileHeader CreateClientFileHeader(ServerFileHeader header, StorageDrive drive,
+        IOdinContext odinContext, bool forceIncludeServerMetadata = false, DriveAclIndexRecord callerShare = null)
     {
         if (header == null)
         {
@@ -72,10 +74,11 @@ public static class DriveFileUtility
         }
         else if (ZkDriveFiles.IsClientLocked(header))
         {
-            // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it.  A
+            // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it, but on a Server Share
+            // drive, whose server opens a deposit as it reads it, a sealed one left (a tombstone's) opens nothing.  A
             // backstop: the read rule (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a
             // file this refuses
-            ZkDriveFiles.AssertVisibleTo(header, odinContext);
+            ZkDriveFiles.AssertVisibleTo(drive, header, odinContext);
             sharedSecretEncryptedKeyHeader = header.EncryptedKeyHeader;
         }
         else if (header.FileMetadata.IsEncrypted)

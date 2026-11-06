@@ -263,8 +263,11 @@ a reader gets the share key differs:
   sealed update of a converted file is refused while their delete lands **(V, tested)**
   ([server-share-sealed-arrivals-plan.md](server-share-sealed-arrivals-plan.md)). A deposit comes only from a caller
   without the drive key, as on a zero-knowledge drive: a local caller holding it is refused a sealed upload
-  (`ZkDriveFiles.OpenForWrite`) **(V, tested)**. A delete, and the TTL jobs, leave a deposit sealed: only a read converts
-  (`ReadForCallerAsync`, skipped with `includeExpired`) **(V)**.
+  (`ZkDriveFiles.OpenForWrite`) **(V, tested)**. A sealed key header there reaches whoever holds the drive's storage key,
+  as any file does (`ZkDriveFiles.VisibleTo`): so a delete, which doesn't convert (`includeExpired`), and the tombstone
+  it leaves, which keeps the sealed key header, reach an app as they do the owner **(V, tested)**. Converting the drive to
+  a zero-knowledge one opens its deposits first, with the key pair they were sealed to, and relabels them with the rest
+  (`ZkDriveConversionService.RelabelKeyHeadersAsync`) **(V, tested)**.
 
 ## Direction: how we get there
 

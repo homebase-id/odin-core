@@ -367,13 +367,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 bool forceIncludeServerMetadata = false,
                 bool logAclFailuresAsErrors = false)
         {
-            var (visible, aclFailures, sharedWithCaller) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
+            var (visible, aclFailures, sharedWithCaller, drive) = await FilterVisibleAsync(driveId, recordList, odinContext, logAclFailuresAsErrors);
 
             var results = new List<SharedSecretEncryptedFileHeader>();
             foreach (var serverFileHeader in visible)
             {
                 var header = DriveFileUtility.CreateClientFileHeader(
                     serverFileHeader,
+                    drive,
                     odinContext,
                     forceIncludeServerMetadata,
                     sharedWithCaller?.LiveRowOf(serverFileHeader.FileMetadata.File.FileId));
@@ -427,10 +428,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// The rows of <paramref name="recordList"/> the caller may receive, in order, and the ones its ACL denied.
         /// Every result shape goes through here, so none of them can show a file another would hide.  On a Selective
         /// Share drive, also the caller's shares: a file the read rule let them in to has its live row, and a tombstone of
-        /// a file no longer shared with them has none (null otherwise).
+        /// a file no longer shared with them has none (null otherwise).  With the page's drive.
         /// </summary>
         private async Task<(List<ServerFileHeader> visible, List<ServerFileHeader> aclFailures,
-            CallerShares sharedWithCaller)> FilterVisibleAsync(
+            CallerShares sharedWithCaller, StorageDrive drive)> FilterVisibleAsync(
             Guid driveId,
             List<DriveMainIndexRecord> recordList,
             IOdinContext odinContext,
@@ -458,6 +459,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(driveId);
             await _storage.ConvertDepositsAsync(drive, headers, odinContext);
             var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(drive, headers, odinContext);
+            bool? hasStorageKey = null; // the same for the whole page: asked once, at the first file that needs it
 
             foreach (var serverFileHeader in headers)
             {
@@ -517,11 +519,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
 
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
-                    var hasStorageKey = odinContext.PermissionsContext.HoldsDriveStorageKey(file.DriveId);
 
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key
                     // A client-locked file needs no storage key to return: its key header goes back as stored
-                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted || isClientLocked;
+                    var shouldReceiveFile = !isEncrypted || isClientLocked ||
+                                            (hasStorageKey ??= odinContext.PermissionsContext.HoldsDriveStorageKey(driveId));
                     if (shouldReceiveFile)
                     {
                         visible.Add(serverFileHeader);
@@ -549,7 +551,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return (visible, aclFailures, sharedWithCaller);
+            return (visible, aclFailures, sharedWithCaller, drive);
         }
 
         /// <summary>
@@ -590,7 +592,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (options.ResultShape == FileResultShape.Minimal)
             {
-                var (visible, _, _) = await FilterVisibleAsync(driveId, records, odinContext);
+                var (visible, _, _, _) = await FilterVisibleAsync(driveId, records, odinContext);
                 result.FileRefs = visible.Select(FileRef.FromHeader).ToList();
             }
             else

@@ -64,7 +64,7 @@ public static class ZkDriveFiles
                 ThrowNotItsOwnKeyHeader();
             }
 
-            if (drive.ServerOpensDeposits && odinContext.PermissionsContext.HoldsDriveStorageKey(drive.Id))
+            if (ServerOpensDepositsFor(drive, odinContext))
             {
                 throw new OdinClientException("A caller holding a Server Share drive's key writes its key header to be locked " +
                                               "with it, not sealed", OdinClientErrorCode.InvalidKeyHeader);
@@ -339,26 +339,40 @@ public static class ZkDriveFiles
     /// <summary>
     /// Whether <paramref name="header"/> may reach the caller: a client-locked file only reaches one
     /// holding the drive's key, whatever else it holds (a grant from before the drive was converted still
-    /// carries the old key; an app that can't open a sealed or zkDrive key header stalls on it), and the
+    /// carries the old key; an app that can't open a sealed or zkDrive key header stalls on it), but for the Server
+    /// Share case below, and the
     /// system's jobs (a file's TTL, the outbox).  On the transient drive a deposit is only staged to be
     /// sent, and reaches any caller with Read there, not only its writer (an app sends its own; another app
     /// with transit sees the sealed header and plain metadata, as every reader of a deposit did before step
-    /// 2).  Says nothing about any other file.  Every read and write of a stored header asks this, by query,
-    /// socket or id, as part of <see cref="Authorization.Acl.IDriveAclAuthorizationService.CallerMayReadAsync"/>.
+    /// 2).  On a Server Share drive the server opens a deposit itself, so a sealed one reaches whoever holds that drive's
+    /// storage key, as any file there: their read converts it, a delete needs no key header, and a tombstone's opens nothing
+    /// (<see cref="ServerOpensDepositsFor"/>; a zero-knowledge drive never does, so its rule is the one above).
+    /// Says nothing about any other file.  Every read and write of a stored header asks this, by query, socket or id, as part
+    /// of <see cref="Authorization.Acl.IDriveAclAuthorizationService.CallerMayReadAsync"/>; <paramref name="drive"/> is the
+    /// file's, or null where it isn't known, which leaves out only the Server Share case.
     /// </summary>
     /// <remarks>
     /// It also gates the server's own lookups made in a caller's context, such as an inbox drained by an app:
     /// those miss a client-locked file.  Hiding it where responses are built instead is the deeper fix
     /// (docs/zero-knowledge-drive-api-plan.md, "Open from step 2's review").
     /// </remarks>
-    public static bool VisibleTo(ServerFileHeader? header, IOdinContext odinContext) =>
+    public static bool VisibleTo(StorageDrive? drive, ServerFileHeader? header, IOdinContext odinContext) =>
         !IsClientLocked(header) || SystemDriveConstants.IsTransientTempDrive(header!.FileMetadata.File.DriveId) ||
-        CallerHoldsDriveKey(header.FileMetadata.File.DriveId, odinContext) || odinContext.Caller?.IsSystem == true;
+        CallerHoldsDriveKey(header.FileMetadata.File.DriveId, odinContext) || odinContext.Caller?.IsSystem == true ||
+        (header.EncryptedKeyHeader.IsSealed() && drive?.Id == header.FileMetadata.File.DriveId && ServerOpensDepositsFor(drive, odinContext));
+
+    /// <summary>
+    /// Whether <paramref name="drive"/> is a Server Share drive whose server opens deposits
+    /// (<see cref="StorageDrive.ServerOpensDeposits"/>) and the caller's grants carry its storage key, so the server opens one
+    /// for them: such a caller sees a sealed key header there, and writes its own key header rather than a sealed one.
+    /// </summary>
+    public static bool ServerOpensDepositsFor(StorageDrive? drive, IOdinContext odinContext) =>
+        drive?.ServerOpensDeposits == true && odinContext.PermissionsContext.HoldsDriveStorageKey(drive.Id);
 
     /// <summary>Refuses a file the caller may not see (<see cref="VisibleTo"/>), as a read by id does</summary>
-    public static void AssertVisibleTo(ServerFileHeader header, IOdinContext odinContext)
+    public static void AssertVisibleTo(StorageDrive? drive, ServerFileHeader header, IOdinContext odinContext)
     {
-        if (!VisibleTo(header, odinContext))
+        if (!VisibleTo(drive, header, odinContext))
         {
             throw new OdinSecurityException("No access permitted to the file");
         }

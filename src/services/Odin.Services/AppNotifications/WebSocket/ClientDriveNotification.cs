@@ -44,10 +44,10 @@ public class ClientDriveNotification
     /// every socket, so they are never changed here.
     /// </summary>
     /// <param name="callerShare">On a Selective Share drive, the share a member reads the file through (section 6).</param>
-    public static ClientDriveNotification For(FileResultShape shape, IOdinContext? deviceOdinContext, TargetDrive? targetDrive,
+    public static ClientDriveNotification For(FileResultShape shape, IOdinContext? deviceOdinContext, StorageDrive? drive,
         ServerFileHeader? header, ServerFileHeader? previousHeader, DriveAclIndexRecord? callerShare = null)
     {
-        var notification = new ClientDriveNotification { TargetDrive = targetDrive };
+        var notification = new ClientDriveNotification { TargetDrive = drive?.TargetDriveInfo };
         if (deviceOdinContext?.PermissionsContext?.SharedSecretKey == null)
         {
             return notification;
@@ -60,8 +60,8 @@ public class ClientDriveNotification
             return notification;
         }
 
-        notification.Header = DriveFileUtility.CreateClientFileHeader(header, deviceOdinContext, callerShare: callerShare);
-        notification.PreviousServerFileHeader = DriveFileUtility.CreateClientFileHeader(previousHeader, deviceOdinContext,
+        notification.Header = DriveFileUtility.CreateClientFileHeader(header, drive, deviceOdinContext, callerShare: callerShare);
+        notification.PreviousServerFileHeader = DriveFileUtility.CreateClientFileHeader(previousHeader, drive, deviceOdinContext,
             callerShare: callerShare);
 
         if (shape == FileResultShape.NoContent)
@@ -96,8 +96,6 @@ public sealed class DriveEventMessage(
     ServerFileHeader? header,
     ServerFileHeader? previousHeader)
 {
-    private readonly TargetDrive? targetDrive = drive?.TargetDriveInfo;
-
     // A minimal event leaves out what it does not carry (the headers, an absent ref) instead of sending null;
     // full and noContent keep their nulls, as clients have always had them
     private static readonly JsonSerializerOptions MinimalOptions = new(OdinSystemSerializer.JsonSerializerOptions!)
@@ -134,29 +132,26 @@ public sealed class DriveEventMessage(
 
     private ServerFileHeader? OpenedFor(ServerFileHeader? stored, IOdinContext? deviceOdinContext)
     {
-        if (stored == null || deviceOdinContext == null)
+        if (stored == null || deviceOdinContext == null || !Deposits.IsDeposit(stored) ||
+            !ZkDriveFiles.ServerOpensDepositsFor(drive, deviceOdinContext))
         {
             return stored;
         }
 
-        // The same for every device whose request opens the drive key, so opened once per event; each device still has to
-        // hold the key to get it
+        // The same for every device holding the drive key, so opened, or found not to open, once per event
         if (_opened?.TryGetValue(stored, out var opened) == true)
         {
-            return deviceOdinContext.PermissionsContext.HoldsDriveStorageKey(drive!.Id) ? opened : stored;
+            return opened;
         }
 
-        if (Deposits.ConvertedOnServerShare(drive, [stored], deviceOdinContext) is not [var (_, keyHeader)])
-        {
-            return stored;
-        }
-
-        opened = new ServerFileHeader { EncryptedKeyHeader = keyHeader, FileMetadata = stored.FileMetadata, ServerMetadata = stored.ServerMetadata };
+        opened = Deposits.ConvertedOnServerShare(drive, [stored], deviceOdinContext) is [var (_, keyHeader)]
+            ? new ServerFileHeader { EncryptedKeyHeader = keyHeader, FileMetadata = stored.FileMetadata, ServerMetadata = stored.ServerMetadata }
+            : stored;
         (_opened ??= new Dictionary<ServerFileHeader, ServerFileHeader>(ReferenceEqualityComparer.Instance))[stored] = opened;
         return opened;
     }
 
-    // Only for an event that carried a deposit someone could open
+    // Only for an event carrying a deposit: what a device holding the drive key gets of it
     private Dictionary<ServerFileHeader, ServerFileHeader>? _opened;
 
     /// <summary>
@@ -235,13 +230,13 @@ public sealed class DriveEventMessage(
 
         if (await aclService.CallerMayReadAsync(drive, file!, deviceOdinContext!, shares))
         {
-            return Json(notificationType, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, current,
+            return Json(notificationType, ClientDriveNotification.For(shape, deviceOdinContext, drive, current,
                 previous, shares.LiveRowOf(file!.FileMetadata.File.FileId)), shape);
         }
 
         // From the header as it is now: a change that ended the share announces its own time, which a client goes by
         return DriveStorageServiceBase.NoLongerSharedViewOf(current ?? file!, shares) is { } noLongerShared
-            ? Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive,
+            ? Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(shape, deviceOdinContext, drive,
                 noLongerShared, null), shape)
             : null;
     }
@@ -267,7 +262,7 @@ public sealed class DriveEventMessage(
             return _minimalJson;
         }
 
-        var notification = ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, headers.Header, headers.Previous);
+        var notification = ClientDriveNotification.For(shape, deviceOdinContext, drive, headers.Header, headers.Previous);
         var json = Json(notificationType, notification, shape);
 
         if (shared)

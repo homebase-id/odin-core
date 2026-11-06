@@ -147,7 +147,7 @@ public class ContactService(
                 Outcome = ContactWriteOutcome.AlreadyExists,
                 UniqueId = uniqueId,
                 VersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault(),
-                CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, odinContext)
+                CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, drive: null, odinContext)
             };
         }
 
@@ -1060,7 +1060,7 @@ public class ContactService(
             Outcome = ContactWriteOutcome.VersionConflict,
             UniqueId = uniqueId,
             VersionTag = currentVersionTag,
-            CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, odinContext)
+            CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, drive: null, odinContext)
         };
     }
 

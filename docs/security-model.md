@@ -320,7 +320,8 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
 - Owner and `System` callers skip the ACL **(V)**.
 - Reading a file needs **both** drive Read and the ACL. Past drive Read, one rule decides whether the caller may see a stored
   file (`IDriveAclAuthorizationService.CallerMayReadAsync`): the ACL, and a client-locked file (sealed, zkDrive or fileKey: `EncryptedKeyHeader.IsLockedByClient`) only for a caller holding the
-  drive's key, except a deposit staged on the transient drive (`ZkDriveFiles.VisibleTo`); on a Private Share drive an
+  drive's key, except a deposit staged on the transient drive, and a deposit on a Server Share drive, which reaches a caller
+  holding that drive's storage key since the server opens it (`ZkDriveFiles.VisibleTo`); on a Private Share drive an
   outside caller's live share decides instead, and opens a client-locked file to them too
   (`DriveAclAuthorizationService.CallerMayReadAsync`) **(V)**. A read by id, a query and a socket event all ask it **(V)**. Queries also drop
   encrypted files the caller has no storage key for (`DriveQueryServiceBase` filter) **(V)**.

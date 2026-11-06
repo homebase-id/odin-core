@@ -47,8 +47,8 @@ Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → 
 | 1 | the drive isn't archived | 400 `InvalidDrive` | the owner console (master key) |
 | 2 | drive `Read` | 403 | `System`; not asked on a public drive (`StandardFileDriveStorageService`) |
 | 3 | the file exists and its TTL hasn't passed | no file (I: a 404 to the client) | a delete, which must still see an expired file |
-| 3a | on a Server Share drive, a deposit the caller's request can open becomes the server's own file, so it is no longer client-locked at 4 (`DriveStorageServiceBase.ConvertDepositsAsync`; a query does the same, `FilterVisibleAsync`) | never refuses: a deposit it can't open stays sealed | not on an archived drive |
-| 4 | the read rule, part 1: a client-locked file only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) | 403, or no file when the path asks for that (`aclDeniedAsMissing`) | `System`; files on the transient drive |
+| 3a | on a Server Share drive, a deposit the caller's request can open becomes the server's own file, so it is no longer client-locked at 4 (`DriveStorageServiceBase.ConvertDepositsAsync`; a query does the same, `FilterVisibleAsync`) | never refuses: a deposit it can't open stays sealed | a delete and the TTL jobs (loading with `includeExpired`), which 4 lets through anyway |
+| 4 | the read rule, part 1: a client-locked file only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) | 403, or no file when the path asks for that (`aclDeniedAsMissing`) | `System`; files on the transient drive; on a Server Share drive, a sealed file for a caller holding its storage key, which the server opens for them (a tombstone's opens nothing) |
 | 5 | the read rule, part 2: the file's ACL (`CallerPassesAcl`) | as 4 | owner callers; `System` |
 
 **The ACL check (step 5)**, in order (`DriveAclAuthorizationService.Allows`, `:101-123`) **(V)**:

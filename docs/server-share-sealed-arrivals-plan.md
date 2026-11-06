@@ -111,14 +111,17 @@ if the sender kept the same file key (the server can't check that) and leans on 
 - A local caller holding the drive key is refused a sealed upload, as on a zero-knowledge drive: a key holder writes a
   key header for the server to lock (`ZkDriveFiles.OpenForWrite`).
 - A delete and the TTL jobs don't convert: they load the file with `includeExpired`, and `ReadForCallerAsync` converts
-  only without it.
+  only without it. The single V2 delete loads it as a write, which converts. A sealed key header on a Server Share drive
+  reaches whoever holds the drive's storage key (`ZkDriveFiles.VisibleTo`, from the code review: without it an app was
+  refused a delete of a deposit no read had converted, and a tombstone of one never reached an app).
+- Converting the drive to a zero-knowledge one (Vault, Filesync, Email) opens its deposits inside the conversion, before
+  the write-only key pair they were sealed to is replaced, and relabels them with the rest (from the code review).
 - `Deposits.ConvertedOnServerShare` (one file) and `DriveStorageServiceBase.ConvertDepositsAsync` (the write, from
   `ReadForCallerAsync` and `DriveQueryServiceBase.FilterVisibleAsync`, before the read rule); socket events open a deposit
   per device the same way, unwritten (`DriveEventMessage`).
 - From the code review: the server opens a deposit it took before the drive was marked as a community channel (only new
   deposits are refused there); a seal that doesn't open to exactly the file's IV and key is logged and left sealed, never
-  a failed read; a file that moved on between read and write is still served opened; conversion skips expired files and
-  archived drives; a socket event opens a deposit once, not per socket.
+  a failed read; a file that moved on between read and write is still served opened; conversion skips expired files; a socket event opens a deposit once, not per socket.
 - Sending a deposit on converts it first: `SendFile` loads the header through `GetServerFileHeader`, which is
   `ReadForCallerAsync` **(V)**.
 - Not converted: the loads that go straight to storage (a reaction, transfer history, a TTL job, the member-write guard)

@@ -83,14 +83,24 @@ public static class Deposits
     /// (<see cref="Odin.Core.Cryptography.Data.EccFullKeyData.OpenPrivateKey"/>).
     /// </summary>
     public static List<(ServerFileHeader Header, EncryptedKeyHeader KeyHeader)> ConvertedOnServerShare(StorageDrive drive,
-        IEnumerable<ServerFileHeader> headers, IOdinContext odinContext)
+        IEnumerable<ServerFileHeader> headers, IOdinContext odinContext) =>
+        OpenedOnServerShare(drive, headers.Where(IsDeposit).Select(h => (h, h.EncryptedKeyHeader)), odinContext);
+
+    /// <summary>
+    /// <see cref="ConvertedOnServerShare"/> for bare key headers, each with what it belongs to: those sealed to the drive's
+    /// write-only key, as the server's own.  A tombstone's too, which <see cref="IsDeposit"/> doesn't count (it isn't
+    /// encrypted any more), for a caller that rewrites every key header of the drive.
+    /// </summary>
+    public static List<(T Item, EncryptedKeyHeader KeyHeader)> OpenedOnServerShare<T>(StorageDrive drive,
+        IEnumerable<(T Item, EncryptedKeyHeader Sealed)> keyHeaders, IOdinContext odinContext)
     {
         if (drive?.ServerOpensDeposits != true)
         {
             return [];
         }
 
-        var deposits = headers.Where(h => IsDeposit(h) && drive.IsSealedToWriteOnlyKey(h.EncryptedKeyHeader.EncryptedAesKey))
+        var deposits = keyHeaders
+            .Where(k => k.Sealed?.IsSealed() == true && drive.IsSealedToWriteOnlyKey(k.Sealed.EncryptedAesKey))
             .ToList();
         if (deposits.Count == 0 || !odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
         {
@@ -102,12 +112,12 @@ public static class Deposits
         {
             privateKey = drive.WriteOnlyKeyPair.OpenPrivateKey(storageKey);
             using var me = ECDiffieHellman.Create(privateKey);
-            var converted = new List<(ServerFileHeader, EncryptedKeyHeader)>();
-            foreach (var header in deposits)
+            var converted = new List<(T, EncryptedKeyHeader)>();
+            foreach (var (item, sealedKeyHeader) in deposits)
             {
-                if (Converted(drive, header, me, ref storageKey) is { } keyHeader)
+                if (Converted(drive, sealedKeyHeader, me, ref storageKey) is { } keyHeader)
                 {
-                    converted.Add((header, keyHeader));
+                    converted.Add((item, keyHeader));
                 }
             }
 
@@ -129,18 +139,18 @@ public static class Deposits
         }
     }
 
-    private static EncryptedKeyHeader Converted(StorageDrive drive, ServerFileHeader header, ECDiffieHellman me,
+    private static EncryptedKeyHeader Converted(StorageDrive drive, EncryptedKeyHeader sealedKeyHeader, ECDiffieHellman me,
         ref SensitiveByteArray storageKey)
     {
         byte[] plain = null;
         KeyHeader opened = null;
         try
         {
-            plain = ZkSeal.Open(header.EncryptedKeyHeader.EncryptedAesKey, me);
+            plain = ZkSeal.Open(sealedKeyHeader.EncryptedAesKey, me);
 
             // Exactly the file's IV and key, under the IV the header shows: anything else would lock a key that isn't the
             // file's over its only sealed copy
-            if (plain.Length != 32 || !plain.AsSpan(0, 16).SequenceEqual(header.EncryptedKeyHeader.Iv))
+            if (plain.Length != 32 || !plain.AsSpan(0, 16).SequenceEqual(sealedKeyHeader.Iv))
             {
                 Log.Warning("A deposit on drive {driveId} opened to something other than its file key; left sealed", drive.Id);
                 return null;

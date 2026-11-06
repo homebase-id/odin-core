@@ -19,8 +19,10 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
+using static Odin.Hosting.Tests.V2.DriveWrite.SoftDeleteBatchTests;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -79,13 +81,38 @@ public class ServerShareDepositTests : V2Fixture
     }
 
     [Test]
+    public async Task AnAppDeletesADepositNoReadConvertedAndGetsItsTombstone()
+    {
+        // A delete doesn't convert, and the tombstone keeps the sealed key header: a sealed key header on a Server Share
+        // drive reaches whoever holds the drive's storage key (ZkDriveFiles.VisibleTo), as an app learning of the deposit
+        // from a socket event, which opens it without writing it, does
+        var (frodo, sam, drive, publicKeyJwk) = await ArrangeAsync();
+        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.ReadWrite);
+        await SendDepositAsync(sam, sam, frodo, publicKeyJwk, Guid.NewGuid(), Content, remoteDrive: drive);
+        var fileId = (await StoredKeyHeadersAsync(frodo, drive)).Single().FileId;
+
+        // The batch, whose load passes includeExpired (the single delete loads it as a write, which converts)
+        var delete = await app.Drives.Writer.SoftDeleteBatch(drive.Alias, Batch(File(fileId)));
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
+        Assert.That(delete.Content!.Results.Single().ErrorCode, Is.Null, "the app may delete it");
+
+        var tombstone = await app.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId);
+        Assert.That(tombstone.StatusCode, Is.EqualTo(HttpStatusCode.OK), tombstone.Error?.Content);
+        Assert.That(tombstone.Content!.FileState, Is.EqualTo(Odin.Services.Drives.DriveCore.Storage.FileState.Deleted));
+        Assert.That((await StoredKeyHeadersAsync(frodo, drive)).Single().KeyHeader.Type, Is.EqualTo(EncryptionType.Sealed),
+            "the delete didn't convert it");
+    }
+
+    [Test]
     public async Task ADepositSealedToAnotherKeyIsRefused()
     {
-        var (frodo, sam, drive, _) = await ArrangeAsync();
+        var (frodo, sam, drive, publicKeyJwk) = await ArrangeAsync();
 
         await SendDepositAsync(sam, sam, frodo, ZkBrowser.MakeKeyPair().PublicKeyJwk, Guid.NewGuid(), Content, remoteDrive: drive);
 
         Assert.That(await StoredKeyHeadersAsync(frodo, drive), Is.Empty, "the server could never open it");
+        await SendDepositAsync(sam, sam, frodo, publicKeyJwk, Guid.NewGuid(), Content, remoteDrive: drive);
+        Assert.That(await StoredKeyHeadersAsync(frodo, drive), Has.Count.EqualTo(1), "the control: sealed to the drive's key, it lands");
     }
 
     [Test]
@@ -128,6 +155,20 @@ public class ServerShareDepositTests : V2Fixture
 
         Assert.That(await StoredKeyHeadersAsync(frodo, drive), Is.Empty, "refused on arrival");
         Assert.That(await InboxCountAsync(frodo, drive), Is.EqualTo(0));
+
+        // The control: the same send, unsealed, lands, so the refusal was the deposit's
+        var metadata = Metadata(Guid.NewGuid(), Content);
+        metadata.AllowDistribution = true;
+        var (upload, _, _, _) = await sam.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias,
+            metadata, new TransitOptions
+            {
+                IsTransient = true,
+                Recipients = [frodo.Identity.DomainName],
+                RemoteTargetDrive = drive
+            });
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        await PeerFlow.DistributeAsync(sam, frodo, drive);
+        Assert.That(await StoredKeyHeadersAsync(frodo, drive), Has.Count.EqualTo(1), "a member's post lands");
     }
 
     [Test]
