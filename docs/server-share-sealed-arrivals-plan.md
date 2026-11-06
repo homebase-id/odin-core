@@ -105,7 +105,13 @@ if the sender kept the same file key (the server can't check that) and leans on 
   "if the file was received from another identity, do not redistribute", unless a community channel) **(V)**. **And
   never the Shard Recovery drive** before it is zero knowledge: its shards must stay sealed (`StorageDrive.ShardsStaySealed`,
   shared with the transform; #2075).
-- `Deposits.MayCarryPayloads` is `CanHoldDeposits`; `Deposits.AssertCanHold` refuses a sealed comment on every drive.
+- No rule refuses a deposit's payloads: every drive that takes a deposit takes its payloads, and a drive that takes none
+  refuses the sealed key header itself (`ZkDriveFiles.AssertDriveTakes`), new or an update. `Deposits.AssertCanHold`
+  refuses a sealed comment on every drive.
+- A local caller holding the drive key is refused a sealed upload, as on a zero-knowledge drive: a key holder writes a
+  key header for the server to lock (`ZkDriveFiles.OpenForWrite`).
+- A delete and the TTL jobs don't convert: they load the file with `includeExpired`, and `ReadForCallerAsync` converts
+  only without it.
 - `Deposits.ConvertedOnServerShare` (one file) and `DriveStorageServiceBase.ConvertDepositsAsync` (the write, from
   `ReadForCallerAsync` and `DriveQueryServiceBase.FilterVisibleAsync`, before the read rule); socket events open a deposit
   per device the same way, unwritten (`DriveEventMessage`).
@@ -113,8 +119,14 @@ if the sender kept the same file key (the server can't check that) and leans on 
   deposits are refused there); a seal that doesn't open to exactly the file's IV and key is logged and left sealed, never
   a failed read; a file that moved on between read and write is still served opened; conversion skips expired files and
   archived drives; a socket event opens a deposit once, not per socket.
-- Not done: a deposit the owner sends on from a Server Share drive before any read converted it is passed on sealed
-  (`Deposits.OpenWithDriveKey`), and its recipient refuses it as sealed to another key (I: not tested).
+- Sending a deposit on converts it first: `SendFile` loads the header through `GetServerFileHeader`, which is
+  `ReadForCallerAsync` **(V)**.
+- Not converted: the loads that go straight to storage (a reaction, transfer history, a TTL job, the member-write guard)
+  open no key header **(V)**. The one that does is a community channel's distribution
+  (`FeedDriveDistributionRouter.DistributeToCollaborativeChannelMembers`), which opens the key header of the header the
+  change event carries, and throws on a sealed one: only for a deposit taken before the drive was marked as a community
+  channel (I: not tested). Opening a deposit in the server's one opener, `DriveFileUtility.OpenWithStorageKey`, would
+  cover it and any later caller (a step 2 candidate).
 
 ## Races
 

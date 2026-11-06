@@ -52,43 +52,6 @@ public static class Deposits
         return DriveFileUtility.OpenWithStorageKey(header, odinContext);
     }
 
-    /// <summary>Refuses a malformed deposit, and one with payloads for a drive whose deposits carry none.</summary>
-    public static void AssertValid(FileMetadata metadata, EncryptedKeyHeader sealedKeyHeader, StorageDrive drive)
-    {
-        sealedKeyHeader.AssertValidSealed();
-        if (metadata.Payloads?.Any() == true && !MayCarryPayloads(drive))
-        {
-            ThrowCarriesNoPayloads();
-        }
-    }
-
-    /// <summary>
-    /// Where a deposit may carry payloads: on every drive that takes one, as a file has its content, under one set of
-    /// deposit rules for every drive (docs/server-share-sealed-arrivals-plan.md, "Decisions").
-    /// </summary>
-    public static bool MayCarryPayloads(StorageDrive drive) => drive.CanHoldDeposits;
-
-    /// <summary>Refuses payloads added with a sealed key header, as <see cref="AssertValid"/> does for a new deposit.</summary>
-    public static void AssertTakesNoPayloads(KeyHeader keyHeader, bool addsPayloads, StorageDrive drive)
-    {
-        if (addsPayloads && keyHeader is ClientLockedKeyHeader { IsSealed: true } && !MayCarryPayloads(drive))
-        {
-            ThrowCarriesNoPayloads();
-        }
-    }
-
-    /// <summary>Refuses payloads for a stored deposit, as <see cref="AssertValid"/> does for a new one.</summary>
-    public static void AssertTakesNoPayloads(ServerFileHeader existingHeader, StorageDrive drive)
-    {
-        if (IsDeposit(existingHeader) && !MayCarryPayloads(drive))
-        {
-            ThrowCarriesNoPayloads();
-        }
-    }
-
-    private static void ThrowCarriesNoPayloads() =>
-        throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
-
     /// <summary>
     /// Refuses a deposit for a drive that can't hold one (<see cref="StorageDrive.CanHoldDeposits"/>); asked
     /// through <see cref="ZkDriveFiles.AssertDriveTakes"/>, which decides which drive takes which key header.

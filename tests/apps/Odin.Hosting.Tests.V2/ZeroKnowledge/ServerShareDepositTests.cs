@@ -8,6 +8,7 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -101,6 +102,20 @@ public class ServerShareDepositTests : V2Fixture
         var encrypted = await bytes.Content!.ReadAsByteArrayAsync();
         Assert.That(AesCbc.Decrypt(encrypted, fileKey.AesKey, payload.Iv), Is.EqualTo(payload.Content),
             "the sender's content, under the file key and the payload's IV");
+    }
+
+    [Test]
+    public async Task TheOwnerCannotUploadADepositToTheirOwnServerShareDrive()
+    {
+        // A key holder writes a key header for the server to lock; a deposit comes only from someone without the drive key
+        var (frodo, _, drive, publicKeyJwk) = await ArrangeAsync();
+        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
+
+        // The upload client throws on any 400 rather than returning it.
+        var e = Assert.ThrowsAsync<Exception>(() => frodo.Drives.Writer.CreateEncryptedFile(drive.Alias,
+            Metadata(Guid.NewGuid(), Content), transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader));
+        Assert.That(e!.Message, Does.EndWith(nameof(OdinClientErrorCode.InvalidKeyHeader)));
+        Assert.That(await StoredKeyHeadersAsync(frodo, drive), Is.Empty);
     }
 
     [Test]

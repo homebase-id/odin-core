@@ -658,7 +658,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             if (keyHeader is ClientLockedKeyHeader { IsSealed: true } sealedKeyHeader)
             {
                 // Where it may go was checked as it was opened (ZkDriveFiles.OpenForWrite)
-                Deposits.AssertValid(metadata, sealedKeyHeader.Locked, drive);
+                sealedKeyHeader.Locked.AssertValidSealed();
             }
             else if (metadata.IsEncrypted && keyHeader is not ClientLockedKeyHeader) // checked unopened (AssertValidZkDrive)
             {

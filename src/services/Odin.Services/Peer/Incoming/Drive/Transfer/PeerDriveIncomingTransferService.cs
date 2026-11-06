@@ -70,7 +70,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
             if (IsDeposit(metadata, transferInstructionSet))
             {
-                Deposits.AssertValid(metadata, transferInstructionSet.SharedSecretEncryptedKeyHeader, drive);
+                transferInstructionSet.SharedSecretEncryptedKeyHeader.AssertValidSealed();
             }
 
             if (metadata.IsEncrypted)

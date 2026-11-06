@@ -261,7 +261,10 @@ a reader gets the share key differs:
   shards stay sealed (`StorageDrive.ShardsStaySealed`, which the transform asks too) **(V, tested)**. One set of deposit rules holds on every drive that takes one: sealed to the current
   write-only key, payloads allowed, never a comment, and a sealed key header replaces only a sealed one, so a sender's
   sealed update of a converted file is refused while their delete lands **(V, tested)**
-  ([server-share-sealed-arrivals-plan.md](server-share-sealed-arrivals-plan.md)).
+  ([server-share-sealed-arrivals-plan.md](server-share-sealed-arrivals-plan.md)). A deposit comes only from a caller
+  without the drive key, as on a zero-knowledge drive: a local caller holding it is refused a sealed upload
+  (`ZkDriveFiles.OpenForWrite`) **(V, tested)**. A delete, and the TTL jobs, leave a deposit sealed: only a read converts
+  (`ReadForCallerAsync`, skipped with `includeExpired`) **(V)**.
 
 ## Direction: how we get there
 
@@ -345,7 +348,7 @@ Keys open on the peer's devices.
   (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
 - **Deposits:** the sending client seals to the drive's public key. The sending server and the
   receiving server store it as received, written directly. A deposit carries its payloads, on every drive that takes
-  one (`Deposits.MayCarryPayloads`) **(V, tested)**. There is no inbox for a peer's files (read receipts still use it): a peer's
+  one: no rule refuses them **(V, tested)**. There is no inbox for a peer's files (read receipts still use it): a peer's
   update, delete and reaction are written at once too (see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)) **(V)**.
 
 ### Private Share
@@ -356,8 +359,8 @@ Keys open on the peer's devices.
   key), then the locked file key, then the file.
 - **No storage key in the grant:** the circle's drive grant for a Private Share drive carries no
   storage key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
-- **Deposits:** a member's new file may carry payloads (`Deposits.MayCarryPayloads`) **(V)**, and the payload-upload
-  route adds payloads to a deposit too (`Deposits.AssertTakesNoPayloads`) **(V, tested)**. There is no inbox for a
+- **Deposits:** a member's new file may carry payloads, and the payload-upload route adds payloads to a deposit too
+  **(V, tested)**. There is no inbox for a
   member's files (read receipts still use it): a member's update or delete is written at once, through a live share
   with `Write`, or as the file's sender while it has no share **(V, tested)**. A member's update never creates a file:
   one with no stored file to update, a standard file or a comment, is refused, and a standard file keeps its ACL

@@ -41,6 +41,15 @@ public class DepositRulesTests
             "shards stay sealed");
     }
 
+    [Test]
+    public void ADriveThatTakesNoDepositRefusesASealedKeyHeader()
+    {
+        // Asked wherever a sealed key header is written, new or an update, so no later rule needs to ask again
+        var e = Assert.Throws<OdinClientException>(() =>
+            ZkDriveFiles.AssertDriveTakes(ServerShare(withKeyPair: false), EncryptionType.Sealed, FileSystemType.Standard));
+        Assert.That(e!.ErrorCode, Is.EqualTo(OdinClientErrorCode.DepositNeedsZeroKnowledgeDrive));
+    }
+
     // Not Selective Share: its comments take only a fileKey key header, refused by an earlier rule
     [TestCase(DriveSharingModel.Collaborative)]
     [TestCase(DriveSharingModel.Private)]

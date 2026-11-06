@@ -1238,7 +1238,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
             AssertActiveForUpdate(existingServerHeader);
-            Deposits.AssertTakesNoPayloads(existingServerHeader, drive);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
@@ -1708,9 +1707,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // Before any payload is copied; a client-locked key header can't be opened to check its AES key
             ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader);
-            Deposits.AssertTakesNoPayloads(manifest.KeyHeader,
-                manifest.PayloadInstruction?.Any(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite) == true,
-                await DriveManager.GetDriveAsync(targetFile.DriveId, failIfInvalid: true));
 
             if (!ZkDriveFiles.IsClientLocked(existingHeader) && existingHeader.FileMetadata.IsEncrypted)
             {
@@ -2561,7 +2557,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return (null, null);
             }
 
-            await ConvertDepositsAsync(drive, [header], odinContext);
+            // Not where the file is removed (the delete paths and the TTL jobs, which pass includeExpired): a tombstone needs no
+            // key header the server can open
+            if (!includeExpired)
+            {
+                await ConvertDepositsAsync(drive, [header], odinContext);
+            }
 
             if (await IsSendersOwnFileAsync(drive, header, odinContext))
             {
