@@ -93,7 +93,7 @@ public static class Deposits
         catch (Exception e) when (e is not OutOfMemoryException)
         {
             // Never a failed read: its deposits are left sealed
-            Log.Warning(e, "The write-only private key of drive {driveId} could not be opened; its deposits left sealed", drive.Id);
+            Log.Warning(e, "The deposits on drive {driveId} could not be opened; left sealed", drive.Id);
             return [];
         }
     }
@@ -160,7 +160,7 @@ public static class Deposits
             // file's over its only sealed copy
             if (plain.Length != 32 || !plain.AsSpan(0, 16).SequenceEqual(sealedKeyHeader.Iv))
             {
-                Log.Warning("A deposit on drive {driveId} opened to something other than its file key; left sealed", drive.Id);
+                Log.Debug("A deposit on drive {driveId} opened to something other than its file key; left sealed", drive.Id);
                 return null;
             }
 
@@ -169,8 +169,9 @@ public static class Deposits
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
-            // Sealed to this drive's key but not openable with it, by any error: left sealed, never a failed read
-            Log.Warning(e, "A deposit on drive {driveId} could not be opened; left sealed", drive.Id);
+            // Sealed to this drive's key but not openable with it, by any error: left sealed, never a failed read.  At Debug:
+            // a sender's junk is met again by every read, and a sender chooses how much of it there is
+            Log.Debug(e, "A deposit on drive {driveId} could not be opened; left sealed", drive.Id);
             return null;
         }
         finally

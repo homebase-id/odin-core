@@ -79,7 +79,7 @@ public static class DriveFileUtility
 
             // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it.  But a Server Share
             // deposit's tombstone has no content for its sealed key header to open, so it goes out empty, as any tombstone the
-            // server locked does: no client of a Server Share drive is handed a sealed key header
+            // server locked does
             sharedSecretEncryptedKeyHeader = header.FileMetadata.FileState == FileState.Deleted && drive?.ServerOpensDeposits == true
                 ? EncryptedKeyHeader.Empty()
                 : header.EncryptedKeyHeader;

@@ -269,8 +269,8 @@ a reader gets the share key differs:
   delete loads it as a write, which does) **(V, tested)**. A tombstone has no content, so a sealed one goes out with an
   empty key header, as any tombstone the server locked (`DriveFileUtility.CreateClientFileHeader`) **(V, tested)**.
   Converting the drive to a zero-knowledge one opens its deposits first, with the key pair they were sealed to, and
-  relabels them with the rest; a write-only private key that doesn't open fails the conversion
-  (`ZkDriveConversionService.RelabelKeyHeadersAsync`) **(V, tested)**.
+  relabels them with the rest (`ZkDriveConversionService.RelabelKeyHeadersAsync`) **(V, tested)**; a write-only private
+  key that doesn't open fails the conversion **(V; not tested)**.
 
 ## Direction: how we get there
 

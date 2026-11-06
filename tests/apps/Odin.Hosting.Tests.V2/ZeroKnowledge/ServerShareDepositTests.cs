@@ -99,8 +99,8 @@ public class ServerShareDepositTests : V2Fixture
         var tombstone = await app.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId);
         Assert.That(tombstone.StatusCode, Is.EqualTo(HttpStatusCode.OK), tombstone.Error?.Content);
         Assert.That(tombstone.Content!.FileState, Is.EqualTo(Odin.Services.Drives.DriveCore.Storage.FileState.Deleted));
-        Assert.That(tombstone.Content.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes),
-            "empty, as any tombstone's: it has no content to open");
+        Assert.That((tombstone.Content.SharedSecretEncryptedKeyHeader.Type, tombstone.Content.SharedSecretEncryptedKeyHeader.Iv),
+            Is.EqualTo((EncryptionType.Aes, Guid.Empty.ToByteArray())), "empty, as any tombstone's: it has no content to open");
         Assert.That((await StoredKeyHeadersAsync(frodo, drive)).Single().KeyHeader.Type, Is.EqualTo(EncryptionType.Sealed),
             "the delete didn't convert it");
     }

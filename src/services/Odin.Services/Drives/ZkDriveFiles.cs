@@ -359,7 +359,7 @@ public static class ZkDriveFiles
     public static bool VisibleTo(StorageDrive? drive, ServerFileHeader? header, IOdinContext odinContext) =>
         !IsClientLocked(header) || SystemDriveConstants.IsTransientTempDrive(header!.FileMetadata.File.DriveId) ||
         CallerHoldsDriveKey(header.FileMetadata.File.DriveId, odinContext) || odinContext.Caller?.IsSystem == true ||
-        (header.EncryptedKeyHeader.IsSealed() && ServerOpensDepositsFor(drive, odinContext));
+        (header.EncryptedKeyHeader.IsSealed() && drive?.Id == header.FileMetadata.File.DriveId && ServerOpensDepositsFor(drive, odinContext));
 
     /// <summary>
     /// Whether <paramref name="drive"/> is a Server Share drive whose server opens deposits

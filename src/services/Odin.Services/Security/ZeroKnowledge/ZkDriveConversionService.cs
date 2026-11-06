@@ -116,8 +116,16 @@ public class ZkDriveConversionService(
         var keyHeaders = (await driveMainIndex.GetKeyHeadersByDriveIdAsync(drive.Id))
             .Select(r => (r.FileId, r.VersionTag, KeyHeader: OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(r.EncryptedKeyHeader)))
             .ToList();
-        var opened = Deposits.OpenedOnServerShare(drive, keyHeaders.Select(k => (k.FileId, k.KeyHeader)), odinContext)
-            .ToDictionary(o => o.Item, o => o.KeyHeader);
+        Dictionary<Guid, EncryptedKeyHeader> opened;
+        try
+        {
+            opened = Deposits.OpenedOnServerShare(drive, keyHeaders.Select(k => (k.FileId, k.KeyHeader)), odinContext)
+                .ToDictionary(o => o.Item, o => o.KeyHeader);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            throw new OdinSystemException($"Drive {drive.Id}'s deposits can't be opened, so it isn't converted: they would be lost", e);
+        }
 
         var relabelled = new List<(Guid, Guid, string)>();
         foreach (var (fileId, versionTag, stored) in keyHeaders)
