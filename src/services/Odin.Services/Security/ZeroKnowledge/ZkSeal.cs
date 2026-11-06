@@ -12,8 +12,9 @@ namespace Odin.Services.Security.ZeroKnowledge;
 
 /// <summary>
 /// Sealing to a public key: anyone with the public key seals, only its private half opens
-/// (docs/owner-keys.md, <c>seal</c>).  The browser seals and opens; the server only seals (the
-/// recovery bundle) and reads which key a sealed value is for.
+/// (docs/owner-keys.md, <c>seal</c>).  The browser seals and opens; the server seals (the recovery
+/// bundle), reads which key a sealed value is for, and opens a deposit on a Server Share drive, whose
+/// write-only private key it holds (<see cref="Open"/>).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -68,6 +69,33 @@ public static class ZkSeal
         var keyId = new byte[4];
         BinaryPrimitives.WriteUInt32BigEndian(keyId, KeyId(recipientPoint));
         return ByteArrayUtil.Combine([Version], keyId, [0x04], q.X!, q.Y!, iv, cipher);
+    }
+
+    /// <summary>
+    /// Opens a value <see cref="Seal"/> made, with the private half of the key it was sealed to (PKCS8): the server's
+    /// part on a Server Share drive, whose write-only private key it holds under the drive key (<see cref="Drives.Deposits"/>).
+    /// On a zero-knowledge drive only the owner's devices open one.
+    /// </summary>
+    public static byte[] Open(byte[] sealedValue, byte[] privateKeyPkcs8)
+    {
+        if (!IsSealed(sealedValue))
+        {
+            throw new OdinClientException("Not a sealed value", OdinClientErrorCode.ArgumentError);
+        }
+
+        using var me = ECDiffieHellman.Create();
+        me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
+        const int x = PublicKeyOffset + 1;
+        const int y = x + CoordinateLength;
+        using var throwaway = ECDiffieHellman.Create(new ECParameters
+        {
+            Curve = ECCurve.NamedCurves.nistP384,
+            Q = new ECPoint { X = sealedValue[x..y], Y = sealedValue[y..(y + CoordinateLength)] }
+        });
+
+        using var key = DeriveKey(me, throwaway.PublicKey).ToSensitiveByteArray();
+        var locked = sealedValue[HeaderLength..];
+        return AesGcm.Decrypt(locked[IvLength..], key, locked[..IvLength]);
     }
 
     /// <summary>The key id of <paramref name="publicKeyJwk"/>, as a value sealed to it carries.</summary>

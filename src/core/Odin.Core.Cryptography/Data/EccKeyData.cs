@@ -303,17 +303,27 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
+        /// <summary>
+        /// The private key (DER, PKCS8), opened with <paramref name="key"/> for this call only: unlike the other private-key
+        /// reads it isn't kept on this object, which may outlive the caller's request (a cached drive's key pair). The
+        /// caller wipes it.
+        /// </summary>
+        public SensitiveByteArray OpenPrivateKey(SensitiveByteArray key)
+        {
+            AssertIsKey(key);
+            return new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
+        }
+
         private SensitiveByteArray GetFullKey(SensitiveByteArray key)
+        {
+            AssertIsKey(key);
+            return _privateKey ??= new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
+        }
+
+        private void AssertIsKey(SensitiveByteArray key)
         {
             if (ByteArrayUtil.EquiByteArrayCompare(keyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
                 throw new Exception("Incorrect key");
-
-            if (_privateKey == null)
-            {
-                _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
-            }
-
-            return _privateKey;
         }
 
         // privatePEM needs work in case it's encrypted

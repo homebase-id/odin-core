@@ -114,12 +114,52 @@ public sealed class DriveEventMessage(
     /// file as it was, since the deleted header no longer says who could read it (it keeps the key header).
     /// Unlike a query, this doesn't leave out an encrypted file the socket holds no storage key for.
     /// </summary>
-    public async Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
+    public Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService) =>
+        VisibleToAsync(socket.DeviceOdinContext, HeadersFor(socket.DeviceOdinContext), aclService);
+
+    private async Task<bool> VisibleToAsync(IOdinContext? deviceOdinContext, (ServerFileHeader? Header, ServerFileHeader? Previous) headers,
+        IDriveAclAuthorizationService aclService) =>
+        deviceOdinContext != null && await aclService.CallerMayReadAsync(drive, headers.Previous ?? headers.Header, deviceOdinContext);
+
+    /// <summary>
+    /// The event's headers as <paramref name="deviceOdinContext"/> gets them: on a Server Share drive a deposit its request
+    /// can open is the server's own file to it, as a read would have converted it (<see cref="Deposits.ConvertedOnServerShare"/>).
+    /// Copies, never written: the event's headers are shared by every socket.
+    /// </summary>
+    private (ServerFileHeader? Header, ServerFileHeader? Previous) HeadersFor(IOdinContext? deviceOdinContext) =>
+        (OpenedFor(header, deviceOdinContext), OpenedFor(previousHeader, deviceOdinContext));
+
+    private ServerFileHeader? OpenedFor(ServerFileHeader? stored, IOdinContext? deviceOdinContext)
     {
-        var deviceOdinContext = socket.DeviceOdinContext;
-        var file = previousHeader ?? header;
-        return deviceOdinContext != null && await aclService.CallerMayReadAsync(drive, file, deviceOdinContext);
+        if (stored == null || deviceOdinContext == null || drive?.ServerOpensDeposits != true || !Deposits.IsDeposit(stored))
+        {
+            return stored;
+        }
+
+        // The same for every device whose request opens the drive key, so opened once per event; each device still has to
+        // hold the key to get it
+        if (_opened.TryGetValue(stored, out var opened))
+        {
+            if (!deviceOdinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
+            {
+                return stored;
+            }
+
+            storageKey.Wipe();
+            return opened;
+        }
+
+        if (Deposits.ConvertedOnServerShare(drive, stored, deviceOdinContext) is not { } keyHeader)
+        {
+            return stored;
+        }
+
+        opened = new ServerFileHeader { EncryptedKeyHeader = keyHeader, FileMetadata = stored.FileMetadata, ServerMetadata = stored.ServerMetadata };
+        _opened[stored] = opened;
+        return opened;
     }
+
+    private readonly Dictionary<ServerFileHeader, ServerFileHeader> _opened = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>
     /// A dispatcher's drive event, sent to each of its <paramref name="sockets"/> on the drive that gets it (#1966): when
@@ -184,23 +224,25 @@ public sealed class DriveEventMessage(
     {
         var deviceOdinContext = socket.DeviceOdinContext;
         var shape = socket.ResultShape; // read once, as JsonFor does: a handshake may change it while this runs
-        var file = previousHeader ?? header;
+        var headers = HeadersFor(deviceOdinContext);
+        var (current, previous) = headers;
+        var file = previous ?? current;
         var shares = deviceOdinContext == null || file?.FileMetadata?.File == null
             ? null
             : await aclService.FilesSharedWithCallerAsync(drive, [file], deviceOdinContext);
         if (shares == null)
         {
-            return await VisibleToAsync(socket, aclService) ? JsonFor(socket) : null;
+            return await VisibleToAsync(deviceOdinContext, headers, aclService) ? JsonFor(socket, headers) : null;
         }
 
         if (await aclService.CallerMayReadAsync(drive, file!, deviceOdinContext!, shares))
         {
-            return Json(notificationType, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, header,
-                previousHeader, shares.LiveRowOf(file!.FileMetadata.File.FileId)), shape);
+            return Json(notificationType, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, current,
+                previous, shares.LiveRowOf(file!.FileMetadata.File.FileId)), shape);
         }
 
         // From the header as it is now: a change that ended the share announces its own time, which a client goes by
-        return DriveStorageServiceBase.NoLongerSharedViewOf(header ?? file!, shares) is { } noLongerShared
+        return DriveStorageServiceBase.NoLongerSharedViewOf(current ?? file!, shares) is { } noLongerShared
             ? Json(ClientNotificationType.FileDeleted, ClientDriveNotification.For(shape, deviceOdinContext, targetDrive,
                 noLongerShared, null), shape)
             : null;
@@ -215,7 +257,9 @@ public sealed class DriveEventMessage(
                 : OdinSystemSerializer.Serialize(notification)
         });
 
-    public string JsonFor(DeviceSocket socket)
+    public string JsonFor(DeviceSocket socket) => JsonFor(socket, HeadersFor(socket.DeviceOdinContext));
+
+    private string JsonFor(DeviceSocket socket, (ServerFileHeader? Header, ServerFileHeader? Previous) headers)
     {
         // Read once: a handshake may change them while this runs, and the cached message must be what was built
         var shape = socket.ResultShape;
@@ -227,7 +271,7 @@ public sealed class DriveEventMessage(
             return _minimalJson;
         }
 
-        var notification = ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, header, previousHeader);
+        var notification = ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, headers.Header, headers.Previous);
         var json = Json(notificationType, notification, shape);
 
         if (shared)

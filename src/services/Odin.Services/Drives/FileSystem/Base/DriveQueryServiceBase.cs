@@ -456,6 +456,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // The drive once for the page, and on a Selective Share drive the page's share rows in one read, not one per file
             var drive = await DriveManager.GetDriveAsync(driveId);
+            await _storage.ConvertDepositsAsync(drive, headers.Where(h => !DriveStorageServiceBase.IsExpired(h)).ToList(), odinContext);
             var sharedWithCaller = await _storage.FilesSharedWithCallerAsync(drive, headers, odinContext);
 
             foreach (var serverFileHeader in headers)

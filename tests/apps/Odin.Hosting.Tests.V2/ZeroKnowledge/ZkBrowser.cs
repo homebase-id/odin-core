@@ -66,23 +66,13 @@ internal static class ZkBrowser
     /// <summary>Seals <paramref name="data"/> to a public key (<see cref="ZkSeal"/>): only its private half opens it.</summary>
     public static string Seal(byte[] data, string publicKeyJwk) => ZkSeal.Seal(data, publicKeyJwk).ToBase64();
 
-    /// <summary>Opens a value <see cref="ZkSeal"/> made, as the browser does; the server never opens one.</summary>
+    /// <summary>Opens a value <see cref="ZkSeal"/> made, as the browser does, with the opener the server's Server Share drives use.</summary>
     public static byte[] Unseal(string sealed64, byte[] privateKeyPkcs8) => Unseal(sealed64.FromBase64(), privateKeyPkcs8);
 
     public static byte[] Unseal(byte[] sealedValue, byte[] privateKeyPkcs8)
     {
         Assert.That(ZkSeal.IsSealed(sealedValue), Is.True, "not a version 1 sealed value");
-        using var me = ECDiffieHellman.Create();
-        me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
-        const int x = ZkSeal.PublicKeyOffset + 1;
-        const int y = x + ZkSeal.CoordinateLength;
-        using var throwaway = ECDiffieHellman.Create(new ECParameters
-        {
-            Curve = ECCurve.NamedCurves.nistP384,
-            Q = new ECPoint { X = sealedValue[x..y], Y = sealedValue[y..(y + ZkSeal.CoordinateLength)] }
-        });
-        var locked = sealedValue[(ZkSeal.PublicKeyOffset + ZkSeal.PublicKeyLength)..];
-        return Open(locked.ToBase64(), ZkSeal.DeriveKey(me, throwaway.PublicKey));
+        return ZkSeal.Open(sealedValue, privateKeyPkcs8);
     }
 
     public sealed record Keys(byte[] MasterKey, ZkKeysRequest Request);

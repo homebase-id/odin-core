@@ -1845,6 +1845,39 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
+        /// On a Server Share drive, the deposits among <paramref name="headers"/> the caller's request can open become the
+        /// server's own files (<see cref="Deposits.ConvertedOnServerShare"/>): each key header written alone, at the version
+        /// tag read, keeping it and modified, and set on the header in hand, so the read rule and what the caller gets treat
+        /// it as any file (docs/server-share-sealed-arrivals-plan.md).  A file that moved on since it was read isn't written,
+        /// but its header in hand is still opened, being the version read.  Asked where a read loads headers, before the read
+        /// rule; not on an archived drive, whose reads are refused anyway.
+        /// </summary>
+        public async Task ConvertDepositsAsync(StorageDrive drive, IReadOnlyList<ServerFileHeader> headers, IOdinContext odinContext)
+        {
+            if (drive?.ServerOpensDeposits != true || drive.IsArchived)
+            {
+                return;
+            }
+
+            var converted = headers
+                .Select(h => (Header: h, KeyHeader: Deposits.ConvertedOnServerShare(drive, h, odinContext)))
+                .Where(c => c.KeyHeader != null)
+                .ToList();
+            if (converted.Count == 0)
+            {
+                return;
+            }
+
+            await longTermStorageManager.SaveKeyHeadersKeepingVersionTagAsync(drive.Id,
+                converted.Select(c => (c.Header.FileMetadata.File.FileId, c.Header.FileMetadata.VersionTag.GetValueOrDefault(),
+                    OdinSystemSerializer.Serialize(c.KeyHeader))).ToList());
+            foreach (var c in converted)
+            {
+                c.Header.EncryptedKeyHeader = c.KeyHeader;
+            }
+        }
+
+        /// <summary>
         /// The header a batch write changes, refused per file with the codes the batches report: 4106 when it doesn't
         /// exist or the caller may not see it, as a query would leave it out; 4002 when it isn't active; 4160 when it isn't
         /// at <paramref name="expectedVersionTag"/>, checked here for a clear answer, as the write checks it again against
@@ -2527,6 +2560,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 return (null, null);
             }
+
+            await ConvertDepositsAsync(drive, [header], odinContext);
 
             if (await IsSendersOwnFileAsync(drive, header, odinContext))
             {

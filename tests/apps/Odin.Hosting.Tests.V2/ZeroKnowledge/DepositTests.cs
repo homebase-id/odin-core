@@ -72,27 +72,23 @@ public class DepositTests : V2Fixture
     }
 
     [Test]
-    public async Task ADepositToAPrivateDriveCarriesNoPayloads()
+    public async Task ADepositToAPrivateDriveCarriesItsPayloads()
     {
-        // Taken on the transient drive, where a deposit is written to be sent, and refused by the drive it arrives at: only
-        // a Selective Share drive takes a deposit's content (docs/file-access.md, "With Selective Share")
+        // One set of deposit rules for every drive that takes one: a deposit carries its content
+        // (docs/server-share-sealed-arrivals-plan.md, "Decisions")
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.ConnectAsync(frodo, sam);
         await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
         var samsPublicKey = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
 
-        // The same deposit without its payload arrives, so the payload alone is what's refused
-        var withoutPayload = Guid.NewGuid();
-        await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, withoutPayload, Content);
-        var control = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(withoutPayload, Drive.Alias);
-        Assert.That(control.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"the deposit without its payload: {control.Error?.Content}");
-
         var uniqueId = Guid.NewGuid();
-        await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, uniqueId, Content, SamplePayloadDefinitions.GetPayloadDefinition1());
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        await SendDepositAsync(frodo, frodo, sam, samsPublicKey.PublicKeyJwk, uniqueId, Content, payload);
 
         var received = await sam.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
-        Assert.That(received.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "a private drive takes no deposit with payloads");
+        Assert.That(received.StatusCode, Is.EqualTo(HttpStatusCode.OK), received.Error?.Content);
+        Assert.That(received.Content!.FileMetadata.Payloads?.Select(p => p.Key), Is.EqualTo(new[] { payload.Key }), "with its payload");
     }
 
     [TestCase(true, TestName = "ADepositSentToAPeersZeroKnowledgeDriveArrivesSealed")]
@@ -260,8 +256,10 @@ public class DepositTests : V2Fixture
     }
 
     [Test]
-    public async Task APayloadCannotBeAddedToADeposit()
+    public async Task APayloadIsAddedToADeposit()
     {
+        // One set of deposit rules for every drive that takes one: a deposit carries payloads, added later too
+        // (docs/server-share-sealed-arrivals-plan.md, "Decisions")
         var (frodo, sam, samsKeys) = await ConnectedWithZeroKnowledgeSamAsync();
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(frodo, frodo, sam, samsKeys.PublicKeyJwk, uniqueId, Content);
@@ -271,7 +269,9 @@ public class DepositTests : V2Fixture
         payload.Iv = ByteArrayUtil.GetRndByteArray(16);
         var upload = await sam.V1.Drive.UploadPayloads(new ExternalFileIdentifier { FileId = received.FileId, TargetDrive = Drive },
             received.FileMetadata.VersionTag, new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload]);
-        Assert.That(upload.ErrorCode(), Is.EqualTo(OdinClientErrorCode.InvalidPayload), upload.Error?.Content);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        Assert.That((await HeaderByUniqueIdAsync(sam, uniqueId)).FileMetadata.Payloads?.Select(p => p.Key),
+            Is.EqualTo(new[] { payload.Key }));
     }
 
     [TestCase(true, TestName = "ADepositReplacesADepositOnTheTransientDrive")]

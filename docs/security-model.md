@@ -408,7 +408,10 @@ serverMetadata
 thumbnails are all encrypted with FileKey, each with its own IV **(V)**. Only the key header is locked:
 - **Server Share drive:** by the server with the drive's key (DrvK, `type: aes`). A peer's key header arrives
   wrapped in the connection's shared secret and waits in the drive's inbox until the owner or an app is
-  signed in; the server then re-locks it with the keys that caller lends it (`PeerInboxProcessor`) **(V)**.
+  signed in; the server then re-locks it with the keys that caller lends it (`PeerInboxProcessor`) **(V)**. Or the
+  peer seals it to the drive's write-only public key (a deposit): it is written at once, and the server opens it and
+  locks it as its own on a read whose request carries DrvK, before the read rule
+  ([zero-knowledge-drives.md](zero-knowledge-drives.md), "Server Share") **(V, tested)**.
   Only a Server Share drive needs an inbox for a peer's files, since only there does the server re-lock what arrives;
   the plan is to remove it there too, later. Read receipts go through the inbox on every drive
   (`PeerDriveIncomingTransferService.MarkFileAsReadAsync`) **(V)**.
