@@ -68,10 +68,45 @@ The model in short; the reasons, alternatives and work are in
   test of its own for a peer holding `React` alone)**. The reaction summary is changed in one read inside storage,
   without the read rule (`DriveStorageServiceBase.ChangeReactionSummary`, from all three `ReactionPreviewCalculator`
   reaction handlers) **(V)**.
-- **Transforming `sealed` into `zkDrive` is optional**, designed and **(to build)** with Chat: a key holder
-  re-locks the same IV and FileKey with DrvK. It keeps the file's version tag and `updated`, because
-  nothing a reader or writer depends on changed, and a new version tag would break collaborators'
-  updates. Shamir leaves its shards `sealed`.
+- **Transforming `sealed` into `zkDrive`** is optional: a key holder opens a deposit's `sealed` key header and
+  locks the same FileKey and IV with DrvK, and sends it to `POST /api/v2/drives/{driveId}/files/transform-key-headers`
+  with the version tag it read alongside the sealed one (`DriveStorageServiceBase.TransformKeyHeadersAsync`) **(V,
+  tested)**:
+  - **Who:** a caller holding the drive's key (`ZkDriveFiles.CallerHoldsDriveKey`): the owner console, or an app
+    device handed its app's zero-knowledge key, such as chat-kmp's, with Write on the drive. Anyone else is refused
+    (403), before the drive is looked at **(V, tested for an app device without the key; I: a guest, by the same
+    check)**. Never on the Shard Recovery drive: the server releases a friend's shard only as the sealed deposit it
+    holds (`ShamirBaseService`), so shards stay `sealed` **(V, tested)**. That is Shamir's need, not a rule of drives:
+    the server tells whether a friend's browser can still open a shard from the key its seal names, and a `zkDrive`
+    key header names none. Once Shamir keeps its own record of the key a shard is locked under, the exception goes
+    **(to build)**.
+  - **Per file**, in request order, one file's refusal stopping no other: the file exists and is active
+    (`fileNotFound`, `cannotUpdateNonActiveFile`); its stored key header is `sealed` (`notSealed`); the new one is a
+    valid `zkDrive` key header with the stored IV, which the content was encrypted under (`invalidKeyHeader`); the
+    file is still at the version tag read (`versionTagMismatch`, also for a file hard-deleted since)
+    (`ZkDriveFiles.TransformedKeyHeader`) **(V, tested)**.
+  - **Only the key header changes:** one statement per file, guarded by its version tag
+    (`TableDriveMainIndex.UpdateEncryptedKeyHeaderAsync`, the one a drive's conversion relabels with), leaves the
+    version tag and `modified` as they are **(V, tested)**, and raises no file-changed event **(V; not tested)**, all in
+    one transaction. So no reader re-fetches,
+    every writer's cached version tag stays valid, and a deposit's sender may still delete it, as their record of their
+    last write still matches ([file-access.md](file-access.md), "Changing a file you sent") **(V, tested)**.
+  - **Races:** a sender's change that lands between the read and the transform stands (`versionTagMismatch`), and the
+    key holder transforms the new one when it reads it **(V, tested)**. After the transform, a sender's `sealed`
+    change is refused like any `sealed` key header over a taken-over one **(V, tested)**: whether a deposit's sender
+    may keep editing it (keeping the drive's key header, with a new IV) is **not decided**. Two devices transforming
+    the same file send the same bytes, since a `zkDrive` key header depends only on DrvK, FileKey and the IV; the
+    second to arrive gets `notSealed`, as the stored key header is no longer sealed (I: not tested).
+  - **Known race:** a full header write that read the file before the transform keeps the same version tag, so its
+    version-tag guard still passes and it writes the `sealed` key header it read back over the transformed one. The
+    file is then `sealed` again, which still opens to the same FileKey; a key holder transforms it again when it next
+    reads it (I: not tested; on SQLite the stale writer more likely fails).
+  - **Not adjusted:** the file's byte count, which counted the larger `sealed` key header, until the defragmenter
+    recounts it (I).
+  - **What the server can't check:** that the new key header locks the same FileKey. The client opens what it locked
+    before sending it.
+  - **Golden vector:** `ClientLockedKeyHeaderVectorTests` (and odin-js's copy) holds a `sealed` key header and the
+    `zkDrive` one a transform makes of it **(V)**. Shamir leaves its shards `sealed`.
 - **Decided against:** a separate client inbox (it became the drive query in a second
   place), and a hidden "waiting" file on the drive (updates would hide files that were already
   readable).
@@ -657,7 +692,7 @@ Items 1 to 6 are built; 7 is **(to build)**.
        send `aes`.
      - Readers choose the key from the drive.
      - A `sealed` header from someone without DrvK is stored on the drive as it is; a key holder
-       may transform it into `zkDrive` later, **(to build)** with Chat (see
+       may transform it into `zkDrive` later (see
        [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)).
    - **No packed response header for `zkDrive` or `sealed` files.** The client uses FileKey and
      the payload's IV from the file metadata. The packed format stays for `aes`, and isn't
@@ -684,8 +719,7 @@ Items 1 to 6 are built; 7 is **(to build)**.
 ## Decisions so far
 
 - **Client-locked files:** `sealed` and `zkDrive` side by side on a zero-knowledge drive,
-  one read rule and one write rule; the transform is optional, keeps the version tag, and is built
-  with Chat. See [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files).
+  one read rule and one write rule; the transform is optional and keeps the version tag and `modified`. See [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files).
 
 - **V1: no key rotation when a member is removed.** Removing someone deletes their row, and the
   server stops serving them. Accepted risk: the removed person would also have to break into the

@@ -518,7 +518,8 @@ public class TableDriveMainIndex(
 
     /// <summary>
     /// Sets only the key header of a file still at <paramref name="versionTag"/>: version tag and modified stay as they
-    /// are.  For relabelling key headers when a drive goes zero knowledge.  0 when the file moved on (or is gone).
+    /// are.  For relabelling key headers when a drive goes zero knowledge, and for a key holder's transform of deposits.
+    /// 0 when the file moved on (or is gone).
     /// </summary>
     internal async Task<int> UpdateEncryptedKeyHeaderAsync(Guid driveId, Guid fileId, Guid versionTag, string hdrEncryptedKeyHeader)
     {

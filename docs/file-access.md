@@ -131,7 +131,9 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
 - **Anyone else's write ends it:** the owner's edit, or another member's, gives the file a new tag, after which the
   sender's change must name the file's tag like anyone's, which a sender who can only write it never learns **(V,
   tested)**. On a zero-knowledge drive the owner's edit also takes a deposit over, and a `sealed` key header never
-  replaces a taken-over one ([zero-knowledge-drives.md](zero-knowledge-drives.md)) **(V, tested)**.
+  replaces a taken-over one ([zero-knowledge-drives.md](zero-knowledge-drives.md)) **(V, tested)**. A key holder's
+  transform of a deposit's key header isn't such a write: it keeps the file's version tag, so the sender may still
+  delete it, though no longer change it with a `sealed` key header **(V, tested)**.
 - **A sender or member who can read the file** names its tag, as for any update, and gets a version tag error with a
   stale one: the ordinary case of people editing together **(V, tested)**. Only a change that has no copy on the sender's own drive
   names one: an update of the recipient's copy only (`UpdateLocale.Peer`) or a send from the transient drive, where the

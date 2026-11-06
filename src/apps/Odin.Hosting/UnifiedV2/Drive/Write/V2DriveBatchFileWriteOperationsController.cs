@@ -93,6 +93,39 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         }
 
         /// <summary>
+        /// Replaces the sealed key headers of up to <see cref="FileVersionTagBatchV2.MaxFiles"/> deposits with the drive's
+        /// own, for a caller holding the drive's key.
+        /// </summary>
+        [HttpPost("transform-key-headers")]
+        [SwaggerOperation(
+            Summary = "Transform deposits' sealed key headers into the drive's own",
+            Description = "For a caller holding a zero-knowledge drive's key. Each file's sealed key header is replaced by " +
+                          "the zkDrive one sent, with the same IV, if the file is still at the version tag read alongside " +
+                          "it. Nothing else changes: not the version tag, not modified, and no file-changed event. " +
+                          "Results are per file; see TransformKeyHeaderResultV2.",
+            Tags = [SwaggerInfo.FileWrite]
+        )]
+        public async Task<TransformKeyHeadersResultV2> TransformKeyHeaders(Guid driveId, [FromBody] TransformKeyHeadersRequestV2 request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            request.AssertValid();
+
+            WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+
+            var results = await GetFileSystem().Storage.TransformKeyHeadersAsync(driveId,
+                request.Files.Select(f => new KeyHeaderTransform(f.FileId, f.VersionTag, f.KeyHeader)).ToList(),
+                WebOdinContext);
+
+            return new TransformKeyHeadersResultV2
+            {
+                Results = results.Select(r => new TransformKeyHeaderResultV2
+                {
+                    FileId = r.FileId, KeyHeader = r.KeyHeader, ErrorCode = r.ErrorCode
+                }).ToList()
+            };
+        }
+
+        /// <summary>
         /// Hard-deletes up to <see cref="FileVersionTagBatchV2.MaxFiles"/> files, each only at its version tag.
         /// </summary>
         [HttpPost("hard-delete-batch")]

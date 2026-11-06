@@ -8,7 +8,7 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
 /// <summary>
 /// Fixed values for the two client-locked key headers (docs/zero-knowledge-drive-api-plan.md, step 2), so
-/// every client locks and opens them the same way.  The same values are in odin-js
+/// every client locks, opens and transforms them the same way.  The same values are in odin-js
 /// (<c>packages/libs/js-lib/src/core/DriveData/SecurityHelpers.test.ts</c>); change both or neither.  A
 /// sealed value is made with a throwaway key, so it was made once and is checked by opening it.
 /// </summary>
@@ -48,5 +48,17 @@ public class ClientLockedKeyHeaderVectorTests
 
         var opened = KeyHeader.FromCombinedBytes(ZkBrowser.Unseal(SealedEncryptedAesKey, WriteOnlyPrivateKeyPkcs8.FromBase64()));
         Assert.That((opened.Iv.ToBase64(), opened.AesKey.GetKey().ToBase64()), Is.EqualTo((Iv, AesKey)));
+    }
+
+    [Test]
+    public void ATransformOpensTheSealedKeyHeaderAndLocksItsFileKeyWithTheDriveKey()
+    {
+        // What a key holder sends to files/transform-key-headers (docs/zero-knowledge-drives.md): the deposit's sealed key
+        // header opened with the write-only private key, its file key and IV locked with the drive key.  The result
+        // depends only on the drive key, the file key and the IV, so it is the zkDrive vector above
+        var opened = KeyHeader.FromCombinedBytes(ZkBrowser.Unseal(SealedEncryptedAesKey, WriteOnlyPrivateKeyPkcs8.FromBase64()));
+        var transformed = ZkBrowser.LockFileKey(opened, DriveKey.FromBase64());
+
+        Assert.That((transformed.Iv.ToBase64(), transformed.EncryptedAesKey.ToBase64()), Is.EqualTo((Iv, ZkDriveEncryptedAesKey)));
     }
 }

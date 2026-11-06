@@ -200,4 +200,7 @@ public enum OdinClientErrorCode
 
     // A deposit sealed to a key other than the drive's write-only key (docs/drive-public-keys-plan.md)
     SealedToUnknownKey = 9033,
+
+    // A key holder's transform of a deposit into the drive's own key header (docs/zero-knowledge-drives.md)
+    NotSealed = 9034,
 }

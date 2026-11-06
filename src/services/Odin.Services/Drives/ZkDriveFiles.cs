@@ -186,6 +186,64 @@ public static class ZkDriveFiles
     }
 
     /// <summary>
+    /// Who may transform deposits into the drive's own key headers: a caller holding the key of a zero-knowledge drive,
+    /// which is how it opened the deposits and locked their file keys again (docs/zero-knowledge-drives.md).  Never on the
+    /// Shard Recovery drive: the server releases a friend's shard only as the sealed deposit it holds
+    /// (<c>ShamirBaseService</c>).
+    /// </summary>
+    public static void AssertCallerMayTransform(StorageDrive drive, IOdinContext odinContext)
+    {
+        if (!drive.IsZeroKnowledge)
+        {
+            throw new OdinClientException("Only a zero-knowledge drive's deposits are transformed",
+                OdinClientErrorCode.ZkDriveKeyHeaderNeedsZeroKnowledgeDrive);
+        }
+
+        AssertCallerHoldsDriveKey(drive.Id, odinContext);
+
+        // An exception for Shamir, not a rule of drives.  Before it releases a gated friend's shard, the server asks
+        // whether the friend's browser can still open it, and answers from the seal: a sealed key header names the
+        // write-only key it was sealed to, which a reset with a new master key replaces (ShamirBaseService.CanReleaseAsync).
+        // A zkDrive key header names no key, so a transformed shard could no longer be released.  The real fix is in
+        // Shamir: it keeps its own record of which key a shard is locked under, rather than reading it off the key
+        // header, and then this exception goes and shards transform like any deposit.
+        if (drive.Id == WellKnownAppDrives.ShardRecoveryDrive.Alias.Value)
+        {
+            throw new OdinClientException("Shards stay sealed: the server releases them only as they were deposited",
+                OdinClientErrorCode.InvalidDrive);
+        }
+    }
+
+    /// <summary>
+    /// The key header a transform stores in place of <paramref name="stored"/>: a deposit's sealed one, replaced by the
+    /// <see cref="EncryptionType.ZkDrive"/> one <paramref name="sent"/> with its IV, since the content was encrypted under
+    /// it (payloads keep their own).  The server can't check that it locks the same file key; the client opens what it
+    /// locked before sending it.
+    /// </summary>
+    public static EncryptedKeyHeader TransformedKeyHeader(EncryptedKeyHeader? stored, EncryptedKeyHeader? sent)
+    {
+        if (stored?.IsSealed() != true)
+        {
+            throw new OdinClientException("Only a sealed key header is transformed", OdinClientErrorCode.NotSealed);
+        }
+
+        if (sent?.IsZkDrive() != true)
+        {
+            throw new OdinClientException("A transform sends a key header locked with the drive's key (zkDrive)",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        sent.AssertValidZkDrive();
+        if (stored.Iv == null || !ByteArrayUtil.EquiByteArrayCompare(sent.Iv, stored.Iv))
+        {
+            throw new OdinClientException("A transform keeps the key header's IV, which the content was encrypted under",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+
+        return sent;
+    }
+
+    /// <summary>
     /// What a sealed key header may replace, in an update or an overwrite of <paramref name="existing"/>: only
     /// another sealed one (a deposit's sender updating it).  Never a key header locked with the drive's key
     /// (zkDrive): a file a key holder has taken over doesn't go back to sealed.  Never an aes one either: the

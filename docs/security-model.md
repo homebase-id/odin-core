@@ -414,8 +414,9 @@ thumbnails are all encrypted with FileKey, each with its own IV **(V)**. Only th
   (`PeerDriveIncomingTransferService.MarkFileAsReadAsync`) **(V)**.
 - **Zero-knowledge drive:** by a client, and the server opens neither kind: by a device holding DrvK
   (`type: zkDrive`), or sealed to the drive's write-only public key by anyone with Write (`type: sealed`,
-  a deposit) **(V)**. A key holder may later transform `sealed` into `zkDrive` (designed, built with
-  Chat). One exception writes server-side: on a Private Email drive the server seals the OpenPGP keyring and its
+  a deposit) **(V)**. A caller holding DrvK may transform `sealed` into `zkDrive`, keeping the file's version tag
+  and `modified`; never on the Shard Recovery drive ([zero-knowledge-drives.md](zero-knowledge-drives.md))
+  **(V, tested)**. One exception writes server-side: on a Private Email drive the server seals the OpenPGP keyring and its
   pointer to the drive itself (`EmailKeyMaterialWriter`), skipping the write rules a client's upload passes
   (`OpenForWrite`, `AssertMayReplace`), so a rotation's sealed pointer replaces a `zkDrive` one on an upgraded drive;
   it refuses a caller that doesn't hold the drive's key **(V)**.
