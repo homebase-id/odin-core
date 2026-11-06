@@ -34,7 +34,7 @@ public static class FileVersionTagBatchV2
     /// <summary>
     /// 1 to <see cref="MaxFiles"/> files, each with a file id and a version tag, none twice
     /// </summary>
-    public static void AssertValid(List<FileVersionTagV2> files)
+    public static void AssertValid<T>(List<T> files) where T : FileVersionTagV2
     {
         AssertValidBatch(files);
         OdinValidationUtils.AssertIsTrue(files.All(f => f.VersionTag != Guid.Empty), "every file needs a versionTag");

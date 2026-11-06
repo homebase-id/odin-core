@@ -7,6 +7,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Dns;
 using Odin.Core.Util;
 using Odin.Core.Serialization;
+using Odin.Services.Configuration;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
@@ -27,7 +28,8 @@ public class SendProvisioningCompleteEmailJobData
 public class SendProvisioningCompleteEmailJob(
     ILogger<SendProvisioningCompleteEmailJob> logger,
     IEmailSender emailSender,
-    IIdentityRegistrationService identityRegistrationService) : AbstractJob
+    IIdentityRegistrationService identityRegistrationService,
+    OdinConfiguration configuration) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("37b89769-b428-428d-9d7d-697058184370");
     public override string JobType => JobTypeId.ToString();
@@ -36,6 +38,12 @@ public class SendProvisioningCompleteEmailJob(
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
+        // As SendEmailJob: a job queued while the host sent mail, run after it stopped
+        if (!configuration.Email.Relay.SendsSystemMail)
+        {
+            return JobExecutionResult.Abort();
+        }
+
         ValidateJobData();
 
         // Certificate is not ready yet?

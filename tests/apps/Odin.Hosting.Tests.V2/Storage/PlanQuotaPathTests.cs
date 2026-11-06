@@ -13,6 +13,7 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Ported.Transit;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.Tests.V2.Ported.Peer;
@@ -208,6 +209,8 @@ public class PlanQuotaPathTests : V2Fixture
         await SetPlanAsync(Identities.Frodo, FullPlan);
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var after = SharedMetadata("after");
+        after.VersionTag = (await TransitScenario.SingleByGlobalTransitIdAsync(frodo, remoteFile.ToGlobalTransitIdFileIdentifier())).FileMetadata.VersionTag;
         var update = await sam.V1.Drive.UpdateFile(new FileUpdateInstructionSet
         {
             Locale = UpdateLocale.Peer,
@@ -228,7 +231,7 @@ public class PlanQuotaPathTests : V2Fixture
                     }
                 ]
             }
-        }, SharedMetadata("after"), [payload]);
+        }, after, [payload]);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         await PeerFlow.DistributeAsync(sam, frodo, drive);

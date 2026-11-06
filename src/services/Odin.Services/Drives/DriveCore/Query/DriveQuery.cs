@@ -62,6 +62,8 @@ public class DriveQuery(
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
+            aclRowsRequired: AclRowsRequired(drive, odinContext),
+            sharedWithAnyOf: SharedWith(drive, qp, odinContext),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
@@ -100,6 +102,8 @@ public class DriveQuery(
             groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList?.ToList(),
+            aclRowsRequired: AclRowsRequired(drive, odinContext),
+            sharedWithAnyOf: SharedWith(drive, qp, odinContext),
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
@@ -142,6 +146,8 @@ public class DriveQuery(
             groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList?.ToList(),
+            aclRowsRequired: AclRowsRequired(drive, odinContext),
+            sharedWithAnyOf: SharedWith(drive, qp, odinContext),
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
@@ -154,21 +160,31 @@ public class DriveQuery(
     }
 
 
-    private List<Guid> GetAcl(IOdinContext odinContext)
+    // On a Selective Share drive an outside caller sees a file only through a row naming them (QueryBatch, aclRowsRequired)
+    private static bool AclRowsRequired(StorageDrive drive, IOdinContext odinContext) =>
+        SelectiveShareDrives.RowsDecideFor(drive, odinContext.Caller);
+
+    // Whom the owner shares with (docs/file-access.md, "Who a file is shared with"): seen by whoever sees the shares themselves
+    private static List<Guid> SharedWith(StorageDrive drive, FileQueryParams qp, IOdinContext odinContext)
     {
-        var callerContext = odinContext.Caller;
-
-        var aclList = new List<Guid>();
-        if (callerContext.IsOwner == false)
+        if (qp.SharedWith?.Any() != true)
         {
-            if (!callerContext.IsAnonymous)
-            {
-                aclList.Add(odinContext.GetCallerOdinIdOrFail().ToHashId());
-            }
-
-            aclList.AddRange(callerContext.Circles?.Select(c => c.Value) ?? Array.Empty<Guid>());
+            return null;
         }
 
+        SelectiveShareDrives.AssertCallerManagesShares(drive, odinContext.Caller, "sees whom its files are shared with");
+
+        return qp.SharedWith.ToList();
+    }
+
+    private List<Guid> GetAcl(IOdinContext odinContext)
+    {
+        if (odinContext.Caller.IsOwner)
+        {
+            return null;
+        }
+
+        var aclList = DriveAclAuthorizationService.CallerMemberIds(odinContext);
         return aclList.Any() ? aclList : null;
     }
 
@@ -220,6 +236,30 @@ public class DriveQuery(
 
     public async Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag = null)
     {
+        if (!drive.IsSelectiveShare || header.ServerMetadata.FileSystemType != FileSystemType.Standard)
+        {
+            await SaveFileHeaderCoreAsync(drive, header, useThisVersionTag);
+            return;
+        }
+
+        // On a Selective Share drive a stored file keeps its group, whatever the write sends: the server decides it,
+        // Owner until the first share lifts it to Connected (decision A), so an owner client that sends Owner with an
+        // edit doesn't close a shared file to its members; withdrawing the shares un-shares it.
+        // Read with the row locked, in the write's transaction, so a share written meanwhile waits rather than being
+        // written back.  Every header write through the file system comes here; the defragmenter's raw repair doesn't
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var file = header.FileMetadata.File;
+        if (await metaIndex.GetLockedRequiredSecurityGroupAsync(drive.Id, file.FileId) is { } group)
+        {
+            header.ServerMetadata.AccessControlList.RequiredSecurityGroup = (SecurityGroupType)group;
+        }
+
+        await SaveFileHeaderCoreAsync(drive, header, useThisVersionTag);
+        tx.Commit();
+    }
+
+    private async Task SaveFileHeaderCoreAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag)
+    {
         var fileMetadata = header.FileMetadata;
 
         //sanity in case something higher up didnt set the drive properly for any crazy reason
@@ -233,17 +273,22 @@ public class DriveQuery(
         header.ServerMetadata.FileByteCount = sumBytes;
         driveMainIndexRecord.byteCount = sumBytes;
 
+        // On a Selective Share drive the ACL rows are the shares, written on their own, and the ACL names no one
+        // (SelectiveShareDrives): a header write leaves them as they are
+        var reconcileAcl = !drive.IsSelectiveShare;
         var acl = new List<Guid>();
-        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
-        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId => ((OdinId)odinId).ToHashId()
-        );
-        acl.AddRange(ids.ToList());
+        if (reconcileAcl)
+        {
+            acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
+            var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId => ((OdinId)odinId).ToHashId());
+            acl.AddRange(ids.ToList());
+        }
 
         var tags = fileMetadata.AppData.Tags?.ToList();
 
         try
         {
-            int n = await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag);
+            int n = await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag, reconcileAcl);
             if (n != 1)
                 throw new OdinClientException($"SaveFileHeaderAsync() didn't write database record, n is {n}");
 
@@ -256,11 +301,20 @@ public class DriveQuery(
             DriveMainIndexRecord ru = null;
             DriveMainIndexRecord rt = null;
 
-            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
-            if (fileMetadata.AppData.UniqueId.HasValue)
-                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId.Value);
-            if (fileMetadata.GlobalTransitId.HasValue)
-                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId.Value);
+            // Only for the log: inside a caller's transaction Postgres refuses every statement after the failed one, and
+            // the answer is the same without them
+            try
+            {
+                rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
+                if (fileMetadata.AppData.UniqueId.HasValue)
+                    ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId.Value);
+                if (fileMetadata.GlobalTransitId.HasValue)
+                    rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId.Value);
+            }
+            catch (OdinDatabaseException lookup)
+            {
+                logger.LogDebug(lookup, "IsUniqueConstraintViolation: the conflicting row could not be read");
+            }
 
             string s = "";
             DriveMainIndexRecord r = null;
@@ -294,7 +348,7 @@ public class DriveQuery(
                 GuidOneOrTwo(drive.Id, r?.driveId),
                 IntOneOrTwo((int)fileMetadata.FileState, r?.fileState ?? -1),
                 IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
-                GuidOneOrTwo(fileMetadata.File.FileId, r.fileId),
+                GuidOneOrTwo(fileMetadata.File.FileId, r?.fileId),
                 drive.Name);
 
             throw new OdinClientException($"UniqueId [{fileMetadata.AppData.UniqueId}] not unique.",
@@ -336,14 +390,29 @@ public class DriveQuery(
 
     public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
     {
+        var header = await GetFileHeaderAsync(drive, fileId);
+        return header?.ServerMetadata.FileSystemType == fileSystemType ? header : null;
+    }
+
+    /// <summary>The header of the file with <paramref name="uniqueId"/>, when it is of <paramref name="fileSystemType"/>.</summary>
+    public async Task<ServerFileHeader> GetFileHeaderByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
+    {
+        var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
+        return record?.fileSystemType == (int)fileSystemType ? ServerFileHeader.FromDriveMainIndexRecord(record) : null;
+    }
+
+    /// <summary>The file system <paramref name="fileId"/> is stored in, or null when there is no such file.</summary>
+    public async Task<FileSystemType?> GetFileSystemTypeAsync(Guid driveId, Guid fileId)
+    {
+        var record = await tblDriveMainIndex.GetAsync(driveId, fileId);
+        return record == null ? null : (FileSystemType)record.fileSystemType;
+    }
+
+    /// <summary>The file's header, of whichever file system it is.</summary>
+    public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId)
+    {
         var record = await tblDriveMainIndex.GetAsync(drive.Id, fileId);
-
-        if (null == record || record.fileSystemType != (int)fileSystemType)
-        {
-            return null;
-        }
-
-        return ServerFileHeader.FromDriveMainIndexRecord(record);
+        return record == null ? null : ServerFileHeader.FromDriveMainIndexRecord(record);
     }
 
     /// <summary>

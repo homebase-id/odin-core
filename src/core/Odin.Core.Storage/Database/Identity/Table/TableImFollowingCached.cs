@@ -104,4 +104,8 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
 
     //
 
+    // Not cached: one small query per page, and a page's identities make a poor cache key
+    public Task<Dictionary<string, Odin.Core.Time.UnixTimeUtc>> GetFollowedAtAsync(IReadOnlyCollection<string> identities) =>
+        table.GetFollowedAtAsync(identities);
+
 }

@@ -208,8 +208,16 @@ namespace Odin.Services.Authorization.Apps
         {
             foreach (var circleId in (circleIds ?? []).Distinct())
             {
-                if (await circleDefinitionService.GetCircleAsync(circleId) != null)
+                if (await circleDefinitionService.GetCircleAsync(circleId) is { } circle)
                 {
+                    // Its member would get the app's grant through it, and an individual circle grants nothing
+                    // (docs/file-access.md, "Sharing with one person")
+                    if (circle.Designation == CircleDesignation.Individual)
+                    {
+                        throw new OdinClientException($"Circle {circleId} is an individual circle, which grants nothing, an app's grant included",
+                            OdinClientErrorCode.ArgumentError);
+                    }
+
                     continue;
                 }
 

@@ -36,7 +36,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Mail;
 /// <para>
 /// No log-event override: tenant mail on is no longer a config error. It used to be, while tenant
 /// mail and the system sender were coupled, and this fixture had to tolerate exactly one deliberate
-/// ERR. With Mailgun moved back out of the Email section there is nothing to tolerate, so the
+/// ERR. With the system sender gated on its own setting there is nothing to tolerate, so the
 /// default "zero errors" assertion applies — which is a stronger check than the one it replaces.
 /// Unlike the V1 original, that assertion is live here (see <see cref="V2Fixture.AssertNoErrorLogEvents"/>).
 /// </para>

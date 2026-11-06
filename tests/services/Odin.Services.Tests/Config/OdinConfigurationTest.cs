@@ -16,13 +16,16 @@ public class OdinConfigurationTest
     {
         var configMock = new OdinConfiguration
         {
-            Mailgun = new OdinConfiguration.MailgunSection
+            Email = new OdinConfiguration.EmailSection
             {
-                EmailDomain = "example.com",
-                DefaultFrom = new NameAndEmailAddress
+                Relay = new OdinConfiguration.RelaySection
                 {
-                    Email = "odin@middle.earth",
-                    Name = "Odin Bossman"
+                    ApiBaseUrl = "https://relay.example.com/v3",
+                    SystemFrom = new NameAndEmailAddress
+                    {
+                        Email = "odin@middle.earth",
+                        Name = "Odin Bossman"
+                    }
                 }
             }
         };
@@ -142,7 +145,7 @@ public class OdinConfigurationTest
         Assert.That(custom.RetryInitialBackoffMs, Is.EqualTo(1000));
     }
 
-    // --- EmailSection (consolidated Email:* config; legacy top-level Mailgun:* fallback) ---
+    // --- EmailSection ---
 
 
 
@@ -221,7 +224,7 @@ public class OdinConfigurationTest
     }
 
 
-    // --- RelaySection (Email:Relay — outbound relay for tenant mail) ---
+    // --- RelaySection (Email:Relay — SMTP2GO: tenant mail's outbound relay, and the host's own mail) ---
 
     [Test]
     public void RelaySection_DefaultsToNoRelay()
@@ -271,6 +274,42 @@ public class OdinConfigurationTest
         // Tracking rewrites recipients' links and adds a third per-tenant CNAME; it must never
         // switch itself on for an end-to-end encrypted mail product.
         Assert.That(section.EnableTracking, Is.False);
+
+        // Optional: a relay host without a system From still starts, and sends no mail of its own
+        Assert.That(section.SystemFrom.Email, Is.Empty);
+        Assert.That(section.SendsSystemMail, Is.False);
+    }
+
+    [Test]
+    public void RelaySection_Smtp2Go_WithASystemFrom_SendsTheHostsOwnMail()
+    {
+        var section = new OdinConfiguration.RelaySection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:Relay:Provider"] = "Smtp2Go",
+            ["Email:Relay:ApiKey"] = "api-xyz",
+            ["Email:Relay:SmtpHost"] = "mail.smtp2go.com",
+            ["Email:Relay:SmtpUsername"] = "homebase",
+            ["Email:Relay:SmtpPassword"] = "secret",
+            ["Email:Relay:SystemFromEmail"] = "no-reply@ravenhosting.cloud",
+            ["Email:Relay:SystemFromName"] = "Homebase",
+        }));
+
+        Assert.That(section.SendsSystemMail, Is.True);
+        Assert.That(section.SystemFrom.Email, Is.EqualTo("no-reply@ravenhosting.cloud"));
+        Assert.That(section.SystemFrom.Name, Is.EqualTo("Homebase"));
+    }
+
+    /// <summary>A system From with no relay to send it through is not read, so it sends nothing.</summary>
+    [Test]
+    public void RelaySection_NoRelay_IgnoresASystemFrom()
+    {
+        var section = new OdinConfiguration.RelaySection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:Relay:SystemFromEmail"] = "no-reply@ravenhosting.cloud",
+        }));
+
+        Assert.That(section.SendsSystemMail, Is.False);
+        Assert.That(section.SystemFrom.Email, Is.Empty);
     }
 
     // --- StunSection (on by default; Enabled is the kill switch) ---
@@ -411,9 +450,9 @@ public class OdinConfigurationTest
 
         public void Test()
         {
-            Assert.That(_config.Mailgun.EmailDomain, Is.EqualTo("example.com"));
-            Assert.That(_config.Mailgun.DefaultFrom.Email, Is.EqualTo("odin@middle.earth"));
-            Assert.That(_config.Mailgun.DefaultFrom.Name, Is.EqualTo("Odin Bossman"));
+            Assert.That(_config.Email.Relay.ApiBaseUrl, Is.EqualTo("https://relay.example.com/v3"));
+            Assert.That(_config.Email.Relay.SystemFrom.Email, Is.EqualTo("odin@middle.earth"));
+            Assert.That(_config.Email.Relay.SystemFrom.Name, Is.EqualTo("Odin Bossman"));
         }
     }
 

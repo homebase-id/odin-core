@@ -193,6 +193,32 @@ namespace Odin.Services.DataSubscription.Follower
             return await GetIdentityIFollowInternalAsync(odinId);
         }
 
+        /// <summary>A page of <see cref="GetIdentitiesIFollowAsync(int,string,IOdinContext)"/> with when each was followed.</summary>
+        public async Task<CursoredResult<FollowEntry>> GetIdentitiesIFollowWithDatesAsync(int max, string cursor,
+            IOdinContext odinContext)
+        {
+            var page = await GetIdentitiesIFollowAsync(max, cursor, odinContext);
+            var dates = await db.ImFollowingCached.GetFollowedAtAsync(page.Results.ToList());
+            return WithDates(page, dates);
+        }
+
+        /// <summary>A page of <see cref="GetAllFollowersAsync"/> with when each started following.</summary>
+        public async Task<CursoredResult<FollowEntry>> GetAllFollowersWithDatesAsync(int max, string cursor,
+            IOdinContext odinContext)
+        {
+            var page = await GetAllFollowersAsync(max, cursor, odinContext);
+            var dates = await db.FollowsMeCached.GetFollowedAtAsync(page.Results.ToList());
+            return WithDates(page, dates);
+        }
+
+        private static CursoredResult<FollowEntry> WithDates(CursoredResult<string> page, Dictionary<string, UnixTimeUtc> dates) => new()
+        {
+            Cursor = page.Cursor,
+            Results = page.Results
+                .Select(d => new FollowEntry { OdinId = d, FollowedAt = dates.TryGetValue(d, out var at) ? at : null })
+                .ToList()
+        };
+
         public async Task<CursoredResult<string>> GetAllFollowersAsync(int max, string cursor, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
@@ -717,7 +743,8 @@ namespace Odin.Services.DataSubscription.Follower
                 return new FollowerDefinition
                 {
                     OdinId = odinId,
-                    NotificationType = FollowerNotificationType.AllNotifications
+                    NotificationType = FollowerNotificationType.AllNotifications,
+                    FollowedAt = FirstCreated(dbRecords.Select(r => r.created))
                 };
             }
 
@@ -729,7 +756,8 @@ namespace Odin.Services.DataSubscription.Follower
                 {
                     Alias = record.driveId,
                     Type = SystemDriveConstants.ChannelDriveType
-                }).ToList()
+                }).ToList(),
+                FollowedAt = FirstCreated(dbRecords.Select(r => r.created))
             };
         }
 
@@ -756,7 +784,8 @@ namespace Odin.Services.DataSubscription.Follower
                 return new FollowerDefinition()
                 {
                     OdinId = odinId,
-                    NotificationType = FollowerNotificationType.AllNotifications
+                    NotificationType = FollowerNotificationType.AllNotifications,
+                    FollowedAt = FirstCreated(dbRecords.Select(r => r.created))
                 };
             }
 
@@ -768,10 +797,19 @@ namespace Odin.Services.DataSubscription.Follower
                 {
                     Alias = record.driveId, //Note: i really store the alias
                     Type = SystemDriveConstants.ChannelDriveType
-                }).ToList()
+                }).ToList(),
+                FollowedAt = FirstCreated(dbRecords.Select(r => r.created))
             };
 
             return result;
+        }
+
+        // One identity has a row per channel it follows; the earliest is when the follow was made. By milliseconds:
+        // UnixTimeUtc is not IComparable, so Min over it throws once there are two rows to compare
+        private static UnixTimeUtc? FirstCreated(IEnumerable<UnixTimeUtc> created)
+        {
+            var ms = created.Select(c => c.milliseconds).ToList();
+            return ms.Count == 0 ? null : new UnixTimeUtc(ms.Min());
         }
     }
 }

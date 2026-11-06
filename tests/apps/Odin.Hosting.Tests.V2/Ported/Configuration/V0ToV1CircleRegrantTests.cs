@@ -109,7 +109,7 @@ public class V0ToV1CircleRegrantTests : V2Fixture
         stale.EncryptionPublicKeyCrc32 ^= 0xFFFFFFFF;
         icr.TemporaryWeakClientAccessToken = stale;
         icr.EncryptedClientAccessToken = null!;
-        await storage.UpsertAsync(icr, ctx);
+        await storage.UpsertAsync(icr);
 
         Assert.DoesNotThrowAsync(() => scope.Resolve<V0ToV1VersionMigrationService>()
             .AutoFixCircleGrantsAsync(ctx, CancellationToken.None));
@@ -140,7 +140,7 @@ public class V0ToV1CircleRegrantTests : V2Fixture
 
         icr.PeerKeyStore.MasterKeyEncryptedPeerKey = null!;
         icr.TempWeakKeyStoreKey = null;
-        await storage.UpsertAsync(icr, ctx);
+        await storage.UpsertAsync(icr);
 
         // An app authorized for that circle -- Mail, on the identity where this was seen -- so the reconcile
         // has to visit frodo.

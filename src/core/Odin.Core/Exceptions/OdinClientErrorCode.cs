@@ -44,6 +44,12 @@ public enum OdinClientErrorCode
     CannotDeleteBuiltInCircle = 3020,
     CircleSlugTaken = 3021,
     ContactNotReviewed = 3022,
+    CircleShareKeyAlreadySet = 3023,
+    CircleShareKeyNotSet = 3024,
+    NotACircleMember = 3025,
+    InvalidShareKey = 3026,
+    CircleShareKeyChanged = 3027,
+    NotReviewedByOwner = 3028, // the identity asked hasn't reviewed the caller's connection yet (a circle key copy, a shard)
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
@@ -132,6 +138,7 @@ public enum OdinClientErrorCode
 
     //Transit errors
     RemoteServerReturnedForbidden = 7403,
+    RemoteServerReturnedNotFound = 7404,
     RemoteServerReturnedInternalServerError = 7500,
     RemoteServerReturnedUnavailable = 7503,
     RemoteServerTransitRejected = 7900,
@@ -193,4 +200,7 @@ public enum OdinClientErrorCode
 
     // A deposit sealed to a key other than the drive's write-only key (docs/drive-public-keys-plan.md)
     SealedToUnknownKey = 9033,
+
+    // A key holder's transform of a deposit into the drive's own key header (docs/zero-knowledge-drives.md)
+    NotSealed = 9034,
 }

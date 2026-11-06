@@ -28,13 +28,19 @@ Body (`CreateAppCircleRequest`):
   "description": "string, optional",
   "emoji": "string, optional",
   "driveGrants": [ /* existing DriveGrantRequest shape */ ],
-  "permissions": { "keys": [ /* int permission keys */ ] }
+  "permissions": { "keys": [ /* int permission keys */ ] },
+  "slug": "string, optional",
+  "designation": "personal (default) | individual",
+  "grantOn": "none (default) | connect"
 }
 ```
 - Response: `200` with the new circle's id as a bare JSON GUID string. The **server chooses the id**; the request
   has no id field.
-- The circle is owned by the calling app. Its enrolment tier (`grantOn`) is always `None`: members are added only
-  explicitly, never automatically on connect.
+- The circle is owned by the calling app. With `grantOn` left out (`none`) members are added only explicitly; with
+  `connect` every connection joins it as it connects, and the circle is held to the deposit-only rule (write and
+  react, no read beyond public drives, no permission keys); `connect` needs the app to hold `ReadConnections` (`403`
+  otherwise), since the app can list its circle's members. `designation: individual` makes a one-person circle,
+  which grants nothing (docs/file-access.md, "Sharing with one person").
 - Rules enforced by the server. A violation returns `403` unless stated otherwise.
   - The app's own registration must **hold at least the permission it grants** on every drive in
     `driveGrants` (Write to grant Write, Read to grant Read). Each member the app adds receives the circle's

@@ -19,6 +19,10 @@ public class TableImFollowing(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
+    /// <summary>When each of [identities] was followed; see <see cref="FollowTableDates"/>.</summary>
+    internal Task<Dictionary<string, Odin.Core.Time.UnixTimeUtc>> GetFollowedAtAsync(IReadOnlyCollection<string> identities) =>
+        FollowTableDates.SelectFirstCreatedAsync(_scopedConnectionFactory, "imfollowing", odinIdentity, identities);
+
     internal new async Task<int> InsertAsync(ImFollowingRecord item)
     {
         item.identityId = odinIdentity;

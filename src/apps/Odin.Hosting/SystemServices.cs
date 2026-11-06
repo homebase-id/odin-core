@@ -223,12 +223,10 @@ public static class SystemServices
         services.AddSingleton<ICertificateStore, CertificateStore>();
         services.AddSingleton<ICertificateService, CertificateService>();
 
-        services.AddSingleton<IEmailSender>(sp => new MailgunSender(
-            sp.GetRequiredService<ILogger<MailgunSender>>(),
-            sp.GetRequiredService<IDynamicHttpClientFactory>(),
-            config.Mailgun.ApiKey,
-            config.Mailgun.EmailDomain,
-            config.Mailgun.DefaultFrom));
+        // The host's own mail goes through SMTP2GO; with no relay or no Email:Relay:SystemFromEmail
+        // nothing calls it (Email.Relay.SendsSystemMail)
+        services.AddSingleton<Smtp2GoApi>();
+        services.AddSingleton<IEmailSender, Smtp2GoEmailSender>();
 
         services.AddSingleton(new DkimStorageKey(config.Email.DkimStorageKey));
         services.AddSingleton<IDkimStore, DkimStore>();

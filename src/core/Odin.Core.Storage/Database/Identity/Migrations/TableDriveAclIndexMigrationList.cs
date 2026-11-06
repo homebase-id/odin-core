@@ -9,6 +9,7 @@ public class TableDriveAclIndexMigrationList : MigrationListBase
     {
         Migrations = new List<MigrationBase>() {
             new TableDriveAclIndexMigrationV0(-1),
+            new TableDriveAclIndexMigrationV202610301200(0),
             // AUTO-INSERT-MARKER
         };
     }

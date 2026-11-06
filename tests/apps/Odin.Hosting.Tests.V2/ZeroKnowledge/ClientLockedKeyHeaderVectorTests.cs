@@ -8,7 +8,7 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
 /// <summary>
 /// Fixed values for the two client-locked key headers (docs/zero-knowledge-drive-api-plan.md, step 2), so
-/// every client locks and opens them the same way.  The same values are in odin-js
+/// every client locks, opens and transforms them the same way.  The same values are in odin-js
 /// (<c>packages/libs/js-lib/src/core/DriveData/SecurityHelpers.test.ts</c>); change both or neither.  A
 /// sealed value is made with a throwaway key, so it was made once and is checked by opening it.
 /// </summary>
@@ -20,10 +20,10 @@ public class ClientLockedKeyHeaderVectorTests
     private const string AesKey = "ICEiIyQlJicoKSorLC0uLw==";
     private const string ZkDriveEncryptedAesKey = "xqE7N4ePW4JvT4FiocjYeQeFPxlO+hclYcV072RPhmMJbAd9FxFTFUuXv4ql/85L";
 
-    private const string WriteOnlyPrivateKeyPkcs8 =
+    internal const string WriteOnlyPrivateKeyPkcs8 =
         "MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDCZAel29rv0BgBwa7LGp4+tmSi5g4LlRzkW9/ZLQNgeVdrB44imUOGeaKmn1eiPZsShZANiAATKPHfd0ojszgjchR06XVN2p/iaosbJedgQGD86jcH39CM7EjWiXa6wVTW3cWGdDXwWQYx4NHDg8lIWULARJhvn02W1/eoTtDkhdpQrY6KmVbxpY/ehNZlDlhlh3MntF40=";
 
-    private const string WriteOnlyPublicKeyJwk =
+    internal const string WriteOnlyPublicKeyJwk =
         "{\"kty\":\"EC\",\"crv\":\"P-384\",\"x\":\"yjx33dKI7M4I3IUdOl1Tdqf4mqLGyXnYEBg_Oo3B9_QjOxI1ol2usFU1t3FhnQ18\",\"y\":\"FkGMeDRw4PJSFlCwESYb59Nltf3qE7Q5IXaUK2OiplW8aWP3oTWZQ5YZYdzJ7ReN\"}";
 
     private const string SealedEncryptedAesKey =
@@ -48,5 +48,17 @@ public class ClientLockedKeyHeaderVectorTests
 
         var opened = KeyHeader.FromCombinedBytes(ZkBrowser.Unseal(SealedEncryptedAesKey, WriteOnlyPrivateKeyPkcs8.FromBase64()));
         Assert.That((opened.Iv.ToBase64(), opened.AesKey.GetKey().ToBase64()), Is.EqualTo((Iv, AesKey)));
+    }
+
+    [Test]
+    public void ATransformOpensTheSealedKeyHeaderAndLocksItsFileKeyWithTheDriveKey()
+    {
+        // What a key holder sends to files/transform-key-headers (docs/zero-knowledge-drives.md): the deposit's sealed key
+        // header opened with the write-only private key, its file key and IV locked with the drive key.  The result
+        // depends only on the drive key, the file key and the IV, so it is the zkDrive vector above
+        var opened = KeyHeader.FromCombinedBytes(ZkBrowser.Unseal(SealedEncryptedAesKey, WriteOnlyPrivateKeyPkcs8.FromBase64()));
+        var transformed = ZkBrowser.LockFileKey(opened, DriveKey.FromBase64());
+
+        Assert.That((transformed.Iv.ToBase64(), transformed.EncryptedAesKey.ToBase64()), Is.EqualTo((Iv, ZkDriveEncryptedAesKey)));
     }
 }

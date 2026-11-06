@@ -67,6 +67,8 @@ public class GetQueryBatchRequest
 
     public bool IncludeTransferHistory { get; set; }
 
+    public bool IncludeShares { get; set; }
+
     public QueryBatchSortOrder Ordering { get; set; }
 
     public QueryBatchSortField Sorting { get; set; }
@@ -105,6 +107,7 @@ public class GetQueryBatchRequest
                 MaxRecords = this.MaxRecords,
                 IncludeMetadataHeader = this.IncludeMetadataHeader,
                 IncludeTransferHistory = this.IncludeTransferHistory,
+                IncludeShares = this.IncludeShares,
                 Ordering = this.Ordering,
                 Sorting = this.Sorting,
             }

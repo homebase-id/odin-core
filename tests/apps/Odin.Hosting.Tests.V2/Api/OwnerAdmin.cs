@@ -290,7 +290,7 @@ public sealed partial class OwnerAdmin
     /// to attach a YouAuth domain to a drive-permission grant.
     /// </summary>
     public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant,
-        Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None)
+        Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None, CircleDesignation designation = CircleDesignation.Personal)
     {
         // A circle cannot be handed to an app that does not exist. Fixtures name an owning app to say
         // "some app's, not the owner's", and coin the id on the spot; registering it here keeps that
@@ -300,7 +300,7 @@ public sealed partial class OwnerAdmin
             await EnsureAppRegistered(appId.Value);
         }
 
-        var response = await _network.CreateCircle(id, name, grant, appId, grantOn);
+        var response = await _network.CreateCircle(id, name, grant, appId, grantOn, designation);
         EnsureSuccess(response, nameof(CreateCircle));
         return response;
     }

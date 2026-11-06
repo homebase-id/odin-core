@@ -4,10 +4,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -19,6 +24,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.Management;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
@@ -256,9 +262,12 @@ public class ZkDriveFileTests : V2Fixture
     public async Task TheCdnNeverServesAZkDriveFile()
     {
         // The CDN reads as the system, which reaches a drive's own files for its jobs; a zero-knowledge drive
-        // is never one of the CDN's drives, even when the owner turns CDN on for it
+        // is never one of the CDN's drives.  The owner can't turn CDN on for one (DriveSettings.AssertChangeFits),
+        // so the flag is set in storage, as a drive whose flag predates that rule has it
         var (frodo, driveKey) = await ZeroKnowledgeDriveAsync();
-        await frodo.Admin.SetAllowCdn(Drive, true);
+        var refused = await frodo.RefitFor<IRefitDriveManagement>().SetAllowCdn(new UpdateDriveAllowCdnRequest { TargetDrive = Drive, AllowCdn = true });
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"the setter refuses it: {refused.Error?.Content}");
+        await SetAllowCdnInStorageAsync(frodo);
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
         var (upload, _, _) = await UploadAsync(frodo, driveKey, Guid.NewGuid(), payload);
 
@@ -348,6 +357,27 @@ public class ZkDriveFileTests : V2Fixture
 
         var read = await frodo.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, Drive.Alias);
         Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), read.Error?.Content);
+    }
+
+    [Test]
+    public async Task ARekeyTurnsOffTheCdnAZeroKnowledgeDriveCantHave()
+    {
+        // A conversion turns off what its model refuses rather than fail on it, so a re-key after a reset (the same
+        // conversion) still lands on a drive whose CDN flag predates the settings check
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
+        await SetFlagsInStorageAsync(frodo, details =>
+        {
+            details.AllowCdn = true;
+            details.AllowAnonymousReads = true;
+            details.AllowSubscriptions = true;
+        });
+
+        await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(frodo, zkMasterKey);
+
+        var drives = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<TableDrivesCached>();
+        var after = OdinSystemSerializer.Deserialize<StorageDriveDetails>((await drives.GetAsync(Drive.Alias))!.detailsJson)!;
+        Assert.That((after.AllowCdn, after.AllowAnonymousReads, after.AllowSubscriptions), Is.EqualTo((false, false, false)),
+            "all three turned off by the re-key");
     }
 
     [Test]
@@ -455,4 +485,18 @@ public class ZkDriveFileTests : V2Fixture
     private static void AssertNoKeyHeader(Refit.IApiResponse response) =>
         Assert.That(response.Headers.Contains(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64), Is.False,
             "the client opens it with the file key and the payload's IV");
+
+    /// <summary>Sets <paramref name="owner"/>'s Shard Recovery drive's CDN flag straight in the drives table.</summary>
+    private Task SetAllowCdnInStorageAsync(OwnerSession owner) => SetFlagsInStorageAsync(owner, details => details.AllowCdn = true);
+
+    /// <summary>Changes <paramref name="owner"/>'s Shard Recovery drive's settings straight in the drives table.</summary>
+    private async Task SetFlagsInStorageAsync(OwnerSession owner, Action<StorageDriveDetails> change)
+    {
+        var drives = Host.GetTenantScope(owner.Identity.DomainName).Resolve<TableDrivesCached>();
+        var record = (await drives.GetAsync(Drive.Alias))!;
+        var details = OdinSystemSerializer.Deserialize<StorageDriveDetails>(record.detailsJson)!;
+        change(details);
+        record.detailsJson = OdinSystemSerializer.Serialize(details);
+        await drives.UpsertAsync(record);
+    }
 }

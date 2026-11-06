@@ -31,6 +31,18 @@ public static class OdinContextUpgrades
         return copy;
     }
 
+    /// <summary>
+    /// The same request, changing <paramref name="file"/> for its original sender <paramref name="sender"/>: its header
+    /// loads without the read rule, which a sender who can only write it fails (docs/file-access.md, "Changing a file you
+    /// sent").  The caller has checked that <paramref name="sender"/> sent it, and the header loads check it again.
+    /// </summary>
+    public static IOdinContext ForSendersOwnFile(IOdinContext odinContext, InternalDriveFileId file, OdinId sender)
+    {
+        var copy = SameRequestWithMorePermissions(odinContext);
+        copy.MarkSendersOwnFile(new SendersOwnFile(file, sender));
+        return copy;
+    }
+
     public static IOdinContext UpgradeToByPassAclCheck(TargetDrive drive, DrivePermission drivePermission, IOdinContext odinContext)
     {
         var patchedContext = SameRequestWithMorePermissions(odinContext);

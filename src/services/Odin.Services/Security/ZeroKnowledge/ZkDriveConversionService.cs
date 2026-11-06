@@ -225,7 +225,7 @@ public sealed class ZkConvertDriveKeepingKeyRequest
             throw new OdinClientException("A drive id is required", OdinClientErrorCode.ArgumentError);
         }
 
-        if (!SharingModel.IsZeroKnowledge())
+        if (!SharingModel.IsZeroKnowledgeDrive())
         {
             throw new OdinClientException($"{nameof(SharingModel)} is Private or SelectiveShare", OdinClientErrorCode.ArgumentError);
         }

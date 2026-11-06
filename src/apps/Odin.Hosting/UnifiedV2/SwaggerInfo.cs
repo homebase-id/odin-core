@@ -23,12 +23,17 @@ public static class SwaggerInfo
     // Query endpoints (batch, smart batch, collections)
     public const string FileQuery = "File Query";
 
+    // Selective Share: a file's shares with circles
+    public const string FileShares = "File Shares";
+
     // Read receipts & peer-transfer interactions
     public const string FileTransfer = "File Transfer";
     
     public const string Connections = "Connection Operations";
 
     public const string Contacts = "Contact Operations";
+
+    public const string Followers = "Follower Operations";
 
     public const string Onboarding = "Onboarding";
 

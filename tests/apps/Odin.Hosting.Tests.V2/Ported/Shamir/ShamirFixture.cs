@@ -61,7 +61,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// </para>
 /// <para>
 /// <b>Recovery links come from a <see cref="CapturingRecoveryNotificationSink"/>.</b> With
-/// <c>Mailgun:Enabled</c> false no mail is ever sent, so the fixture swaps in a sink that records the
+/// no <c>Email:Relay:SystemFromEmail</c> no mail is ever sent, so the fixture swaps in a sink that records the
 /// enter / exit / finalize links <c>RecoveryNotifier</c> generates. V1 (and this port, until #1866)
 /// scraped the nonces out of a <c>#if DEBUG</c>-only log line instead, which is why none of these
 /// tests could run in a Release build. The notifier calls the sink synchronously inside the request
