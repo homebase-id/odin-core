@@ -63,13 +63,10 @@ public class V2DriveGroupReactionByGtidController(GroupReactionService groupReac
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
-    /// <summary>
-    /// Gets a summary of reactions for the file.  The cursor and max parameters are ignored
-    /// </summary>
+    /// <summary>Gets a summary of reactions for the file.</summary>
     [SwaggerOperation(Tags = [SwaggerInfo.FileReaction])]
     [HttpGet("summary")]
-    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(Guid driveId, Guid gtid,
-        [FromQuery] GetReactionsRequestRedux request)
+    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(Guid driveId, Guid gtid)
     {
         return await groupReactionService.GetReactionCountsByFileAsync(File(driveId, gtid), WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());

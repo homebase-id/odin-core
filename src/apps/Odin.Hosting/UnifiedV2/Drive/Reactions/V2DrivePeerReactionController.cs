@@ -47,7 +47,7 @@ public class V2DrivePeerReactionController(PeerReactionSenderService peerReactio
         return NoContent();
     }
 
-    /// <summary>Deletes all of this identity's reactions on the file; the body's reaction is ignored.</summary>
+    /// <summary>Deletes all of this identity's reactions on the file.</summary>
     [HttpPost("deleteall")]
     [SwaggerOperation(Tags = [SwaggerInfo.FileReaction])]
     public async Task<IActionResult> DeleteAllReactions(string odinId, Guid driveId, Guid gtid)
@@ -72,7 +72,7 @@ public class V2DrivePeerReactionController(PeerReactionSenderService peerReactio
         }, WebOdinContext);
     }
 
-    /// <summary>Counts of each reaction on the file. The cursor and max parameters are ignored.</summary>
+    /// <summary>Counts of each reaction on the file.</summary>
     [HttpPost("summary")]
     [SwaggerOperation(Tags = [SwaggerInfo.FileReaction])]
     public async Task<GetReactionCountsResponse> GetReactionSummary(string odinId, Guid driveId, Guid gtid)

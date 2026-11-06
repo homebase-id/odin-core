@@ -165,14 +165,13 @@ The V2 controllers (`UnifiedV2/SignIn`) inherit V1's, so there is one implementa
 
 - **Authorize would stop redirecting.** With no token the unified scheme answers an anonymous success, so a policy wanting an owner forbids rather than challenges: a 403 where a browser needs a redirect to login. A valid app or visitor token does the same.
 - **The home cache would leak.** The unified scheme reads the owner's cookie first, and `HomeCachingService` keeps one result per tenant and query name for every caller, so the owner opening their home page would fill it for anonymous visitors. `is-authenticated` would also say true for the owner's cookie, and 401 for a stale one.
-- **A pending upgrade would not be scheduled.** `OwnerAuthenticationHandler` does that when the owner arrives at authorize; `OwnerAuthPathHandler` does not.
 - **Login would read drives first.** The unified anonymous policy loads the anonymous drives; these routes must answer during an upgrade and on an identity with no setup.
 
 The path-based behaviour that names these routes: the redirect at step [040] (`OwnerAuthenticationHandler.RedirectPaths`), the upgrade middleware's exemptions and its redirect at authorize (`VersionUpgradeMiddleware`), the guest scheme's path check (`YouAuthAuthenticationHandler`), and shared-secret encryption (`NoSharedSecret*` on the controllers, and the path list for `is-authenticated`). All the cookies are `Path=/`, host-only, `Secure`, `SameSite=Strict`, so a cookie set on either generation is sent to both.
 
 **Consent posts to the route the sign-in started on.** The handler refuses a return URL with any path but its own, so the consent page takes the form's action from the return URL (`getConsentFormAction`, odin-js).
 
-**A client calling another identity stays on V1 until every identity has a release with these routes.** The login box's ident check and its authorize redirect, the token exchange, and the identity server's own exchange at [100] (`IHomePerimeterHttpClient`) go to a host that may be on any version, and a 404 there reads as "no such identity". Calls to the page's own host are safe, since that is the server that served the page.
+**A client calling another identity uses these routes too.** Every identity gets a release at the same time, so the login box's ident check and its authorize redirect, and the token exchange, can count on them. The identity server's own exchange at [100] (`IHomePerimeterHttpClient`) still calls V1's token route.
 
 ## `Shared secret` calculation
 Both the identity host and the third-party site compute the shared secret independently using their private keys and the other party's public key, combined with a random salt provided by the identity host. The formula for the shared secret could be expressed as:

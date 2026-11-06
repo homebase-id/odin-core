@@ -19,7 +19,6 @@ using Odin.Services.Base;
 using Odin.Services.Peer;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
-using Odin.Hosting.Controllers.Home.Auth;
 using Odin.Hosting.UnifiedV2;
 using Odin.Services.PublicPage;
 
@@ -58,8 +57,6 @@ namespace Odin.Hosting.Middleware
             _ignoredPathsForRequests =
             [
                 PeerApiPathConstants.BasePathV1, //TODO: temporarily allowing all perimeter traffic not use shared secret
-                $"{HomeApiPathConstants.AuthV1}/is-authenticated",
-                $"{UnifiedApiRouteConstants.HomeAuth}/is-authenticated",
 
                 OwnerApiPathConstants.YouAuthV1,
                 OwnerApiPathConstants.AuthV1,

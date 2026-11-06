@@ -177,18 +177,7 @@ namespace Odin.Hosting.UnifiedV2.Notifications
                 return;
             }
 
-            IOdinContext? authenticatedContext;
-            try
-            {
-                authenticatedContext = await ResolveContextAsync(token);
-            }
-            catch (OdinSecurityException e)
-            {
-                _logger.LogDebug("V2 WS upgrade rejected (401): app cookie failed: {error}", e.Message);
-                HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return;
-            }
-
+            var authenticatedContext = await TryResolveContextAsync(token);
             if (authenticatedContext == null)
             {
                 HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -207,8 +196,8 @@ namespace Odin.Hosting.UnifiedV2.Notifications
 
         /// <summary>
         /// Sets the app cookie <see cref="ConnectAppCookie"/> reads, from the app's bearer token or, to extend it, the
-        /// cookie itself. The V2 twin of V1's <c>/api/apps/v1/notify/preauth</c>. Reads its own token, because the
-        /// unified handler would pick an owner cookie over the bearer.
+        /// cookie itself. The V2 twin of V1's <c>/api/apps/v1/notify/preauth</c>. Reads its own token, because with no
+        /// bearer the unified handler would pick an owner cookie over the app's.
         /// </summary>
         [HttpPost]
         [Route(UnifiedApiRouteConstants.NotifyPreAuth)]
@@ -223,20 +212,26 @@ namespace Odin.Hosting.UnifiedV2.Notifications
                 return Unauthorized();
             }
 
-            try
-            {
-                if (await ResolveContextAsync(token) == null)
-                {
-                    return Unauthorized();
-                }
-            }
-            catch (OdinSecurityException)
+            if (await TryResolveContextAsync(token) == null)
             {
                 return Unauthorized();
             }
 
             AuthenticationCookieUtil.SetCookie(HttpContext.Response, YouAuthConstants.AppCookieName, token);
             return Ok();
+        }
+
+        private async Task<IOdinContext?> TryResolveContextAsync(ClientAuthenticationToken token)
+        {
+            try
+            {
+                return await ResolveContextAsync(token);
+            }
+            catch (OdinSecurityException e)
+            {
+                _logger.LogDebug("V2 WS auth rejected (401): app token failed: {error}", e.Message);
+                return null;
+            }
         }
 
         /// <summary>
