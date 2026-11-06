@@ -299,7 +299,7 @@ public class V2CookieSocketTests : V2Fixture
         var response = await client.SendAsync(request);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Headers.GetValues("Set-Cookie").Single(), Does.Contain(token.ToString()));
+        Assert.That(response.Headers.GetValues("Set-Cookie").Single(), Does.Contain(Uri.EscapeDataString(token.ToString())), "the cookie's value is URL-encoded");
     }
 
     [Test]

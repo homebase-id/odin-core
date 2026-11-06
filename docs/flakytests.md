@@ -1109,6 +1109,12 @@ resulting abort escapes `DisconnectAsync` instead of being treated as the expect
 
 ---
 
+## `Odin.Hosting.Tests.V2.Auth.V2CookieSocketTests.PreAuth_IgnoresABody_AndAnOwnerCookieBesideTheBearer`
+
+**Fixed 2026-11-06, on branch `v2-routes-js-lib-gaps`, before reaching `main`.** It compared the `Set-Cookie` header with the
+raw token, but the cookie's value is URL-encoded, so it failed whenever the random token held a `+` or a `/`. That is most
+runs: it failed 4 in a row here, after passing two full runs. It now compares with the encoded token, and passed 6 in a row.
+
 ## Seen once, not chased (2026-09-05 to 10-20)
 
 - `TransitCommentFileRoutingTests.FailsWhenSenderCannotWriteCommentOnRecipientServer` --
