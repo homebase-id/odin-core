@@ -106,8 +106,8 @@ public class ZkDriveConversionService(
     /// relabelled when it has the shape every <c>zkDrive</c> header must (<see cref="EncryptedKeyHeader.HasZkDriveShape"/>):
     /// an unencrypted file's empty key header (a zero IV) stays <c>aes</c>; a deleted file's tombstone keeps its real key
     /// header, and is relabelled with the rest.  A deposit the server took for the drive (a Server Share drive opens them,
-    /// <see cref="Deposits"/>) is opened first, while the drive still has the write-only key pair it was sealed to, and
-    /// relabelled with the rest: left sealed, it would be sealed to a private key no one holds any more.  A write-only private
+    /// <see cref="Deposits"/>) is opened with the write-only key pair it was sealed to, which <paramref name="drive"/> still
+    /// holds, and relabelled with the rest: left sealed, it would be sealed to a private key no one holds any more.  A write-only private
     /// key that doesn't open fails the conversion, which can't be undone; a deposit whose seal doesn't open to its file key
     /// (a sender's junk) stays as it is.  A file written meanwhile fails the conversion, which the owner retries.
     /// </summary>

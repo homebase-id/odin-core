@@ -253,8 +253,8 @@ a reader gets the share key differs:
   (`Deposits.ConvertedOnServerShare`, `DriveStorageServiceBase.ConvertDepositsAsync`, from `ReadForCallerAsync` and the
   query's `FilterVisibleAsync`) **(V, tested)**, and a socket event opens it for each device the same way, unwritten
   (`DriveEventMessage`) **(V; not tested)**. So a reader sees it sealed only if the server can't open it (a seal that
-  doesn't open to a file key under the header's IV, logged and left sealed): the owner then gets it as stored, and a member
-  or app doesn't see it **(V)**. The write-only private key is opened for
+  doesn't open to a file key under the header's IV, or a write-only private key that doesn't open, logged and left
+  sealed): the reader then gets it as stored **(V)**. The write-only private key is opened for
   that call only (`EccFullKeyData.OpenPrivateKey`) **(V)**. Not on a drive marked as a community channel, which re-locks a
   member's post and sends it on as it lands (a channel drive's followers get only its owner's posts,
   `FeedDriveDistributionRouter.ShouldDistribute`), nor the Shard Recovery drive before it is zero knowledge, whose

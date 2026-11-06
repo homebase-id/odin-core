@@ -125,7 +125,8 @@ if the sender kept the same file key (the server can't check that) and leans on 
   per device the same way, unwritten (`DriveEventMessage`).
 - From the code review: the server opens a deposit it took before the drive was marked as a community channel (only new
   deposits are refused there); a seal that doesn't open to exactly the file's IV and key is logged and left sealed, never
-  a failed read; a file that moved on between read and write is still served opened; conversion skips expired files; a socket event opens a deposit once, not per socket.
+  a failed read; a file that moved on between read and write is still served opened; conversion skips expired files; a socket event opens a deposit once for every device holding the drive key, and a
+  device whose open fails retries it.
 - Sending a deposit on converts it first: `SendFile` loads the header through `GetServerFileHeader`, which is
   `ReadForCallerAsync` **(V)**.
 - Not converted: the loads that go straight to storage (a reaction, transfer history, a TTL job, the member-write guard)

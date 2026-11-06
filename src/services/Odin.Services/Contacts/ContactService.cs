@@ -149,7 +149,7 @@ public class ContactService(
                 Outcome = ContactWriteOutcome.AlreadyExists,
                 UniqueId = uniqueId,
                 VersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault(),
-                CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, await driveManager.GetDriveAsync(DriveId), odinContext)
+                CurrentOnConflict = await CurrentOnConflictAsync(existing, odinContext)
             };
         }
 
@@ -1054,6 +1054,10 @@ public class ContactService(
             .ToList();
     }
 
+    // The contact as the caller would read it, returned with a conflict
+    private async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader> CurrentOnConflictAsync(ServerFileHeader existing, IOdinContext odinContext) =>
+        DriveFileUtility.CreateClientFileHeader(existing, await driveManager.GetDriveAsync(DriveId), odinContext);
+
     private async Task<ContactWriteResult> VersionConflictResultAsync(Guid uniqueId, ServerFileHeader existing,
         Guid currentVersionTag, IOdinContext odinContext)
     {
@@ -1062,7 +1066,7 @@ public class ContactService(
             Outcome = ContactWriteOutcome.VersionConflict,
             UniqueId = uniqueId,
             VersionTag = currentVersionTag,
-            CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, await driveManager.GetDriveAsync(DriveId), odinContext)
+            CurrentOnConflict = await CurrentOnConflictAsync(existing, odinContext)
         };
     }
 

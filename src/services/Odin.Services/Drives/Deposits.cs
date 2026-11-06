@@ -77,8 +77,9 @@ public static class Deposits
     /// On a Server Share drive, the deposits among <paramref name="headers"/> whose key header the server makes its own for
     /// this caller, each with that key header: the seal opened with the drive's write-only private key, which the drive key
     /// the caller's request carries opens, and the file key locked with the drive key under the same IV, as any file there.
-    /// Empty when the drive isn't a Server Share drive the server opens deposits on or the request carries no drive key;
-    /// a header that isn't a deposit, is sealed to another key or doesn't open is left out.  The drive key and the private
+    /// Empty when the drive isn't a Server Share drive the server opens deposits on, the request carries no drive key, or the
+    /// write-only private key doesn't open (logged: never a failed read); a header that isn't a deposit, is sealed to
+    /// another key or doesn't open is left out.  The drive key and the private
     /// key are opened once for the batch, and for this call only
     /// (<see cref="Odin.Core.Cryptography.Data.EccFullKeyData.OpenPrivateKey"/>).
     /// </summary>

@@ -73,14 +73,13 @@ public static class DriveFileUtility
         }
         else if (ZkDriveFiles.IsClientLocked(header))
         {
-            // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it, but on a Server Share
-            // drive, whose server opens a deposit as it reads it, a sealed one left (a tombstone's) opens nothing.  A
-            // backstop: the read rule (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a
-            // file this refuses
+            // A backstop: the read rule (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a file this
+            // refuses
             ZkDriveFiles.AssertVisibleTo(drive, header, odinContext);
 
-            // A Server Share deposit's tombstone has no content for its sealed key header to open, so it goes out empty, as
-            // any tombstone the server locked does: no client of a Server Share drive is handed a sealed key header
+            // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it.  But a Server Share
+            // deposit's tombstone has no content for its sealed key header to open, so it goes out empty, as any tombstone the
+            // server locked does: no client of a Server Share drive is handed a sealed key header
             sharedSecretEncryptedKeyHeader = header.FileMetadata.FileState == FileState.Deleted && drive?.ServerOpensDeposits == true
                 ? EncryptedKeyHeader.Empty()
                 : header.EncryptedKeyHeader;
