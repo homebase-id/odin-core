@@ -304,14 +304,26 @@ namespace Odin.Core.Cryptography.Data
 
 
         /// <summary>
-        /// The private key (DER, PKCS8), opened with <paramref name="key"/> for this call only: unlike the other private-key
-        /// reads it isn't kept on this object, which may outlive the caller's request (a cached drive's key pair). The
-        /// caller wipes it.
+        /// The private key as .NET key parameters on the named curve, opened with <paramref name="key"/> for this call only:
+        /// unlike the other private-key reads it isn't kept on this object, which may outlive the caller's request (a cached
+        /// drive's key pair). Built from the scalar and the public point, not imported from the stored DER, which spells the
+        /// curve parameters out: Windows' CNG won't agree a key on such a curve with one on the named curve. The caller
+        /// clears <c>D</c>.
         /// </summary>
-        public SensitiveByteArray OpenPrivateKey(SensitiveByteArray key)
+        public System.Security.Cryptography.ECParameters OpenPrivateKey(SensitiveByteArray key)
         {
             AssertIsKey(key);
-            return new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
+            using var der = new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
+            var (curveSize, _, x, y) = PublicJwkMembers();
+            var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(der.GetKey());
+            return new System.Security.Cryptography.ECParameters
+            {
+                Curve = curveSize == EccKeySize.P384
+                    ? System.Security.Cryptography.ECCurve.NamedCurves.nistP384
+                    : System.Security.Cryptography.ECCurve.NamedCurves.nistP256,
+                D = BigIntegers.AsUnsignedByteArray(CoordinateBytes(curveSize), privateKeyParameters.D),
+                Q = new System.Security.Cryptography.ECPoint { X = Base64UrlEncoder.Decode(x), Y = Base64UrlEncoder.Decode(y) }
+            };
         }
 
         private SensitiveByteArray GetFullKey(SensitiveByteArray key)

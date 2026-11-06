@@ -78,13 +78,25 @@ public static class ZkSeal
     /// </summary>
     public static byte[] Open(byte[] sealedValue, byte[] privateKeyPkcs8)
     {
+        using var me = ECDiffieHellman.Create();
+        me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
+        return Open(sealedValue, me);
+    }
+
+    /// <summary><see cref="Open(byte[], byte[])"/> with the private key as key parameters on the named curve.</summary>
+    public static byte[] Open(byte[] sealedValue, ECParameters privateKey)
+    {
+        using var me = ECDiffieHellman.Create(privateKey);
+        return Open(sealedValue, me);
+    }
+
+    private static byte[] Open(byte[] sealedValue, ECDiffieHellman me)
+    {
         if (!IsSealed(sealedValue))
         {
             throw new OdinClientException("Not a sealed value", OdinClientErrorCode.ArgumentError);
         }
 
-        using var me = ECDiffieHellman.Create();
-        me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
         const int x = PublicKeyOffset + 1;
         const int y = x + CoordinateLength;
         using var throwaway = ECDiffieHellman.Create(new ECParameters

@@ -125,10 +125,12 @@ public static class Deposits
         }
 
         byte[] plain = null;
+        byte[] privateScalar = null;
         try
         {
-            using var privateKey = drive.WriteOnlyKeyPair.OpenPrivateKey(storageKey);
-            plain = ZkSeal.Open(header.EncryptedKeyHeader.EncryptedAesKey, privateKey.GetKey());
+            var privateKey = drive.WriteOnlyKeyPair.OpenPrivateKey(storageKey);
+            privateScalar = privateKey.D;
+            plain = ZkSeal.Open(header.EncryptedKeyHeader.EncryptedAesKey, privateKey);
 
             // Exactly the file's IV and key, under the IV the header shows: anything else would lock a key that isn't the
             // file's over its only sealed copy
@@ -159,6 +161,11 @@ public static class Deposits
             if (plain != null)
             {
                 Array.Clear(plain);
+            }
+
+            if (privateScalar != null)
+            {
+                Array.Clear(privateScalar);
             }
 
             storageKey.Wipe();
