@@ -26,7 +26,6 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 
@@ -35,7 +34,6 @@ namespace Odin.Hosting.UnifiedV2.Authentication
     public class UnifiedAuthenticationHandler
         : AuthenticationHandler<UnifiedAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
-        private readonly OdinConfiguration _config;
         private readonly ILogger<UnifiedAuthenticationHandler> _logger;
         private readonly ICallerLogContext _callerLogContext;
 
@@ -47,11 +45,10 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         /// <summary/>
         public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory loggerFactory,
-            UrlEncoder encoder, OdinConfiguration config, ILogger<UnifiedAuthenticationHandler> logger,
+            UrlEncoder encoder, ILogger<UnifiedAuthenticationHandler> logger,
             ICallerLogContext callerLogContext)
             : base(options, loggerFactory, encoder)
         {
-            _config = config;
             _logger = logger;
             _callerLogContext = callerLogContext;
         }
@@ -186,22 +183,13 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         private bool TryFindClientAuthToken(out ClientAuthenticationToken clientAuthToken)
         {
-            if (_config.Cdn.Enabled)
-            {
-                // get from auth header
-                if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
-                {
-                    return true;
-                }
-            }
-
-            if (TryGetClientAuthTokenFromCookie(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
+            // The bearer token comes first: it was sent on purpose, while a browser adds a cookie to any request to this host
+            if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
             {
                 return true;
             }
 
-            // app header preferred
-            if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
+            if (TryGetClientAuthTokenFromCookie(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
             {
                 return true;
             }

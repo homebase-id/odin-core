@@ -872,9 +872,9 @@ public class V2SignInRoutesTests : V2Fixture
 }
 
 /// <summary>
-/// The owner console logs out its apps and itself, with the owner's cookie on every request. With the CDN off, which is
-/// the default, V2 reads that cookie ahead of an app's bearer token: an app's logout sent while the cookie is there is
-/// the owner's request, and the app's session lives on. So the console has to log itself out first.
+/// A browser adds the owner's cookie to every request to the identity's host, so an app's call can carry both. The bearer
+/// token wins whether the CDN is on or off: the call is the app's, and its logout ends the app's session. Off is the
+/// default, and the one set here because the test host turns the CDN on.
 /// </summary>
 [TestFixture]
 public class V2AppLogoutWithOwnerCookieTests : V2Fixture
@@ -898,15 +898,20 @@ public class V2AppLogoutWithOwnerCookieTests : V2Fixture
     private async Task<HttpStatusCode> AppSessionAsync(string appToken) =>
         (await SendAsync(HttpMethod.Get, $"{UnifiedApiRouteConstants.Auth}/verify-token", appToken)).StatusCode;
 
+    private async Task<HttpStatusCode> SendOwnerProbeAsync(string ownerToken) =>
+        (await SendAsync(HttpMethod.Get, $"{UnifiedApiRouteConstants.Auth}/verify-token", null, (SignInHttp.OwnerCookie, ownerToken))).StatusCode;
+
     [Test]
-    public async Task WithTheOwnerCookieThereTheAppsSessionLivesOn()
+    public async Task WithTheOwnerCookieThereTheBearerTokenStillWins()
     {
         var owner = await LoginAsOwner(Frodo);
         var (appToken, _) = await owner.Admin.RegisterAppClient(await owner.Admin.RegisterBareApp());
+        Assert.That(await AppSessionAsync(appToken.ToString()), Is.EqualTo(HttpStatusCode.OK));
 
         await SendAsync(HttpMethod.Post, $"{UnifiedApiRouteConstants.Auth}/logout", appToken.ToString(), (SignInHttp.OwnerCookie, owner.Token.ToString()));
 
-        Assert.That(await AppSessionAsync(appToken.ToString()), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await AppSessionAsync(appToken.ToString()), Is.Not.EqualTo(HttpStatusCode.OK));
+        Assert.That(await SendOwnerProbeAsync(owner.Token.ToString()), Is.EqualTo(HttpStatusCode.OK), "the owner's session must survive");
     }
 
     [Test]
