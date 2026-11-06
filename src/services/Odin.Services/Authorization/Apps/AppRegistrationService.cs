@@ -184,11 +184,18 @@ namespace Odin.Services.Authorization.Apps
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
-            await SaveAsync(updatedAppReg);
+            // Saved and reconciled together (#2000): the reconcile (CircleNetworkService, the notification's handler)
+            // stacks on this transaction, so if it fails the registration is not left authorizing circles whose
+            // members never got the grant
+            await using (var tx = await db.BeginStackedTransactionAsync())
+            {
+                await SaveAsync(updatedAppReg);
 
-            //TODO: consider optimize by checking if anything actually changed before calling notify app changed
+                //TODO: consider optimize by checking if anything actually changed before calling notify app changed
+                await NotifyAppChanged(oldRegistration, updatedAppReg, odinContext);
+                tx.Commit();
+            }
 
-            await NotifyAppChanged(oldRegistration, updatedAppReg, odinContext);
             await ResetAppPermissionContextCacheAsync();
         }
 
