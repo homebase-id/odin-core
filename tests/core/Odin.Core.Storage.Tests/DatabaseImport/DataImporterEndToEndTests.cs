@@ -147,6 +147,39 @@ public class DataImporterEndToEndTests
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Sqlite, DatabaseType.Postgres)]
 #endif
+    // A DriveAclIndex row is a Selective Share share with times of its own, the cursor a member syncs by: the
+    // import keeps them, as it does a file's
+    public async Task ImportIdentityAsync_KeepsTheAclRowsTimes(DatabaseType sourceType, DatabaseType targetType)
+    {
+        await InitDatabasesAsync(sourceType, targetType);
+
+        var srcSys = _sourceScope.Resolve<SystemDatabase>();
+        var srcId = _sourceScope.Resolve<IdentityDatabase>();
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var tgtId = _targetScope.Resolve<IdentityDatabase>();
+
+        await DataImporterSeedHelper.SeedAllSystemTablesAsync(srcSys, IdentityDomain, _identityId);
+        await DataImporterSeedHelper.SeedAllIdentityTablesAsync(srcId);
+        await using (var cn = await srcId.CreateScopedConnectionAsync())
+        await using (var cmd = cn.CreateCommand())
+        {
+            cmd.CommandText = "UPDATE DriveAclIndex SET created = 1000, modified = 2000;";
+            Assert.That(await cmd.ExecuteNonQueryAsync(), Is.GreaterThan(0), "the seeded ACL rows");
+        }
+
+        var logger = _sourceScope.Resolve<ILogger<DataImporterEndToEndTests>>();
+        await DataImporter.ImportIdentityAsync(logger, IdentityDomain, srcSys, tgtSys, srcId, tgtId, commit: true);
+
+        var (rows, _) = await tgtId.DriveAclIndex.PagingByRowIdAsync(100, null);
+        Assert.That(rows.Select(r => (r.created.milliseconds, r.modified.milliseconds)).Distinct().ToList(),
+            Is.EqualTo(new[] { (1000L, 2000L) }), "the imported rows' created and modified");
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite, DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Sqlite, DatabaseType.Postgres)]
+#endif
     public async Task ImportIdentityAsync_LeavesTargetEmpty_WhenCommitFalse(
         DatabaseType sourceType, DatabaseType targetType)
     {

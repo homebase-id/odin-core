@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -58,26 +56,16 @@ public class CircleNetworkStorage
         return await MapFromStorageAsync(record);
     }
 
-    [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
-    public async Task UpsertAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
+    public async Task UpsertAsync(IdentityConnectionRegistration icr)
     {
         var icrAccessRecord = MapToStorageIcrAccessRecord(icr);
         var odinHashId = icr.OdinId.ToHashId();
 
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        //Reconcile circle grants in the table
-        await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity);
-        foreach (var (circleId, circleGrant) in icr.PeerKeyStore?.CircleGrants ?? [])
-        {
-            var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
-            var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
-
-            if (!isMember)
-            {
-                await _circleMembershipService.AddCircleMemberAsync(circleId, icr.OdinId, circleGrant, DomainType.Identity);
-            }
-        }
+        // Reconcile circle grants in the table, keeping each kept row's sealed share key
+        await _circleMembershipService.ReconcileMemberCirclesAsync(icr.OdinId, DomainType.Identity,
+            icr.PeerKeyStore?.CircleGrants ?? []);
 
         // remove all app grants,
         await _db.AppGrantsCached.DeleteByIdentityAsync(odinHashId);

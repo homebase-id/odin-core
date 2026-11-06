@@ -721,7 +721,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         InvitationCodeUse? used = null;
         if (code != null && IsServiceCode(code))
         {
-            used = await _invitationCodes.TryUseAsync(code)
+            used = await _invitationCodes.TryUseAsync(code, domain.DomainName)
                    ?? throw new OdinClientException("Invalid or expired Invitation Code");
         }
 
@@ -760,7 +760,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             }
 
             // Queue background job to send email
-            if (_configuration.Mailgun.Enabled)
+            if (_configuration.Email.Relay.SendsSystemMail)
             {
                 var job = _jobManager.NewJob<SendProvisioningCompleteEmailJob>();
                 job.Data = new SendProvisioningCompleteEmailJobData

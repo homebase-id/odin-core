@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Net;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -112,7 +113,7 @@ public class PendingCircleMemberTests : V2Fixture
     }
 
     [Test]
-    public async Task AppWithoutReadCircleMembership_CannotListPendingMembers()
+    public async Task AppWithoutReadCircleMembership_ListsPendingMembersOnlyOfItsOwnCircle()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -134,12 +135,18 @@ public class PendingCircleMemberTests : V2Fixture
         }, appId: appId);
 
         // Who is pending for a circle is circle-membership information, gated the same way the member
-        // list is.
+        // list is: an app may always see its own circles, and another's only with ReadCircleMembership.
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
             permissionKeys: Array.Empty<int>(), knownAppId: appId);
+        var otherApp = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
+            permissionKeys: Array.Empty<int>(), knownAppId: Guid.NewGuid());
 
-        var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GetPendingCircleMembersAsync(circle);
-        Assert.That(response.IsSuccessStatusCode, Is.False, "listing pending members needs ReadCircleMembership");
+        var own = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GetPendingCircleMembersAsync(circle);
+        Assert.That(own.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"the owning app is refused: {own.Error?.Content}");
+
+        var others = await new V2ConnectionNetworkClient(otherApp.Identity, otherApp.Factory).GetPendingCircleMembersAsync(circle);
+        Assert.That(others.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
+            "another app's circle needs ReadCircleMembership");
     }
 
     private static long UnixTimeUtcNow() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();

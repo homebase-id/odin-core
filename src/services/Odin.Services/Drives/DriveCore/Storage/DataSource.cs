@@ -25,6 +25,12 @@ public class DataSource
     /// </summary>
     public bool PayloadsAreRemote { get; init; }
 
+    /// <summary>Whether <paramref name="a"/> and <paramref name="b"/> name the same payloads, by value.</summary>
+    public static bool AreSame(DataSource a, DataSource b) =>
+        a == null
+            ? b == null
+            : b != null && a.Identity == b.Identity && a.DriveId == b.DriveId && a.PayloadsAreRemote == b.PayloadsAreRemote;
+
     public bool IsValid()
     {
         return Identity.HasValue() && DriveId != Guid.Empty;

@@ -229,13 +229,13 @@ public class BuiltinProvisioner(
     public async Task EnsureAppOfBrowserMadeDriveAsync(Guid driveId, IOdinContext odinContext)
     {
         var app = BuiltinApps.Builtin.SingleOrDefault(a =>
-            a.Drives.Any(d => d.SharingModel.IsZeroKnowledge() && d.TargetDrive.Alias.Value == driveId));
+            a.Drives.Any(d => d.SharingModel.IsZeroKnowledgeDrive() && d.TargetDrive.Alias.Value == driveId));
         if (app == null)
         {
             return;
         }
 
-        foreach (var drive in app.Drives.Where(d => d.SharingModel.IsZeroKnowledge()))
+        foreach (var drive in app.Drives.Where(d => d.SharingModel.IsZeroKnowledgeDrive()))
         {
             if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null)
             {

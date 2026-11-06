@@ -418,7 +418,10 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
                 fileSystemType, 
-                odinContext);
+                odinContext,
+                shares: package.Shares,
+                // Nothing of a transient file stays here, so its client names the tag of the recipient's copy
+                expectedVersionTag: transitOptions.IsTransient ? package.Descriptor.FileMetadata.VersionTag : null);
 
             return recipientStatus;
         }
@@ -465,9 +468,21 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 OdinClientErrorCode.InvalidKeyHeader);
         }
 
+        if (uploadDescriptor.Shares is { Count: > 0 })
+        {
+            // A new standard file only: an overwrite keeps the file key (decision 7), so its shares stay valid as they
+            // are, and a comment follows its file's shares
+            if (FileSystem.Storage.GetFileSystemType() != FileSystemType.Standard || package.IsUpdateOperation)
+            {
+                throw new OdinClientException("Only a new file's upload carries shares", OdinClientErrorCode.ArgumentError);
+            }
+
+            package.Shares = uploadDescriptor.Shares;
+        }
+
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId, _driveManager,
-                odinContext)
+            ? await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId,
+                FileSystem.Storage.GetFileSystemType(), _driveManager, odinContext)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -493,6 +508,11 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(
         FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
+        if (uploadDescriptor.Shares is { Count: > 0 })
+        {
+            throw new OdinClientException("Only a new file's upload carries shares", OdinClientErrorCode.ArgumentError);
+        }
+
         var keyHeader = KeyHeader.Empty();
 
         if (uploadDescriptor.FileMetadata.IsEncrypted)
@@ -500,7 +520,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
             keyHeader = await ZkDriveFiles.OpenForWriteAsync(transferKeyEncryptedKeyHeader, package.InternalFile.DriveId,
-                _driveManager, odinContext);
+                FileSystem.Storage.GetFileSystemType(), _driveManager, odinContext);
 
             if (!ByteArrayUtil.IsStrongKey(keyHeader.Iv))
             {
@@ -560,6 +580,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             throw new OdinClientException("Access control list must be specified", OdinClientErrorCode.MissingUploadData);
         }
 
+        serverMetadata.AccessControlList.AssertGivenGroupIsDefined();
         serverMetadata.AccessControlList.Validate();
 
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.IsEncrypted)
@@ -596,11 +617,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             }
         }
 
-        if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
-        {
-            throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
-                OdinClientErrorCode.DriveSecurityAndAclMismatch);
-        }
+        SelectiveShareDrives.AssertAclFitsDrive(drive, serverMetadata.AccessControlList);
 
         // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
         PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);
@@ -638,10 +655,10 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.MissingPayloadKeys);
             }
             
-            if (keyHeader is ClientLockedKeyHeader { Type: EncryptionType.Sealed } sealedKeyHeader)
+            if (keyHeader is ClientLockedKeyHeader { IsSealed: true } sealedKeyHeader)
             {
                 // Where it may go was checked as it was opened (ZkDriveFiles.OpenForWrite)
-                Deposits.AssertValid(metadata, sealedKeyHeader.Locked);
+                Deposits.AssertValid(metadata, sealedKeyHeader.Locked, drive);
             }
             else if (metadata.IsEncrypted && keyHeader is not ClientLockedKeyHeader) // checked unopened (AssertValidZkDrive)
             {

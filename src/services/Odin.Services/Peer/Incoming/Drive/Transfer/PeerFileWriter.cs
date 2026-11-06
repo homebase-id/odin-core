@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -72,32 +73,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogDebug("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
             }
 
-            // Files coming from other systems are only accessible to the owner so
-            // the owner can use the UI to pass the file along
-            var targetAcl = new AccessControlList()
-            {
-                RequiredSecurityGroup = SecurityGroupType.Owner
-            };
-
             var isCollaborationChannel = drive.IsCollaborationDrive();
+            var targetAcl = await IncomingFileAcl.ForIncomingFileAsync(fileSystemResolver, fileSystemType, metadata,
+                isCollaborationChannel, encryptedRecipientTransferInstructionSet.OriginalAcl, odinContext);
 
-            //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
-            if (fileSystemType == FileSystemType.Comment)
+            // A member's new file, shared with their circles
+            if (fileSystemType != FileSystemType.Comment && drive.IsSelectiveShare &&
+                encryptedRecipientTransferInstructionSet.Shares is { Count: > 0 })
             {
-                targetAcl = await IncomingCommentAcl.ResetAclForComment(fileSystemResolver, metadata, odinContext);
-            }
-            else
-            {
-                //
-                // Collab channel hack
-                //
-                if (isCollaborationChannel)
-                {
-                    targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl ?? new AccessControlList()
-                    {
-                        RequiredSecurityGroup = SecurityGroupType.Owner
-                    };
-                }
+                SelectiveShareDrives.LiftForShares(targetAcl);
             }
 
             var serverMetadata = new ServerMetadata()
@@ -131,7 +115,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             logger.LogDebug("[DeleteFlow] PeerFileWriter.DeleteFile -> looking up gtid:{gtid} driveId:{driveId} sender:{sender}",
                 item.GlobalTransitId, item.DriveId, item.Sender);
 
-            var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext);
+            var clientFileHeader = await fs.Query.GetFileByGlobalTransitId(item.DriveId, item.GlobalTransitId, odinContext);
 
             if (clientFileHeader == null)
             {
@@ -212,8 +196,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var ms = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter WriteNewFile", async () =>
             {
                 metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
+                // Its sender's write, which their next change goes by (docs/file-access.md, "Changing a file you sent")
+                var versionTag = DriveFileUtility.CreateVersionTag();
+                serverMetadata.SendersWrite = SentFileChanges.SendersWriteOf((OdinId)metadata.SenderOdinId, metadata.VersionTag.GetValueOrDefault(),
+                    versionTag);
                 (success, payloads) = await fs.Storage.CommitNewFile(file, keyHeader, metadata,
-                    serverMetadata, ignorePayloads, odinContext, markComplete: markComplete, sourceArea: sourceArea);
+                    serverMetadata, ignorePayloads, odinContext, useThisVersionTag: versionTag, markComplete: markComplete,
+                    sourceArea: sourceArea);
             });
 
             logger.LogDebug("Handle file->CommitNewFile: {ms} ms", ms);
@@ -225,20 +214,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             InternalDriveFileId sourceFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader,
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
-            StagingArea sourceArea, WriteSecondDatabaseRowBase markComplete)
+            StagingArea sourceArea, WriteSecondDatabaseRowBase markComplete, Guid versionTag)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
             await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile", async () =>
             {
-                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
-                //one is written any time you save a header)
                 metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
                 //note: we also update the key header because it might have been changed by the sender
 
                 (success, payloads) = await fs.Storage.OverwriteFile(sourceFile, targetFile, keyHeader, metadata, serverMetadata,
                     ignorePayloads,
-                    odinContext, markComplete, sourceArea: sourceArea);
+                    odinContext, markComplete, sourceArea: sourceArea, useThisVersionTag: versionTag);
             });
 
             return (success, payloads);
@@ -261,44 +248,54 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinClientException("Must have a global transit id to write peer.", OdinClientErrorCode.InvalidFile);
             }
 
-            // First we check if we can match the gtid to an existing file on disk.
-            // If we can, then the gtid is the winner and decides the matching file
-            //
-
-            SharedSecretEncryptedFileHeader header = await GetFileByGlobalTransitId(fs, file.DriveId,
-                newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
-
-            // If there is no file matching the gtid, let's check if the UID might point to one
-            if (header == null && newMetadata.AppData.UniqueId.HasValue)
-            {
-                header = await fs.Query.GetFileByClientUniqueIdForWriting(targetDriveId, newMetadata.AppData.UniqueId.Value, odinContext);
-            }
-
-            if (header == null)
-            {
-                // Neither gtid not uid points to an exiting file, so it's a new file
-                return await WriteNewFile(fs, file, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, sourceArea, markComplete);
-            }
-
-            header.AssertFileIsActive();
+            // A file sent again changes it, found by the server, not as the sender, who may only write it
+            // (docs/file-access.md, "Changing a file you sent").  A comment is its author's to send again
+            // (DriveStorageServiceBase checks the author and the share)
             var drive = await driveManager.GetDriveAsync(targetDriveId);
-            if (!drive.IsCollaborationDrive())
+            var stored = await fs.Query.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(targetDriveId,
+                             newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext)
+                         ?? (newMetadata.AppData.UniqueId is { } uniqueId
+                             ? await fs.Query.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(targetDriveId, uniqueId, odinContext)
+                             : null);
+
+            if (stored == null)
             {
-                header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);
+                return await WriteNewFile(fs, file, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, sourceArea,
+                    markComplete);
             }
 
-            newMetadata.VersionTag = header.FileMetadata.VersionTag;
-
-            //Update existing file
-            var targetFile = new InternalDriveFileId()
+            var sender = (OdinId)newMetadata.SenderOdinId;
+            var sendersVersionTag = newMetadata.VersionTag.GetValueOrDefault();
+            var (writeContext, alreadyLanded) = await SentFileChanges.PrepareChangeAsync(fs, drive, stored, sender,
+                memberMayUseShares: false, sendersVersionTag, encryptedRecipientTransferInstructionSet.ExpectedVersionTag, odinContext);
+            if (alreadyLanded)
             {
-                FileId = header.FileId,
-                DriveId = targetDriveId
-            };
+                return await SentFileChanges.AlreadyDeliveredAsync(fs, file, newMetadata.Payloads, markComplete, odinContext);
+            }
+
+            // Shares sent with it would be checked as a new file's and written to the incoming file id
+            if (encryptedRecipientTransferInstructionSet.Shares is { Count: > 0 })
+            {
+                throw new OdinClientException("A file sent again keeps its shares: a member sends shares only with a new file",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
+            // What an update keeps: encrypted or not, its data source, and a client-locked file's key header with a new IV
+            DriveStorageServiceBase.AssertSameEncryption(stored, newMetadata);
+            DriveStorageServiceBase.AssertSameDataSource(stored, newMetadata);
+            if (newMetadata.IsEncrypted)
+            {
+                ZkDriveFiles.AssertFitsUpdate(stored, keyHeader);
+            }
+
+            // The tag the header write replaces, which its SQL checks again, and the one it gives the file
+            newMetadata.VersionTag = stored.FileMetadata.VersionTag;
+            var versionTag = DriveFileUtility.CreateVersionTag();
+            serverMetadata.SendersWrite = SentFileChanges.SendersWriteOf(sender, sendersVersionTag, versionTag);
 
             //note: we also update the key header because it might have been changed by the sender
-            return await UpdateExistingFile(fs, file, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext,
-                sourceArea, markComplete);
+            return await UpdateExistingFile(fs, file, stored.FileMetadata.File, keyHeader, newMetadata, serverMetadata, ignorePayloads,
+                writeContext, sourceArea, markComplete, versionTag);
         }
 
 
@@ -317,8 +314,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinClientException("Must have a global transit id to write to the feed drive.", OdinClientErrorCode.InvalidFile);
             }
 
-            var header = await GetFileByGlobalTransitId(fs, file.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(),
-                odinContext);
+            var header = await fs.Query.GetFileByGlobalTransitId(file.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
 
 
             if (header == null)
@@ -382,14 +378,5 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // return await UpdateExistingFile(fs, tempFile, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true,
             //     odinContext, markComplete);
         }
-
-        private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId,
-            Guid globalTransitId,
-            IOdinContext odinContext)
-        {
-            var existingFile = await fs.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
-            return existingFile;
-        }
-
     }
 }

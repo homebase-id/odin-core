@@ -114,7 +114,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            AppendKeyHeader(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             return PayloadResult(payloadStream, "application/octet-stream");
         }
 
@@ -142,7 +142,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            AppendKeyHeader(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
             return StoredStreamResult(thumb, "application/octet-stream");
         }
@@ -166,12 +166,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         /// <summary>
         /// Serves the write-only public key of the drive <c>/apps/{appSlug}/drives/{driveSlug}</c>
-        /// names here, so a caller that may write but not read can seal a deposit to it.
+        /// names here, to any identity.
         /// </summary>
         /// <remarks>
-        /// 404 when nothing answers to the address; a caller that lacks Write gets a security
-        /// exception rather than a 404, since having resolved the address it already knows the drive
-        /// is there.
+        /// 404 when nothing answers to the address
+        /// (<see cref="Odin.Services.Peer.Incoming.Drive.Query.PeerDriveQueryService.GetDriveWriteOnlyPublicKeyAsync"/>).
         /// </remarks>
         [HttpPost("metadata/by-slug/public-key")]
         public async Task<ActionResult<DrivePublicKeyResponse>> GetDriveWriteOnlyPublicKey(
@@ -249,7 +248,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            AppendKeyHeader(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             return PayloadResult(payloadStream, "application/octet-stream");
         }
 
@@ -267,7 +266,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            AppendKeyHeader(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
             return StoredStreamResult(thumb, "application/octet-stream");
         }

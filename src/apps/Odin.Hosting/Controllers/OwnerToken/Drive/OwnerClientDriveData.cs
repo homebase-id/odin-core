@@ -55,7 +55,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// <remarks>
         /// The <b>public</b> half only.  The private half is escrowed under the drive's storage key and
         /// never leaves the server; serving the public half is the whole point of the key, and the peer
-        /// endpoint hands the same value to any caller with write access.
+        /// endpoint hands the same value to any identity.
         /// </remarks>
         public string WriteOnlyPublicKeyJwk { get; set; }
 

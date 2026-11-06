@@ -55,15 +55,16 @@ namespace Odin.Services.Peer.Encryption
         /// other is decrypted.
         /// </summary>
         public KeyHeader DecryptOrPassSealed(ref SensitiveByteArray key) =>
-            IsSealed() ? new ClientLockedKeyHeader(this) : DecryptAesToKeyHeader(ref key);
+            IsPassedOnAsSent() ? new ClientLockedKeyHeader(this) : DecryptAesToKeyHeader(ref key);
 
         public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)
         {
             if (keyHeader is ClientLockedKeyHeader locked)
             {
-                // A deposit goes on sealed, as it was written.  A zero-knowledge drive's own has no AES key
-                // here: re-locking it would make a key header that opens to nothing
-                return locked.Type == EncryptionType.Sealed
+                // A deposit goes on sealed, as it was written, and a member's "keep the file key" and a comment's file key
+                // as they were sent.  A zero-knowledge drive's own has no AES key here: re-locking it would make a key
+                // header that opens to nothing
+                return locked.Locked.IsPassedOnAsSent()
                     ? locked.Locked
                     : throw new OdinClientException("A zero-knowledge drive's key header can't be re-locked on the server",
                         OdinClientErrorCode.InvalidKeyHeader);
@@ -107,8 +108,64 @@ namespace Odin.Services.Peer.Encryption
         /// </summary>
         public bool IsZkDrive() => Type == EncryptionType.ZkDrive;
 
-        /// <summary>A key header a client locked with a key the server doesn't hold: a deposit, or a zero-knowledge drive's own.</summary>
-        public bool IsLockedByClient() => IsSealed() || IsZkDrive();
+        /// <summary>A member's key to a file shared with their circle (<see cref="EncryptionType.Share"/>), passed on as it is.</summary>
+        public bool IsShare() => Type == EncryptionType.Share;
+
+        /// <summary>
+        /// A member's update keeping a shared file's key (decision C of docs/selective-share-pr3-plan.md): a
+        /// <see cref="EncryptionType.Share"/> key header with the new IV and nothing else.
+        /// </summary>
+        public void AssertKeepsKey()
+        {
+            if (!IsShare() || !HoldsIvOnly())
+            {
+                throw new OdinClientException("A member's update keeps the file key: a share key header with a new IV and no key",
+                    OdinClientErrorCode.InvalidKeyHeader);
+            }
+        }
+
+        /// <summary>A comment encrypted with its file's key (<see cref="EncryptionType.FileKey"/>): its own IV only.</summary>
+        public bool IsFileKey() => Type == EncryptionType.FileKey;
+
+        /// <summary>Refuses a file key header that isn't one: version 1, a strong IV, and no key (<see cref="IsFileKey"/>).</summary>
+        public void AssertValidFileKey()
+        {
+            if (!IsFileKey() || EncryptionVersion != 1 || !HoldsIvOnly())
+            {
+                throw new OdinClientException("A comment's file key header holds its own IV and no key", OdinClientErrorCode.InvalidKeyHeader);
+            }
+        }
+
+        /// <summary>A member's key to a shared file: the share's locked file key, with the file's own IV.</summary>
+        public static EncryptedKeyHeader ForShare(byte[] iv, byte[] lockedFileKey) => new()
+        {
+            EncryptionVersion = 1,
+            Type = EncryptionType.Share,
+            Iv = iv,
+            EncryptedAesKey = lockedFileKey
+        };
+
+        /// <summary>
+        /// A key header a client locked with a key the server doesn't hold: a deposit, a zero-knowledge drive's own, or a
+        /// comment's on its file's key.
+        /// </summary>
+        public bool IsLockedByClient() => IsSealed() || IsZkDrive() || IsFileKey();
+
+        /// <summary>
+        /// Locked by a client (<see cref="IsLockedByClient"/>), or a member's share key: nothing the server can open,
+        /// so it passes it on as it is.
+        /// </summary>
+        public bool IsOpaqueToServer() => IsLockedByClient() || IsShare();
+
+        /// <summary>
+        /// What a write or a transfer passes on as it came, never opened or re-locked: a deposit, a member's share key
+        /// header keeping a file's key, a comment's on its file's key.  A zero-knowledge drive's own is not: it is stored
+        /// as sent but never travels.
+        /// </summary>
+        public bool IsPassedOnAsSent() => IsSealed() || IsShare() || IsFileKey();
+
+        // A strong IV and no key: what keeping a file's key or using its file's key sends
+        private bool HoldsIvOnly() => ByteArrayUtil.IsStrongKey(Iv) && !(EncryptedAesKey?.Length > 0);
 
         /// <summary>
         /// Whether this has the shape of a zero-knowledge drive's key header: version 1, a strong IV, and the

@@ -6,6 +6,7 @@ using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
+using Odin.Core.Identity;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
@@ -14,6 +15,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Membership.Connections;
 using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2;
@@ -309,6 +311,36 @@ public abstract class V2Fixture
 
     /// <summary>Logs in as <see cref="PrimaryIdentity"/> — the common case for single-identity fixtures.</summary>
     protected Task<OwnerSession> LoginAsOwner() => LoginAsOwner(PrimaryIdentity);
+
+    /// <summary>Frodo logged in, with the zero-knowledge keys made as his first login since plan A makes them.</summary>
+    protected async Task<(OwnerSession Owner, byte[] ZkMasterKey)> ZeroKnowledgeFrodoAsync()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (zkMasterKey, _, _) = await ZeroKnowledge.ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, Auth.OwnerLogin.DefaultPassword);
+        return (frodo, zkMasterKey);
+    }
+
+    /// <summary>
+    /// Puts <paramref name="peer"/> back to unreviewed on <paramref name="owner"/>'s side.
+    /// </summary>
+    /// <remarks>
+    /// Written to storage rather than through <c>review/clear</c>: the peer-flow setup puts the peer in a
+    /// personal circle, which the clear refuses by design.  A storage write bypasses the cache reset the real
+    /// clear does, so the cache is reset here.
+    /// </remarks>
+    protected async Task ClearReviewOnAsync(OwnerSession owner, OdinId peer)
+    {
+        var tenant = Host.GetTenantScope(owner.Identity.DomainName);
+        var storage = tenant.Resolve<CircleNetworkStorage>();
+        var connection = await storage.GetAsync(peer);
+        Assert.That(connection?.Status, Is.EqualTo(ConnectionStatus.Connected), $"precondition: {owner.Identity} is connected to {peer}");
+        await storage.UpdateReviewedAtAsync(peer, connection!.Status, null);
+
+        var icr = await storage.GetAsync(peer);
+        Assert.That(icr!.ReviewedAt, Is.Null, $"precondition: {peer} is unreviewed on {owner.Identity}");
+
+        await tenant.Resolve<OdinContextCache>().ResetAsync();
+    }
 
     /// <summary>
     /// One-liner for parameterized tests over <see cref="CallerSpec"/>: logs in as owner of

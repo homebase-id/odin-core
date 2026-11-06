@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests.V2.Api;
@@ -22,6 +23,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Security.ZeroKnowledge;
 using Odin.Test.Helpers;
+using Refit;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkAppSteps;
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
@@ -40,7 +42,7 @@ public class ZkDriveCreationTests : V2Fixture
     [Test]
     public async Task ADriveAskedForAsSelectiveShareIsCreatedWithNoKeyTheServerCanOpen()
     {
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         var drive = TargetDrive.NewTargetDrive();
         var appId = Guid.NewGuid();
         await frodo.Admin.EnsureAppRegistered(appId);
@@ -78,7 +80,7 @@ public class ZkDriveCreationTests : V2Fixture
     [Test]
     public async Task ADriveAskedForWithNoModelIsCollaborativeAsToday()
     {
-        var (frodo, _) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, _) = await ZeroKnowledgeFrodoAsync();
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "Shared");
 
@@ -90,7 +92,7 @@ public class ZkDriveCreationTests : V2Fixture
     [Test]
     public async Task ARequestWhoseModelAndKeysDisagreeIsRefusedAndCreatesNothing()
     {
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
 
         await AssertRefusedAsync(frodo, DriveSharingModel.Private, withKeys: false, zkMasterKey, "no keys");
         await AssertRefusedAsync(frodo, DriveSharingModel.Collaborative, withKeys: true, zkMasterKey, "keys for a shared drive");
@@ -105,7 +107,7 @@ public class ZkDriveCreationTests : V2Fixture
     [Test]
     public async Task ADriveAskedForAsPrivateIsCreatedPrivate()
     {
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         var drive = TargetDrive.NewTargetDrive();
         var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
 
@@ -115,6 +117,40 @@ public class ZkDriveCreationTests : V2Fixture
         var created = await frodo.Admin.GetDrive(drive);
         Assert.That(created.SharingModel, Is.EqualTo(DriveSharingModel.Private));
         Assert.That(ZkBrowser.Open(created.ZkMasterKeyEncryptedStorageKey, zkMasterKey), Is.EqualTo(keys.DriveKey));
+    }
+
+    [Test]
+    public async Task APrivateDrivesSettersRefuseWhatItsCreationRefuses()
+    {
+        // One settings check, at creation and at every setter: anonymous reads, the CDN, subscriptions and the
+        // community channel attribute all need the server to hold the drive's key
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "Kept", allowAnonymousReads: false, sharingModel: DriveSharingModel.Private,
+            zkKeys: ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey).Request);
+        var svc = frodo.RefitFor<IRefitDriveManagement>();
+
+        foreach (var (what, refused) in new (string, Func<Task<IApiResponse>>)[]
+                 {
+                     ("anonymous reads", async () => await svc.SetDriveReadMode(new UpdateDriveReadModeRequest
+                         { TargetDrive = drive, AllowAnonymousReads = true })),
+                     ("subscriptions", async () => await svc.SetAllowSubscriptions(new UpdateDriveAllowSubscriptionsRequest
+                         { TargetDrive = drive, AllowSubscriptions = true })),
+                     ("the CDN", async () => await svc.SetAllowCdn(new UpdateDriveAllowCdnRequest { TargetDrive = drive, AllowCdn = true })),
+                     ("the community channel", async () => await svc.UpdateAttributes(new UpdateDriveDefinitionRequest
+                     {
+                         TargetDrive = drive,
+                         Attributes = new Dictionary<string, string> { [BuiltInDriveAttributes.IsCollaborativeChannel] = "true" }
+                     }))
+                 })
+        {
+            var response = await refused();
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"{what}: {response.Error?.Content}");
+        }
+
+        var after = await frodo.Admin.GetDrive(drive);
+        Assert.That((after.AllowAnonymousReads, after.AllowSubscriptions, after.AllowCdn), Is.EqualTo((false, false, false)),
+            "nothing changed");
     }
 
     [Test]
@@ -128,7 +164,7 @@ public class ZkDriveCreationTests : V2Fixture
     [Test]
     public async Task TheDeviceListSaysWhichDevicesHoldTheAppsKey()
     {
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         await GiveTheDrivesAnOlderIdentityHasAsync(frodo);
         var olderDevice = await AppSession.SetupAsync(frodo, Vault, DrivePermission.ReadWrite);
         await SignInAsync(frodo, olderDevice.AppId, zkMasterKey);
@@ -143,7 +179,7 @@ public class ZkDriveCreationTests : V2Fixture
     public async Task ANewIdentitysVaultAndEmailAreCreatedPrivateByTheOwnersBrowserAndTheirAppsFollow()
     {
         // The server can't make a Private drive, so a new identity starts without Vault, its app or its circle
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         Assert.That((await frodo.Admin.GetDrives()).Any(d => d.TargetDriveInfo == Vault), Is.False);
         Assert.That(await BuiltinAppAsync(frodo, SystemAppConstants.VaultAppId), Is.Null, "the Vault app waits for its drive");
 
@@ -178,7 +214,7 @@ public class ZkDriveCreationTests : V2Fixture
     {
         // As Filesync registers: drives and no permission keys.  Its security context must still show the grants, the
         // only place its devices find a private drive's key (they once came back empty for a group with no keys)
-        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         var shared = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(shared, "Shared", allowAnonymousReads: false);
         var zk = TargetDrive.NewTargetDrive();
@@ -235,12 +271,5 @@ public class ZkDriveCreationTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"{why}: {response.Error?.Content}");
         Assert.That(response.Error!.Content, Does.Contain(expected.ToString()).IgnoreCase, why);
         Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.False, $"{why}: nothing created");
-    }
-
-    private async Task<(OwnerSession Owner, byte[] ZkMasterKey)> OwnerWithZeroKnowledgeKeysAsync()
-    {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(frodo, OwnerLogin.DefaultPassword);
-        return (frodo, zkMasterKey);
     }
 }

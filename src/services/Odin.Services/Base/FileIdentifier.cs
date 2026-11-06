@@ -1,4 +1,5 @@
 using System;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives;
 
@@ -42,6 +43,18 @@ public class FileIdentifier
         if (UniqueIdHasValue && (GlobalTransitIdHasValue || FileIdHasValue))
         {
             throw new OdinClientException("The file identifier is invalid; only one field can be set");
+        }
+    }
+
+    /// <summary>
+    /// A file on a peer's drive, for an update sent there: its global transit id and the drive's alias, which is all the
+    /// recipient reads (a V2 caller names a peer's drive by its id alone, as V2 peer reads do).
+    /// </summary>
+    public void AssertIsValidPeerTarget()
+    {
+        if (!GlobalTransitIdHasValue || FileIdHasValue || UniqueIdHasValue || TargetDrive?.Alias == null || TargetDrive.Alias.Value == Guid.Empty)
+        {
+            throw new OdinClientException("A peer's file is named by its global transit id and its drive");
         }
     }
 

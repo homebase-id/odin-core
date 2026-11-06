@@ -120,7 +120,8 @@ public class PeerDriveQueryService(
 
     /// <summary>
     /// The write-only public key of <paramref name="odinId"/>'s <c>/apps/{appSlug}/drives/{driveSlug}</c>, so this
-    /// identity can seal a deposit to a drive it may write but never read.
+    /// identity can seal a deposit to a drive it may write but never read, or a key for that identity to open (a
+    /// Selective Share circle key).
     /// </summary>
     /// <remarks>
     /// Cached for <c>Host:PeerDriveKeyCacheSeconds</c> (docs/drive-public-keys-plan.md), and only for a
@@ -131,7 +132,7 @@ public class PeerDriveQueryService(
     public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, OdinSlug appSlug,
         OdinSlug driveSlug, IOdinContext odinContext)
     {
-        // Write, not read: this key exists to put data on someone else's drive.
+        // Write, not read: the key exists to put data on someone else's drive, or a key for them to open
         if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.UseTransitWrite))
         {
             throw new OdinSecurityException(
@@ -141,10 +142,13 @@ public class PeerDriveQueryService(
         OdinSlug.Required(appSlug, nameof(appSlug));
         OdinSlug.Required(driveSlug, nameof(driveSlug));
 
-        return await cache.GetOrSetAsync($"peer-drive-key:{odinId}:{appSlug}:{driveSlug}",
+        // v3: the answer carries CallerMayWrite; a copy cached before it would read as false.  An answer that
+        // this identity may not write isn't kept, so a grant made since is seen at once; one that it may can outlive a
+        // revoke, and the deposit is then refused when it arrives
+        return await cache.GetOrSetAsync($"peer-drive-key-v3:{odinId}:{appSlug}:{driveSlug}",
             _ => FetchRemoteDriveWriteOnlyPublicKeyAsync(odinId, appSlug, driveSlug, odinContext),
             odinConfiguration.Host.PeerDriveKeyCacheAge, _ => EntrySize.Small, tags: [DriveKeysTag(odinId)],
-            storeIf: key => key.IsZeroKnowledge);
+            storeIf: key => key.IsZeroKnowledge && key.CallerMayWrite);
     }
 
     /// <summary>
@@ -186,8 +190,6 @@ public class PeerDriveQueryService(
                 OdinClientErrorCode.InvalidDrive);
         }
 
-        // A 403 is the remote saying this identity may not write there. Surfaced as-is rather than
-        // folded into "no such drive": the caller resolved the address, so the drive exists.
         await HandleInvalidResponseAsync(odinId, response, odinContext);
 
         var key = response.Content;
@@ -894,13 +896,34 @@ public class PeerDriveQueryService(
         return sharedSecretEncryptedFileHeader;
     }
 
+    /// <summary>
+    /// A payload's or thumbnail's key header from the peer's answer, for the caller: empty for an unencrypted one, none
+    /// for a client-locked file's (the client opens it with the file key and its IV), else re-locked for the caller.
+    /// </summary>
+    private EncryptedKeyHeader PayloadKeyHeaderFrom(ApiResponse<HttpContent> response, bool payloadIsEncrypted,
+        IdentityConnectionRegistration icr, IOdinContext odinContext)
+    {
+        if (!payloadIsEncrypted)
+        {
+            return EncryptedKeyHeader.Empty();
+        }
+
+        if (!response.Headers.TryGetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, out var ssHeaders))
+        {
+            return null;
+        }
+
+        return ReEncrypt(icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret,
+            EncryptedKeyHeader.FromBase64(ssHeaders.Single()), odinContext);
+    }
+
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
-        if (encryptedKeyHeader.IsLockedByClient())
+        if (encryptedKeyHeader.IsOpaqueToServer())
         {
             // A client-locked key header comes from the peer as stored: only a device holding that drive's keys
-            // opens it.  A peer shows one only to a caller its read rule admits; passed on rather than failing
-            // the whole read
+            // opens it; a share's comes locked with the member's circle key (Selective Share).  A peer shows one only
+            // to a caller its read rule admits; passed on rather than failing the whole read
             return encryptedKeyHeader;
         }
 
@@ -1014,19 +1037,7 @@ public class PeerDriveQueryService(
             logger.LogDebug($"Could not parse remote server response last modified for thumbnail");
         }
 
-        EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-        if (payloadIsEncrypted)
-        {
-            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
-            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            sharedSecretEncryptedKeyHeader = ReEncrypt(
-                icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret,
-                icrEncryptedKeyHeader, odinContext);
-        }
-        else
-        {
-            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-        }
+        var sharedSecretEncryptedKeyHeader = PayloadKeyHeaderFrom(response, payloadIsEncrypted, icr, odinContext);
 
         var stream = await response!.Content!.ReadAsStreamAsync();
 
@@ -1055,8 +1066,6 @@ public class PeerDriveQueryService(
         ParsePayloadResponseAsync(
             OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext)
     {
-        var permissionContext = odinContext.PermissionsContext;
-
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             response.Dispose();
@@ -1080,20 +1089,7 @@ public class PeerDriveQueryService(
             logger.LogInformation($"Could not parse last modified for payload (key:{key})");
         }
 
-        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (payloadIsEncrypted)
-        {
-            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
-
-            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
-                icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
-                icrEncryptedKeyHeader, odinContext);
-        }
-        else
-        {
-            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-        }
+        var ownerSharedSecretEncryptedKeyHeader = PayloadKeyHeaderFrom(response, payloadIsEncrypted, icr, odinContext);
 
         var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
 

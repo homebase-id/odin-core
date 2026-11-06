@@ -22,6 +22,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         // public RecipientTransferHistory TransferHistory { get; init; } <-- SAVED SEPARATELY
 
+        public SendersWrite SendersWrite { get; init; }
+
         public ServerMetadataDto() { }
 
         public ServerMetadataDto(ServerMetadata serverMetadata)
@@ -31,6 +33,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             FileByteCount = serverMetadata.FileByteCount;
             OriginalRecipientCount = serverMetadata.OriginalRecipientCount;
             AllowDistribution = serverMetadata.AllowDistribution;
+            SendersWrite = serverMetadata.SendersWrite;
         }
     }
 }

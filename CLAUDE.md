@@ -127,6 +127,16 @@ Identities connect via **Circles** (connection groups). Transit system handles e
 
 **Read `docs/security-model.md` before adding, changing or centralizing any permission check.** It covers callers and their keys, circles, drive permissions and options, file ACLs, comments and reactions, envelope encryption, and the built-in system APIs (Shamir, introductions, connections, contacts) that deliberately bypass the regular checks.
 
+It is the root of the reference docs; each of these goes deeper, and is the one to read first when the work touches its subject:
+
+| Read | Before touching |
+|---|---|
+| `docs/terminology.md` | any doc or comment about drives, keys or files: the one meaning of each term (Server Share, Private, Private Share, zero knowledge, community channel, deposit, share, key-header kinds) |
+| `docs/file-access.md` | who may see or change a file: a file's ACL, the `DriveAclIndex` rows, the query's ACL filter, the read rule (`CallerMayReadAsync`), shares, community channels |
+| `docs/owner-keys.md` | any key or key header: what each key is called, what locks what, where it is stored |
+| `docs/zero-knowledge-drives.md` | a drive's sharing model (Server Share, Private, Private Share), client-locked files, deposits |
+| `docs/selective-share-plan.md` | Private Share: share rows, circle keys, the PR order and its open decisions |
+
 ### Events
 
 MediatR for in-process pub/sub. Key notifications: `DriveFileAddedNotification`, `DriveFileChangedNotification`, `DriveFileDeletedNotification`. Handlers update caches, propagate to peers, and push WebSocket notifications.

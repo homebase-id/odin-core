@@ -1,6 +1,6 @@
 # Drive public keys: a peer key cache, a key check on arrival, and later retired keys
 
-Status: plan, 2026-10-28. The first piece towards Chat going private. **(V)** = verified by reading code
+Status: plan, 2026-10-28; "Now" built and merged (#2045). The first piece towards Chat going private. **(V)** = verified by reading code
 on main `e3a6af496`. **(I)** = inferred.
 
 ## Goal
@@ -49,11 +49,13 @@ Decided 2026-10-28: build the cache and the key check now, and **leave retired k
    (`ZkDriveFiles`, no database read.)
 2. **The sender's server caches a peer drive's key** per identity, for `Host:PeerDriveKeyCacheSeconds`
    (7 days; at least the cache's 2-second minimum), in `PeerDriveQueryService`'s tenant cache.
-   - Only a zero-knowledge drive's answer is kept: one that isn't yet takes no deposits, and becomes
-     one at its owner's next login.
-   - Per identity, not per host: the recipient grants the key per asker (it requires Write), and every
-     other cache here is per tenant. A cached answer skips the remote's per-asker check, so after a
-     revoke the key is still served until it expires; the deposit is refused at the transfer.
+   - Only a zero-knowledge drive's answer is kept: one that isn't takes no deposits. Of the built-in
+     drives only Shard Recovery becomes zero knowledge later, at its owner's next login; Vault and Email
+     are made zero knowledge.
+   - Per identity, not per host: the answer's `CallerMayWrite` is per asker, and every other cache here is
+     per tenant. The recipient serves the key to any identity; an answer that this identity may not write
+     isn't kept, so a grant made since is seen at once. One that it may is served until it expires, even
+     after a revoke; the deposit is then refused at the transfer.
    - The file outbox workers forget a recipient's keys when a deposit is refused with
      `SealedToUnknownKey`. The sending device learns of it through its outbox failure, and seals again
      with the key it fetches next.
@@ -67,7 +69,7 @@ this, they were stored and could never be opened.
 ## Later: retired keys, when a voluntary rotation needs them
 
 Nothing replaces a drive key with a grace period today: converting a drive drops a key that either took
-no deposits (Collaborative) or whose private half is lost (a reset). When a rotation is built, for Chat
+no deposits (a Server Share drive, `Collaborative` in code) or whose private half is lost (a reset). When a rotation is built, for Chat
 perhaps on removing a member:
 
 ### The timing rule
@@ -104,7 +106,7 @@ waits in the outbox for up to O. So **G ≥ C + O**, checked at startup. Default
   header before the IV (`0x02 ‖ key id ‖ throwaway public key`) is the AES-GCM associated data, so the
   authentication covers it. v1 authenticates the ciphertext only (`ZkSeal.cs:53-70`) **(V)**.
 - The seal already protects what it carries: AES-GCM over `IV ‖ file key` (`KeyHeader.Combine`) **(V)**.
-  #2024 (the CBC key header, content integrity) is a different format and stays its own issue.
+  #2024 (the CBC key header) is a different format and stays its own issue.
 - Three implementations seal and open: odin-core `ZkSeal.cs`, odin-js `ZeroKnowledgeKeys.ts`, chat-kmp
   `ZkKeys.kt` **(V)**. Apps in the field update slowly, so **every reader accepts v2 before any writer
   makes it**. Readers keep accepting v1 for good: v1 seals are stored (Shamir shards, deposits), and a

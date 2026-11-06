@@ -330,7 +330,7 @@ public class TransitCommentFileRoutingTests : V2Fixture
         };
 
         var e = Assert.ThrowsAsync<OdinClientException>(() =>
-            IncomingCommentAcl.ResetAclForComment(scope.Resolve<FileSystemResolver>(), comment, odinContext));
+            IncomingFileAcl.ResetAclForComment(scope.Resolve<FileSystemResolver>(), comment, odinContext));
 
         Assert.That(e!.ErrorCode, Is.EqualTo(OdinClientErrorCode.InvalidReferenceFile));
     }

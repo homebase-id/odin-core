@@ -138,8 +138,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         /// act on the drive but never learn its address.  Holding any grant already proves the caller
         /// legitimately knows of the drive, so this reveals nothing a drive-type query does not.
         ///
-        /// Not-found and not-permitted return the same null on purpose: distinguishing them would let a
-        /// caller enumerate an identity's apps and drives by name.
+        /// Not-found and not-permitted return the same null, so this gives a caller without a grant nothing.  Which
+        /// apps and drives exist is not hidden by it: a drive's public key is served to any identity
+        /// (<see cref="GetDriveWriteOnlyPublicKeyAsync"/>), a 404 when there is no such drive.
         /// </remarks>
         public async Task<PerimeterDriveData> ResolveDriveAddressAsync(OdinSlug appSlug, OdinSlug driveSlug,
             IOdinContext odinContext)
@@ -175,19 +176,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
         /// <summary>
         /// Serves a drive's write-only public key, so a caller can seal a deposit to a drive it may
-        /// write but never read.
+        /// write but never read, or seal a key for this identity to open (a Selective Share circle key).
         /// </summary>
         /// <remarks>
-        /// <b>Write is required, and only Write.</b>  Unlike
-        /// <see cref="ResolveDriveAddressAsync"/>, which accepts any grant because naming a drive
-        /// reveals nothing a caller cannot already learn, this hands out the means to put data on the
-        /// drive.  A reader has no business with it.
-        /// <para>
-        /// A missing drive is a 404 and a missing grant is a security exception -- deliberately
-        /// different, unlike resolution, which conflates them.  By the time a caller reaches here it
-        /// has already resolved the address, which means it already holds a grant; refusing with a
-        /// 404 would send it looking for a drive that is there.
-        /// </para>
+        /// <b>To any identity, on every drive.</b>  The key is public, and sealing to it puts nothing on the
+        /// drive: a deposit still needs Write, checked when it arrives, which the answer says the caller holds.  The
+        /// answer says the drive exists, and whether it is zero knowledge and how it is shared; a missing drive is a 404.
         /// <para>
         /// Every drive is minted a keypair at creation and the migration backfills the rest, so a
         /// null here is a drive that predates both and escaped the upgrade -- a server-side fault,
@@ -209,12 +203,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 return null;
             }
 
-            if (!odinContext.PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Write))
-            {
-                throw new OdinSecurityException(
-                    $"Write access is required to retrieve the public key for /apps/{appSlug}/drives/{driveSlug}");
-            }
-
             if (drive.WriteOnlyKeyPair == null)
             {
                 throw new OdinSystemException(
@@ -225,7 +213,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             {
                 PublicKeyJwk = drive.WriteOnlyKeyPair.PublicKeyJwk(),
                 PublicKeyCrc32 = drive.WriteOnlyKeyPair.crc32c,
-                IsZeroKnowledge = drive.IsZeroKnowledge
+                IsZeroKnowledge = drive.IsZeroKnowledge,
+                SharingModel = drive.SharingModel,
+                CallerMayWrite = await fileSystem.Storage.CanWriteToDrive(drive.Id, odinContext)
             };
         }
 

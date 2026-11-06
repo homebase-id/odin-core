@@ -4,6 +4,7 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Peer;
@@ -76,9 +77,29 @@ public class PeerDriveKeyCacheTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.ConnectAsync(frodo, sam);
-        Assert.That((await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam)).IsZeroKnowledge, Is.False);
+        var before = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
+        Assert.That((before.IsZeroKnowledge, before.SharingModel), Is.EqualTo((false, DriveSharingModel.Collaborative)));
 
         await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
-        Assert.That((await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam)).IsZeroKnowledge, Is.True);
+        var after = await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam);
+        Assert.That((after.IsZeroKnowledge, after.SharingModel), Is.EqualTo((true, DriveSharingModel.Private)),
+            "the fresh answer says what the key is now bound to");
+    }
+
+    [Test]
+    public async Task AnAnswerThatTheSenderMayNotWriteIsNotKept()
+    {
+        // Sam hasn't reviewed Frodo, so Frodo may not deposit on Sam's Shard Recovery drive; once Sam reviews him he may,
+        // and the next answer says so rather than a kept copy of the refusal
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+        await ZkOwnerSteps.MakeZeroKnowledgeAsync(sam, OwnerLogin.DefaultPassword);
+        await ClearReviewOnAsync(sam, frodo.Identity);
+        Assert.That((await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam)).CallerMayWrite, Is.False, "before the review");
+
+        var review = await new V2ConnectionNetworkClient(sam.Identity, sam.Factory).MarkReviewedAsync(frodo.Identity);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+        Assert.That((await ZkFriends.GetShardRecoveryPublicKeyAsync(frodo, sam)).CallerMayWrite, Is.True, "after it");
     }
 }

@@ -1,17 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Http;
-using Odin.Core.Serialization;
 using Odin.Core.Util;
-using Odin.Services.Configuration;
 using Odin.Services.Email.Dkim;
 using Odin.Services.Registry.Registration;
 
@@ -32,19 +26,17 @@ namespace Odin.Services.Email.Relay;
 /// </summary>
 public class Smtp2GoRelayProvider(
     ILogger<Smtp2GoRelayProvider> logger,
-    OdinConfiguration configuration,
-    IDynamicHttpClientFactory httpClientFactory) : IMailRelayProvider
+    Smtp2GoApi api) : IMailRelayProvider
 {
     private const string DkimSuffix = "_domainkey";
 
-    private OdinConfiguration.RelaySection Relay => configuration.Email.Relay;
-
-    public bool IsConfigured => Relay.Provider == OdinConfiguration.RelayProvider.Smtp2Go;
+    /// <summary>Registered only when Email:Relay:Provider is Smtp2Go (SystemServices).</summary>
+    public bool IsConfigured => true;
 
     public async Task<MailRelayDomainState?> GetDomainAsync(
         AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        var response = await PostAsync("/domain/view", new { }, cancellationToken);
+        var response = await api.PostAsync<Smtp2GoDomainResponse>("/domain/view", new { }, cancellationToken);
         var entry = response.Data.Domains.FirstOrDefault(
             x => string.Equals(x.Domain.FullDomain, domain.DomainName, StringComparison.OrdinalIgnoreCase));
 
@@ -72,7 +64,7 @@ public class Smtp2GoRelayProvider(
         Smtp2GoDomainResponse response;
         try
         {
-            response = await PostAsync("/domain/add", new
+            response = await api.PostAsync<Smtp2GoDomainResponse>("/domain/add", new
             {
                 domain = domain.DomainName,
                 auto_verify = false,
@@ -105,7 +97,7 @@ public class Smtp2GoRelayProvider(
     public async Task<MailRelayDomainState> VerifyDomainAsync(
         AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        var response = await PostAsync("/domain/verify", new { domain = domain.DomainName }, cancellationToken);
+        var response = await api.PostAsync<Smtp2GoDomainResponse>("/domain/verify", new { domain = domain.DomainName }, cancellationToken);
         var entry = response.Data.Domains.FirstOrDefault()
                     ?? throw new OdinSystemException($"Relay: /domain/verify returned no domain for {domain}");
 
@@ -117,7 +109,7 @@ public class Smtp2GoRelayProvider(
 
     public async Task RemoveDomainAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        await PostAsync("/domain/remove", new { domain = domain.DomainName }, cancellationToken);
+        await api.PostAsync<Smtp2GoDomainResponse>("/domain/remove", new { domain = domain.DomainName }, cancellationToken);
         logger.LogInformation("Relay: removed {domain}", domain);
     }
 
@@ -244,47 +236,6 @@ public class Smtp2GoRelayProvider(
             throw new OdinSystemException(
                 $"Relay returned DKIM selector '{selector}' for {domain}, which collides with " +
                 "this tenant's own DKIM selector. Refusing to publish.");
-        }
-    }
-
-    private async Task<Smtp2GoDomainResponse> PostAsync(string path, object body, CancellationToken cancellationToken)
-    {
-        if (!IsConfigured)
-        {
-            throw new OdinSystemException("Relay: Email:Relay:Provider is not Smtp2Go");
-        }
-
-        var httpClient = httpClientFactory.CreateClient($"{nameof(Smtp2GoRelayProvider)}");
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{Relay.ApiBaseUrl}{path}");
-        request.Headers.Add("X-Smtp2go-Api-Key", Relay.ApiKey);
-        request.Content = new StringContent(OdinSystemSerializer.Serialize(body), Encoding.UTF8, "application/json");
-
-        var response = await httpClient.SendAsync(request, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            // Their errors arrive as a 4xx with the detail in data.error. Surface that rather
-            // than the status code alone, which on its own says nothing useful.
-            var detail = TryReadError(content) ?? content;
-            throw new MailRelayException(
-                $"Relay: POST {path} returned {(int)response.StatusCode}: {detail}", (int)response.StatusCode);
-        }
-
-        return OdinSystemSerializer.Deserialize<Smtp2GoDomainResponse>(content)
-               ?? throw new OdinSystemException($"Relay: POST {path} returned unparseable content");
-    }
-
-    private static string? TryReadError(string content)
-    {
-        try
-        {
-            return OdinSystemSerializer.Deserialize<Smtp2GoDomainResponse>(content)?.Data.Error;
-        }
-        catch (Exception)
-        {
-            return null;
         }
     }
 }

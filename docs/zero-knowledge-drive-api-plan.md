@@ -1,19 +1,38 @@
 # Zero-knowledge drive API: plan
 
-Status: step 1 built and merged (#2023, follow-up #2027). Step 2 merged (#2029, odin-js #1006, 2026-10-27). Step 3 (Vault) built 2026-10-27 on branch `zk-drive-step-3` (odin-core and odin-js), not yet pushed. It details items 1-3 and 6 of
+Status: steps 1 to 4 built and merged: step 1 (#2023, follow-up #2027), step 2 (#2029, odin-js #1006), step 3
+(#2037) and step 4 (#2046). The transform's server part is built (2026-11-06, branch `transform-key-headers`; see
+[Deferred to Chat: the transform](#deferred-to-chat-the-transform)); its clients and a sender's edit are deferred to Chat. It details items 1-3 and 6 of
 "odin-core API changes" in [zero-knowledge-drives.md](zero-knowledge-drives.md). Key names follow
-[owner-keys.md](owner-keys.md).
+[owner-keys.md](owner-keys.md), words [terminology.md](terminology.md): a Server Share drive (`Collaborative` in
+code) is one whose key the server holds, locked; Private and Private Share drives are the zero-knowledge ones.
+
+**Decided 2026-11-05, built 2026-11-05** (on `selective-share-shares`, with Private Share's PR 3): Private drives
+have no inbox for a peer's files, so a peer's update, delete and reaction on a deposit are written directly, as on
+Private Share, the file found without the read rule, and a delete goes by the rule for changing a file you sent
+(read receipts still go through the inbox on every drive, `PeerDriveIncomingTransferService.MarkFileAsReadAsync`);
+one "may a peer write directly" check for new files and updates (`PeerDirectWrites.CanWriteAtOnce`, made once on
+arrival); one drive-settings rule (no anonymous reads, CDN, subscriptions or community channel on a zero-knowledge
+drive): every setting at creation (`DriveSettings.AssertFit`), a conversion turning anonymous reads, the CDN and
+subscriptions off and refusing the rest (`DriveSettings.FitForConversion`, built 2026-11-05 so a re-key after recovery
+can't fail on them), and in each setter only the setting it changes, as it will be (`DriveSettings.AssertChangeFits`); comments on a Private drive only by owner callers, local
+uploads as well as peers refused, with reactions still allowed (`CommentFileStorageService.AssertCanWriteToDrive` /
+`CanWriteToDrive`); a deposit on a Private Share drive taking payloads through the payload-upload route too; one
+definition of a zero-knowledge drive, by its sharing model (`StorageDrive.IsZeroKnowledge` asks
+`DriveSharingModel.IsZeroKnowledgeDrive()`), a save refusing key copies that disagree with the model either way
+(`DriveManager.AssertKeyCopies`). No relabelling was needed: since the model existed, conversion has set it and
+creation sets it (`DriveManager.ApplyZeroKnowledgeKeysAsync`) **(V)**.
 
 **(V)** = read in code on 2026-10-26. **(I)** = inferred, to be checked while building.
 
 ## The model
 
 - **Every encrypted file on a drive has its key header locked for that drive.**
-  - On a normal drive the server locked it with DrvK, and its `type` is `aes`.
+  - On a Server Share drive the server locked it with DrvK, and its `type` is `aes`.
   - On a zero-knowledge drive a client locked it (step 2): an owner device with DrvK (`zkDrive`), or
     a sender sealing it to the drive's `WO-PK-Pub` (`sealed`).
 - **Someone who doesn't hold DrvK either goes through the drive's inbox or seals.**
-  - **Normal drive, server inbox** (`TransitInboxBoxStorage`, `boxId = driveId`) **(V)**: the sender
+  - **Server Share drive, server inbox** (`TransitInboxBoxStorage`, `boxId = driveId`) **(V)**: the sender
     locked the key header with the connection's shared secret. The item waits until the owner or an app
     is signed in; the server then turns the key header into `aes` with the keys that caller lends it
     (`PeerInboxProcessor`), and moves the file onto the drive **(V)**.
@@ -42,8 +61,8 @@ Status: step 1 built and merged (#2023, follow-up #2027). Step 2 merged (#2029, 
    relabelled `zkDrive`.
 
 4. **An app asks for the model** ([Step 4](#step-4-an-app-asks-for-the-model)): a new drive is created
-   Private or Selective Share when its app asks, never created and converted; Filesync's existing drive
-   upgrades to Selective Share from Chat's banner.
+   Private or Private Share when its app asks, never created and converted; Filesync's existing drive
+   upgrades to Private Share from Chat's banner.
 
 Each step is its own PR (pair), and each targets main.
 
@@ -68,8 +87,9 @@ Each step is its own PR (pair), and each targets main.
      gets is the visible field **(V, `ZkDriveFileTests`)**. So the server sees which `zkDrive` headers
      share a file key (every update of a file does), and could change a header's IV, which flips chosen bits in the
      first 16 bytes of `appData.content` for the reader. The same holds for `aes` headers today. Kept for
-     version 1 as agreed. Key header version 2 (likely GCM) fixes it, together with per-file integrity:
-     [#2024](https://github.com/homebase-id/odin-core/issues/2024).
+     version 1 as agreed. Key header version 2 (likely GCM) fixes the first:
+     [#2024](https://github.com/homebase-id/odin-core/issues/2024). The second is out of the threat model
+     (decided 2026-11-01, see `security-model.md` §8).
 4. **No packed `SharedSecretEncryptedHeader64` for a header the server can't open.**
    - The client decrypts a payload with FileKey and the payload's IV (`payloads[].iv`), the same
      values the server packs today (`DriveFileUtility.GetPayloadEncryptedKeyHeader`) **(V)**.
@@ -106,7 +126,7 @@ updates **(V)**.
 | Drive | `aes` | `zkDrive` | `sealed` |
 |---|---|---|---|
 | zero knowledge | refused, unopened (`DriveIsZeroKnowledge`) | stored as is | as today (step 2 changes it) |
-| normal | as today | refused | as today (transient drive only) |
+| Server Share | as today | refused | as today (transient drive only) |
 
 - **New file or overwrite** (`FileSystemStreamWriterBase.UnpackMetadataForNewFileOrOverwrite`,
   `:468-478`) **(V)**: look at the type and the drive first. Today an `aes` header for a
@@ -168,14 +188,14 @@ The test client locks headers with a DrvK it made itself, as a device would.
 3. An `aes` upload to the zero-knowledge drive is refused for its type. Proof that it was never
    opened: use a header the shared secret can't open, and expect `DriveIsZeroKnowledge`, not a
    decryption error.
-4. A `zkDrive` upload to a normal drive is refused.
+4. A `zkDrive` upload to a Server Share drive is refused.
 5. A malformed `zkDrive` header (short key, weak IV, version 2) is refused.
 6. An update or metadata-only upload that keeps the IV is refused; with a new IV, the client's
    header is stored as given.
 7. A payload and a thumbnail GET on a `zkDrive` file send no key header, and the content opens
    with FileKey plus the descriptor IV, including a range read.
 8. Sending a `zkDrive` file to a recipient is refused cleanly.
-9. Regression: every normal drive test passes unchanged, as do the Shamir deposit tests.
+9. Regression: every Server Share drive test passes unchanged, as do the Shamir deposit tests.
 
 ### 1.6 Done when
 - The Release build passes with `--warnaserror`, and the Services, Core, Storage and V2 suites
@@ -185,7 +205,7 @@ The test client locks headers with a DrvK it made itself, as a device would.
 
 ## Step 2: client-locked files
 
-Status: agreed and built 2026-10-27, on branch `zk-drive-step-2`. **(V)** = read in code on 2026-10-27;
+Status: agreed and built 2026-10-27; merged (#2029). **(V)** = read in code on 2026-10-27;
 **(I)** = inferred, to check while building.
 
 ### 2.1 The rule
@@ -235,7 +255,9 @@ What client-locked files cost, accepted:
 
 ### 2.3 Server: arrival (unchanged)
 A sealed item lands on the drive as today, by direct write (S1200) or through the server inbox
-(`DecryptOrPassSealed`) **(V)**. `Deposits.AssertValid` (no payloads) stays until Chat needs payloads.
+(`DecryptOrPassSealed`) **(V)**. `Deposits.AssertValid` (no payloads) stays until Chat needs payloads. Since
+Private Share, a deposit there may carry payloads (`Deposits.MayCarryPayloads`) **(V, 2026-11-05)**, through the
+payload-upload route too (`Deposits.AssertTakesNoPayloads`, built 2026-11-05) **(V)**.
 
 ### 2.4 Server: one read rule, one write rule
 - **Read:** `CallerMayReadAsync` (step 1's follow-up, #2027) hides a client-locked file from a caller
@@ -260,7 +282,8 @@ A sealed item lands on the drive as today, by direct write (S1200) or through th
   - a sender's `sealed` new file is stored as sent; a peer's key header is checked against the drive when
     the transfer or update arrives (`ZkDriveFiles.AssertPeerMayWrite`: never `zkDrive`, and only what the
     drive takes). A sender can't yet reach its own deposit to update it: the read rule hides it from the
-    sender's lookup by global transit id or unique id (see "Open from step 2's review"). Shamir isn't
+    sender's lookup by global transit id or unique id (see "Open from step 2's review"; since built: a sender's
+    change finds its deposit without the read rule, file-access.md "Changing a file you sent"). Shamir isn't
     affected: every deal uses new shard ids (`Guid.NewGuid()`, odin-js `getNewId()`) and never deletes a
     friend's shard **(V)**. A sender's edit is Chat's ("Deferred to Chat: a sender's edit");
   - the transform, once Chat builds it (2.5);
@@ -372,7 +395,7 @@ bytes) **(V, measured)**:
 
 ## Step 3: Vault goes private
 
-Status: built 2026-10-27 on branch `zk-drive-step-3` (odin-core and odin-js); chat-kmp built in parallel on its branch `vault-zero-knowledge`. **(V)** = read in code on 2026-10-27; **(I)** = inferred, to
+Status: built 2026-10-27 (odin-core and odin-js; chat-kmp in parallel); merged (#2037). **(V)** = read in code on 2026-10-27; **(I)** = inferred, to
 check while building. Decided with the user:
 - keep the drive key, re-locked from the master key to the zero-knowledge master key (no new key, no
   re-encryption); anything else is too complex for now;
@@ -629,7 +652,7 @@ Names are proposals until the server PR; the shapes are what the clients build a
 
 ### 3.8 Later: everyone, at a login
 Once every app that uses a drive reads `zkDrive`, a data upgrade at a password login converts the drives
-still Collaborative with the same endpoint and locks their keys for each granted app's `AppZkK`. Apps
+still Server Share with the same endpoint and locks their keys for each granted app's `AppZkK`. Apps
 pick the keys up at their next fetch; a device without `AppZkK` gets it at its next sign-in. Until then
 the opt-in is the only way in, because converting a drive cuts off every app that can't read it.
 
@@ -640,27 +663,26 @@ the opt-in is the only way in, because converting a drive cuts off every app tha
 
 ## Step 4: an app asks for the model
 
-Status: built 2026-10-29: odin-core branch `filesync-selective-share` (4.1-4.3, 4.7, 4.8), odin-js branch
-`drive-private-models` (4.4); chat-kmp `drive-sharing-model`, `vault-web-upload` and `email-make-private`, and
+Status: built 2026-10-29 and merged (odin-core #2046: 4.1-4.3, 4.7, 4.8; odin-js: 4.4); chat-kmp `drive-sharing-model`, `vault-web-upload` and `email-make-private`, and
 filesync's, add `sm`, Vault on the web and the Email banner. **(V)** = read in code
 on 2026-10-29 (odin-core, odin-js main e3808e2e, chat-kmp main b7e8ebf60, filesync main f1ddbddc);
 **(I)** = inferred. Decided with the user:
 - **The app requesting a drive says which model it wants.** odin-core is an app platform, so it keeps
   no list of which drive gets which model.
-- **Nothing said means Collaborative**, today's behaviour, so every existing app is unchanged.
-- **A Private or Selective Share drive is created that way in one step**, never created and then
+- **Nothing said means Server Share**, today's behaviour, so every existing app is unchanged.
+- **A Private or Private Share drive is created that way in one step**, never created and then
   converted. Converting is only for upgrading drives that already exist.
-- **Private and Selective Share hold their key the same way**: no master-key copy. They differ only in
-  the shares Selective Share adds later: a table of extra key headers, one per share and file, for people
-  who may read chosen files and never the whole drive (zero-knowledge-drives.md, "Selective Share").
-  Until shares exist, a Selective Share drive behaves as a Private one.
+- **Private and Private Share hold their key the same way**: no master-key copy. They differ only in
+  the shares Private Share adds later: a table of extra key headers, one per share and file, for people
+  who may read chosen files and never the whole drive (zero-knowledge-drives.md, "Private Share").
+  Until shares exist, a Private Share drive behaves as a Private one.
 - **All three repos merge together.**
 
 ### 4.1 Upgrading Filesync's existing drive (built)
 - The conversion (3.3) also takes the Filesync drive (`WellKnownAppDrives.FilesyncDrive`, alias
   `cfceb937-b868-496b-91cb-3402f18320f8`, filesync `app.rs:48`) **(V)**.
 - The request names the model, `SharingModel`: Private or SelectiveShare, and nothing else
-  (`DriveSharingModel.IsZeroKnowledge`). The owner console sends what the app's banner asked for.
+  (`DriveSharingModel.IsZeroKnowledgeDrive()`). The owner console sends what the app's banner asked for.
 - odin-core still keeps which old drives may be upgraded this way (Vault, Filesync), as a rollout guard.
 - The drive's `created` doesn't move: the upsert never sets it **(V)**, and the test checks it, because
   Filesync sets its records aside when `created` changes (filesync#319).
@@ -703,7 +725,8 @@ the install page (`/owner/appreg`) and the permission extension (`/owner/appupda
   - it refuses a zero-knowledge model without keys, keys without one, and anonymous reads, the CDN or
     subscriptions with one (the feed never distributes from a zero-knowledge drive);
   - the owner's zero-knowledge keys must exist first.
-- The save guard already refuses a zero-knowledge drive with a master-key copy.
+- The save guard refuses a zero-knowledge drive with a master-key copy, and a Server Share drive without one
+  (`DriveManager.AssertKeyCopies`).
 - The server can't check the encrypted drive id, as with the Shard Recovery drive: a wrong one only
   breaks the browser that sent it.
 
@@ -712,8 +735,8 @@ gets `sharingModel`. It is already in the cached drive data (`StorageDriveData`)
 doesn't change (I: check while building).
 - The model says what the drive is. The app's locked copy can lag behind it (above).
 - An app seeing a zero-knowledge drive with no `zkAppKeyEncryptedStorageKey` in its context should treat
-  that as "sign in again", never as Collaborative. Filesync does (agreed 2026-10-29).
-- An older owner console ignores `sm` and creates a Collaborative drive; the app can see that here.
+  that as "sign in again", never as Server Share. Filesync does (agreed 2026-10-29).
+- An older owner console ignores `sm` and creates a Server Share drive; the app can see that here.
 
 ### 4.3 Warning about devices that will lose the drive
 Before an upgrade, the console names the devices of each app granted the drive that don't hold the app's
@@ -730,22 +753,23 @@ key: such a device gets nothing from the drive until it signs in again (3.4).
   exist. `vault-private` stays, as Private.
 - The conversion sends `sharingModel` (4.1 refuses a request without it).
 - `sm` at creation (4.2), and the device warning (4.3).
-- `DriveDetails.tsx:210` marks Selective Share as zero knowledge too, not only Private **(V)**.
+- `DriveDetails.tsx:210` marks Private Share as zero knowledge too, not only Private **(V)**.
 
 ### 4.5 Order and merge
 1. odin-core: 4.1 (built), 4.2 and 4.3, on branch `filesync-selective-share`.
 2. odin-js: 4.4.
 3. Both to local frodo, then bleeding edge: Filesync's upgrade end to end, and a new app drive created
-   Selective Share.
+   Private Share.
 4. chat-kmp and filesync add `sm` only after it is on bleeding edge. Filesync's 0.10.5 already reads
    the drive's model from the drive, not from its request.
 5. Merge odin-core and odin-js together.
 
 ### 4.6 Not in this step
-- Shares (the Selective Share key header table).
+- Shares (the Private Share key header table).
 - Turning on anonymous reads or the CDN later on a zero-knowledge drive (`SetDriveReadModeAsync`,
   `SetDriveAllowCdnAsync`): creation refuses both, the setters don't check yet. Listed in review, not fixed
-  here: it changes the existing drive-settings flow.
+  here: it changes the existing drive-settings flow. Built 2026-11-05: one drive-settings check at creation,
+  conversion and every setter (status above).
 - Upgrading a drive without rewriting every file's key header label (3.3's relabel); the user accepted
   the per-file cost for now.
 - An upload already running when its drive is upgraded can save a key header nobody can open; the user
@@ -753,7 +777,7 @@ key: such a device gets nothing from the drive until it signs in again (3.4).
 
 ### 4.7 A new identity's Vault, created Private
 Vault is a built-in drive: the server created it at setup with its own key (`BuiltinApps.Builtin`,
-`BuiltinProvisioner.EnsureDrivesAsync`) **(V)**, so every new identity started with a Collaborative Vault, and an
+`BuiltinProvisioner.EnsureDrivesAsync`) **(V)**, so every new identity started with a Server Share Vault, and an
 app's `sm` couldn't help: the drive already existed, and the console doesn't create a drive another well-known app
 owns (`ensureAppOwnedDrives`) **(V)**. Decided with the user 2026-10-29: in this round.
 - `BuiltinDrives.VaultDrive` says Private. Setup leaves such a drive out (`BuiltinApps.BrowserMadeDrives`), and holds
@@ -765,7 +789,7 @@ owns (`ensureAppOwnedDrives`) **(V)**. Decided with the user 2026-10-29: in this
   (`BuiltinProvisioner.EnsureAppOfBrowserMadeDriveAsync`), so the Vault app and circle arrive as before.
 - Until that login a new identity has no Vault. Chat asks for Vault only from its Vault onboarding ("Set up"), never
   at sign-in (chat-kmp, (V) by its agent); a grant on the missing drive is refused and Chat stays on the onboarding.
-- Identities made before keep their Collaborative Vault and upgrade it (4.1).
+- Identities made before keep their Server Share Vault and upgrade it (4.1).
 
 ### 4.8 The Email drive, Private
 It holds the OpenPGP keyring. Decided with the user 2026-10-29: in this round, upgradable from a banner in Chat's email
@@ -789,6 +813,21 @@ app, and created Private on a new identity as Vault is (4.7).
 
 Designed and reviewed with step 2 (2026-10-27), built with Chat, which reads every incoming message and
 gains most from transforming once. Kept as reviewed.
+
+**Server built 2026-11-06** (`DriveStorageServiceBase.TransformKeyHeadersAsync`, `KeyHeaderTransformTests`); the
+present-tense description is in [zero-knowledge-drives.md](zero-knowledge-drives.md). Where it differs from the design
+below:
+- **Who:** any caller holding the drive's key (`ZkDriveFiles.CallerHoldsDriveKey`), not the owner console only: an app
+  device handed its app's zero-knowledge key holds it too, and chat-kmp is one.
+- **Batch size:** up to 1000, the limit every V2 batch write shares (`FileVersionTagBatchV2.MaxFiles`), not 100.
+- **A deleted file** answers `cannotUpdateNonActiveFile`, as the other batch writes do.
+- **The Shard Recovery drive is refused:** the server releases a friend's shard only as the sealed deposit it holds,
+  so "Shamir leaves its shards sealed" is enforced, not left to clients.
+- **Drive permission first:** `Write` on the drive is asked before the drive is looked at, as the other batch writes do.
+- **A sender's update after the transform** is refused, not "sealed again": the guard that a `sealed` key header
+  replaces only a `sealed` one (`ZkDriveFiles.AssertMayReplace`) was built after this design. Whether the sender may
+  keep editing (see [a sender's edit](#deferred-to-chat-a-senders-edit)) is not decided.
+- **The cache:** the batch update clears the drive's main-index cache once (`TableDriveMainIndexCached.UpdateEncryptedKeyHeadersAsync`).
 
 ### The transform (server)
 **Request:** `POST /api/v2/drives/{driveId}/files/transform-key-headers`, owner console only
@@ -936,14 +975,15 @@ it as it is (read 2026-10-26) **(V)**.
   falls through to the index (400). The socket still doesn't leave out an encrypted file it holds no
   storage key for, as a query does; that predates this.
 - **Which writes need the storage key: waits for [#2026](https://github.com/homebase-id/odin-core/issues/2026).**
-  On a normal drive an unencrypted full overwrite still locks an empty key header, so it needs the
+  On a Server Share drive an unencrypted full overwrite still locks an empty key header, so it needs the
   storage key (pinned by `OverwriteNeedsTheStorageKeyTests`). A metadata-only upload and the update
   endpoint don't, so a guest with Write on a public drive can replace an unencrypted file. Whether Write
   is meant to allow that is #2026's question. The explicit write rule follows from the answer; a new
   upload doesn't need the storage key either way.
 - **The CDN for a zero-knowledge drive: later.** Step 1 keeps zero-knowledge drives off the CDN, even
   with `AllowCdn` on. We may want a zero-knowledge drive's files on the CDN later, still encrypted, when
-  the owner ticks CDN for the drive.
+  the owner ticks CDN for the drive. Until then the drive-settings check (status above, built 2026-11-05) refuses
+  `AllowCdn` on a zero-knowledge drive, at creation and in the setter.
 
 ## Open from step 2's review
 
@@ -955,7 +995,10 @@ it as it is (read 2026-10-26) **(V)**.
   deposits, the Shamir lookup), and its replace rule (2.4) holds whoever drains. The general
   fix: hide client-locked files where responses are built (`CreateClientFileHeader`, client queries,
   socket events) and let internal flows look rows up in an explicit system context. Needed before Chat,
-  whose peers edit and delete what they sent.
+  whose peers edit and delete what they sent. Built 2026-11-05: a Private drive has no inbox, so a peer's update or
+  delete of a deposit is written directly, found without the read rule, as on Private Share (which has none), and
+  the inbox half of this is gone; only Server Share drives keep an inbox for a peer's files (read receipts use it on
+  every drive).
 - **Who reads the transient drive.** Its staged deposits reach any caller with Read there, so one app
   with transit sees another's staged deposit (the sealed key header and plain metadata, such as a gated
   shard's hashed recovery email). As before step 2; narrowing it needs knowing which app wrote a file.
@@ -975,5 +1018,4 @@ it as it is (read 2026-10-26) **(V)**.
 - **chat-kmp:** comes with consent. Two small bugs found on the way, both harmless today:
   - `EncryptedKeyHeader.toBase64()` writes the version big-endian, but has no production caller;
   - the `MissingEncryptedHeader` check compares by reference, so it never fires.
-- **Per-file integrity, with key header version 2:** [#2024](https://github.com/homebase-id/odin-core/issues/2024).
-  CBC has none, so zero knowledge means confidential from the server, not tamper-proof.
+- **Per-file integrity: dropped (2026-11-01):** out of the threat model (`security-model.md`, section 8).

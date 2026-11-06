@@ -41,6 +41,14 @@ public interface IDriveWriterHttpClientApiV2
         StreamPart[] streamdata);
 
     [Multipart]
+    [Patch(UnifiedApiRouteConstants.PeerByGtid)]
+    Task<ApiResponse<UpdateFileResult>> UpdatePeerFileByGlobalTransitId(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("gtid:guid")] Guid globalTransitId,
+        StreamPart[] streamdata);
+
+    [Multipart]
     [Patch(UnifiedApiRouteConstants.ByUniqueId)]
     Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(
         [AliasAs("driveId:guid")] Guid driveId,
@@ -58,6 +66,10 @@ public interface IDriveWriterHttpClientApiV2
     [Post(UnifiedApiRouteConstants.FilesRoot + "/update-archival-status-batch")]
     Task<ApiResponse<UpdateArchivalStatusBatchResultV2>> UpdateArchivalStatusBatch([AliasAs("driveId:guid")] Guid driveId,
         [Body] UpdateArchivalStatusBatchRequestV2 request);
+
+    [Post(UnifiedApiRouteConstants.FilesRoot + "/transform-key-headers")]
+    Task<ApiResponse<TransformKeyHeadersResultV2>> TransformKeyHeaders([AliasAs("driveId:guid")] Guid driveId,
+        [Body] TransformKeyHeadersRequestV2 request);
 
     [Post(UnifiedApiRouteConstants.FilesRoot + "/soft-delete-batch")]
     Task<ApiResponse<SoftDeleteBatchResultV2>> SoftDeleteBatch([AliasAs("driveId:guid")] Guid driveId,

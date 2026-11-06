@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using Odin.Services.Drives.Shares;
 using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -30,6 +33,13 @@ namespace Odin.Services.Apps
 
         public Int64 FileByteCount { get; set; }
 
+        /// <summary>
+        /// On a Selective Share drive, the file's live shares, when an owner caller asked for them (<c>includeShares</c>,
+        /// docs/selective-share-pr3-plan.md, section 5); not written when not asked.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<ShareRow> Shares { get; set; }
+
         public void AssertFileIsActive()
         {
             if (this.FileState == FileState.Deleted)
@@ -52,11 +62,6 @@ namespace Odin.Services.Apps
             }
         }
 
-        public bool IsOriginalSender(OdinId odinId)
-        {
-            return new OdinId(this.FileMetadata.SenderOdinId) == odinId;
-        }
-        
         public bool IsOriginalAuthor(OdinId odinId)
         {
             return this.FileMetadata.OriginalAuthor == odinId;
@@ -67,13 +72,17 @@ namespace Odin.Services.Apps
             if (string.IsNullOrEmpty(this.FileMetadata.SenderOdinId))
             {
                 throw new OdinSecurityException(
-                    $"Original file does not have a sender (FileId: {this.FileId} on Drive: {this.TargetDrive}");
+                    $"Original file does not have a sender (FileId: {this.FileId} on Drive: {this.TargetDrive})");
             }
 
-            if (!IsOriginalSender(odinId))
+            if (!IsOriginalSender(this.FileMetadata.SenderOdinId, odinId))
             {
                 throw new OdinSecurityException("Sender does not match original sender");
             }
         }
+
+        /// <summary>Whether <paramref name="odinId"/> sent the stored file, whose sender is <paramref name="storedSender"/>.</summary>
+        public static bool IsOriginalSender(string storedSender, OdinId odinId) =>
+            !string.IsNullOrEmpty(storedSender) && new OdinId(storedSender) == odinId;
     }
 }

@@ -37,14 +37,22 @@ public class EmailInfraVerifierTest
             .ReturnsAsync(true);
     }
 
-    private EmailInfraVerifier CreateVerifier(
-        OdinConfiguration.EmailSection email,
-        OdinConfiguration.MailgunSection? mailgun = null)
+    private EmailInfraVerifier CreateVerifier(OdinConfiguration.EmailSection email)
     {
-        var configuration = new OdinConfiguration { Email = email, Mailgun = mailgun ?? new OdinConfiguration.MailgunSection() };
+        var configuration = new OdinConfiguration { Email = email };
         return new EmailInfraVerifier(
             _logger.Object, configuration, _dnsClient.Object, _httpClientFactory.Object, _emailSender.Object);
     }
+
+    /// <summary>A host that sends its own mail through SMTP2GO, and serves no tenant mail.</summary>
+    private static OdinConfiguration.EmailSection SystemMail() => new()
+    {
+        Relay = new OdinConfiguration.RelaySection
+        {
+            Provider = OdinConfiguration.RelayProvider.Smtp2Go,
+            SystemFrom = new NameAndEmailAddress { Email = "no-reply@example.com" },
+        },
+    };
 
     private void VerifyLogged(LogLevel level, string substring, Times times)
     {
@@ -71,12 +79,12 @@ public class EmailInfraVerifierTest
     }
 
     /// <summary>
-    /// Tenant mail and Mailgun are unrelated - one is a mail server we run for identities, the
-    /// other is a third-party API we call - so neither is a precondition for the other and
-    /// neither absence is an error. They were briefly coupled while Stalwart was being built.
+    /// Tenant mail and the host's own mail are unrelated - one is a mail server we run for
+    /// identities, the other is the host writing to its users - so neither is a precondition for
+    /// the other and neither absence is an error. They were briefly coupled while Stalwart was being built.
     /// </summary>
     [Test]
-    public void TenantMailWithoutMailgunIsNotAnError()
+    public void TenantMailWithoutSystemMailIsNotAnError()
     {
         var verifier = CreateVerifier(new OdinConfiguration.EmailSection
         {
@@ -88,13 +96,11 @@ public class EmailInfraVerifierTest
     }
 
     [Test]
-    public void MailgunWithoutTenantMailIsNotAnError()
+    public void SystemMailWithoutTenantMailIsNotAnError()
     {
-        var verifier = CreateVerifier(
-            new OdinConfiguration.EmailSection(),
-            new OdinConfiguration.MailgunSection { Enabled = true });
+        var verifier = CreateVerifier(SystemMail());
 
-        Assert.That(verifier.LogConfigurationFindings(), Is.True, "credentials still need checking");
+        Assert.That(verifier.LogConfigurationFindings(), Is.True, "the sender domain still needs checking");
         VerifyLogged(LogLevel.Error, "", Times.Never());
     }
 
@@ -253,11 +259,9 @@ public class EmailInfraVerifierTest
             .Setup(x => x.VerifyCredentialsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var errors = await CreateVerifier(
-            new OdinConfiguration.EmailSection(),
-            new OdinConfiguration.MailgunSection { Enabled = true }).VerifyNetworkAsync();
+        var errors = await CreateVerifier(SystemMail()).VerifyNetworkAsync();
 
-        Assert.That(errors.Single(), Does.Contain("credential check failed"));
+        Assert.That(errors.Single(), Does.Contain("System mail check failed").And.Contain("no-reply@example.com"));
     }
 
     [Test]
@@ -267,9 +271,7 @@ public class EmailInfraVerifierTest
             .Setup(x => x.VerifyCredentialsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("connection refused"));
 
-        var errors = await CreateVerifier(
-            new OdinConfiguration.EmailSection(),
-            new OdinConfiguration.MailgunSection { Enabled = true }).VerifyNetworkAsync();
+        var errors = await CreateVerifier(SystemMail()).VerifyNetworkAsync();
 
         Assert.That(errors.Single(), Does.Contain("connection refused"));
     }
@@ -334,9 +336,7 @@ public class EmailInfraVerifierTest
     [Test]
     public async Task ItShouldNotTouchDnsWhenTenantMailIsDisabled()
     {
-        var errors = await CreateVerifier(
-            new OdinConfiguration.EmailSection(),
-            new OdinConfiguration.MailgunSection { Enabled = true }).VerifyNetworkAsync();
+        var errors = await CreateVerifier(SystemMail()).VerifyNetworkAsync();
 
         Assert.That(errors, Is.Empty);
         _dnsClient.VerifyNoOtherCalls();

@@ -5,6 +5,7 @@ public static class UnifiedApiRouteConstants
     public const string BasePath = "/api/v2";
     public const string Auth = BasePath + "/auth";
     public const string Connections = BasePath + "/connections";
+    public const string CircleShareKey = Connections + "/circles/{circleId:guid}/share-key";
     public const string Followers = BasePath + "/followers";
     public const string Contacts = BasePath + "/contacts";
     public const string Profile = BasePath + "/profile";
@@ -15,6 +16,8 @@ public static class UnifiedApiRouteConstants
     public const string FilesRoot = ByDriveId + "/files";
     public const string ByFileId = FilesRoot + "/{fileId:guid}";
     public const string ReactionsByFileId = FilesRoot + "/{fileId:guid}/reactions";
+    public const string SharesByDriveId = ByDriveId + "/shares";
+    public const string SharesByFileId = ByFileId + "/shares";
     public const string GroupReactionsByFileId = FilesRoot + "/{fileId:guid}/group-reactions";
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
     public const string ByGtid = FilesRoot + "/by-gtid/{gtid:guid}";
@@ -42,6 +45,9 @@ public static class UnifiedApiRouteConstants
     public const string PeerByFileId = PeerFilesRoot + "/{fileId:guid}";
     public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
     public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
+
+    // This identity's sealed copy of a peer's circle key (Selective Share)
+    public const string PeerCircleShareKey = PeerByOdinId + "/circles/{circleId:guid}/share-key";
 
     // Temporal (time-boxed) read of a drive hosted by another identity. Parallels the peer file-read
     // chain above so temporal actions share the same templates as their non-temporal twins.

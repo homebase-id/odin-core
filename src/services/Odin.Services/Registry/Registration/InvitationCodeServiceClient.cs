@@ -25,7 +25,9 @@ public record InvitationCodeUse(string Code, string? Owner, string Source, strin
     public RegistrationInvitation ToRegistrationInvitation() => new(Code, Owner, Source);
 }
 
-internal record InvitationCodeRequest(string Code);
+/// <param name="Identity">Who is signing up, sent with a use only: the service keeps it on the use, for its channel
+/// pages, and starts their subscription to the code's plan. Older services ignore it.</param>
+internal record InvitationCodeRequest(string Code, string? Identity = null);
 internal record InvitationCodeValidateResponse(bool Valid);
 internal record InvitationCodeUseResponse(bool Used, InvitationCodeUse? Code);
 
@@ -133,12 +135,12 @@ public class InvitationCodeServiceClient
     }
 
     /// <summary>
-    /// Takes one use of the code and returns what it carries; null if it has none left or does not exist,
-    /// and null too when the service fails, so signup refuses the code as invalid.
+    /// Takes one use of the code for the identity signing up and returns what it carries; null if it has none left
+    /// or does not exist, and null too when the service fails, so signup refuses the code as invalid.
     /// </summary>
-    public async Task<InvitationCodeUse?> TryUseAsync(string code)
+    public async Task<InvitationCodeUse?> TryUseAsync(string code, string? identity = null)
     {
-        var response = await TryCallAsync("use", code, (api, request) => api.Use(request));
+        var response = await TryCallAsync("use", code, (api, request) => api.Use(request), identity);
         return response is { Used: true } ? response.Code : null;
     }
 
@@ -160,7 +162,7 @@ public class InvitationCodeServiceClient
     // Every call goes through here: input that cannot be a code is refused without a call, and a failing
     // service is logged as an error and answered with null
     private async Task<T?> TryCallAsync<T>(string what, string code,
-        Func<IInvitationCodeApi, InvitationCodeRequest, Task<T>> call)
+        Func<IInvitationCodeApi, InvitationCodeRequest, Task<T>> call, string? identity = null)
     {
         if (!IsEnabled || !LooksLikeCode(code))
         {
@@ -169,7 +171,7 @@ public class InvitationCodeServiceClient
 
         try
         {
-            return await call(Api, new InvitationCodeRequest(code));
+            return await call(Api, new InvitationCodeRequest(code, identity));
         }
         catch (Exception e)
         {

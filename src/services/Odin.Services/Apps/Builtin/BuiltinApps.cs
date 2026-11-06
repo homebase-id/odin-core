@@ -192,10 +192,10 @@ public static class BuiltinApps
     /// The seeded drives defined Private or SelectiveShare (Vault, Email): setup never creates one, since the server would make
     /// its key; the owner's browser creates it at a password login (docs/zero-knowledge-drive-api-plan.md, 4.7).
     /// </summary>
-    public static IEnumerable<CreateDriveRequest> BrowserMadeDrives => SeededDrives.Where(d => d.SharingModel.IsZeroKnowledge());
+    public static IEnumerable<CreateDriveRequest> BrowserMadeDrives => SeededDrives.Where(d => d.SharingModel.IsZeroKnowledgeDrive());
 
     /// <summary>What a new identity has before its owner's first password login: everything seeded but those drives.</summary>
-    public static IEnumerable<CreateDriveRequest> DrivesMadeAtSetup => SeededDrives.Where(d => !d.SharingModel.IsZeroKnowledge());
+    public static IEnumerable<CreateDriveRequest> DrivesMadeAtSetup => SeededDrives.Where(d => !d.SharingModel.IsZeroKnowledgeDrive());
 
     public static IEnumerable<Guid> BuiltinAppIds => Builtin.Select(a => a.AppId);
 
