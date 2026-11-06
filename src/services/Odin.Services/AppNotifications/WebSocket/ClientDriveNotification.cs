@@ -138,20 +138,23 @@ public sealed class DriveEventMessage(
             return stored;
         }
 
-        // The same for every device holding the drive key, so opened, or found not to open, once per event
+        // The same for every device holding the drive key, so opened once per event; a failure is the device's to retry
         if (_opened?.TryGetValue(stored, out var opened) == true)
         {
             return opened;
         }
 
-        opened = Deposits.ConvertedOnServerShare(drive, [stored], deviceOdinContext) is [var (_, keyHeader)]
-            ? new ServerFileHeader { EncryptedKeyHeader = keyHeader, FileMetadata = stored.FileMetadata, ServerMetadata = stored.ServerMetadata }
-            : stored;
+        if (Deposits.ConvertedOnServerShare(drive, [stored], deviceOdinContext) is not [var (_, keyHeader)])
+        {
+            return stored;
+        }
+
+        opened = new ServerFileHeader { EncryptedKeyHeader = keyHeader, FileMetadata = stored.FileMetadata, ServerMetadata = stored.ServerMetadata };
         (_opened ??= new Dictionary<ServerFileHeader, ServerFileHeader>(ReferenceEqualityComparer.Instance))[stored] = opened;
         return opened;
     }
 
-    // Only for an event carrying a deposit: what a device holding the drive key gets of it
+    // Only for an event carrying a deposit that opened: what a device holding the drive key gets of it
     private Dictionary<ServerFileHeader, ServerFileHeader>? _opened;
 
     /// <summary>

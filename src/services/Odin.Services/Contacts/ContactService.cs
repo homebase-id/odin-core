@@ -16,6 +16,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.Management;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Registry;
@@ -38,6 +39,7 @@ namespace Odin.Services.Contacts;
 public class ContactService(
     ILogger<ContactService> logger,
     StandardFileSystem fileSystem,
+    IDriveManager driveManager,
     TenantQuotaGuard quotaGuard)
 {
     public const int ContactFileType = 100;
@@ -147,7 +149,7 @@ public class ContactService(
                 Outcome = ContactWriteOutcome.AlreadyExists,
                 UniqueId = uniqueId,
                 VersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault(),
-                CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, drive: null, odinContext)
+                CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, await driveManager.GetDriveAsync(DriveId), odinContext)
             };
         }
 
@@ -197,7 +199,7 @@ public class ContactService(
             logger.LogDebug("Contact update version conflict for uid {uid} (caller {caller} vs current {current})",
                 uniqueId, versionTag, currentVersionTag);
 
-            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
+            return await VersionConflictResultAsync(uniqueId, existing, currentVersionTag, odinContext);
         }
 
         // Owner edits never touch ext_data (peer-only); pass null so any stored ext_data is preserved.
@@ -294,7 +296,7 @@ public class ContactService(
         var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
         if (request.VersionTag != currentVersionTag)
         {
-            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
+            return await VersionConflictResultAsync(uniqueId, existing, currentVersionTag, odinContext);
         }
 
         var newVersionTag = await WriteImagePayloadAsync(existing, request, writeContext);
@@ -320,7 +322,7 @@ public class ContactService(
         var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
         if (versionTag != currentVersionTag)
         {
-            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
+            return await VersionConflictResultAsync(uniqueId, existing, currentVersionTag, odinContext);
         }
 
         var hasImage = (existing.FileMetadata.Payloads ?? []).Any(p => p.KeyEquals(ProfileImagePayloadKey));
@@ -437,7 +439,7 @@ public class ContactService(
             return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
         }
 
-        return VersionConflictResult(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
+        return await VersionConflictResultAsync(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
     }
 
     /// <summary>
@@ -559,7 +561,7 @@ public class ContactService(
             return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
         }
 
-        return VersionConflictResult(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
+        return await VersionConflictResultAsync(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
     }
 
     /// <summary>
@@ -1052,7 +1054,7 @@ public class ContactService(
             .ToList();
     }
 
-    private static ContactWriteResult VersionConflictResult(Guid uniqueId, ServerFileHeader existing,
+    private async Task<ContactWriteResult> VersionConflictResultAsync(Guid uniqueId, ServerFileHeader existing,
         Guid currentVersionTag, IOdinContext odinContext)
     {
         return new ContactWriteResult
@@ -1060,7 +1062,7 @@ public class ContactService(
             Outcome = ContactWriteOutcome.VersionConflict,
             UniqueId = uniqueId,
             VersionTag = currentVersionTag,
-            CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, drive: null, odinContext)
+            CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, await driveManager.GetDriveAsync(DriveId), odinContext)
         };
     }
 

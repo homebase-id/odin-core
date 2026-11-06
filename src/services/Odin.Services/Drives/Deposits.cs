@@ -83,13 +83,25 @@ public static class Deposits
     /// (<see cref="Odin.Core.Cryptography.Data.EccFullKeyData.OpenPrivateKey"/>).
     /// </summary>
     public static List<(ServerFileHeader Header, EncryptedKeyHeader KeyHeader)> ConvertedOnServerShare(StorageDrive drive,
-        IEnumerable<ServerFileHeader> headers, IOdinContext odinContext) =>
-        OpenedOnServerShare(drive, headers.Where(IsDeposit).Select(h => (h, h.EncryptedKeyHeader)), odinContext);
+        IEnumerable<ServerFileHeader> headers, IOdinContext odinContext)
+    {
+        try
+        {
+            return OpenedOnServerShare(drive, headers.Where(IsDeposit).Select(h => (h, h.EncryptedKeyHeader)), odinContext);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // Never a failed read: its deposits are left sealed
+            Log.Warning(e, "The write-only private key of drive {driveId} could not be opened; its deposits left sealed", drive.Id);
+            return [];
+        }
+    }
 
     /// <summary>
     /// <see cref="ConvertedOnServerShare"/> for bare key headers, each with what it belongs to: those sealed to the drive's
     /// write-only key, as the server's own.  A tombstone's too, which <see cref="IsDeposit"/> doesn't count (it isn't
-    /// encrypted any more), for a caller that rewrites every key header of the drive.
+    /// encrypted any more), for a caller that rewrites every key header of the drive.  Throws when the write-only private
+    /// key doesn't open; a single seal that doesn't open is left out.
     /// </summary>
     public static List<(T Item, EncryptedKeyHeader KeyHeader)> OpenedOnServerShare<T>(StorageDrive drive,
         IEnumerable<(T Item, EncryptedKeyHeader Sealed)> keyHeaders, IOdinContext odinContext)
@@ -122,11 +134,6 @@ public static class Deposits
             }
 
             return converted;
-        }
-        catch (Exception e) when (e is not OutOfMemoryException)
-        {
-            Log.Warning(e, "The write-only private key of drive {driveId} could not be opened; its deposits left sealed", drive.Id);
-            return [];
         }
         finally
         {

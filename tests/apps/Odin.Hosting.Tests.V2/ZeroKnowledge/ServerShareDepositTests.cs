@@ -15,6 +15,7 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -22,7 +23,6 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
-using static Odin.Hosting.Tests.V2.DriveWrite.SoftDeleteBatchTests;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -92,13 +92,15 @@ public class ServerShareDepositTests : V2Fixture
         var fileId = (await StoredKeyHeadersAsync(frodo, drive)).Single().FileId;
 
         // The batch, whose load passes includeExpired (the single delete loads it as a write, which converts)
-        var delete = await app.Drives.Writer.SoftDeleteBatch(drive.Alias, Batch(File(fileId)));
+        var delete = await app.Drives.Writer.SoftDeleteBatch(drive.Alias, new SoftDeleteBatchRequestV2 { Files = [new SoftDeleteFileV2 { FileId = fileId }] });
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
         Assert.That(delete.Content!.Results.Single().ErrorCode, Is.Null, "the app may delete it");
 
         var tombstone = await app.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId);
         Assert.That(tombstone.StatusCode, Is.EqualTo(HttpStatusCode.OK), tombstone.Error?.Content);
         Assert.That(tombstone.Content!.FileState, Is.EqualTo(Odin.Services.Drives.DriveCore.Storage.FileState.Deleted));
+        Assert.That(tombstone.Content.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes),
+            "empty, as any tombstone's: it has no content to open");
         Assert.That((await StoredKeyHeadersAsync(frodo, drive)).Single().KeyHeader.Type, Is.EqualTo(EncryptionType.Sealed),
             "the delete didn't convert it");
     }

@@ -114,8 +114,12 @@ if the sender kept the same file key (the server can't check that) and leans on 
   only without it. The single V2 delete loads it as a write, which converts. A sealed key header on a Server Share drive
   reaches whoever holds the drive's storage key (`ZkDriveFiles.VisibleTo`, from the code review: without it an app was
   refused a delete of a deposit no read had converted, and a tombstone of one never reached an app).
-- Converting the drive to a zero-knowledge one (Vault, Filesync, Email) opens its deposits inside the conversion, before
-  the write-only key pair they were sealed to is replaced, and relabels them with the rest (from the code review).
+- Converting the drive to a zero-knowledge one (Vault, Filesync, Email) opens its deposits inside the conversion, with
+  the write-only key pair they were sealed to, and relabels them with the rest; a private key that doesn't open fails
+  the conversion (from the code review).
+- A tombstone has no content, so a Server Share deposit's sealed one goes out with an empty key header, as any other.
+- Accepted (the user's): a read converting a deposit while the drive is converted to zero knowledge can write its `aes`
+  key header over the relabelled one. Nobody converts a drive and reads it at once.
 - `Deposits.ConvertedOnServerShare` (one file) and `DriveStorageServiceBase.ConvertDepositsAsync` (the write, from
   `ReadForCallerAsync` and `DriveQueryServiceBase.FilterVisibleAsync`, before the read rule); socket events open a deposit
   per device the same way, unwritten (`DriveEventMessage`).

@@ -349,7 +349,7 @@ public static class ZkDriveFiles
     /// (<see cref="ServerOpensDepositsFor"/>; a zero-knowledge drive never does, so its rule is the one above).
     /// Says nothing about any other file.  Every read and write of a stored header asks this, by query, socket or id, as part
     /// of <see cref="Authorization.Acl.IDriveAclAuthorizationService.CallerMayReadAsync"/>; <paramref name="drive"/> is the
-    /// file's, or null where it isn't known, which leaves out only the Server Share case.
+    /// file's.
     /// </summary>
     /// <remarks>
     /// It also gates the server's own lookups made in a caller's context, such as an inbox drained by an app:
@@ -359,7 +359,7 @@ public static class ZkDriveFiles
     public static bool VisibleTo(StorageDrive? drive, ServerFileHeader? header, IOdinContext odinContext) =>
         !IsClientLocked(header) || SystemDriveConstants.IsTransientTempDrive(header!.FileMetadata.File.DriveId) ||
         CallerHoldsDriveKey(header.FileMetadata.File.DriveId, odinContext) || odinContext.Caller?.IsSystem == true ||
-        (header.EncryptedKeyHeader.IsSealed() && drive?.Id == header.FileMetadata.File.DriveId && ServerOpensDepositsFor(drive, odinContext));
+        (header.EncryptedKeyHeader.IsSealed() && ServerOpensDepositsFor(drive, odinContext));
 
     /// <summary>
     /// Whether <paramref name="drive"/> is a Server Share drive whose server opens deposits

@@ -76,9 +76,6 @@ public class ZkDriveConversionService(
             drive = await GetConvertibleDriveAsync(request.DriveId);
             AssertLockedWithTheDriveKey(request, odinContext.PermissionsContext.GetDriveStorageKey(drive.Id));
 
-            // While the drive still has the write-only key pair its deposits were sealed to
-            relabelled = await RelabelKeyHeadersAsync(drive, odinContext);
-
             await driveManager.ApplyZeroKnowledgeKeysKeepingKeyAsync(drive.Id, request.SharingModel,
                 request.ZkMasterKeyEncryptedStorageKey, writeOnlyPublicKey, request.ZkStorageKeyEncryptedWriteOnlyPrivateKey,
                 odinContext);
@@ -86,6 +83,10 @@ public class ZkDriveConversionService(
             await appRegistrationService.SetZkAppKeysForConversionAsync(drive.Id, request.Apps, odinContext);
             await circleNetworkService.RemoveStorageKeyFromAllGrantsAsync(drive.Id, odinContext);
             await circleNetworkRequestService.RemoveStorageKeyFromSentRequestsAsync(drive.Id, odinContext);
+
+            // Last, so a file written meanwhile has the least time to miss it.  The drive in hand still has the write-only
+            // key pair its deposits were sealed to: the drive row was written from a copy read from the table
+            relabelled = await RelabelKeyHeadersAsync(drive, odinContext);
 
             // Cached contexts carry grants with the key, and the apps' contexts no copies yet; so does every open
             // socket's, kept from when it authenticated
@@ -106,8 +107,9 @@ public class ZkDriveConversionService(
     /// an unencrypted file's empty key header (a zero IV) stays <c>aes</c>; a deleted file's tombstone keeps its real key
     /// header, and is relabelled with the rest.  A deposit the server took for the drive (a Server Share drive opens them,
     /// <see cref="Deposits"/>) is opened first, while the drive still has the write-only key pair it was sealed to, and
-    /// relabelled with the rest: left sealed, it would be sealed to a private key no one holds any more.  A deposit that
-    /// doesn't open stays as it is.  A file written meanwhile fails the conversion, which the owner retries.
+    /// relabelled with the rest: left sealed, it would be sealed to a private key no one holds any more.  A write-only private
+    /// key that doesn't open fails the conversion, which can't be undone; a deposit whose seal doesn't open to its file key
+    /// (a sender's junk) stays as it is.  A file written meanwhile fails the conversion, which the owner retries.
     /// </summary>
     private async Task<int> RelabelKeyHeadersAsync(StorageDrive drive, IOdinContext odinContext)
     {

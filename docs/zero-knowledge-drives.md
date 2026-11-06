@@ -264,9 +264,12 @@ a reader gets the share key differs:
   ([server-share-sealed-arrivals-plan.md](server-share-sealed-arrivals-plan.md)). A deposit comes only from a caller
   without the drive key, as on a zero-knowledge drive: a local caller holding it is refused a sealed upload
   (`ZkDriveFiles.OpenForWrite`) **(V, tested)**. A sealed key header there reaches whoever holds the drive's storage key,
-  as any file does (`ZkDriveFiles.VisibleTo`): so a delete, which doesn't convert (`includeExpired`), and the tombstone
-  it leaves, which keeps the sealed key header, reach an app as they do the owner **(V, tested)**. Converting the drive to
-  a zero-knowledge one opens its deposits first, with the key pair they were sealed to, and relabels them with the rest
+  as any file does (`ZkDriveFiles.VisibleTo`): so a delete reaches an app as it does the owner, whether or not it converted
+  the deposit first (the soft-delete batch, V1 and the hard deletes load with `includeExpired` and don't; the V2 single
+  delete loads it as a write, which does) **(V, tested)**. A tombstone has no content, so a sealed one goes out with an
+  empty key header, as any tombstone the server locked (`DriveFileUtility.CreateClientFileHeader`) **(V, tested)**.
+  Converting the drive to a zero-knowledge one opens its deposits first, with the key pair they were sealed to, and
+  relabels them with the rest; a write-only private key that doesn't open fails the conversion
   (`ZkDriveConversionService.RelabelKeyHeadersAsync`) **(V, tested)**.
 
 ## Direction: how we get there

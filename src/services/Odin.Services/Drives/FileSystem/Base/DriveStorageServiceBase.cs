@@ -2342,7 +2342,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// The tombstone a soft delete stores: the file's ids, group, types, dates and ACL, no content, payloads or unique
         /// id.  Not what a Selective Share member gets for a file no longer shared with them, which holds less
-        /// (<see cref="NoLongerSharedTombstoneOf"/>).
+        /// (<see cref="NoLongerSharedTombstoneOf"/>).  It keeps the key header, which opens nothing, for who may see it: on a
+        /// zero-knowledge drive a client-locked one keeps it from callers without the drive's key (ZkDriveFiles.VisibleTo), and
+        /// a Server Share drive's are relabelled with the rest when it is converted to one (ZkDriveConversionService).
         /// </summary>
         private static ServerFileHeader TombstoneOf(ServerFileHeader existingHeader)
         {
