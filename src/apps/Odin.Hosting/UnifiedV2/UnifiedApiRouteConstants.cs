@@ -11,6 +11,7 @@ public static class UnifiedApiRouteConstants
     public const string Profile = BasePath + "/profile";
     public const string Onboarding = BasePath + "/onboarding";
     public const string Health = BasePath + "/health";
+    public const string Version = BasePath + "/version";
     public const string DrivesRoot = BasePath + "/drives";
     public const string ByDriveId = DrivesRoot + "/{driveId:guid}";
     public const string FilesRoot = ByDriveId + "/files";
@@ -21,7 +22,12 @@ public static class UnifiedApiRouteConstants
     public const string GroupReactionsByFileId = FilesRoot + "/{fileId:guid}/group-reactions";
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
     public const string ByGtid = FilesRoot + "/by-gtid/{gtid:guid}";
+    public const string GroupReactionsByGtid = ByGtid + "/group-reactions";
     public const string Notify = BasePath + "/notify/push";
+
+    // The notification list sits beside /notify/push, as V1 has it (/notify/list). Under /notify/push its
+    // GET list collided with the push-subscription list.
+    public const string NotifyRoot = BasePath + "/notify";
     public const string LiveRelay = BasePath + "/live-relay";
     public const string NotifySocket = BasePath + "/notify/ws-token";
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
@@ -29,6 +35,21 @@ public static class UnifiedApiRouteConstants
     public const string Mail = BasePath + "/mail";
     public const string Plan = BasePath + "/plan";
     public const string Capi = BasePath + "/capi";
+
+    // The owner console's management APIs, and what it publishes and reads alongside them
+    public const string DriveManagement = BasePath + "/drive-management";
+    public const string AppManagement = BasePath + "/app-management";
+    public const string Configuration = BasePath + "/config";
+    public const string YouAuthDomains = BasePath + "/youauth-domains";
+    public const string StaticContent = BasePath + "/optimization/cdn";
+    public const string PublicKeys = BasePath + "/public/keys";
+    // Owner console: security, recovery, health and system
+    public const string Security = BasePath + "/security";
+    public const string SecurityZk = Security + "/zk";
+    public const string SecurityRecovery = Security + "/recovery";
+    public const string Dns = BasePath + "/dns";
+    public const string MailOwner = Mail + "/owner";
+    public const string DataConversion = BasePath + "/data-conversion";
 
     // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/security-model.md, Drive addressing). Rooted at
     // /apps rather than nested under /drives, because /drives/feed would read as "the drive named
@@ -40,11 +61,14 @@ public static class UnifiedApiRouteConstants
 
     public const string PeerRoot = BasePath + "/peer";
     public const string PeerByOdinId = PeerRoot + "/{odinId}";
-    public const string PeerByDriveId = PeerByOdinId + "/drives/{driveId:guid}";
+    public const string PeerDrivesRoot = PeerByOdinId + "/drives";
+    public const string PeerByDriveId = PeerDrivesRoot + "/{driveId:guid}";
+    public const string PeerAuth = PeerByOdinId + "/auth";
     public const string PeerFilesRoot = PeerByDriveId + "/files";
     public const string PeerByFileId = PeerFilesRoot + "/{fileId:guid}";
     public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
     public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
+    public const string PeerReactionsByGtid = PeerByGtid + "/reactions";
 
     // This identity's sealed copy of a peer's circle key (Selective Share)
     public const string PeerCircleShareKey = PeerByOdinId + "/circles/{circleId:guid}/share-key";
@@ -74,4 +98,21 @@ public static class UnifiedApiRouteConstants
     public const string PeerSubscriptions = PeerNotifyRoot + "/subscriptions";
     public const string PeerNotifySocket = PeerNotifyRoot + "/ws-token";
     public const string PeerNotifySocketWasm = PeerNotifyRoot + "/ws-token-wasm";
+
+    // Cookie-authenticated notification sockets for browsers (the owner console, apps with no bearer token).
+    // One route per cookie, as V1 has one per API: an app served from the identity's own host sends the owner
+    // cookie too, so the route, not the cookies present, says which caller this is.
+    public const string NotifySocketOwnerCookie = BasePath + "/notify/ws-cookie-owner";
+    public const string NotifySocketAppCookie = BasePath + "/notify/ws-cookie-app";
+    public const string NotifyPreAuth = BasePath + "/notify/preauth";
+    // Sign-in. The controllers under SignIn/ are V1's own with these routes; see docs/youauth-unified-authorization.md,
+    // "The V2 routes", for why they keep V1's authentication schemes.
+    public const string Ident = Auth + "/ident";
+    public const string OwnerAuth = Auth + "/owner";
+    public const string YouAuth = BasePath + "/youauth";
+    public const string YouAuthAuthorize = YouAuth + "/authorize";
+    public const string YouAuthToken = YouAuth + "/token";
+    public const string Home = BasePath + "/home";
+    public const string HomeAuth = Home + "/auth";
+    public const string HomeCacheable = Home + "/data/cacheable";
 }

@@ -36,6 +36,21 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
+        [HttpGet("header")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        public async Task<IActionResult> GetFileHeaderByGtid(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid gtid)
+        {
+            var header = await this.GetFileHeaderByGtidInternal(driveId, gtid, includeTransferHistory: true);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(header);
+        }
+
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -92,7 +107,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         // Deliberately not DriveStorageControllerBase.GetFileHeaderByGlobalTransitId: that one gates on
         // PermissionsContext.AssertCanReadDrive, which has no AllowAnonymousReads bypass and so rejects an
         // anonymous or CDN caller even on a public drive. The query service's own gate does have it.
-        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGtidInternal(Guid driveId, Guid gtid)
+        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGtidInternal(Guid driveId, Guid gtid,
+            bool includeTransferHistory = false)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
             return await queryService.GetFileByGlobalTransitId(
@@ -100,7 +116,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 gtid,
                 WebOdinContext,
                 excludePreviewThumbnail: false,
-                includeTransferHistory: false);
+                includeTransferHistory: includeTransferHistory);
         }
 
         private async Task<IActionResult> GetPayloadByGtidInternal(Guid driveId, Guid gtid, string payloadKey,

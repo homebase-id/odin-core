@@ -125,7 +125,7 @@ Three test-only seams make this work:
 - **V1 controller tests are no longer a non-goal.** V1 endpoints work here: the V1-shaped Refit clients from `_Universal` are reused as-is, and `InProcessApiClientFactory` resolves their relative paths against the caller's own V1 base (`/api/owner/v1`, `/api/apps/v1`, `/api/guest/v1`) so Owner/App/Guest permission matrices behave as they do on Kestrel. See **Porting rules**.
 - **mTLS-bound paths** — V2 tests run TLS-less; anything that genuinely requires client cert auth has to stay on real Kestrel.
 - **Background-service timer behavior** — services are registered but never started. Anything time-driven (cert renewal, orphan scan, scheduled jobs) needs the V1 framework. Tests drain the peer outbox explicitly via `Sync.DrainOutboxAsync` and process the inbox via `Sync.ProcessInboxAsync`.
-- **WebSocket-driven flows** — the host registers `SharedDeviceSocketCollection` but no V2 test currently opens a socket. The reset path does *not* clear those registries; the first test that holds a socket across the boundary will need to add a drain hook (see the "What this does NOT reset" note on `OdinHost.ResetAsync`).
+- **Long-lived WebSocket flows** — `Auth/V2CookieSocketTests` opens sockets through `Host.Server.CreateWebSocketClient()`, for the upgrade's auth and the handshake, and closes them within the test. There is no real upgrade on a wire: that needs Kestrel (`_V2/Tests/Notifications` in `Odin.Hosting.Tests`). The reset path does *not* clear the `SharedDeviceSocketCollection` registries; the first test that holds a socket across the boundary will need to add a drain hook (see the "What this does NOT reset" note on `OdinHost.ResetAsync`).
 
 ---
 

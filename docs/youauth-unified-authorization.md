@@ -148,6 +148,31 @@ Both ciphers use the 16-byte shared secret from step 90 as the AES-128 key.
 
 The home-site login uses the same two layouts a second time at step 400: the page declares `cipher` in the `state` it sends to its own identity, and the `ecc` JSON that comes back with the sealed result (`pk`, `salt`, `iv`, `cipher`) names what was used. An older page bundle declares nothing and gets `aes-cbc`.
 
+## The V2 routes
+
+The same endpoints answer under `/api/v2`, and V1 stays for everyone who has it (chat-kmp, third-party apps, links in the wild):
+
+| V1 | V2 | Authentication, as on V1 |
+|---|---|---|
+| `/api/owner/v1/youauth/authorize` | `/api/v2/youauth/authorize` | owner scheme, redirects to login |
+| `/api/owner/v1/youauth/token` | `/api/v2/youauth/token` | anonymous |
+| `/api/owner/v1/authentication/*` | `/api/v2/auth/owner/*` | none; verifyToken and logout read the cookie themselves |
+| `/api/guest/v1/auth/ident` | `/api/v2/auth/ident` | none |
+| `/api/guest/v1/builtin/home/auth/*` | `/api/v2/home/auth/*` | guest scheme for is-authenticated and ping, none for the rest |
+| `/api/guest/v1/builtin/home/data/cacheable/*` | `/api/v2/home/data/cacheable/*` | guest scheme |
+
+The V2 controllers (`UnifiedV2/SignIn`) inherit V1's, so there is one implementation. **They keep V1's authentication schemes rather than the unified one on purpose**, and moving them would change what a browser sees:
+
+- **Authorize would stop redirecting.** With no token the unified scheme answers an anonymous success, so a policy wanting an owner forbids rather than challenges: a 403 where a browser needs a redirect to login. A valid app or visitor token does the same.
+- **The home cache would leak.** The unified scheme reads the owner's cookie first, and `HomeCachingService` keeps one result per tenant and query name for every caller, so the owner opening their home page would fill it for anonymous visitors. `is-authenticated` would also say true for the owner's cookie, and 401 for a stale one.
+- **Login would read drives first.** The unified anonymous policy loads the anonymous drives; these routes must answer during an upgrade and on an identity with no setup.
+
+The path-based behaviour that names these routes: the redirect at step [040] (`OwnerAuthenticationHandler.RedirectPaths`), the upgrade middleware's exemptions and its redirect at authorize (`VersionUpgradeMiddleware`), the guest scheme's path check (`YouAuthAuthenticationHandler`), and shared-secret encryption (`NoSharedSecret*` on the controllers, and the path list for `is-authenticated`). All the cookies are `Path=/`, host-only, `Secure`, `SameSite=Strict`, so a cookie set on either generation is sent to both.
+
+**Consent posts to the route the sign-in started on.** The handler refuses a return URL with any path but its own, so the consent page takes the form's action from the return URL (`getConsentFormAction`, odin-js).
+
+**A client calling another identity uses these routes too.** Every identity gets a release at the same time, so the login box's ident check and its authorize redirect, and the token exchange, can count on them. The identity server's own exchange at [100] (`IHomePerimeterHttpClient`) still calls V1's token route.
+
 ## `Shared secret` calculation
 Both the identity host and the third-party site compute the shared secret independently using their private keys and the other party's public key, combined with a random salt provided by the identity host. The formula for the shared secret could be expressed as:
 

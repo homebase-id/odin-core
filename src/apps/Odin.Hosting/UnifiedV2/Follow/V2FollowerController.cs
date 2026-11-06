@@ -57,7 +57,7 @@ public class V2FollowerController(FollowerService followerService, FollowerSugge
     }
 
     [HttpGet("identities-i-follow")]
-    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get list of identities you follow, and when you followed each")]
     public async Task<CursoredResult<FollowEntry>> GetIdentitiesIFollow(int count, string cursor)
     {
@@ -65,7 +65,7 @@ public class V2FollowerController(FollowerService followerService, FollowerSugge
     }
 
     [HttpGet("identity-i-follow")]
-    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get how you follow an identity")]
     public async Task<FollowerDefinition> GetIdentityIFollow([FromQuery] string odinId)
     {
@@ -74,7 +74,7 @@ public class V2FollowerController(FollowerService followerService, FollowerSugge
     }
 
     [HttpGet("following-me")]
-    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get list of identities following you, and when each followed")]
     public async Task<CursoredResult<FollowEntry>> GetFollowingMe(int count, string cursor)
     {
@@ -82,7 +82,7 @@ public class V2FollowerController(FollowerService followerService, FollowerSugge
     }
 
     [HttpGet("follower")]
-    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get how an identity follows you")]
     public async Task<FollowerDefinition> GetFollower([FromQuery] string odinId)
     {
@@ -108,7 +108,7 @@ public class V2FollowerController(FollowerService followerService, FollowerSugge
     /// identity itself, which follows no one as itself.
     /// </summary>
     [HttpGet("follower-configuration")]
-    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [SwaggerOperation(Tags = [SwaggerInfo.Followers], Summary = "Get how the caller follows you")]
     public async Task<FollowerDefinition> GetFollowerConfiguration()
     {
