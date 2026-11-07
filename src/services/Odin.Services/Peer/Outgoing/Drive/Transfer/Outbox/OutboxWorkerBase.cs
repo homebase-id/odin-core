@@ -84,6 +84,8 @@ public abstract class OutboxWorkerBase(
             case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
             case LatestTransferStatus.UnknownServerError:
             case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
+            case LatestTransferStatus.RecipientIdentityReturnedVersionTagMismatch:
+            case LatestTransferStatus.RecipientIdentityReturnedInvalidKeyHeader:
             case LatestTransferStatus.SendingServerTooManyAttempts:
                 return await GiveUpAsync(odinContext, e);
 
@@ -171,7 +173,16 @@ public abstract class OutboxWorkerBase(
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
             logger.LogDebug("BadRequest received: [{data}]", response.Error?.Content);
-            return LatestTransferStatus.RecipientIdentityReturnedBadRequest;
+
+            // Why, when the sender can act on it: re-read and resend, or fetch the drive's key again
+            return response.ErrorCode() switch
+            {
+                OdinClientErrorCode.VersionTagMismatch => LatestTransferStatus.RecipientIdentityReturnedVersionTagMismatch,
+                OdinClientErrorCode.InvalidKeyHeader or OdinClientErrorCode.SealedToUnknownKey or OdinClientErrorCode.NotSealed or
+                    OdinClientErrorCode.DepositCannotBeUpdated or OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating =>
+                    LatestTransferStatus.RecipientIdentityReturnedInvalidKeyHeader,
+                _ => LatestTransferStatus.RecipientIdentityReturnedBadRequest
+            };
         }
 
         // Its own status so the sender's apps can say "waiting for room" rather than "failed"

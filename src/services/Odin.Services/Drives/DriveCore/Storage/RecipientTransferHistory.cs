@@ -104,6 +104,18 @@ public enum LatestTransferStatus
     RecipientIdentityReturnedBadRequest = 90,
 
     /// <summary>
+    /// The recipient refused a change to the file because its copy changed since the version the change named: re-read
+    /// it and send the change again
+    /// </summary>
+    RecipientIdentityReturnedVersionTagMismatch = 91,
+
+    /// <summary>
+    /// The recipient refused the file's key header: sealed to a key its drive doesn't hold, or not one it takes there
+    /// (a sealed one replacing another's, an update without a new IV)
+    /// </summary>
+    RecipientIdentityReturnedInvalidKeyHeader = 92,
+
+    /// <summary>
     /// Something bad happened on the server
     /// </summary>
     UnknownServerError = 9999,

@@ -366,7 +366,8 @@ public partial class SelectiveShareTests : V2Fixture
         var (fileId, locked, _) = await s.UploadClientLockedAsync(payload);
         await AssertSamSeesAsync(s, fileId, false, "before any share");
 
-        // Sam is in a second circle of the app that shares the file too: every read takes the lowest circle id's share
+        // Sam is in a second circle of the app that shares the file too: every read takes the lowest circle id's share, and
+        // shows him both, so his client can share a file it adds to a folder with each of his circles the folder is shared with
         var second = await s.CircleWithKeyAsync(DrivePermission.Read | DrivePermission.Write);
         await AppCircles.AddMemberAsync(s.App, second, Identities.Sam);
         var keys = new Dictionary<Guid, byte[]> { [s.CircleId] = LockedFileKey(), [second] = LockedFileKey() };
@@ -391,8 +392,8 @@ public partial class SelectiveShareTests : V2Fixture
             var key = header.SharedSecretEncryptedKeyHeader;
             Assert.That((key.Type, key.EncryptedAesKey, key.Iv), Is.EqualTo((EncryptionType.Share, keys[circle], locked.Iv)),
                 $"{how}: the share's locked file key with the file's IV, never the drive-locked key header");
-            Assert.That(header.Shares?.Select(r => (r.CircleId, r.Permissions)), Is.EqualTo(new[] { (circle, DrivePermission.Read) }),
-                $"{how}: his own share, and only it");
+            Assert.That(header.Shares?.Select(r => (r.CircleId, r.Permissions)),
+                Is.EqualTo(keys.Keys.Order().Select(c => (c, DrivePermission.Read))), $"{how}: his own shares, the one he reads through first");
             Assert.That(header.ServerMetadata, Is.Null, $"{how}: no ACL for an outside caller");
         }
 
@@ -875,27 +876,19 @@ public partial class SelectiveShareTests : V2Fixture
     private static async Task<byte[]> MemberEditAsync(Arranged s, SharedSecretEncryptedFileHeader file, KeyHeader fileKey, string content,
         bool v2 = false)
     {
+        if (v2)
+        {
+            // The route names Frodo, the drive and the file; the body names no recipient
+            return await MemberEditsAsync(s, file.FileMetadata.GlobalTransitId!.Value, file.FileMetadata.VersionTag, fileKey, content, [], [],
+                KeepFileKey);
+        }
+
         var newIv = ByteArrayUtil.GetRndByteArray(16);
         var metadata = s.Metadata(SecurityGroupType.Connected);
         metadata.AppData.Content = new KeyHeader { AesKey = fileKey.AesKey, Iv = newIv }.EncryptDataAes(content.ToUtf8ByteArray()).ToBase64();
         metadata.IsEncrypted = true;
         metadata.AllowDistribution = true;
         metadata.VersionTag = file.FileMetadata.VersionTag;
-
-        var keepKey = new EncryptedKeyHeader { EncryptionVersion = 1, Type = EncryptionType.Share, Iv = newIv };
-        if (v2)
-        {
-            // The route names Frodo, the drive and the file; the body names no recipient
-            var viaV2 = await s.Sam.Drives.Writer.UpdatePeerFileByGlobalTransitId(s.Frodo.Identity, s.Drive.Alias,
-                file.FileMetadata.GlobalTransitId!.Value, new FileUpdateInstructionSetV2
-                {
-                    TransferIv = ByteArrayUtil.GetRndByteArray(16),
-                    Manifest = new UploadManifest { PayloadDescriptors = [] }
-                }, metadata, [], keepKey);
-            Assert.That(viaV2.StatusCode, Is.EqualTo(HttpStatusCode.OK), viaV2.Error?.Content);
-            await s.Sam.Sync.DrainOutboxAsync();
-            return newIv;
-        }
 
         var update = await s.Sam.V1.Drive.UpdateFile(new FileUpdateInstructionSet
         {
@@ -905,7 +898,7 @@ public partial class SelectiveShareTests : V2Fixture
                 .ToFileIdentifier(),
             Recipients = [s.Frodo.Identity],
             Manifest = new UploadManifest { PayloadDescriptors = [] }
-        }, metadata, [], lockedKeyHeader: keepKey);
+        }, metadata, [], lockedKeyHeader: KeepFileKey(newIv));
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
         await s.Sam.Sync.DrainOutboxAsync();
         return newIv;
@@ -1038,11 +1031,15 @@ public partial class SelectiveShareTests : V2Fixture
             return upload.Content!.FileId;
         }
 
-        /// <summary>A client-locked file, with a payload when given, as an owner device writes one; its key header as sent.</summary>
+        /// <summary>
+        /// A client-locked file, with a payload when given, as an owner device writes one; its key header as sent.  Under
+        /// <paramref name="fileKey"/> when given, with <paramref name="shares"/> and the <paramref name="globalTransitId"/>
+        /// the device picked.
+        /// </summary>
         public async Task<(Guid FileId, EncryptedKeyHeader Locked, KeyHeader FileKey)> UploadClientLockedAsync(
-            TestPayloadDefinition? payload = null)
+            TestPayloadDefinition? payload = null, KeyHeader? fileKey = null, List<ShareRequest>? shares = null, Guid? globalTransitId = null)
         {
-            var fileKey = KeyHeader.NewRandom16();
+            fileKey ??= KeyHeader.NewRandom16();
             var locked = ZkBrowser.LockFileKey(fileKey, driveKey);
             if (payload != null)
             {
@@ -1051,7 +1048,8 @@ public partial class SelectiveShareTests : V2Fixture
 
             var (upload, _, _, _) = await Frodo.Drives.Writer.CreateEncryptedFile(Drive.Alias, Metadata(SecurityGroupType.Owner),
                 transitOptions: null!, new UploadManifest { PayloadDescriptors = payload == null ? [] : [payload.ToPayloadDescriptor()] },
-                payload == null ? [] : [payload], keyHeader: fileKey, lockedKeyHeader: locked);
+                payload == null ? [] : [payload], keyHeader: fileKey, lockedKeyHeader: locked, shares: shares,
+                globalTransitId: globalTransitId);
             Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
             return (upload.Content!.FileId, locked, fileKey);
         }

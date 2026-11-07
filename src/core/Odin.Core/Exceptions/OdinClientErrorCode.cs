@@ -113,6 +113,7 @@ public enum OdinClientErrorCode
     PayloadHashRequired = 4177,
     PayloadHashMissing = 4178,
     PayloadGone = 4179,
+    ExistingFileWithGlobalTransitId = 4180,
 
 
     // Connection errors 50xx
