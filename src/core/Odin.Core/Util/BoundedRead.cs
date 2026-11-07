@@ -65,7 +65,8 @@ public static class BoundedRead
         return bytes;
     }
 
-    // Forward-only; counts what is read through it. It does not own the inner stream.
+    // Forward-only; counts what is read through it. It does not own the inner stream. Its length is the inner one's, for a
+    // writer that checks it wrote all of it, and throws as the inner one does when unknown.
     private sealed class LimitedReadStream(Stream inner, long maxBytes) : Stream
     {
         private long _read;
@@ -73,7 +74,7 @@ public static class BoundedRead
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
-        public override long Length => throw new NotSupportedException();
+        public override long Length => inner.Length;
 
         public override long Position
         {

@@ -132,7 +132,7 @@ public class SendFileOutboxWorkerAsync(
                     outboxFileItem.State.DataSourceOverride);
 
                 var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerTransferHttpClient>(
-                    recipient, clientAuthToken);
+                    recipient, clientAuthToken, timeout: PeerFileSendTimeout.For(header, Configuration.Host));
 
                 var response = await client.SendHostToHost(
                     transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray(), cancellationToken);

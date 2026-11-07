@@ -63,11 +63,12 @@ locked with Filesync's key. Each of the 2 member rows has the circle key sealed 
 | `aclMemberId` | Guid | the circle (and later a link's id, decision 4) |
 | `permissions` | Int32, not null, default 1 | what the circle may do with this file, in `DrivePermission` bits (Read 1, Write 2, React 4, Comment 8), per file, each narrowing the same bit of the drive grant: a member needs the bit in both (Write to update the file or, on a folder, add files to it; see "Who may write"; file-access.md, "A share row narrows its circle's grant", decided 2026-11-02). No bits = a withdrawn share. Every row before Private Share means read, hence the default |
 | `expiresAt` | UnixTimeUtc (ms), null | when this share of this file ends, so queries skip expired shares. NULL = never |
-| `lockedFileKey` | ByteArray (≤ 128), null | the file key locked with the circle key: AES-GCM, format 2, no IV, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
+| `lockedFileKey` | ByteArray (≤ 128), null | the file key locked with the circle key: AES-GCM, format 2 or 3, no IV, 45 bytes (see Blob formats). NULL on every other drive, and on a withdrawn share |
 | `created`, `modified` | UnixTimeUtc (ms), not null | the share's own times, apart from the file's (the generator's `FinallyAddCreatedModified`): the cursor a member syncs their shares by. `modified` moves on every change of the row, `MAX(modified + 1, now)` like every generated table **(V)** |
 
-- **Each reader sees only their own share row.** The file's ACL names no one on these drives. Owner callers get a
-  file's live rows when they ask (`includeShares`); a member gets only their own row with the header, and outside
+- **Each reader sees only their own share rows.** The file's ACL names no one on these drives. Owner callers get a
+  file's live rows when they ask (`includeShares`); a member gets their own live rows with the header, one per circle
+  of theirs the file is shared with, so their client shares a file it adds to a folder with each of them, and outside
   callers never get the header's server metadata **(V)** ([selective-share-pr3-plan.md](selective-share-pr3-plan.md),
   sections 5 and 6).
 - **What `expiresAt` can and can't do:** the server enforces it in the query and the read rule alike, so after it a
@@ -176,6 +177,14 @@ compatible with.
   - **AAD binds the locked file key to its row:** `driveId ‖ fileId ‖ circleId`, ids that never change for the
     row. A locked file key that ends up on the wrong row, by a bug, fails to open with an error instead of
     handing out a wrong key that decrypts to garbage.
+  - **Format 3 binds it to the file's global transit id instead of its file id:** `driveId ‖ globalTransitId ‖
+    circleId`. A new file's id is picked by the server that stores it, so a client can't bind a row it sends with the
+    file to it; a new file's upload may name the global transit id (`UploadFileDescriptor.GlobalTransitId`), refused
+    when the drive already has a file with it **(V, tested)**. Only where no feed finds a copy of it, since a feed finds
+    its copies by global transit id alone: on a Private Share drive, or a deposit sent from the transient drive, and not
+    with another id for the recipient's copy (`OverrideRemoteGlobalTransitId`) **(V, tested)**. The global transit id is unique on a drive and the same
+    on every copy, and members address the file by it already. The server takes both formats and opens neither
+    (`DriveShareService.LockedFileKeyByGlobalTransitId`) **(V)**; clients write format 3.
 - **`appKeyLockedShareKey`:** the same AES-GCM layout under `AppZkK`, AAD `circleId`.
 - **`sealedShareKey`:** the `sealed` key header's ECDH and HKDF (P-384) with AES-GCM, AAD
   `circleId ‖ memberId`, plus the hint of the drive key it was sealed to.
@@ -188,7 +197,8 @@ compatible with.
   is a Guid's .NET `ToByteArray()` (the first three fields little-endian), as the zero-knowledge drive key check
   already uses, and a drive's id is its alias.
   - `lockedFileKey` = `0x02 ‖ nonce (12) ‖ ciphertext (16) ‖ tag (16)`, AES-128-GCM under the circle key, AAD
-    `driveId ‖ fileId ‖ circleId`: 45 bytes.
+    `driveId ‖ fileId ‖ circleId`: 45 bytes. Format 3 is `0x03 ‖` the same, AAD `driveId ‖ globalTransitId ‖
+    circleId`.
   - `appKeyLockedShareKey` = the same under `AppZkK`, AAD `circleId`: 45 bytes.
   - `sealedShareKey` = the `sealed` key header's layout (`ZkSeal`) with format byte 2 and an AAD:
     `0x02 ‖ key id (4, big-endian CRC-32 of the recipient's 0x04 ‖ x ‖ y) ‖ throwaway public key (97) ‖ nonce (12) ‖
@@ -259,7 +269,8 @@ it: file-access.md, "Sharing with one person"):
    he deposits, as senders do today **(V)** (design doc, "One write rule"). Michael's devices may later
    transform it to `zkDrive`.
 3. **Family's share:** the file key locked with the Family circle key, which John's device opened
-   from his own sealed copy. Every Family member can read the file at once.
+   from his own sealed copy, bound to the global transit id John's app picked for the file (format 3, Blob formats):
+   the file id is Michael's server's to pick. Every Family member can read the file at once **(V, tested)**.
 
 **When the folder is shared with more than one circle** (Family and Friends, John only in Family), John
 can't make the Friends share. A device of Michael's Filesync adds it later: it opens John's `sealed` header
@@ -305,7 +316,9 @@ content with it and leaves the key headers alone. Two things are needed:
    header locked with the link's key. Still open: where the link's own record lives (its expiry, the app's
    copy of its key), a small table of its own or a hidden app circle with no members.
 5. ~~Members editing existing files.~~ **Decided (2026-11-01):** a member with a `Write` row updates a file's
-   content keeping the file key and the stored key header, sending a new IV only (PR 3 plan, section 7). The server
+   content keeping the file key and the stored key header, sending a new IV only (PR 3 plan, section 7). The same
+   update changes, adds or deletes payloads, each new one under its own new IV and the same file key
+   (`SelectiveShareTests.AMemberWithWriteEditsASharedFilesHeaderAndPayloads`) **(V, tested)**. The server
    can't check the member kept the file key; a member with `Write` can write garbage either way, which follows
    from zero knowledge.
 6. ~~Does a share change move `modified`?~~ **Decided (2026-10-31), amended 2026-11-01:** a share is its

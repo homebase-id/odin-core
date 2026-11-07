@@ -27,10 +27,12 @@ public class SelectiveShareKeyVectorTests
     private const string AppKeyNonce = "YGFiY2RlZmdoaWpr";             // 0x60..0x6b
     private static readonly Guid DriveId = Guid.Parse("11111111-2222-3333-4444-555555555555");
     private static readonly Guid FileId = Guid.Parse("66666666-7777-8888-9999-aaaaaaaaaaaa");
+    private static readonly Guid GlobalTransitId = Guid.Parse("12345678-9abc-def0-1234-56789abcdef0");
     private static readonly Guid CircleId = Guid.Parse("bbbbbbbb-cccc-dddd-eeee-ffffffffffff");
     private const string Member = "Sam.DotYou.Cloud";                 // lowercased into the AAD
 
     private const string LockedFileKey = "AlBRUlNUVVZXWFlaWyNALFXaUVoKLLDbDk0g5bIydyRsCSpKQjTVXgru8mq5";
+    private const string LockedFileKeyByGlobalTransitId = "A1BRUlNUVVZXWFlaWyNALFXaUVoKLLDbDk0g5bID6/ZsXceCKma5R4GJLiTG";
     private const string AppKeyLockedShareKey = "AmBhYmNkZWZnaGlqa8AlHXzCApsgaEfKX1KFpSBA7DLsgycVGxPm/K9OaD6A";
     private const string SealedShareKey =
         "AhRSmXQE7NVFE2N+zrbujRavkL1z/E4GHalzavkps48544kxb1C5vlxaQZbfnbT2N+RRSjZob4zGxLf4jftVPwAgZq3c692FaLeGasq2pZGKZ1iIyxpJ7Fbilv77slwQlOIeKC7Rag3IKHq3cJUyfbDKapD3G1IWdxUh0JkipMakO1Wy1Um0cvyaU9IBa5FBFpM=";
@@ -45,6 +47,19 @@ public class SelectiveShareKeyVectorTests
             Is.EqualTo(FileKey));
         Assert.Throws<AuthenticationTagMismatchException>(() =>
             ShareKeys.Open(CircleKey.FromBase64(), locked, ShareKeys.FileKeyAad(DriveId, Guid.NewGuid(), CircleId)), "on another file's row");
+    }
+
+    [Test]
+    public void ALockedFileKeyOfFormat3IsBoundToTheFilesGlobalTransitId()
+    {
+        // The same layout, with the global transit id where format 2 has the file id: a client knows it before the file exists
+        var aad = ShareKeys.FileKeyAad(DriveId, GlobalTransitId, CircleId);
+        var locked = ShareKeys.Lock(CircleKey.FromBase64(), FileKey.FromBase64(), aad, FileKeyNonce.FromBase64(), ShareKeys.FormatByGlobalTransitId);
+        Assert.That((locked.Length, locked.ToBase64()), Is.EqualTo((45, LockedFileKeyByGlobalTransitId)));
+        Assert.That(ShareKeys.Open(CircleKey.FromBase64(), locked, aad, ShareKeys.FormatByGlobalTransitId).ToBase64(), Is.EqualTo(FileKey));
+        Assert.Throws<AuthenticationTagMismatchException>(() =>
+                ShareKeys.Open(CircleKey.FromBase64(), locked, ShareKeys.FileKeyAad(DriveId, FileId, CircleId), ShareKeys.FormatByGlobalTransitId),
+            "bound to the file id instead");
     }
 
     [Test]
@@ -81,7 +96,9 @@ public class SelectiveShareKeyVectorTests
 /// The reference implementation of the three blobs, format 2: AES-128-GCM with a 12-byte nonce and a 16-byte tag.
 /// <list type="bullet">
 /// <item><c>lockedFileKey</c> = <c>0x02 ‖ nonce ‖ ciphertext(16) ‖ tag</c> under the circle key, AAD
-/// <c>driveId ‖ fileId ‖ circleId</c>: 45 bytes.</item>
+/// <c>driveId ‖ fileId ‖ circleId</c>: 45 bytes.  Format 3 is the same with the file's global transit id for its id,
+/// which a client knows before the file exists: <c>0x03 ‖ nonce ‖ ciphertext(16) ‖ tag</c>, AAD
+/// <c>driveId ‖ globalTransitId ‖ circleId</c>.</item>
 /// <item><c>appKeyLockedShareKey</c> = the same under the app's AppZkK, AAD <c>circleId</c>: 45 bytes.</item>
 /// <item><c>sealedShareKey</c> = <see cref="ZkSeal"/>'s layout with version 2 and an AAD:
 /// <c>0x02 ‖ key id (4, big-endian) ‖ throwaway public key (97) ‖ nonce ‖ ciphertext(16) ‖ tag</c>, the AES key
@@ -93,6 +110,7 @@ public class SelectiveShareKeyVectorTests
 internal static class ShareKeys
 {
     public const byte Format = 2;
+    public const byte FormatByGlobalTransitId = 3;
     private const int NonceLength = 12;
     private const int TagLength = 16;
 
@@ -102,18 +120,18 @@ internal static class ShareKeys
     public static byte[] SealedAad(Guid circleId, string memberOdinId) =>
         ByteArrayUtil.Combine(circleId.ToByteArray(), Encoding.UTF8.GetBytes(memberOdinId.ToLowerInvariant()));
 
-    public static byte[] Lock(byte[] key, byte[] plaintext, byte[] aad, byte[] nonce)
+    public static byte[] Lock(byte[] key, byte[] plaintext, byte[] aad, byte[] nonce, byte format = Format)
     {
         using var gcm = new AesGcm(key, TagLength);
         var ciphertext = new byte[plaintext.Length];
         var tag = new byte[TagLength];
         gcm.Encrypt(nonce, plaintext, ciphertext, tag, aad);
-        return ByteArrayUtil.Combine([Format], nonce, ciphertext, tag);
+        return ByteArrayUtil.Combine([format], nonce, ciphertext, tag);
     }
 
-    public static byte[] Open(byte[] key, byte[] locked, byte[] aad)
+    public static byte[] Open(byte[] key, byte[] locked, byte[] aad, byte format = Format)
     {
-        Assert.That(locked[0], Is.EqualTo(Format), "format");
+        Assert.That(locked[0], Is.EqualTo(format), "format");
         using var gcm = new AesGcm(key, TagLength);
         var nonce = locked[1..(1 + NonceLength)];
         var ciphertext = locked[(1 + NonceLength)..^TagLength];

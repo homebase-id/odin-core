@@ -73,7 +73,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         AppNotificationOptions notificationOptions = null,
         KeyHeader keyHeader = null,
         EncryptedKeyHeader lockedKeyHeader = null,
-        List<ShareRequest> shares = null)
+        List<ShareRequest> shares = null,
+        Guid? globalTransitId = null)
     {
         if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
         {
@@ -124,7 +125,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
                 instructionSet.TransferIv,
                 ref sharedSecret),
             FileMetadata = fileMetadata,
-            Shares = shares
+            Shares = shares,
+            GlobalTransitId = globalTransitId
         };
 
         var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
@@ -213,7 +215,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
         TransitOptions transitOptions = null,
-        List<ShareRequest> shares = null)
+        List<ShareRequest> shares = null,
+        Guid? globalTransitId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -238,7 +241,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata,
-                Shares = shares
+                Shares = shares,
+                GlobalTransitId = globalTransitId
             };
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
