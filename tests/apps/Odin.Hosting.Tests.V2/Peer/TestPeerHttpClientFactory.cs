@@ -75,6 +75,11 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
         FileSystemType? fileSystemType = null)
         => Task.FromResult(BuildClient<T>(remoteOdinId, clientAuthenticationToken, fileSystemType, headers: null));
 
+    public Task<T> CreateFileTransferClientUsingAccessTokenAsync<T>(
+        OdinId remoteOdinId,
+        ClientAuthenticationToken clientAuthenticationToken)
+        => CreateClientUsingAccessTokenAsync<T>(remoteOdinId, clientAuthenticationToken);
+
     public Task<T> CreateClientAsync<T>(
         OdinId remoteOdinId,
         FileSystemType? fileSystemType = null,

@@ -36,6 +36,15 @@ namespace Odin.Services.Base
 
         //
 
+        public Task<T> CreateFileTransferClientUsingAccessTokenAsync<T>(
+            OdinId remoteOdinId,
+            ClientAuthenticationToken clientAuthenticationToken)
+        {
+            return CreateClientInternalAsync<T>(remoteOdinId, clientAuthenticationToken, null, null, config.Host.PeerFileTransferTimeout);
+        }
+
+        //
+
         public Task<T> CreateClientAsync<T>(
             OdinId remoteOdinId,
             FileSystemType? fileSystemType = null,
@@ -50,7 +59,8 @@ namespace Odin.Services.Base
             OdinId remoteOdinId,
             ClientAuthenticationToken clientAuthenticationToken,
             FileSystemType? fileSystemType,
-            Dictionary<string, string> headers = null)
+            Dictionary<string, string> headers = null,
+            TimeSpan? timeout = null)
         {
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + remoteOdinId;
             var httpClient = httpClientFactory.CreateClient($"{nameof(OdinHttpClientFactory)}:{remoteHost}", cfg =>
@@ -79,6 +89,10 @@ namespace Odin.Services.Base
 #if DEBUG
             httpClient.Timeout = TimeSpan.FromHours(1);
 #endif
+            if (timeout.HasValue)
+            {
+                httpClient.Timeout = timeout.Value;
+            }
 
             if (null != clientAuthenticationToken)
             {

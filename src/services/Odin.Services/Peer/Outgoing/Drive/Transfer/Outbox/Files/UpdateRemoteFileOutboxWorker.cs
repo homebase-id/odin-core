@@ -130,7 +130,7 @@ public class UpdateRemoteFileOutboxWorker(
                     odinContext,
                     datasourceOverride: FileItem.State.DataSourceOverride);
 
-                var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerTransferHttpClient>(
+                var client = await odinHttpClientFactory.CreateFileTransferClientUsingAccessTokenAsync<IPeerTransferHttpClient>(
                     recipient, clientAuthToken);
 
                 var response = await client.UpdatePeerFile(
