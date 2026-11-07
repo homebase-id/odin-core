@@ -152,12 +152,12 @@ public static class BuiltinCircles
         Id = Guid.Parse("c570d12b688f40c685c6da056979cef3"),
         Name = "Recovery",
         Slug = (OdinSlug)"recovery",
-        Description = "Members hold a shard of your recovery key",
+        Description = "You'll hold a small piece of their recovery key so they can get back in if they lose their password. It takes almost no space.",
         Emoji = "🔑",
         AppId = SystemAppConstants.RecoveryAppId,
-        // Review, not OwnFlowConnect: holding a shard of the recovery key is the most trusted thing
-        // anyone can be given, so it should never be reachable through an app's own consent flow
-        // without the owner having vetted the person. Review is also the only tier that may carry
+        // Review, not OwnFlowConnect: a member may write a shard of their recovery key into your drive,
+        // and you become part of how they get back in, so it should never be reachable through an app's
+        // own consent flow without the owner having vetted the person. Review is also the only tier that may carry
         // read grants and permission keys, which recovery is likelier than most to need.
         GrantOn = CircleGrantOn.Review,
         Designation = CircleDesignation.Personal,

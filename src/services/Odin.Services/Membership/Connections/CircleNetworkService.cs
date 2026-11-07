@@ -2066,7 +2066,9 @@ namespace Odin.Services.Membership.Connections
 
                 var summary = isCircleMember ? "Identity is in this circle" : "Identity is not a member of this circle";
                 var actualPermissionKeys = circleGrant?.PermissionSet?.Redacted() ?? new RedactedPermissionSet() { Keys = [] };
-                var permissionKeysMatch = definition.Permissions.Keys.Order().SequenceEqual(actualPermissionKeys.Keys.Order());
+                // A circle that grants only drives has no permission set at all
+                var expectedPermissionKeys = definition.Permissions?.Redacted() ?? new RedactedPermissionSet() { Keys = [] };
+                var permissionKeysMatch = expectedPermissionKeys.Keys.Order().SequenceEqual(actualPermissionKeys.Keys.Order());
 
                 var ci = new CircleInfo()
                 {
@@ -2078,7 +2080,7 @@ namespace Odin.Services.Membership.Connections
                         IsCircleMember = isCircleMember,
                         Summary = summary,
                         PermissionKeysAreValid = permissionKeysMatch,
-                        ExpectedPermissionKeys = definition.Permissions.Redacted(),
+                        ExpectedPermissionKeys = expectedPermissionKeys,
                         ActualPermissionKeys = actualPermissionKeys,
                         DriveGrantAnalysis = new List<DriveGrantInfo>(),
                     }

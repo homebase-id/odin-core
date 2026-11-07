@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
@@ -277,5 +280,27 @@ public class V1LocalReactionTests : V2Fixture
         Assert.That(allReactions.Reactions.SingleOrDefault(r =>
             r.ReactionContent == reactionContent2 && r.OdinId == owner.Identity && r.FileId.FileId == uploadResult.File.FileId),
             Is.Not.Null);
+    }
+
+    [Test]
+    public async Task AnAnonymousVisitorIsRefusedAddingOrDeletingAReaction()
+    {
+        var owner = await LoginAsOwner();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "a public drive", allowAnonymousReads: true);
+        var upload = await owner.V1.Drive.UploadNewMetadata(drive, SampleMetadataData.Create(fileType: 100));
+        Assert.That(upload.Content, Is.Not.Null);
+
+        using var anonymous = Host.CreateAnonymousClient(owner.Identity);
+        var root = GuestApiPathConstantsV1.DriveReactionsV1;
+
+        var add = await anonymous.PostAsJsonAsync($"{root}/add",
+            new AddReactionRequest { File = upload.Content.File, Reaction = ":k:" });
+        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "a reaction needs a signed-in author");
+
+        var delete = await anonymous.PostAsJsonAsync($"{root}/delete",
+            new DeleteReactionRequest { File = upload.Content.File, Reaction = ":k:" });
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "so does taking one away");
+
     }
 }
