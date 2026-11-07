@@ -3,11 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.Peer.AppNotification;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -136,6 +143,33 @@ public class TransitReactionContentOwnerTestsConnectedReactions : V2Fixture
     /// The arrange both real tests share: Pippin's channel drive, Sam following and connected with
     /// read/write on it through a circle, and one post of Pippin's to react to.
     /// </summary>
+    [Test]
+    public async Task APeerThatIsUpgradingIsReportedAsUnavailable_NotAsAServerError()
+    {
+        var (pippin, sam, uploadResult) = await PrepareScenarioAsync();
+        var runState = Host.GetTenantScope(pippin.Identity.DomainName).Resolve<VersionUpgradeRunState>();
+
+        try
+        {
+            runState.SetRunning(true);
+
+            var reaction = await sam.RefitFor<IRefitOwnerTransitReaction>().AddReaction(new PeerAddReactionRequest
+            {
+                OdinId = pippin.Identity,
+                Request = new AddRemoteReactionRequest { File = uploadResult.GlobalTransitIdFileIdentifier, Reaction = ":k:" }
+            });
+            DriveAsserts.AssertRejected(reaction, OdinClientErrorCode.RemoteServerReturnedUnavailable);
+
+            var token = await sam.RefitFor<IDrivePeerNotificationHttpClientApiV2>()
+                .GetToken(new GetRemoteTokenRequest { Identity = pippin.Identity });
+            DriveAsserts.AssertRejected(token, OdinClientErrorCode.RemoteServerReturnedUnavailable);
+        }
+        finally
+        {
+            runState.SetRunning(false);
+        }
+    }
+
     private async Task<(OwnerSession Pippin, OwnerSession Sam, UploadResult UploadResult)> PrepareScenarioAsync()
     {
         var pippin = await LoginAsOwner(Identities.Pippin);
