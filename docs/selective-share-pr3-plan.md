@@ -149,8 +149,8 @@ needs drive `Read`. Members write files (section 7), not shares, except on their
   `Comment`, and includes `Read`: no upload-only rows yet (decided 2026-11-01). The index rows V1 makes from an ACL on
   other drives always mean `Read`, as today; V1 gets no share API.
 - `expiresAt` is null or later than now.
-- `lockedFileKey` is exactly 45 bytes and starts with format byte 2 (decision 7), when the file is encrypted; absent
-  when it isn't.
+- `lockedFileKey` is exactly 45 bytes and starts with format byte 2 or 3 (decision 7; 3 binds it to the file's global
+  transit id, selective-share-plan.md, "Blob formats"), when the file is encrypted; absent when it isn't.
 
 **Stored** with one upsert per row, in one transaction (insert, or update bits, expiry and locked file key; the generated
 `modified = MAX(modified + 1, now)`) **(V for the generated rule)**. The file's existence is checked in the same
@@ -203,11 +203,12 @@ The header's ACL names no one on these drives. The `GET` lists one file's share 
   (`DriveAclAuthorizationService.CallerMayReadAsync`, section 2) **(V)**. `ZkDriveFiles.VisibleTo` is unchanged.
 - **What a member gets:** the header with their live row's locked file key in place of the key header: they can't open the
   file's own `sealed` or `zkDrive` key header, and the locked file key opens with their circle key. With live rows in more
-  than one of their circles, the row of the lowest circle id, so every read picks the same one. Payload and thumbnail
+  than one of their circles, the row of the lowest circle id, so every read picks the same one; the header shows all of
+  them, that one first (`CallerShares.LiveRowsOf`) **(V, tested)**. Payload and thumbnail
   reads carry no key header for a client-locked file **(V, zero-knowledge-drives.md)**: the client uses the file key and the
   payload's IV, unchanged.
 - **Nothing about other shares:** outside callers never get the header's server metadata (`CreateClientFileHeader`)
-  **(V)**, so a member sees only their own row: its bits and expiry come with the header, for the client to show.
+  **(V)**, so a member sees only their own rows: their bits and expiry come with the header, for the client to show.
 - **Through the Peer API:** a member reads via their own server, which asks the owner's. A client-locked key header is
   passed through as stored today (`PeerDriveQueryService`, zero-knowledge-drives.md) **(V)**; the row's locked file key goes
   the same way (built, below).

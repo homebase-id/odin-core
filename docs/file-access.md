@@ -388,13 +388,14 @@ own drive (`CircleMember.sealedShareKey`) **(V)**.
   (`CircleEnrollment.cs`) **(V)**.
 
 **The author keeps their deposit.** A member's new file lands owner-only, so its author couldn't see or change it.
-Their client locks its file key with their individual circle's key (their copy is theirs to open) and sends the row
-with the file, as a member already may for circles they are in (`DriveShareService.AssertMemberMayShareAsync`)
+Their client locks its file key with their individual circle's key (their copy is theirs to open), bound to the global
+transit id the client picked for the file, as the file id is the receiving server's to pick (selective-share-plan.md,
+"Blob formats"), and sends the row with the file, as a member already may for circles they are in (`DriveShareService.AssertMemberMayShareAsync`)
 **(V)**. That row gives them what a drive marked as a community channel gives a file's original sender, through the one rule above: their
 sync finds it, their other devices can open it, and they delete it with a `Write` share, as they may a new file of
 theirs with no share, as its sender **(V, tested)**; their edit
-goes through the same check, sending a new `sealed` key header as a deposit's edit does (I, not tested), and so does
-sending it again **(V, tested)**. The owner can withdraw it like any share.
+goes through the same check, sending a new `sealed` key header of the same file key as a deposit's edit does, its
+payloads included **(V, tested)**, and so does sending it again **(V, tested)**. The owner can withdraw it like any share.
 
 ### Sharing with a group
 

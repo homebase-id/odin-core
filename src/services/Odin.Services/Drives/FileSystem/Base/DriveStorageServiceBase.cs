@@ -85,7 +85,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             AssertValidFileSystemType(serverFileHeader.ServerMetadata);
 
             // A member reading through a share gets that share's locked file key (section 6)
-            return DriveFileUtility.CreateClientFileHeader(serverFileHeader, drive, odinContext, callerShare: shared?.LiveRowOf(file.FileId));
+            return DriveFileUtility.CreateClientFileHeader(serverFileHeader, drive, odinContext, callerShares: shared?.LiveRowsOf(file.FileId));
         }
 
         /// <summary>
@@ -167,7 +167,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             // A member reading through a share gets that share's locked file key, as by the regular read (section 6)
-            return DriveFileUtility.CreateClientFileHeader(serverFileHeader, drive, odinContext, callerShare: shares?.LiveRowOf(file.FileId));
+            return DriveFileUtility.CreateClientFileHeader(serverFileHeader, drive, odinContext, callerShares: shares?.LiveRowsOf(file.FileId));
         }
 
         public async Task<(ServerFileHeader header, PayloadDescriptor payloadDescriptor, EncryptedKeyHeader encryptedKeyHeader, bool
@@ -455,8 +455,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// Writes one payload received from a peer, to the upload folder (<paramref name="directWrite"/>) or straight to
         /// long-term. When the sender's descriptor carries hashes (#1895) the stored hash is verified as the bytes stream
-        /// in, and a mismatch deletes what was written before rethrowing; the callers' own cleanup does not cover a
-        /// payload that failed part way.
+        /// in. A mismatch, or a payload refused part way (past the host's largest, which the callers' stream enforces),
+        /// deletes what was written before rethrowing; the callers' own cleanup does not cover a payload that failed
+        /// part way.
         /// </summary>
         public async Task WriteIncomingPeerPayload(InternalDriveFileId file, PayloadDescriptor descriptor, bool isEncrypted,
             bool directWrite, Stream data, IOdinContext odinContext)
@@ -466,26 +467,25 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             await using var hashing = descriptor.Hash?.Verifying(descriptor.Key, data);
-            if (directWrite)
-            {
-                await WriteUploadStream(file, extension, hashing ?? data, odinContext);
-            }
-            else
-            {
-                await WritePayloadDirectlyToLongTerm(file, extension, hashing ?? data, odinContext);
-            }
-
-            if (hashing == null)
-            {
-                return;
-            }
-
             try
             {
-                descriptor.Hash.AssertStoredHashMatches(descriptor.Key, hashing);
+                if (directWrite)
+                {
+                    await WriteUploadStream(file, extension, hashing ?? data, odinContext);
+                }
+                else
+                {
+                    await WritePayloadDirectlyToLongTerm(file, extension, hashing ?? data, odinContext);
+                }
+
+                if (hashing != null)
+                {
+                    descriptor.Hash.AssertStoredHashMatches(descriptor.Key, hashing);
+                }
             }
-            catch (OdinClientException)
+            catch (Exception e) when ((e as OdinClientException ?? e.InnerException as OdinClientException) is { } refused)
             {
+                // A store may wrap the refusal (S3FileStore does): it is still the sender's, a 400
                 List<PayloadDescriptor> written = [new() { Key = descriptor.Key, Uid = descriptor.Uid }];
                 if (directWrite)
                 {
@@ -496,6 +496,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     await CleanupAbandonedLongTermPayloads(file, written, odinContext);
                 }
 
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(refused);
                 throw;
             }
         }
