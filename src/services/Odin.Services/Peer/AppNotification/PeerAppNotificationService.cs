@@ -240,6 +240,11 @@ public class PeerAppNotificationService : PeerServiceBase
             throw new OdinClientException("Invalid Global TransitId", OdinClientErrorCode.InvalidGlobalTransitId);
         }
 
+        if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+        {
+            throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             throw new OdinSystemException($"Unhandled transit error response: {response.StatusCode}");
