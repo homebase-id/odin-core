@@ -131,10 +131,10 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   recipient dropped, leaves the sender free to send their next change. Every device of the sender's sends the same way.
 - **Anyone else's write ends it:** the owner's edit, or another member's, gives the file a new tag, after which the
   sender's change must name the file's tag like anyone's, which a sender who can only write it never learns **(V,
-  tested)**. On a zero-knowledge drive the owner's edit also takes a deposit over, and a `sealed` key header never
-  replaces a taken-over one ([zero-knowledge-drives.md](zero-knowledge-drives.md)) **(V, tested)**. A key holder's
-  transform of a deposit's key header isn't such a write: it keeps the file's version tag, so the sender may still
-  delete it, though no longer change it with a `sealed` key header **(V, tested)**.
+  tested)**. A deposit's `sealed` key header then no longer replaces the owner's ([zero-knowledge-drives.md](zero-knowledge-drives.md))
+  **(V, tested)**. Converting a deposit's key header, by the server on a Server Share drive or a key holder's transform
+  on a zero-knowledge drive, isn't such a write: it keeps the file's version tag, so the sender may still change it with
+  a `sealed` key header, which is converted again, or delete it (`ZkDriveFiles.AssertMayReplace`) **(V, tested)**.
 - **A sender or member who can read the file** names its tag, as for any update, and gets a version tag error with a
   stale one: the ordinary case of people editing together **(V, tested)**. Only a change that has no copy on the sender's own drive
   names one: an update of the recipient's copy only (`UpdateLocale.Peer`) or a send from the transient drive, where the

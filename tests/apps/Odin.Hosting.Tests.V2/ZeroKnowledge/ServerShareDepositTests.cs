@@ -19,8 +19,9 @@ using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Update;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Outgoing.Drive;
 
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
 
@@ -28,7 +29,8 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
 /// <summary>
 /// A Server Share drive takes a peer's sealed file at once, without the inbox, and its server makes it its own file on
-/// the first read whose request carries the drive key (docs/server-share-sealed-arrivals-plan.md, step 1).
+/// the first read whose request carries the drive key (docs/server-share-sealed-arrivals-plan.md, step 1); a sender may
+/// still change it with a sealed key header, or delete it, while no one else has (step 1b).
 /// </summary>
 [TestFixture]
 public class ServerShareDepositTests : V2Fixture
@@ -49,10 +51,7 @@ public class ServerShareDepositTests : V2Fixture
         Assert.That(stored.KeyHeader.Type, Is.EqualTo(EncryptionType.Sealed), "stored as sent until read");
 
         var read = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
-        var sharedSecret = frodo.SharedSecret;
-        var keyHeader = read.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
-        Assert.That(keyHeader.Decrypt(read.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes(), Is.EqualTo(Content),
-            "the owner gets it as any file, locked with their shared secret");
+        Assert.That(ContentAsOwner(frodo, read), Is.EqualTo(Content), "the owner gets it as any file, locked with their shared secret");
 
         var after = (await StoredKeyHeadersAsync(frodo, drive)).Single();
         Assert.That(after.KeyHeader.Type, Is.EqualTo(EncryptionType.Aes), "now the server's own key header");
@@ -158,41 +157,147 @@ public class ServerShareDepositTests : V2Fixture
         Assert.That(await StoredKeyHeadersAsync(frodo, drive), Is.Empty, "refused on arrival");
         Assert.That(await InboxCountAsync(frodo, drive), Is.EqualTo(0));
 
-        // The control: the same send, unsealed, lands, so the refusal was the deposit's
-        var metadata = Metadata(Guid.NewGuid(), Content);
-        metadata.AllowDistribution = true;
-        var (upload, _, _, _) = await sam.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias,
-            metadata, new TransitOptions
-            {
-                IsTransient = true,
-                Recipients = [frodo.Identity.DomainName],
-                RemoteTargetDrive = drive
-            });
-        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
-        await PeerFlow.DistributeAsync(sam, frodo, drive);
+        // The control: the same send, unsealed, lands, so the refusal was the deposit's.  Sam holds no key to the drive, so it
+        // waits in the inbox for a key holder
+        await SendUnsealedAsync(sam, frodo, drive, Guid.NewGuid(), Content);
+        Assert.That(await InboxCountAsync(frodo, drive), Is.EqualTo(1), "through the inbox, as before");
+        await frodo.Sync.ProcessInboxAsync(drive);
         Assert.That(await StoredKeyHeadersAsync(frodo, drive), Has.Count.EqualTo(1), "a member's post lands");
     }
 
     [Test]
-    public async Task ASendersSealedChangeAfterTheConversionIsRefusedButTheirDeleteLands()
+    public async Task ASendersDeleteLandsAfterTheConversion()
     {
-        // Step 1 has one rule for every drive: a sealed key header replaces only a sealed one (ZkDriveFiles.AssertMayReplace)
+        // The conversion kept the version tag, so the sender's record of their last write still matches
         var (frodo, sam, drive, publicKeyJwk) = await ArrangeAsync();
         var uniqueId = Guid.NewGuid();
         await SendDepositAsync(sam, sam, frodo, publicKeyJwk, uniqueId, Content, remoteDrive: drive);
         var read = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
+        Assert.That((await StoredKeyHeadersAsync(frodo, drive)).Single().KeyHeader.Type, Is.EqualTo(EncryptionType.Aes), "converted");
 
-        await SendDepositAsync(sam, sam, frodo, publicKeyJwk, uniqueId, "Sam's, changed", remoteDrive: drive,
-            versionTag: read.FileMetadata.VersionTag);
-        var after = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
-        Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(read.FileMetadata.VersionTag), "refused: the server's own key header now");
-
-        // The conversion kept the version tag, so the sender's record of their last write still matches
         await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, read.FileMetadata.GlobalTransitId!.Value);
         await sam.Sync.DrainOutboxAsync();
         await frodo.Sync.ProcessInboxAsync(drive);
         var deleted = await frodo.Drives.Reader.GetFileHeaderAsync(drive.Alias, read.FileId);
         Assert.That(deleted.Content?.FileState, Is.EqualTo(Odin.Services.Drives.DriveCore.Storage.FileState.Deleted));
+    }
+
+    [Test]
+    public async Task ASendersUnsealedChangeOfTheirDepositNoOneReadLands()
+    {
+        // Sent the old way, through the inbox, over a copy still sealed: Frodo's server, processing it, makes the deposit its
+        // own first, as a read would (PeerFileWriter), and the change fits it as any server-locked file's
+        var (frodo, sam, drive, publicKeyJwk) = await ArrangeAsync();
+        var uniqueId = Guid.NewGuid();
+        var (fileKey, _) = await SendDepositAsync(sam, sam, frodo, publicKeyJwk, uniqueId, Content, remoteDrive: drive);
+        var stored = (await StoredKeyHeadersAsync(frodo, drive)).Single();
+        Assert.That(stored.KeyHeader.Type, Is.EqualTo(EncryptionType.Sealed), "nobody has read it");
+
+        await SendUnsealedAsync(sam, frodo, drive, uniqueId, "Sam's, changed", WithNewIv(fileKey), stored.VersionTag);
+        await frodo.Sync.ProcessInboxAsync(drive);
+
+        var changed = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
+        Assert.That(ContentAsOwner(frodo, changed), Is.EqualTo("Sam's, changed"));
+    }
+
+    [Test]
+    public async Task ASendersSealedUpdateOfTheirConvertedCopyLandsUnderANewIv()
+    {
+        // An update of Frodo's copy only (UpdateBatchAsync): the server can't open the seal to compare file keys, so it
+        // compares the IVs both key headers show
+        var (frodo, sam, drive, publicKeyJwk) = await ArrangeAsync();
+        var uniqueId = Guid.NewGuid();
+        var (fileKey, _) = await SendDepositAsync(sam, sam, frodo, publicKeyJwk, uniqueId, Content, remoteDrive: drive);
+        var read = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
+        var gtid = read.FileMetadata.GlobalTransitId!.Value;
+
+        var sameIv = await UpdatePeerCopyAsync(sam, frodo, drive, gtid, uniqueId, "Sam's, same IV", fileKey,
+            EncryptedKeyHeader.SealedTo(fileKey, publicKeyJwk));
+        Assert.That(sameIv.StatusCode, Is.EqualTo(HttpStatusCode.OK), sameIv.Error?.Content);
+        Assert.That((await HeaderByUniqueIdAsync(frodo, uniqueId, drive)).FileMetadata.VersionTag, Is.EqualTo(read.FileMetadata.VersionTag),
+            "refused: the same key under the same IV");
+
+        var newKey = WithNewIv(fileKey);
+        var update = await UpdatePeerCopyAsync(sam, frodo, drive, gtid, uniqueId, "Sam's, updated", newKey,
+            EncryptedKeyHeader.SealedTo(newKey, publicKeyJwk));
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        Assert.That(ContentAsOwner(frodo, await HeaderByUniqueIdAsync(frodo, uniqueId, drive)), Is.EqualTo("Sam's, updated"));
+    }
+
+    [Test]
+    public async Task ASendersUnsealedUpdateOfTheirStillSealedCopyLands()
+    {
+        // Sent the old way, through the inbox: the update's load makes the deposit the server's own first, and the file keys
+        // then compare as any server-locked file's
+        var (frodo, sam, drive, publicKeyJwk) = await ArrangeAsync();
+        var uniqueId = Guid.NewGuid();
+        var (fileKey, _) = await SendDepositAsync(sam, sam, frodo, publicKeyJwk, uniqueId, Content, remoteDrive: drive);
+        var stored = (await StoredKeyHeadersAsync(frodo, drive)).Single();
+        Assert.That(stored.KeyHeader.Type, Is.EqualTo(EncryptionType.Sealed), "nobody has read it");
+        var gtid = (await Host.GetTenantScope(frodo.Identity.DomainName).Resolve<TableDriveMainIndexCached>()
+            .GetAsync(drive.Alias, stored.FileId))!.globalTransitId!.Value;
+
+        var newKey = WithNewIv(fileKey);
+        var samsSecret = sam.SharedSecret;
+        var update = await UpdatePeerCopyAsync(sam, frodo, drive, gtid, uniqueId, "Sam's, updated", newKey,
+            EncryptedKeyHeader.EncryptKeyHeaderAes(newKey, newKey.Iv, ref samsSecret));
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        await frodo.Sync.ProcessInboxAsync(drive);
+
+        Assert.That(ContentAsOwner(frodo, await HeaderByUniqueIdAsync(frodo, uniqueId, drive)), Is.EqualTo("Sam's, updated"));
+    }
+
+    [Test]
+    public async Task ASendersSealedChangeAfterTheConversionLandsUntilSomeoneElseChangesTheFile()
+    {
+        // The conversion kept the version tag, so the sender's record of their last write still matches: their change is of
+        // their own file, sealed and converted again (ZkDriveFiles.AssertMayReplace)
+        var (frodo, sam, drive, publicKeyJwk) = await ArrangeAsync();
+        var uniqueId = Guid.NewGuid();
+        await SendDepositAsync(sam, sam, frodo, publicKeyJwk, uniqueId, Content, remoteDrive: drive);
+        var read = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
+        Assert.That((await StoredKeyHeadersAsync(frodo, drive)).Single().KeyHeader.Type, Is.EqualTo(EncryptionType.Aes), "converted");
+
+        var (changedKey, _) = await SendDepositAsync(sam, sam, frodo, publicKeyJwk, uniqueId, "Sam's, changed", remoteDrive: drive,
+            versionTag: read.FileMetadata.VersionTag);
+        var changed = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
+        Assert.That(changed.FileMetadata.VersionTag, Is.Not.EqualTo(read.FileMetadata.VersionTag), "the change landed");
+        Assert.That(ContentAsOwner(frodo, changed), Is.EqualTo("Sam's, changed"), "sealed again and converted again on the read");
+
+        // Frodo changes it, as any update keeping its file key under a new IV: a seal of Sam's no longer replaces his write
+        var frodosKey = WithNewIv(changedKey);
+        var frodosSecret = frodo.SharedSecret;
+        var update = await UpdateAsync(frodo, changed.FileId, uniqueId, frodosKey,
+            EncryptedKeyHeader.EncryptKeyHeaderAes(frodosKey, frodosKey.Iv, ref frodosSecret),
+            changed.FileMetadata.VersionTag, drive: drive);
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
+        var frodos = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
+
+        await SendDepositAsync(sam, sam, frodo, publicKeyJwk, uniqueId, "Sam's, again", remoteDrive: drive,
+            versionTag: frodos.FileMetadata.VersionTag);
+        Assert.That((await HeaderByUniqueIdAsync(frodo, uniqueId, drive)).FileMetadata.VersionTag,
+            Is.EqualTo(frodos.FileMetadata.VersionTag), "refused: someone else changed the file since Sam's last write");
+    }
+
+    /// <summary>
+    /// Sam updates Frodo's copy only, by its global transit id, naming no tag (a sender's change of their own file), with
+    /// <paramref name="content"/> encrypted under <paramref name="fileKey"/> and <paramref name="locked"/> as its key header.
+    /// </summary>
+    private static async Task<Refit.ApiResponse<UpdateFileResult>> UpdatePeerCopyAsync(OwnerSession sam, OwnerSession frodo,
+        TargetDrive drive, Guid globalTransitId, Guid uniqueId, string content, KeyHeader fileKey, EncryptedKeyHeader locked)
+    {
+        var metadata = Metadata(uniqueId, content);
+        metadata.AppData.Content = fileKey.EncryptDataAes(content.ToUtf8ByteArray()).ToBase64();
+        metadata.IsEncrypted = true;
+        metadata.AllowDistribution = true;
+        var update = await sam.Drives.Writer.UpdatePeerFileByGlobalTransitId(frodo.Identity, drive.Alias, globalTransitId,
+            new FileUpdateInstructionSetV2
+            {
+                TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                Manifest = new UploadManifest { PayloadDescriptors = [] }
+            }, metadata, [], locked);
+        await sam.Sync.DrainOutboxAsync();
+        return update;
     }
 
     private Task<int> InboxCountAsync(OwnerSession owner, TargetDrive drive) =>
@@ -210,11 +315,7 @@ public class ServerShareDepositTests : V2Fixture
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
-        var drive = TargetDrive.NewTargetDrive();
-        var create = await frodo.Admin.CreateDrive(drive, "Frodo's shared", allowAnonymousReads: false,
-            allowSubscriptions: communityChannel,
-            attributes: communityChannel ? new Dictionary<string, string> { [BuiltInDriveAttributes.IsCollaborativeChannel] = "true" } : null);
-        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK), create.Error?.Content);
+        var drive = await CreateServerShareDriveAsync(frodo, communityChannel);
         await PeerFlow.ConnectAsync(sam, frodo, drive, DrivePermission.Write);
         var publicKeyJwk = (await frodo.Admin.GetDrive(drive)).WriteOnlyPublicKeyJwk;
         Assert.That(publicKeyJwk, Is.Not.Null.And.Not.Empty, "a Server Share drive has a write-only key pair");

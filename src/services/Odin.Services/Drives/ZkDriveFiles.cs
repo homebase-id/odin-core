@@ -5,11 +5,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Services.Drives;
@@ -245,19 +248,27 @@ public static class ZkDriveFiles
     }
 
     /// <summary>
-    /// What a sealed key header may replace, in an update or an overwrite of <paramref name="existing"/>: only
-    /// another sealed one (a deposit's sender updating it).  Never a key header locked with the drive's key
-    /// (zkDrive): a file a key holder has taken over doesn't go back to sealed.  Never an aes one either: the
-    /// file key only the server could open would be lost.  Asked inside the update and overwrite paths, which keep their version-tag and IV
-    /// checks (docs/zero-knowledge-drive-api-plan.md, 2.4).
+    /// What a sealed key header may replace, in an update or an overwrite of <paramref name="existing"/>: another sealed
+    /// one (a deposit's sender updating it); or, from the file's sender while no one else has changed it since their last
+    /// write, the one its deposit was converted to, by the server (aes) or a device holding the drive's key (zkDrive).  A
+    /// conversion keeps the version tag, so the change is still the sender's of their own file, sealed and converted again
+    /// (docs/server-share-sealed-arrivals-plan.md, "A sender's sealed update").  Never anyone else's key header: the file
+    /// key only its writer could open would be lost.  Asked inside the update and overwrite paths, which keep their
+    /// version-tag and IV checks (docs/zero-knowledge-drive-api-plan.md, 2.4).
     /// </summary>
-    public static void AssertMayReplace(ServerFileHeader existing, KeyHeader? replacement)
+    public static void AssertMayReplace(ServerFileHeader existing, KeyHeader? replacement, IOdinContext odinContext) =>
+        AssertMayReplace(existing, replacement, WriterIn(odinContext, existing.FileMetadata.File));
+
+    /// <summary><see cref="AssertMayReplace(ServerFileHeader, KeyHeader?, IOdinContext)"/> for <paramref name="writer"/>.</summary>
+    public static void AssertMayReplace(ServerFileHeader existing, KeyHeader? replacement, OdinId? writer)
     {
         if (replacement is ClientLockedKeyHeader { IsSealed: true } &&
-            existing.FileMetadata.IsEncrypted && existing.EncryptedKeyHeader?.IsSealed() != true)
+            existing.FileMetadata.IsEncrypted && existing.EncryptedKeyHeader?.IsSealed() != true &&
+            !(writer is { } sender && SharedSecretEncryptedFileHeader.IsOriginalSender(existing.FileMetadata.SenderOdinId, sender) &&
+              SendersWrite.UnchangedSinceLastWriteBy(sender, existing)))
         {
-            throw new OdinClientException("A sealed key header replaces only a sealed one: never one locked with the drive's key, " +
-                                          "or by the server", OdinClientErrorCode.DepositCannotBeUpdated);
+            throw new OdinClientException("A sealed key header replaces a sealed one, or its sender's own converted one while no " +
+                                          "one else has changed the file", OdinClientErrorCode.DepositCannotBeUpdated);
         }
     }
 
@@ -391,16 +402,27 @@ public static class ZkDriveFiles
     /// <summary>
     /// An encrypted update of a client-locked file (sealed or zkDrive) takes a client-locked key header with a
     /// new IV, as for any encrypted file: a zkDrive one from a device holding the drive's key, or a sealed one
-    /// over a sealed file (<see cref="AssertMayReplace"/>, asked here first for any encrypted file).  The server compares the IVs both key headers show; it can't check that
+    /// over a sealed file (<see cref="AssertMayReplace"/>, asked here first for any encrypted file, which also lets one over
+    /// its sender's converted copy).  The server compares the IVs both key headers show; it can't check that
     /// the file key stayed the same, which is the writer's to keep, or the payloads no longer open.  Callers
     /// refuse a change of encryption first; any other file never gets a client-locked key header
     /// (<see cref="AssertDriveTakes"/>).
     /// </summary>
-    public static void AssertFitsUpdate(ServerFileHeader existing, KeyHeader update)
+    public static void AssertFitsUpdate(ServerFileHeader existing, KeyHeader update, IOdinContext odinContext) =>
+        AssertFitsUpdate(existing, update, WriterIn(odinContext, existing.FileMetadata.File));
+
+    /// <summary><see cref="AssertFitsUpdate(ServerFileHeader, KeyHeader, IOdinContext)"/> for <paramref name="writer"/>.</summary>
+    public static void AssertFitsUpdate(ServerFileHeader existing, KeyHeader update, OdinId? writer)
     {
-        AssertMayReplace(existing, update);
+        AssertMayReplace(existing, update, writer);
         if (!IsClientLocked(existing))
         {
+            // A sealed update over its sender's converted copy shows both IVs, as over a client-locked one
+            if (update is ClientLockedKeyHeader)
+            {
+                KeyHeader.AssertIvRotated(update.Iv, existing.EncryptedKeyHeader.Iv);
+            }
+
             return;
         }
 
@@ -424,6 +446,14 @@ public static class ZkDriveFiles
             ThrowCannotBeSent();
         }
     }
+
+    /// <summary>
+    /// Who writes <paramref name="file"/> in <paramref name="odinContext"/>, for <see cref="AssertMayReplace(ServerFileHeader, KeyHeader?, OdinId?)"/>:
+    /// its sender when the change is marked as theirs (<see cref="SendersOwnFile.SenderOf"/>), wherever it is written, or a
+    /// peer writing as their change arrives; never a local caller, nor whoever drains an inbox.
+    /// </summary>
+    private static OdinId? WriterIn(IOdinContext odinContext, InternalDriveFileId file) =>
+        SendersOwnFile.SenderOf(odinContext, file) ?? (PeerDirectWrites.IsPeerToken(odinContext) ? odinContext.Caller?.OdinId : null);
 
     private static void ThrowCannotBeSent() =>
         throw new OdinClientException("A zero-knowledge drive's file can't be sent", OdinClientErrorCode.ZkDriveFileCannotBeSent);

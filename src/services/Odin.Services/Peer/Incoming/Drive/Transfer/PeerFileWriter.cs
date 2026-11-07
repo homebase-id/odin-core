@@ -285,7 +285,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             DriveStorageServiceBase.AssertSameDataSource(stored, newMetadata);
             if (newMetadata.IsEncrypted)
             {
-                ZkDriveFiles.AssertFitsUpdate(stored, keyHeader);
+                // A Server Share deposit the request can open is the server's own first, as a read, and the overwrite's own
+                // load, would make it: then an unsealed change fits it as any server-locked file's, and this check sees the
+                // header the overwrite does (docs/server-share-sealed-arrivals-plan.md, step 1b)
+                await fs.Storage.ConvertDepositsAsync(drive, [stored], odinContext);
+                ZkDriveFiles.AssertFitsUpdate(stored, keyHeader, writeContext);
             }
 
             // The tag the header write replaces, which its SQL checks again, and the one it gives the file

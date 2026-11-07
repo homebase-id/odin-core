@@ -38,9 +38,10 @@ The model in short; the reasons, alternatives and work are in
   client-locked key header is returned as stored, and payload and thumbnail responses carry no packed key header:
   the client uses FileKey and the payload's IV.
 - **One write rule:** a key holder writes `zkDrive`, and can't upload a `sealed` file to the drive; a
-  sender's `sealed` new file is stored as sent. **A `sealed` key header replaces only a `sealed` one**: a
-  file a key holder took over (`zkDrive`) never goes back to sealed, and an `aes` file never loses the key
-  only the server could open. Updates and overwrites go through their usual version-tag and IV checks.
+  sender's `sealed` new file is stored as sent. **A `sealed` key header replaces a `sealed` one, or its
+  sender's own converted one** while no one else has changed the file since their last write
+  (`ZkDriveFiles.AssertMayReplace`): never one the owner or another member wrote, so a file a key holder took
+  over keeps its key. Updates and overwrites go through their usual version-tag and IV checks.
   Nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (no recipients,
   feeds or CDN) (`ZkDriveFiles.AssertNotSent`) **(V)**.
 - **One "may a peer write directly" check** for new files and updates (`PeerDirectWrites.CanWriteAtOnce`): at once
@@ -93,8 +94,9 @@ The model in short; the reasons, alternatives and work are in
     last write still matches ([file-access.md](file-access.md), "Changing a file you sent") **(V, tested)**.
   - **Races:** a sender's change that lands between the read and the transform stands (`versionTagMismatch`), and the
     key holder transforms the new one when it reads it **(V, tested)**. After the transform, a sender's `sealed`
-    change is refused like any `sealed` key header over a taken-over one **(V, tested)**: whether a deposit's sender
-    may keep editing it (keeping the drive's key header, with a new IV) is **not decided**. Two devices transforming
+    change lands while no one else has changed the file since their last write, sealed again for a key holder to
+    transform; once the owner changes it, the sender's `sealed` change is refused (`ZkDriveFiles.AssertMayReplace`)
+    **(V, tested)**. Two devices transforming
     the same file send the same bytes, since a `zkDrive` key header depends only on DrvK, FileKey and the IV; the
     second to arrive gets `notSealed`, as the stored key header is no longer sealed (I: not tested).
   - **Known race:** a full header write that read the file before the transform keeps the same version tag, so its
@@ -258,9 +260,12 @@ a reader gets the share key differs:
   that call only (`EccFullKeyData.OpenPrivateKey`) **(V)**. Not on a drive marked as a community channel, which re-locks a
   member's post and sends it on as it lands (a channel drive's followers get only its owner's posts,
   `FeedDriveDistributionRouter.ShouldDistribute`), nor the Shard Recovery drive before it is zero knowledge, whose
-  shards stay sealed (`StorageDrive.ShardsStaySealed`, which the transform asks too) **(V, tested)**. One set of deposit rules holds on every drive that takes one: sealed to the current
-  write-only key, payloads allowed, never a comment, and a sealed key header replaces only a sealed one, so a sender's
-  sealed update of a converted file is refused while their delete lands **(V, tested)**
+  shards stay sealed (`StorageDrive.ShardsStaySealed`, which the transform asks too) **(V, tested)**. One set of deposit rules
+  holds on every drive that takes one: sealed to the current write-only key, payloads allowed, never a comment, and a
+  sealed key header replaces a sealed one, or the sender's own converted one while no one else has changed the file
+  since their last write (`ZkDriveFiles.AssertMayReplace`), which is sealed and converted again **(V, tested)**. A
+  sender's unsealed change of a deposit no one has read yet makes it the server's own first, where the request can open
+  it, as a read would (`PeerFileWriter`) **(V, tested)**
   ([server-share-sealed-arrivals-plan.md](server-share-sealed-arrivals-plan.md)). A deposit comes only from a caller
   without the drive key, as on a zero-knowledge drive: a local caller holding it is refused a sealed upload
   (`ZkDriveFiles.OpenForWrite`) **(V, tested)**. A sealed key header there reaches whoever holds the drive's storage key,

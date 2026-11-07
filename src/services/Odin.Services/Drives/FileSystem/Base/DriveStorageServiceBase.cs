@@ -1102,9 +1102,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await AssertMayWriteStoredFileAsync(drive, existingServerHeader, odinContext, shares);
             }
 
-            // A sealed key header replaces only a sealed one: a deposit's sender changes it until a device holding the
-            // drive's key takes it over (docs/file-access.md, "Changing a file you sent")
-            ZkDriveFiles.AssertMayReplace(existingServerHeader, keyHeader);
+            // docs/file-access.md, "Changing a file you sent"
+            ZkDriveFiles.AssertMayReplace(existingServerHeader, keyHeader, odinContext);
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
@@ -1703,10 +1702,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 AssertSameEncryption(existingHeader, metadata);
             }
 
-            // Before any payload is copied; a client-locked key header can't be opened to check its AES key
-            ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader);
-
-            if (!ZkDriveFiles.IsClientLocked(existingHeader) && existingHeader.FileMetadata.IsEncrypted)
+            // Before any payload is copied.  The AES keys are compared only where the server opens both: a client-locked key
+            // header can't be opened, a sealed update over its sender's converted copy included
+            ZkDriveFiles.AssertFitsUpdate(existingHeader, manifest.KeyHeader, odinContext);
+            if (existingHeader.FileMetadata.IsEncrypted && manifest.KeyHeader is not ClientLockedKeyHeader)
             {
                 var existingKeyHeader = DriveFileUtility.OpenWithStorageKey(existingHeader, odinContext);
 
@@ -1798,8 +1797,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// file's sealed key header is replaced by the zkDrive one sent, locking the same file key under the same IV
         /// (<see cref="ZkDriveFiles.TransformedKeyHeader"/>), if the file is still at the version tag the caller read.
         /// Nothing else changes: not the version tag, not modified, and no file-changed event, so no reader re-fetches,
-        /// every writer's cached version tag stays valid, and a deposit's sender may still delete it (though no longer
-        /// change it with a sealed key header, <see cref="ZkDriveFiles.AssertMayReplace"/>).  One result per file, in
+        /// every writer's cached version tag stays valid, and a deposit's sender may still change it with a sealed key
+        /// header, or delete it (<see cref="ZkDriveFiles.AssertMayReplace"/>).  One result per file, in
         /// request order; a file's client error is its result, never the request's.
         /// </summary>
         public async Task<List<KeyHeaderTransformResult>> TransformKeyHeadersAsync(Guid driveId,
@@ -2254,7 +2253,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         private Task AssertMayWriteStoredFileAsync(StorageDrive drive, ServerFileHeader stored, IOdinContext odinContext,
             CallerShares shares = null) =>
             AssertSenderOrShareMayWriteAsync(drive, stored,
-                odinContext.SendersOwnFile is { } own && own.File == stored.FileMetadata.File ? own.Sender : null, odinContext, shares);
+                SendersOwnFile.SenderOf(odinContext, stored.FileMetadata.File), odinContext, shares);
 
         /// <summary>
         /// <paramref name="sender"/>, when the file's, writes it while it has no share; anyone else, or the sender once it
@@ -2872,7 +2871,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //only change the IV if the file was encrypted
             if (existingServerHeader.FileMetadata.IsEncrypted)
             {
-                ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader);
+                ZkDriveFiles.AssertFitsUpdate(existingServerHeader, newKeyHeader, odinContext);
 
                 // A client-locked key header is stored as the client sent it (past the drive's check); any other takes
                 // the file's AES key with the new IV.  Critical Note: if the key header's AES key does not match the
