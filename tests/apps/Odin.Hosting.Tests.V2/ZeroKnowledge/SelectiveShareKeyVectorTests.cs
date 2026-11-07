@@ -125,7 +125,7 @@ internal static class ShareKeys
     public static byte[] Seal(byte[] plaintext, string publicKeyJwk, byte[] aad)
     {
         var recipientPoint = ZkSeal.RawPublicKey(publicKeyJwk);
-        using var recipient = ECDiffieHellman.Create(PublicPoint(recipientPoint));
+        using var recipient = ECDiffieHellman.Create(ZkSeal.PublicPoint(recipientPoint));
         using var throwaway = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP384);
         var q = throwaway.ExportParameters(false).Q;
         var key = ZkSeal.DeriveKey(throwaway, recipient.PublicKey);
@@ -142,14 +142,9 @@ internal static class ShareKeys
         using var me = ECDiffieHellman.Create();
         me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
         var pointEnd = ZkSeal.PublicKeyOffset + ZkSeal.PublicKeyLength;
-        using var throwaway = ECDiffieHellman.Create(PublicPoint(sealedValue[ZkSeal.PublicKeyOffset..pointEnd]));
+        using var throwaway = ECDiffieHellman.Create(ZkSeal.PublicPoint(sealedValue[ZkSeal.PublicKeyOffset..pointEnd]));
         var key = ZkSeal.DeriveKey(me, throwaway.PublicKey);
         return Open(key, ByteArrayUtil.Combine([Format], sealedValue[pointEnd..]), aad);
     }
 
-    private static ECParameters PublicPoint(byte[] uncompressed) => new()
-    {
-        Curve = ECCurve.NamedCurves.nistP384,
-        Q = new ECPoint { X = uncompressed[1..(1 + ZkSeal.CoordinateLength)], Y = uncompressed[(1 + ZkSeal.CoordinateLength)..] }
-    };
 }

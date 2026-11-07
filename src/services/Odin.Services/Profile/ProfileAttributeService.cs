@@ -461,7 +461,7 @@ public class ProfileAttributeService(
     // would fail deep inside key resolution).
     private static IOdinContext GetWriteContext(IOdinContext odinContext)
     {
-        if (!odinContext.PermissionsContext.TryGetDriveStorageKey(DriveId, out _))
+        if (!odinContext.PermissionsContext.HoldsDriveStorageKey(DriveId))
         {
             throw new OdinSystemException(
                 "ManageProfile granted without a real ProfileDrive grant -- caller cannot resolve a storage key.");

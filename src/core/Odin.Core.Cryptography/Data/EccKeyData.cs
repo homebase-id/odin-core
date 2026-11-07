@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using NetEc = System.Security.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
@@ -303,17 +304,41 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
+        /// <summary>
+        /// The private key as .NET key parameters on the named curve, opened with <paramref name="key"/> for this call only:
+        /// unlike the other private-key reads it isn't kept on this object, which may outlive the caller's request (a cached
+        /// drive's key pair). Built from the scalar and the public point, not imported from the stored DER, which spells the
+        /// curve parameters out: Windows' CNG won't agree a key on such a curve with one on the named curve. The caller
+        /// clears <c>D</c>.
+        /// </summary>
+        public NetEc.ECParameters OpenPrivateKey(SensitiveByteArray key)
+        {
+            AssertIsKey(key);
+            using var der = new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
+            var (curveSize, _, x, y) = PublicJwkMembers();
+            return new NetEc.ECParameters
+            {
+                Curve = curveSize == EccKeySize.P384 ? NetEc.ECCurve.NamedCurves.nistP384 : NetEc.ECCurve.NamedCurves.nistP256,
+                D = PrivateScalar(der, curveSize),
+                Q = new NetEc.ECPoint { X = Base64UrlEncoder.Decode(x), Y = Base64UrlEncoder.Decode(y) }
+            };
+        }
+
+        // The private scalar, zero-padded to the curve size like the coordinates
+        private static byte[] PrivateScalar(SensitiveByteArray der, EccKeySize curveSize) =>
+            BigIntegers.AsUnsignedByteArray(CoordinateBytes(curveSize),
+                ((ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(der.GetKey())).D);
+
         private SensitiveByteArray GetFullKey(SensitiveByteArray key)
+        {
+            AssertIsKey(key);
+            return _privateKey ??= new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
+        }
+
+        private void AssertIsKey(SensitiveByteArray key)
         {
             if (ByteArrayUtil.EquiByteArrayCompare(keyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
                 throw new Exception("Incorrect key");
-
-            if (_privateKey == null)
-            {
-                _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
-            }
-
-            return _privateKey;
         }
 
         // privatePEM needs work in case it's encrypted
@@ -332,8 +357,7 @@ namespace Odin.Core.Cryptography.Data
         public string PrivateKeyJwk(SensitiveByteArray key)
         {
             var (curveSize, crv, x, y) = PublicJwkMembers();
-            var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(GetFullKey(key).GetKey());
-            var d = Base64UrlEncoder.Encode(BigIntegers.AsUnsignedByteArray(CoordinateBytes(curveSize), privateKeyParameters.D));
+            var d = Base64UrlEncoder.Encode(PrivateScalar(GetFullKey(key), curveSize));
 
             return JsonSerializer.Serialize(new { kty = "EC", crv, x, y, d }, JwkJsonOptions);
         }

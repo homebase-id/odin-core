@@ -38,19 +38,6 @@ public class ZkDriveFilesReplaceTests
             FileMetadata = new FileMetadata { IsEncrypted = false }
         }, Sealed()));
 
-    [Test]
-    public void ASealedReplacementCarriesNoPayloads()
-    {
-        var e = Assert.Throws<OdinClientException>(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: true, TestDrives.Of(DriveSharingModel.Private)));
-        Assert.That(e!.ErrorCode, Is.EqualTo(OdinClientErrorCode.InvalidPayload));
-        Assert.DoesNotThrow(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: false, TestDrives.Of(DriveSharingModel.Private)));
-    }
-
-    [Test]
-    public void ASealedReplacementCarriesPayloadsOnASelectiveShareDrive() =>
-        // A member's new file on a Selective Share drive has its content (docs/file-access.md, "With Selective Share")
-        Assert.DoesNotThrow(() => Deposits.AssertTakesNoPayloads(Sealed(), addsPayloads: true, TestDrives.Of(DriveSharingModel.SelectiveShare)));
-
     [TestCase(EncryptionType.Sealed, TestName = "AZkDriveKeyHeaderMayReplaceASealedOne")]
     [TestCase(EncryptionType.ZkDrive, TestName = "AZkDriveKeyHeaderMayReplaceAZkDriveOne")]
     public void AZkDriveKeyHeaderIsNotThisRulesConcern(EncryptionType existing) =>

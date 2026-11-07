@@ -103,6 +103,27 @@ public class VaultConversionTests : V2Fixture
     }
 
     [Test]
+    public async Task ADepositNobodyReadIsOpenedBeforeVaultGoesPrivate()
+    {
+        // While Vault is Server Share its server opens a deposit; the conversion replaces the write-only key pair it was
+        // sealed to, so it is opened first and relabelled with the rest
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var writer = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Write);
+        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey((await frodo.Admin.GetDrive(Vault)).WriteOnlyPublicKeyJwk!);
+        var (deposit, _, _, _) = await writer.Drives.Writer.CreateEncryptedFile(VaultId, Metadata(Guid.NewGuid(), Content),
+            transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
+        Assert.That(deposit.StatusCode, Is.EqualTo(HttpStatusCode.OK), deposit.Error?.Content);
+
+        var converted = await ConvertVaultAsync(frodo, zkMasterKey);
+
+        var after = await HeaderAsync(frodo, deposit.Content!.FileId);
+        Assert.That(after.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
+        var opened = ZkBrowser.OpenFileKey(after.SharedSecretEncryptedKeyHeader, converted.DriveKey);
+        Assert.That(opened.Decrypt(after.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes(), Is.EqualTo(Content),
+            "the drive's own key opens it");
+    }
+
+    [Test]
     public async Task EditingTheAppsCirclesKeepsItsKeys()
     {
         // The registration is rebuilt field by field there; a field left out would strand the app's devices

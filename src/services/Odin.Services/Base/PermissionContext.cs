@@ -285,6 +285,18 @@ namespace Odin.Services.Base
             throw new OdinSecurityException($"No access permitted to drive {driveId}");
         }
 
+        /// <summary>Whether the caller's grants carry drive <paramref name="driveId"/>'s storage key; the copy opened to tell is wiped.</summary>
+        public bool HoldsDriveStorageKey(Guid driveId)
+        {
+            if (!TryGetDriveStorageKey(driveId, out var storageKey))
+            {
+                return false;
+            }
+
+            storageKey.Wipe();
+            return true;
+        }
+
         public bool TryGetDriveStorageKey(Guid driveId, out SensitiveByteArray storageKey)
         {
             storageKey = null;

@@ -1109,6 +1109,22 @@ was re-run.
 42092307328, the same `TearDown` NullReferenceException; the re-run passed. Filed as #2069, with a hypothesis: the
 multiplexer is disposed twice, once by FusionCache's Redis L2/backplane and once by the container.
 
+## `Odin.Hosting.Tests.V2.ZeroKnowledge.SelectiveShareTests`
+
+- `ASharesWritesReachTheOwnersDevicesAndItsMember`
+
+**Where:** CI, `ubuntu/postgres/release` on `main`, commit `104b80a8b` (the #2074 merge), run 42180919649, 2026-11-06.
+`ubuntu/sqlite/release` and `windows/sqlite/debug` passed on the same commit, and the re-run of the failed job passed.
+
+**Symptom:** after the share write, Frodo's device socket got its FileModified, but Sam's member socket saw no event at
+all within 10 s (`KeptSocket.WaitForAsync`, `SelectiveShareTests.Events.cs:331`, from line 152).
+
+**Not caused by the commit:** #2074 adds the key-header transform; it changes nothing in shares, share events or
+sockets (inferred from its diff).
+
+**Cause, a hypothesis:** the member's event is dropped, not late: the publish side reads the member's share rows before
+the new row is visible to it, or the test socket's registration races the first event. Filed as #2076.
+
 ## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
 
 - `Disconnect_PushesConnectionChanged`

@@ -2727,12 +2727,11 @@ namespace Odin.Services.Membership.Connections
 
                 if (needsStorageKey)
                 {
-                    if (!odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
+                    if (!odinContext.PermissionsContext.HoldsDriveStorageKey(drive.Id))
                     {
                         return false;
                     }
 
-                    storageKey?.Wipe();
                     continue;
                 }
 

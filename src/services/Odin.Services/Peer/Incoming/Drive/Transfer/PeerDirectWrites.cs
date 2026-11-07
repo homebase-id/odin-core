@@ -29,7 +29,7 @@ internal static class PeerDirectWrites
         }
 
         if (!isEncrypted || !drive.HasInbox || sentKeyHeader?.IsPassedOnAsSent() == true ||
-            odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out _))
+            odinContext.PermissionsContext.HoldsDriveStorageKey(drive.Id))
         {
             return true;
         }
