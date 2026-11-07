@@ -354,15 +354,15 @@ public class LevelXCacheTests
         await cache.SetAsync(key, expectedRecord, TimeSpan.FromMinutes(10));
 
         // Ensure it exists
-        var contains = await cache.ContainsAsync(key);
-        Assert.That(contains, Is.True);
+        var contains = await cache.TryGetAsync<PocoA>(key);
+        Assert.That(contains.HasValue, Is.True);
 
         // Remove the value
         await cache.RemoveAsync(key);
 
         // Ensure it does not exist
-        contains = await cache.ContainsAsync(key);
-        Assert.That(contains, Is.False);
+        contains = await cache.TryGetAsync<PocoA>(key);
+        Assert.That(contains.HasValue, Is.False);
     }
 
 
