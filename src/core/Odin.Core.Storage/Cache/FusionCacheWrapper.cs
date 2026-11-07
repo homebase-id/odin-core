@@ -383,22 +383,6 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
-    public bool Contains(string key, CancellationToken cancellationToken = default)
-    {
-        var value = TryGet<object>(key, cancellationToken);
-        return value.HasValue;
-    }
-
-    //
-
-    public async ValueTask<bool> ContainsAsync(string key, CancellationToken cancellationToken = default)
-    {
-        var value = await TryGetAsync<object>(key, cancellationToken);
-        return value.HasValue;
-    }
-
-    //
-
     private string AddPrefix(string text)
     {
         ArgumentException.ThrowIfNullOrEmpty(text, nameof(text));

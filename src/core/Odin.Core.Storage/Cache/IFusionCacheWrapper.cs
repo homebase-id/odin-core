@@ -130,10 +130,4 @@ public interface IFusionCacheWrapper
     ValueTask RemoveByTagAsync(
         IEnumerable<string> tags,
         CancellationToken cancellationToken = default);
-
-    //
-    // Checkers
-    //
-    bool Contains(string key, CancellationToken cancellationToken = default);
-    ValueTask<bool> ContainsAsync(string key, CancellationToken cancellationToken = default);
 }
