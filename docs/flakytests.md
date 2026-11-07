@@ -1175,7 +1175,12 @@ resulting abort escapes `DisconnectAsync` instead of being treated as the expect
   `OperationCanceledException: Aborted` over a disposed `WebSocket`; `(Minimal)` then failed its handshake with
   `Unauthorized to read to drive`. Passed on re-running the job (attempt 2) with no change, and passes on the
   ubuntu jobs of the same commit and on recent `main` Windows runs. The branch touches nothing in peer
-  WebSockets (hosting plans and quota checks). Undiagnosed.
+  WebSockets (hosting plans and quota checks). Undiagnosed. Seen again locally on Linux, 2026-11-07, on an
+  earlier version of branch `sealed-change-after-conversion`: `(Minimal)` timed out waiting for the fileAdded event
+  (30 s) in a full V1 run that shared the machine with the V2 and unit suites. It passed in the branch's two earlier
+  full V1 runs that day, and 3 of 3 runs of the class alone on the same tree. The `main` CI runs of 2026-11-06 and
+  2026-11-07 passed on all three jobs (ubuntu sqlite and postgres, windows; e.g. run 42337240572), which run this project
+  (I: not checked in their logs). Not run on a clean tree locally.
 - Four `_Universal` tests that call the admin API fail locally on macOS with `HttpRequestException: nodename
   nor servname provided, or not known (admin.dotyou.cloud:4444)`: `AnUnsentOutboxItemsFileIsAmongTheQueuedFiles`,
   `ItemIsDroppedOnceItHasBeenDeferredForLongerThanTheMaxAge`, `PausedSenderDoesNotSendFromItsOutbox` and

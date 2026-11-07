@@ -43,7 +43,7 @@ internal static class PeerDirectWrites
         return false;
     }
 
-    private static bool IsPeerToken(IOdinContext odinContext) =>
+    internal static bool IsPeerToken(IOdinContext odinContext) =>
         string.Equals(odinContext.AuthContext, "TransitCapiAuthScheme", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(odinContext.AuthContext, "AutomatedIdentityAuthScheme", StringComparison.OrdinalIgnoreCase);
 }

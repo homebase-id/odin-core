@@ -278,8 +278,9 @@ public class DepositTests : V2Fixture
     [TestCase(false, TestName = "ADepositCannotReplaceAnAesFileOnTheTransientDrive")]
     public async Task WhatADepositMayReplace(bool existingIsADeposit)
     {
-        // A sealed key header replaces only a sealed one: over an aes one, the file key only the server could
-        // open would be lost.  A full overwrite, through its usual version-tag check
+        // A sealed key header replaces a sealed one, or its sender's converted one (ZkDriveFiles.AssertMayReplace): over
+        // the owner's own aes one, the file key only the server could open would be lost.  A full overwrite, through its
+        // usual version-tag check
         var frodo = await LoginAsOwner(Identities.Frodo);
         var publicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk;
         var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);

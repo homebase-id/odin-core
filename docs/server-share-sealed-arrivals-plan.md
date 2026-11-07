@@ -1,7 +1,8 @@
 # A Server Share drive accepts and converts sealed files: plan
 
-Status: step 1 built 2026-11-06 on branch `server-share-sealed-arrivals` (not merged); step 1b and steps 2-3 not built. Step 1 of three towards a Server Share drive without an inbox for a peer's
-files; steps 2 and 3 are at the end, only so step 1 is seen in its place. Words follow [terminology.md](terminology.md),
+Status: step 1 built 2026-11-06 on branch `server-share-sealed-arrivals` (#2077, not merged). Step 1b, with a fix for an
+unsealed change over a copy still sealed, built 2026-11-07 (not merged). Step 2, a client sealing a file for each
+recipient, is a design for review; step 3 is tabled. Step 3 is at the end, only so the others are seen in their place. Words follow [terminology.md](terminology.md),
 keys [owner-keys.md](owner-keys.md). **(V)** read in the code (file named), **(I)** inferred.
 
 ## Why
@@ -81,10 +82,10 @@ code serves all three; the drive's model decides only who converts and what a re
    table) if sealed files pile up.
 2. **Before conversion** a reader holding the drive key gets the file opened, re-locked with their shared secret as for
    any file. Clients never see the sealed form on a Server Share drive.
-3. **A sender's sealed update over a converted file** is refused in step 1, on every drive, as on a zero-knowledge drive
-   today (`ZkDriveFiles.AssertMayReplace`). Step 1b relaxes it for every drive alike.
+3. **A sender's sealed update over a converted file** was refused in step 1, on every drive, as on a zero-knowledge
+   drive (`ZkDriveFiles.AssertMayReplace`). Step 1b relaxes it for every drive alike.
 
-## Step 1b: a sender's sealed update replaces a converted key header
+## Step 1b: a sender's sealed update replaces a converted key header (built)
 
 A sealed key header may replace a converted one (`zkDrive`, or the server's own `aes` on Server Share) **while the
 file's record of the sender's last write is current**: a conversion doesn't move the version tag, so the update is still
@@ -94,6 +95,25 @@ tag, after which the sender's change is refused as today (`SentFileChanges`) **(
 replaces another writer's. One rule for every drive; it settles "a sender's edit after the transform"
 (zero-knowledge-drive-api-plan.md). Rejected: keeping the converted key header and dropping the seal, which only works
 if the sender kept the same file key (the server can't check that) and leans on key header version 1's weakness (#2024).
+
+Built:
+- **Step 1b** as above, in `ZkDriveFiles.AssertMayReplace`: the record of the sender's last write must name the writer
+  and still have the file's version tag (`SendersWrite.UnchangedSinceLastWriteBy`, the peer change rules' own). A
+  matching version tag alone isn't enough, or a sender could replace the owner's key header after the owner's edit. The
+  writer must be the file's original sender too, or a member who last edited the owner's shared file on a Private Share
+  drive could replace its key. The writer is the sender a change is marked as theirs, wherever it is written, or a peer
+  writing as their change arrives; never a local caller, nor whoever drains an inbox (`ZkDriveFiles.WriterIn`).
+- **A sealed update over a converted key header** must rotate its IV, which both key headers show, as over any
+  client-locked one; its AES key isn't compared, since the server can't open the seal, and keeping the file key is the
+  sender's, as on their first write (`ZkDriveFiles.AssertFitsUpdate`, `DriveStorageServiceBase`).
+- **An unsealed change over a copy still sealed** (the same sender sending the old way) makes the stored deposit the
+  server's own first, where the request can open it, as a read would (`PeerFileWriter`); before, it was refused as a
+  key header a zero-knowledge drive doesn't take.
+
+Tests: `ServerShareDepositTests` (`ASendersUnsealedChangeOfTheirDepositNoOneReadLands`,
+`ASendersSealedUpdateOfTheirConvertedCopyLandsUnderANewIv`, `ASendersUnsealedUpdateOfTheirStillSealedCopyLands`,
+`ASendersDeleteLandsAfterTheConversion`, `ASendersSealedChangeAfterTheConversionLandsUntilSomeoneElseChangesTheFile`),
+`KeyHeaderTransformTests.ASendersSealedChangeAfterTheTransformLandsUntilTheOwnerChangesIt`, `ZkDriveFilesReplaceTests`.
 
 ## Built (step 1), and where it differs
 
@@ -177,10 +197,110 @@ None loses data; the worst case is the server converting a file again.
   (it needs the drive key in scope, as the v14 → v15 migration did).
 - What the conversion costs a read under decision 1 (a): one ECDH per sealed file, once.
 
+## Step 2: a client seals a file for each recipient (design, for review)
+
+Decided 2026-11-07 (the user's): the client seals, one key header per recipient, and passes them with the upload; the
+server passes each on unopened. Available from Server Share and zero-knowledge drives alike, so Server Share apps have
+two ways to send: the old one and the sealed one. Removing the inbox (step 3) is tabled.
+
+### Why the client
+
+- **A zero-knowledge drive's file can't be sent today:** writes refuse recipients (`ZkDriveFiles.AssertNotSent`) **(V)**,
+  since the server holds neither the file key nor anything to lock it with. Chat going private needs to send from one
+  (drive-public-keys-plan.md, "Not in this work"). Only a client that holds the file key can seal it, so this is the code
+  a zero-knowledge drive needs anyway; one path for every drive.
+- **No key in the server's hands:** the upload answers at once, the sealed key header waits in the outbox item like any
+  other and the outbox retries for days as today. Nothing depends on a node's memory or a restart.
+
+### What exists (V)
+
+- **An upload carries one key header** (`UploadFileDescriptor.EncryptedKeyHeader`, likewise `UpdateFileDescriptor`); its
+  recipients are a list with one remote drive for all (`TransitOptions.Recipients`, `RemoteTargetDrive`).
+- **A sealed key header is passed on unopened** (`Deposits.OpenWithDriveKey`, `EncryptedKeyHeader.EncryptKeyHeaderAes`),
+  but the same one to every recipient, so only the drive it was sealed to can open it.
+- **The receiving side is built:** a sealed file lands at once on a zero-knowledge and a Server Share drive (step 1), a
+  seal to another key is refused `SealedToUnknownKey`, and a sender's sealed change of a converted copy lands (step 1b).
+- **A client gets a peer drive's key** from its own server (`V2PeerAppDrivePublicKeyController`, by app and drive slug),
+  which caches a zero-knowledge drive's for 7 days. The answer gives the key on every drive, and says whether it is zero
+  knowledge, its sharing model and whether the caller may write.
+- **Nothing seals per recipient yet:** chat-kmp's upload can seal to one drive (`DriveUploadProvider.sealedTo`) with no
+  caller in the app; odin-js seals only Shamir shards, each its own file.
+- **The transfer history keeps a status per recipient, not the refusal's code** (`UpdateTransferHistoryData`): a refused
+  seal shows as `RecipientIdentityReturnedBadRequest`, like any other 400.
+
+### The API (proposed)
+
+- **Upload and update take a sealed key header per recipient**, beside the file's own key header: the same file key and
+  IV sealed to each recipient drive's write-only public key. Payloads, thumbnails and content stay encrypted once.
+- **Each recipient's outbox item carries its own** and the server passes it on unopened; the recipient's server takes
+  it as a deposit, as today.
+- **Checked at upload:** each is a valid seal (`EncryptedKeyHeader.AssertValidSealed`), for a listed recipient, under the
+  file's IV; a standard file only (a comment keeps its own key header rules).
+- **From a zero-knowledge drive** a send is allowed when every recipient has a sealed key header; the file's own key
+  header (`zkDrive`) never leaves.
+- **Deletes, reactions, read receipts and feed distribution** are unchanged: they carry no file key, or the server sends
+  them from a drive whose key it holds.
+
+### How a client knows what to seal
+
+- **Per recipient: a key to seal to, or none,** none meaning the file wouldn't be a deposit there, so it goes the old
+  way: the recipient holds the drive's key, the drive is marked as a community channel, the Shard Recovery drive before
+  it is zero knowledge, or a drive with no key pair. Only the recipient's server knows the first, so it answers per
+  caller.
+- **Keys are kept** by the client per contact. Its server caches a peer drive's key for 7 days only when the drive is zero
+  knowledge and the caller may write (`PeerDriveQueryService`) **(V)**, so a Server Share drive's would be fetched
+  each time unless that changes. A key changes only when a drive is converted to
+  zero knowledge (#2079 would keep it). A stale one is refused (`SealedToUnknownKey`): the client fetches the key again
+  and sends again.
+
+### Decided 2026-11-07 (the user's)
+
+- **Not decided whether the server will ever seal;** step 2 lets the client seal. Filesync needs it next: an edited file
+  sent back to another identity's drive.
+- **The client always knows which drive** it sends to, and addresses it by slug.
+- **The transfer history says why a send was refused,** so a client knows a seal went to the wrong key.
+- **The per-recipient key headers go in the encrypted upload and update descriptors.**
+- **A recipient without one** on a Server Share drive's send goes the old way.
+- **An option on the existing upload and update,** not a new API.
+
+### Open decisions
+
+1. **How a client asks "seal to which key, or none"** for a drive it names by slug: a caller-aware answer on the existing
+   slug endpoint, or a new one. Either is an API change.
+2. **The refusal in the transfer history:** the recipient's error code beside the status, or a status per reason.
+3. **Keys kept up to date on the client:** fetched again on a refusal only (proposed), or pushed to contacts when a drive's
+   key changes.
+
+## Idea (the user's, 2026-11-07): a key header that never changes
+
+Not decided; written down so it isn't lost. **The thought:** keep the locked file key constant, encrypted the same way
+every time, with the content's IV public beside it, new on every update. Then the server can tell a key header didn't
+change by comparing bytes, also for a sealed one from a peer; and a peer's update needn't send a key header at all, only
+the new IV, since the recipient already has one.
+
+**What exists:**
+- **Version 1 is close to this already** **(V)** (#2024): a key header encrypts `IV ‖ key` with AES-CBC under the file's
+  own IV, so the IV cancels out and the encrypted bytes depend only on the locking key and the file key. An `aes` or
+  `zkDrive` key header keeps its bytes when only the IV changes, and the IV is the visible `Iv` field. #2024 treats that
+  as a weakness (equality shows, the IV isn't protected) and leans to a version 2 with its own locking IV, which would
+  make the bytes change. This idea goes the other way: a constant locked key by design, the IV as data. #2024 should
+  settle the two together.
+- **A sealed key header changes every time:** `ZkSeal` seals `IV ‖ key` under a new throwaway key pair **(V)**, so
+  neither the bytes nor the key inside can be compared without opening it. Sealing the key alone, with the IV beside it
+  in the clear, is a seal format change (drive-public-keys-plan.md, "Seal v2"), for all three implementations.
+- **"Keep the key, send only the IV" exists** for a Private Share member's update: a `share` key header with the new IV
+  and no key (decision C, `EncryptedKeyHeader.AssertKeepsKey`) **(V)**. Opening it to every peer update, any drive, would
+  make step 1b's sealed change unneeded: the server keeps the stored key header and takes the new IV, so a peer can't
+  change the file key at all, and the update can't leave payloads it didn't re-upload unreadable.
+
+## Considered and rejected for step 2
+
+- **The sending server seals** (built on the branch, then dropped, 2026-11-07): it needs the file key when it seals,
+  which only the upload's request holds. Fetching each recipient's key there makes an upload wait on peers; handing the
+  send off means keeping file keys in a node's memory, lost on a restart and missing on another node; and from a
+  zero-knowledge drive the server has no key to seal. The client seals with what it already holds.
+
 ## Later steps (not this plan)
 
-- **Step 2, senders seal.** The sending server seals the key header to each recipient drive's public key, instead of
-  re-locking it with the connection's shared secret (`PeerOutgoingTransferService`), when the recipient's drive has a
-  key; otherwise as today. From then on most files skip the inbox.
-- **Step 3, the inbox goes** for a peer's files, once every sender seals. Read receipts move separately: they go through
+- **Step 3, the inbox goes** for a peer's files, once every sender seals (tabled, 2026-11-07). Read receipts move separately: they go through
   the inbox on every drive (`PeerDriveIncomingTransferService.MarkFileAsReadAsync`) **(V)**.

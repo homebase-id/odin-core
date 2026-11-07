@@ -269,9 +269,10 @@ don't see John's file.
 **John edits an existing file.** He keeps the file key (he knows it from the Family share), encrypts the new
 content with it and leaves the key headers alone. Two things are needed:
 
-- **A rule to update content without the key header.** Today a `sealed` header replaces only a `sealed` one
-  **(V)** (design doc), so once Michael's device has transformed John's file, John can't send a new key
-  header. Updating content while keeping the stored key header is new: decision 5, decided below.
+- **A rule to update content without the key header.** A `sealed` header replaces a `sealed` one, or its
+  sender's own converted one while no one else has changed the file since **(V)**
+  ([server-share-sealed-arrivals-plan.md](server-share-sealed-arrivals-plan.md), step 1b), so John may send a new
+  sealed key header after Michael's device transforms his file, until someone else changes it. Updating content while keeping the stored key header is new: decision 5, decided below.
 - **The member's own server must be able to find the file** (design doc, "Known limit" **(V)**): when John
   updates or deletes, the lookup on Michael's server runs as John, and before PR 3 the read rule let only the owner
   read a client-locked file, so John's update found nothing. PR 3 lets a member with a live share row through the read
