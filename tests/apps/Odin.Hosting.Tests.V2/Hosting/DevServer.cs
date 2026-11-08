@@ -32,6 +32,8 @@ public sealed class DevServer(int port, IReadOnlySet<string> identities) : ITest
     public HttpMessageHandler CreateHandler() => new SocketsHttpHandler
     {
         UseCookies = false,
+        // As the in-process host's client: a test reads a redirect, never follows it
+        AllowAutoRedirect = false,
         SslOptions =
         {
             RemoteCertificateValidationCallback = (sender, _, _, _) =>

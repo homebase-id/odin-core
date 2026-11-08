@@ -22,6 +22,10 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Drives.Shares;
+using Odin.Services.Peer.Encryption;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Hosting.UnifiedV2.Drive.Write;
 
 namespace Odin.Hosting.Tests.V2.DevFixture;
 
@@ -103,6 +107,106 @@ public class CollaborativeFolderDevFixture
 
         await File.WriteAllTextAsync(outPath!, JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
         TestContext.Out.WriteLine($"Set up; keys and credentials in {outPath}");
+    }
+
+    /// <summary>
+    /// A follow-up to <see cref="SetUpACollaborativeFilesyncFolderOnTheDevServer"/>: a Filesync device on each identity that
+    /// holds the app's zero-knowledge key, signed in as the app does (the consent page's part played as the browser does),
+    /// since a client-locked write needs it; and, on Pippin, two new circles whose owner copy is locked with that key
+    /// (a circle's key is set once, and the first two were locked with a stand-in), Tom in both with his sealed copy.
+    /// Rewrites the fixture's file; refuses to run twice.
+    /// </summary>
+    [Test]
+    public async Task GiveFilesyncDevicesTheirKeyAndCirclesLockedWithIt()
+    {
+        var outPath = Environment.GetEnvironmentVariable("ODIN_DEV_FIXTURE_OUT");
+        Assert.That(File.Exists(outPath), Is.True, "Set ODIN_DEV_FIXTURE_OUT to the fixture's file");
+        var root = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(await File.ReadAllTextAsync(outPath!))!;
+        Assert.That(root["pippin"].TryGetProperty("filesyncDevice", out _), Is.False, "done already");
+
+        var dev = new DevServer(DevServerPort, new HashSet<string> { Pippin, Tom });
+        var password = root["password"].GetString()!;
+        var pippin = await OwnerSession.LoginToDevServerAsync(dev, Pippin, password, setPassword: false);
+        var tom = await OwnerSession.LoginToDevServerAsync(dev, Tom, password, setPassword: false);
+
+        var (pippinDevice, pippinAppKey) = await ZkAppSteps.SignInAsync(pippin,
+            FilesyncAppId, Convert.FromBase64String(root["pippin"].GetProperty("zkMasterKey").GetString()!));
+        var (tomDevice, tomAppKey) = await ZkAppSteps.SignInAsync(tom,
+            FilesyncAppId, Convert.FromBase64String(root["tom"].GetProperty("zkMasterKey").GetString()!));
+
+        var tomsPublicKey = root["tom"].GetProperty("filesyncDrive").GetProperty("writeOnlyPublicKeyJwk").GetString()!;
+        var circles = new List<object>();
+        foreach (var name in new[] { "filesync-edit (keyed)", "Tom (individual, keyed)" })
+        {
+            circles.Add(await CircleWithTomAsync(pippin, pippinDevice, name, pippinAppKey, tomsPublicKey));
+        }
+
+        var pippinResult = JsonSerializer.Deserialize<Dictionary<string, object>>(root["pippin"].GetRawText())!;
+        pippinResult["standInCircles"] = pippinResult["circles"];
+        pippinResult["circles"] = circles;
+        pippinResult["filesyncAppZkKey"] = Convert.ToBase64String(pippinAppKey);
+        pippinResult["filesyncDevice"] = AppResult(pippinDevice);
+        var tomResult = JsonSerializer.Deserialize<Dictionary<string, object>>(root["tom"].GetRawText())!;
+        tomResult["filesyncAppZkKey"] = Convert.ToBase64String(tomAppKey);
+        tomResult["filesyncDevice"] = AppResult(tomDevice);
+
+        var result = new Dictionary<string, object>
+        {
+            ["devServer"] = root["devServer"], ["password"] = password, ["pippin"] = pippinResult, ["tom"] = tomResult
+        };
+        await File.WriteAllTextAsync(outPath!, JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        TestContext.Out.WriteLine($"Devices and keyed circles in {outPath}");
+    }
+
+    /// <summary>
+    /// Checks Pippin's Filesync device can do what chat-kmp's folder upload does: a new file with its key header locked
+    /// with the drive key, shared with both keyed circles in the same upload (format 3, by the global transit id it picks).
+    /// Hard-deletes the file after, so nothing is left.
+    /// </summary>
+    [Test]
+    public async Task PippinsFilesyncDeviceWritesAClientLockedSharedFile()
+    {
+        var outPath = Environment.GetEnvironmentVariable("ODIN_DEV_FIXTURE_OUT");
+        Assert.That(File.Exists(outPath), Is.True, "Set ODIN_DEV_FIXTURE_OUT to the fixture's file");
+        using var json = JsonDocument.Parse(await File.ReadAllTextAsync(outPath!));
+        var pippin = json.RootElement.GetProperty("pippin");
+        var dev = new DevServer(DevServerPort, new HashSet<string> { Pippin, Tom });
+        var owner = await OwnerSession.LoginToDevServerAsync(dev, Pippin, json.RootElement.GetProperty("password").GetString()!,
+            setPassword: false);
+        var deviceJson = pippin.GetProperty("filesyncDevice");
+        var device = AppSession.FromToken(owner, FilesyncAppId,
+            ClientAuthenticationToken.FromPortableBytes64(deviceJson.GetProperty("clientAuthToken").GetString()!),
+            Convert.FromBase64String(deviceJson.GetProperty("sharedSecret").GetString()!));
+
+        var fileKey = KeyHeader.NewRandom16();
+        var gtid = Guid.NewGuid();
+        var shares = new List<ShareRequest>();
+        foreach (var circle in pippin.GetProperty("circles").EnumerateArray())
+        {
+            var circleId = circle.GetProperty("circleId").GetGuid();
+            shares.Add(new ShareRequest
+            {
+                FileId = Guid.Empty,
+                CircleId = circleId,
+                Permissions = DrivePermission.Read | DrivePermission.Write | DrivePermission.React | DrivePermission.Comment,
+                LockedFileKey = ShareKeys.Lock(Convert.FromBase64String(circle.GetProperty("circleKey").GetString()!), fileKey.AesKey.GetKey(),
+                    ShareKeys.FileKeyAad(FilesyncDrive.Alias, gtid, circleId), RandomNumberGenerator.GetBytes(12),
+                    ShareKeys.FormatByGlobalTransitId)
+            });
+        }
+
+        var (upload, _, _, _) = await device.Drives.Writer.CreateEncryptedFile(FilesyncDrive.Alias,
+            ZkTestFiles.Metadata(Guid.NewGuid(), "a dev fixture probe"), transitOptions: null!, new UploadManifest { PayloadDescriptors = [] },
+            [], keyHeader: fileKey, lockedKeyHeader: ZkBrowser.LockFileKey(fileKey,
+                Convert.FromBase64String(pippin.GetProperty("filesyncDrive").GetProperty("driveKey").GetString()!)),
+            shares: shares, globalTransitId: gtid);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+
+        var delete = await device.Drives.Writer.HardDeleteBatch(FilesyncDrive.Alias, new HardDeleteBatchRequestV2
+        {
+            Files = [new FileVersionTagV2 { FileId = upload.Content!.FileId, VersionTag = upload.Content.NewVersionTag }]
+        });
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
     }
 
     /// <summary>

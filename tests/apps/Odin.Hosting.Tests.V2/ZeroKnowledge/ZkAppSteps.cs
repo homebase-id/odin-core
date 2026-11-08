@@ -195,7 +195,7 @@ internal static class ZkAppSteps
         var response = await YouAuthFlow.AuthorizeAsync(owner.Host, owner, request);
         YouAuthFlow.AssertRedirectsTo(response, request.RedirectUri);
         var (token, exchangeSecret) = await YouAuthFlow.ExchangeTokenAsync(owner.Host, owner.Identity.DomainName, keyPair,
-            response.GetHeaderValue("Location")!);
+            response.GetHeaderValue("Location")!, owner.DevServer);
 
         var (authToken, sharedSecret) = YouAuthFlow.OpenAppToken(token, exchangeSecret);
         return (AppSession.FromToken(owner, appId, authToken, sharedSecret), token);
