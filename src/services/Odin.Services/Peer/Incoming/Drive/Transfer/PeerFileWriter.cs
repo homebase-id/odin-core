@@ -43,7 +43,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet,
             IOdinContext odinContext,
             StagingArea sourceArea,
-            bool driveOriginWasCollaborative = false,
             WriteSecondDatabaseRowBase markComplete = null,
             FileMetadata metadataOverride = null)
         {
@@ -107,7 +106,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 case TransferFileType.EncryptedFileForFeed:
                 case TransferFileType.EncryptedFileForFeedViaTransit:
                     return await StoreEncryptedFeedFile(fs, file, decryptedKeyHeader, metadata,
-                        driveOriginWasCollaborative,
                         odinContext, markComplete);
 
                 default:
@@ -315,7 +313,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<(bool success, List<PayloadDescriptor> payloads)> StoreEncryptedFeedFile(IDriveFileSystem fs, InternalDriveFileId file,
             KeyHeader keyHeader,
-            FileMetadata newMetadata, bool driveOriginWasCollaborative, IOdinContext odinContext,
+            FileMetadata newMetadata, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
             // Rules:
@@ -350,10 +348,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             header.AssertFileIsActive();
-            if (!driveOriginWasCollaborative) //collab channel hack to allow multiple editors to the same file
-            {
-                header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);
-            }
+            // On a collaborative channel the host delivers every member's edit, so the sender is still the host
+            header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);
 
             newMetadata.VersionTag = header.FileMetadata.VersionTag;
 
@@ -372,7 +368,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await feedWriter.ReplaceFileMetadataOnFeedDrive(header.FileId,
                 newMetadata,
                 odinContext,
-                bypassCallerCheck: driveOriginWasCollaborative, // the caller will not be original sender in the case of a collab drive 
+                expectedSender: (OdinId)newMetadata.SenderOdinId,
                 keyHeader: keyHeader);
 
             logger.LogDebug("{method} -> markComplete {message}", 
