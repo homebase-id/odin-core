@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -17,6 +18,7 @@ using Odin.Services.Background.BackgroundServices;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Introductions;
@@ -192,6 +194,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinFileReadException fileReadException)
             {
+                await PeerSendResultNotification.PublishAsync(childScope.Resolve<IMediator>(), logger, fileItem,
+                    LatestTransferStatus.UnknownServerError, willRetry: false, versionTag: null);
                 await peerOutbox.MarkCompleteAsync(fileItem.Marker);
 
                 logger.LogError(fileReadException, "Source file not found {file} item (type: {itemType})", fileItem.File, fileItem.Type);
@@ -394,7 +398,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 workLogger,
                 odinConfiguration,
                 odinHttpClientFactory,
-                childScope.Resolve<PeerDriveQueryService>()
+                childScope.Resolve<PeerDriveQueryService>(),
+                childScope.Resolve<IMediator>()
             );
 
             return await worker.Send(odinContext, cancellationToken);
@@ -414,7 +419,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 workLogger,
                 odinConfiguration,
                 odinHttpClientFactory,
-                childScope.Resolve<PeerDriveQueryService>()
+                childScope.Resolve<PeerDriveQueryService>(),
+                childScope.Resolve<IMediator>()
             );
 
             return await worker.Send(odinContext, cancellationToken);

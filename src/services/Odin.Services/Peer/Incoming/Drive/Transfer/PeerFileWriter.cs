@@ -30,6 +30,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// </summary>
     public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver, IDriveManager driveManager, FeedWriter feedWriter)
     {
+        /// <summary>
+        /// The version tag the last <see cref="HandleFile"/> left the recipient's copy with, for its sender's next change
+        /// to name; null for a feed item
+        /// </summary>
+        public Guid? VersionTagWritten { get; private set; }
+
         public async Task<(bool success, List<PayloadDescriptor> payloads)> HandleFile(InternalDriveFileId file,
             IDriveFileSystem fs,
             KeyHeader decryptedKeyHeader,
@@ -203,6 +209,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 (success, payloads) = await fs.Storage.CommitNewFile(file, keyHeader, metadata,
                     serverMetadata, ignorePayloads, odinContext, useThisVersionTag: versionTag, markComplete: markComplete,
                     sourceArea: sourceArea);
+                VersionTagWritten = versionTag;
             });
 
             logger.LogDebug("Handle file->CommitNewFile: {ms} ms", ms);
@@ -270,6 +277,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 memberMayUseShares: false, sendersVersionTag, encryptedRecipientTransferInstructionSet.ExpectedVersionTag, odinContext);
             if (alreadyLanded)
             {
+                // The tag their write gave it, not the file's now: they may not have read another's change since
+                VersionTagWritten = stored.ServerMetadata.SendersWrite.VersionTag;
                 return await SentFileChanges.AlreadyDeliveredAsync(fs, file, newMetadata.Payloads, markComplete, odinContext);
             }
 
@@ -298,6 +307,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             serverMetadata.SendersWrite = SentFileChanges.SendersWriteOf(sender, sendersVersionTag, versionTag);
 
             //note: we also update the key header because it might have been changed by the sender
+            VersionTagWritten = versionTag;
             return await UpdateExistingFile(fs, file, stored.FileMetadata.File, keyHeader, newMetadata, serverMetadata, ignorePayloads,
                 writeContext, sourceArea, markComplete, versionTag);
         }

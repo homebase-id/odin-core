@@ -218,7 +218,7 @@ public partial class SelectiveShareTests
 
         var replaced = EncryptedPayload(SamplePayloadDefinitions.GetPayloadDefinition1(), fileKey, "Sam's payload, edited");
         var newIv = await MemberEditsAsync(s, gtid, before.FileMetadata.VersionTag, fileKey, "Sam's file, edited", [replaced], [],
-            iv => EncryptedKeyHeader.SealedTo(new KeyHeader { AesKey = fileKey.AesKey, Iv = iv }, s.WriteOnlyPublicKeyJwk), uniqueId);
+            SealAgain(s, fileKey), uniqueId);
 
         var after = await s.HeaderByUniqueIdAsync(uniqueId);
         Assert.That((after.SharedSecretEncryptedKeyHeader.Type, after.SharedSecretEncryptedKeyHeader.Iv), Is.EqualTo((EncryptionType.Sealed, newIv)),
@@ -231,10 +231,12 @@ public partial class SelectiveShareTests
     /// Sam edits Frodo's file through his own server (V2 peer update, by global transit id), naming the version tag he
     /// has: the content under a new IV, <paramref name="payloads"/> appended or overwritten, <paramref name="deleted"/>
     /// removed, and the key header <paramref name="keyHeaderFor"/> makes of the new IV.  The app data is replaced, so it
-    /// names the file's <paramref name="uniqueId"/> again when it has one.  Returns the new IV.
+    /// names the file's <paramref name="uniqueId"/> again when it has one.  Sent by <paramref name="editor"/>, one of Sam's
+    /// apps, or his own client.  Returns the new IV.
     /// </summary>
     private static async Task<byte[]> MemberEditsAsync(Arranged s, Guid gtid, Guid versionTag, KeyHeader fileKey, string content,
-        List<TestPayloadDefinition> payloads, List<string> deleted, Func<byte[], EncryptedKeyHeader> keyHeaderFor, Guid? uniqueId = null)
+        List<TestPayloadDefinition> payloads, List<string> deleted, Func<byte[], EncryptedKeyHeader> keyHeaderFor, Guid? uniqueId = null,
+        IV2Caller? editor = null)
     {
         var newKey = WithNewIv(fileKey);
         var metadata = s.Metadata(SecurityGroupType.Connected, versionTag);
@@ -243,7 +245,7 @@ public partial class SelectiveShareTests
         metadata.IsEncrypted = true;
         metadata.AllowDistribution = true;
 
-        var update = await s.Sam.Drives.Writer.UpdatePeerFileByGlobalTransitId(s.Frodo.Identity, s.Drive.Alias, gtid,
+        var update = await (editor ?? s.Sam).Drives.Writer.UpdatePeerFileByGlobalTransitId(s.Frodo.Identity, s.Drive.Alias, gtid,
             new FileUpdateInstructionSetV2
             {
                 TransferIv = ByteArrayUtil.GetRndByteArray(16),
@@ -298,6 +300,10 @@ public partial class SelectiveShareTests
 
     // A member's edit keeping the file's key: a share key header with only the new IV (decision C)
     private static EncryptedKeyHeader KeepFileKey(byte[] newIv) => new() { EncryptionVersion = 1, Type = EncryptionType.Share, Iv = newIv };
+
+    /// <summary>A deposit's file key sealed to the drive's write-only key again, with the edit's new IV</summary>
+    private static Func<byte[], EncryptedKeyHeader> SealAgain(Arranged s, KeyHeader fileKey) =>
+        iv => EncryptedKeyHeader.SealedTo(new KeyHeader { AesKey = fileKey.AesKey, Iv = iv }, s.WriteOnlyPublicKeyJwk);
 
     // A circle key as a member unseals it: 16 random bytes, which the server never sees
     private static byte[] CircleKey() => ByteArrayUtil.GetRndByteArray(16);

@@ -142,6 +142,24 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   goes to every recipient, so a change naming one is for one recipient. A change sent from the sender's own drive
   (`UpdateLocale.Local`, or an upload with recipients) names none, so once someone else has changed a recipient's copy,
   it is refused there for good (I, from the code).
+- **The sender's client hears how it went.** A client's change with no copy on the sender's own drive
+  (`UpdateLocale.Peer`, or an upload sent from the transient drive) leaves no transfer history it could read: the
+  transient copy is deleted once sent. So each outcome goes to the sockets of the app that sent it, or the owner's own
+  client's when no app did, never another app's or a guest's (the server's own sends from the transient drive, such as
+  Shamir shards, tell no one): a `PeerSendResult` event (`PeerSendResultNotification`) **(V, tested)**. It names:
+  - the recipient, the drive id and the global transit id the send named; a file sent again that the recipient
+    matched by its unique id keeps its own (I, from the code);
+  - the version tag the client's upload or update gave back, which tells two sends of one file apart **(V, tested)**;
+  - whether it was an update, the transfer status (delivered, or why not) and whether the outbox tries again
+    **(V, tested)**;
+  - on delivery, the version tag of the recipient's copy, for the next change to name: for a file sent, the one the
+    recipient's server returns when it writes the file at once (`PeerTransferResponse.VersionTag`); for an update, the
+    new version tag the update gave it **(V, tested)**.
+
+  It is told before the outbox records the outcome, so a failure recording it can repeat it: the latest counts (I,
+  from the code). On a drive with an inbox, a change the recipient queued there is told as delivered with no version
+  tag; the inbox may still refuse it, and nothing tells the sender then (I, from the code; a Private Share drive has no
+  inbox). Nothing is kept for a client not connected at the time; it reads the recipient's copy.
 - **The same change sent again,** the outbox retrying one that landed, is that peer's tag already recorded: done,
   nothing written; an inbox item is marked complete and the payloads it streamed in are deleted
   (`SentFileChanges.AlreadyDeliveredAsync`) **(V)**.
