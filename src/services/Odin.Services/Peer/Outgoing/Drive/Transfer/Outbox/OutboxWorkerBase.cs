@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -17,6 +18,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Query;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Util;
 using Refit;
 
@@ -26,7 +28,8 @@ public abstract class OutboxWorkerBase(
     OutboxFileItem fileItem,
     ILogger logger,
     FileSystemResolver fileSystemResolver,
-    OdinConfiguration odinConfiguration)
+    OdinConfiguration odinConfiguration,
+    IMediator mediator = null)
 {
     protected OutboxFileItem FileItem => fileItem;
     protected FileSystemResolver FileSystemResolver => fileSystemResolver;
@@ -100,6 +103,7 @@ public abstract class OutboxWorkerBase(
 
                 logger.LogDebug(e, "Recoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Recoverable Error");
+                await TellSendersClientAsync(e.TransferStatus, willRetry: true);
                 var nextRun = await HandleRecoverableTransferStatus(odinContext, e);
                 return OutboxProcessingResult.Retry(nextRun);
 
@@ -132,6 +136,7 @@ public abstract class OutboxWorkerBase(
             FileItem.Recipient, retryAfter, nextRunTime);
 
         PerformanceCounter.IncrementCounter("Outbox Retry Later");
+        await TellSendersClientAsync(e.TransferStatus, willRetry: true);
         await HandleRecoverableTransferStatus(odinContext, e);
         return OutboxProcessingResult.RetryLater(nextRunTime);
     }
@@ -140,9 +145,18 @@ public abstract class OutboxWorkerBase(
     {
         logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
         PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
+        await TellSendersClientAsync(e.TransferStatus, willRetry: false);
         await HandleUnrecoverableTransferStatus(e, odinContext);
         return OutboxProcessingResult.Complete();
     }
+
+    /// <summary>
+    /// How a send from the transient drive went, for its sender's client (<see cref="PeerSendResultNotification"/>):
+    /// each retry and the final outcome, told first so a failure recording it can't lose it.  Only for an item with
+    /// <see cref="OutboxItemState.SendResultTo"/>, by a worker given a <paramref name="mediator"/>.
+    /// </summary>
+    protected Task TellSendersClientAsync(LatestTransferStatus status, bool willRetry, Guid? recipientsVersionTag = null) =>
+        PeerSendResultNotification.PublishAsync(mediator, logger, FileItem, status, willRetry, recipientsVersionTag);
 
     protected abstract Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e);
