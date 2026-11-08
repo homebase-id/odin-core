@@ -159,7 +159,19 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   It is told before the outbox records the outcome, so a failure recording it can repeat it: the latest counts (I,
   from the code). On a drive with an inbox, a change the recipient queued there is told as delivered with no version
   tag; the inbox may still refuse it, and nothing tells the sender then (I, from the code; a Private Share drive has no
-  inbox). Nothing is kept for a client not connected at the time; it reads the recipient's copy.
+  inbox). Nothing is kept for a client not connected at the time: it asks whether its send is still waiting in the
+  outbox, and once not, reads the recipient's copy.
+- **A client asks whether its send is still waiting.** `GET /api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/send-status?sentVersionTag=…`
+  answers for the caller's own sends alone, an app's or the owner's own client's, as the event is matched, and asks
+  `UseTransitWrite`, as the send did (`PeerOutbox.GetTransientSendStatusAsync`) **(V, tested)**:
+  - pending while the outbox holds it, with how often it has taken it up and when it next does, or that it is being
+    sent right now;
+  - not pending once the outbox is done with it, delivered or not, or for a send it doesn't know.
+
+  Naming no `sentVersionTag`, for a client that lost its upload's answer, it asks about any of the caller's sends of
+  the file, the one due soonest first **(V, tested)**; that client must know the global transit id, so it picked it
+  (a deposit, or a Private Share drive). It reads the outbox's own rows, so it keeps nothing new; each lookup reads every
+  queued send of the transient drive to that recipient (I, from the code).
 - **The same change sent again,** the outbox retrying one that landed, is that peer's tag already recorded: done,
   nothing written; an inbox item is marked complete and the payloads it streamed in are deleted
   (`SentFileChanges.AlreadyDeliveredAsync`) **(V)**.
