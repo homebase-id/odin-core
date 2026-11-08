@@ -2,10 +2,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.Acl;
@@ -14,6 +16,8 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Test.Helpers;
 using static Odin.Hosting.Tests.V2.ZeroKnowledge.ZkTestFiles;
 
@@ -135,6 +139,81 @@ public partial class SelectiveShareTests
                                                               r.Status == LatestTransferStatus.Delivered &&
                                                               r.VersionTag == added.FileMetadata.VersionTag);
         await sockets.AssertOnlyHeardOnAsync(sockets.Owner);
+    }
+
+    [Test]
+    public async Task AMembersAppAsksWhetherItsSendToTheOwnersFolderIsStillWaiting()
+    {
+        // For an app that missed the result event: its own send is pending while in the outbox, and not once done
+        var s = await ArrangeAsync();
+        var samsApp = await SamsSendingAppAsync(s);
+        var anotherApp = await SamsSendingAppAsync(s);
+        var gtid = Guid.NewGuid();
+        var uniqueId = Guid.NewGuid();
+        var sent = await QueueDepositAsync(samsApp, s, gtid, uniqueId);
+
+        // The test host runs no outbox of its own, so it waits until drained
+        var waiting = await SendStatusAsync(samsApp, s, gtid, sent);
+        Assert.That((waiting.Pending, waiting.Sending, waiting.Attempts, waiting.NextAttempt.HasValue), Is.EqualTo((true, false, 0, true)),
+            "waiting to be sent");
+        Assert.That((await SendStatusAsync(anotherApp, s, gtid, sent)).Pending, Is.False, "another of Sam's apps doesn't see it");
+        Assert.That((await SendStatusAsync(s.Sam, s, gtid, sent)).Pending, Is.False, "nor does his own client");
+        Assert.That((await SendStatusAsync(samsApp, s, gtid, Guid.NewGuid())).Pending, Is.False, "nor another send of the file");
+        Assert.That((await SendStatusAsync(samsApp, s, gtid, null)).Pending, Is.True, "any of its sends of the file, naming none");
+
+        await s.Sam.Sync.DrainOutboxAsync();
+        var done = await SendStatusAsync(samsApp, s, gtid, sent);
+        Assert.That((done.Pending, done.NextAttempt), Is.EqualTo((false, (UnixTimeUtc?)null)), "done with");
+        Assert.That((await SendStatusAsync(samsApp, s, gtid, null)).Pending, Is.False, "done with, naming none");
+        Assert.That((await s.HeaderByUniqueIdAsync(uniqueId)).FileMetadata.GlobalTransitId, Is.EqualTo(gtid), "and it landed");
+    }
+
+    [Test]
+    public async Task TheMembersOwnClientAsksAfterItsSendAndAnEditToTheOwnersFolder()
+    {
+        // The owner's own client's sends, matched with no app, and an edit's, by the version tag the update gave back
+        var s = await ArrangeAsync();
+        var samsApp = await SamsSendingAppAsync(s);
+        var gtid = Guid.NewGuid();
+        var sent = await QueueDepositAsync(s.Sam, s, gtid, Guid.NewGuid());
+        Assert.That((await SendStatusAsync(s.Sam, s, gtid, sent)).Pending, Is.True, "his own client's send");
+        Assert.That((await SendStatusAsync(samsApp, s, gtid, sent)).Pending, Is.False, "not an app's");
+        await s.Sam.Sync.DrainOutboxAsync();
+
+        var circleKey = CircleKey();
+        var fileKey = KeyHeader.NewRandom16();
+        var frodosGtid = Guid.NewGuid();
+        var (frodosId, _, _) = await s.UploadClientLockedAsync(fileKey: fileKey, globalTransitId: frodosGtid,
+            shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write, lockedFileKey: LockFileKey(s, circleKey, fileKey, frodosGtid))]);
+        var (_, edit) = await QueueMemberEditAsync(s, frodosGtid, (await s.HeaderAsync(frodosId)).FileMetadata.VersionTag, fileKey,
+            "edited by Sam", [], [], KeepFileKey, editor: samsApp);
+        Assert.That((await SendStatusAsync(samsApp, s, frodosGtid, edit)).Pending, Is.True, "the edit, waiting");
+
+        await s.Sam.Sync.DrainOutboxAsync();
+        Assert.That((await SendStatusAsync(samsApp, s, frodosGtid, edit)).Pending, Is.False, "the edit, done with");
+        Assert.That((await s.HeaderAsync(frodosId)).FileMetadata.VersionTag, Is.EqualTo(edit), "and it landed");
+    }
+
+    /// <summary>A deposit from <paramref name="sender"/>'s transient drive, left in Sam's outbox; returns the version tag it gave back</summary>
+    private static async Task<Guid> QueueDepositAsync(IV2Caller sender, Arranged s, Guid gtid, Guid uniqueId)
+    {
+        var fileKey = KeyHeader.NewRandom16();
+        var metadata = Metadata(uniqueId, "Sam's file");
+        metadata.AllowDistribution = true;
+        var (upload, _, _, _) = await sender.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias, metadata,
+            new TransitOptions { IsTransient = true, Recipients = [s.Frodo.Identity.DomainName], RemoteTargetDrive = s.Drive },
+            null, null, keyHeader: fileKey, lockedKeyHeader: EncryptedKeyHeader.SealedTo(fileKey, s.WriteOnlyPublicKeyJwk),
+            globalTransitId: gtid);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+        return upload.Content!.NewVersionTag;
+    }
+
+    /// <summary>The send status as a client reads it: <c>pending</c> is on the wire, not worked out here</summary>
+    private static async Task<PeerSendStatus> SendStatusAsync(IV2Caller caller, Arranged s, Guid gtid, Guid? sentVersionTag)
+    {
+        var status = await caller.Drives.Writer.GetPeerSendStatus(s.Frodo.Identity, s.Drive.Alias, gtid, sentVersionTag);
+        Assert.That(status.StatusCode, Is.EqualTo(HttpStatusCode.OK), status.Error?.Content);
+        return status.Content!;
     }
 
     /// <summary>An app of Sam's that sends files to peers, which grants it his transient drive</summary>

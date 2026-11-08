@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -17,7 +18,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class PeerOutbox(IMediator mediator, TableOutbox tblOutbox)
+    public class PeerOutbox(IMediator mediator, TableOutbox tblOutbox, ILogger<PeerOutbox> logger)
     {
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
@@ -118,6 +119,54 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var records = await tblOutbox.GetAsync(fileItem.File.DriveId, fileItem.File.FileId);
             var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
             return hasRecord;
+        }
+
+        /// <summary>
+        /// Whether the caller's send from the transient drive is still waiting in the outbox: the one its result event will
+        /// name (<see cref="Files.PeerSendResultNotification"/>), to <paramref name="recipient"/>'s drive
+        /// <paramref name="driveId"/>.  Not pending once the outbox is done with it, delivered or not.  With no
+        /// <paramref name="sentVersionTag"/> (a client that lost its upload's answer), any of the caller's sends of the file.
+        /// </summary>
+        public async Task<PeerSendStatus> GetTransientSendStatusAsync(OdinId recipient, Guid driveId, Guid globalTransitId,
+            Guid? sentVersionTag, IOdinContext odinContext)
+        {
+            var records = await tblOutbox.GetByDriveAndRecipientAsync(SystemDriveConstants.TransientTempDrive.Alias, recipient);
+            var record = records
+                .Where(r => SendResultToOf(r)?.Matches(odinContext, driveId, globalTransitId, sentVersionTag) == true)
+                .OrderBy(r => r.nextRunTime.milliseconds)
+                .FirstOrDefault();
+            if (record == null)
+            {
+                return new PeerSendStatus();
+            }
+
+            var sending = record.checkOutStamp != null;
+            return new PeerSendStatus
+            {
+                Pending = true,
+                Sending = sending,
+                Attempts = record.checkOutCount,
+                NextAttempt = sending ? null : record.nextRunTime
+            };
+        }
+
+        // Only who hears how a row's send went: a row that won't read is no one's send, not a failed lookup
+        private Files.PeerSendResultTarget SendResultToOf(OutboxRecord record)
+        {
+            try
+            {
+                return OdinSystemSerializer.Deserialize<SendResultOnly>(record.value.ToStringFromUtf8Bytes())?.SendResultTo;
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "Outbox row {rowId} doesn't read; skipped in a send status lookup", record.rowId);
+                return null;
+            }
+        }
+
+        private class SendResultOnly
+        {
+            public Files.PeerSendResultTarget SendResultTo { get; init; }
         }
 
         /// <summary>

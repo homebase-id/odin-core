@@ -238,6 +238,19 @@ public partial class SelectiveShareTests
         List<TestPayloadDefinition> payloads, List<string> deleted, Func<byte[], EncryptedKeyHeader> keyHeaderFor, Guid? uniqueId = null,
         IV2Caller? editor = null)
     {
+        var (newIv, _) = await QueueMemberEditAsync(s, gtid, versionTag, fileKey, content, payloads, deleted, keyHeaderFor, uniqueId,
+            editor);
+        await s.Sam.Sync.DrainOutboxAsync();
+        return newIv;
+    }
+
+    /// <summary>
+    /// <see cref="MemberEditsAsync"/>, left in Sam's outbox: returns the new IV and the version tag the update gave back
+    /// </summary>
+    private static async Task<(byte[] NewIv, Guid SentVersionTag)> QueueMemberEditAsync(Arranged s, Guid gtid, Guid versionTag,
+        KeyHeader fileKey, string content, List<TestPayloadDefinition> payloads, List<string> deleted,
+        Func<byte[], EncryptedKeyHeader> keyHeaderFor, Guid? uniqueId = null, IV2Caller? editor = null)
+    {
         var newKey = WithNewIv(fileKey);
         var metadata = s.Metadata(SecurityGroupType.Connected, versionTag);
         metadata.AppData.UniqueId = uniqueId;
@@ -260,8 +273,7 @@ public partial class SelectiveShareTests
                 }
             }, metadata, payloads, keyHeaderFor(newKey.Iv));
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
-        await s.Sam.Sync.DrainOutboxAsync();
-        return newKey.Iv;
+        return (newKey.Iv, update.Content!.NewVersionTag);
     }
 
     private static Task AssertMemberOpensAsync(Arranged s, Guid gtid, byte[] circleKey, string content,
