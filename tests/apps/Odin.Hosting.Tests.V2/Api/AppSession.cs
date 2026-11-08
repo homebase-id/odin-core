@@ -24,6 +24,11 @@ public sealed class AppSession : IV2Caller
 {
     public OdinId Identity { get; }
     public Guid AppId { get; }
+
+    /// <summary>The app client's token and shared secret, as an app holds them</summary>
+    public ClientAuthenticationToken Token { get; }
+
+    public byte[] SharedSecret { get; }
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
@@ -36,16 +41,21 @@ public sealed class AppSession : IV2Caller
     /// </summary>
     public ITestSync Sync { get; }
 
-    private AppSession(OdinHost host, OdinId identity, Guid appId, ClientAuthenticationToken token, byte[] sharedSecret)
+    private AppSession(OwnerSession owner, Guid appId, ClientAuthenticationToken token, byte[] sharedSecret)
     {
-        Identity = identity;
+        Identity = owner.Identity;
         AppId = appId;
-        Factory = new InProcessApiClientFactory(host, YouAuthConstants.AppCookieName, token,
-            sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1);
+        Token = token;
+        SharedSecret = sharedSecret;
+        Factory = owner.DevServer != null
+            ? new InProcessApiClientFactory(owner.DevServer, YouAuthConstants.AppCookieName, token,
+                sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1)
+            : new InProcessApiClientFactory(owner.Host, YouAuthConstants.AppCookieName, token,
+                sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
         V1 = new V1Handles(Identity, Factory);
-        Sync = new AppSync(host.GetTestSync(identity), this);
+        Sync = new AppSync(owner.DevServer ?? owner.Host.GetTestSync(owner.Identity), this);
     }
 
     /// <summary>
@@ -102,12 +112,12 @@ public sealed class AppSession : IV2Caller
     public static async Task<AppSession> ForRegisteredAppAsync(OwnerSession owner, Guid appId)
     {
         var (token, sharedSecret) = await owner.Admin.RegisterAppClient(appId);
-        return new AppSession(owner.Host, owner.Identity, appId, token, sharedSecret);
+        return new AppSession(owner, appId, token, sharedSecret);
     }
 
     /// <summary>A session for a token the app got some other way: its own YouAuth sign-in, say.</summary>
     public static AppSession FromToken(OwnerSession owner, Guid appId, ClientAuthenticationToken token, byte[] sharedSecret) =>
-        new(owner.Host, owner.Identity, appId, token, sharedSecret);
+        new(owner, appId, token, sharedSecret);
 
     public static async Task<AppSession> SetupAsync(
         OwnerSession owner,
@@ -130,6 +140,6 @@ public sealed class AppSession : IV2Caller
 
         var (token, sharedSecret) = await owner.Admin.RegisterAppClient(appId);
 
-        return new AppSession(owner.Host, owner.Identity, appId, token, sharedSecret);
+        return new AppSession(owner, appId, token, sharedSecret);
     }
 }

@@ -52,16 +52,30 @@ public static class OwnerLogin
         string identity,
         string password = DefaultPassword)
     {
-        var jar = new CookieContainer();
-        var baseUri = new Uri($"https://{identity}/");
+        return await RunAsync(host.Server.CreateHandler(), new Uri($"https://{identity}/"), password,
+            setPassword: _passwordsSet.TryAdd((host, identity), true));
+    }
 
-        using var handler = new CookieDelegatingHandler(jar, host.Server.CreateHandler());
+    /// <summary>
+    /// The same against the local dev server: sets <paramref name="password"/> first when <paramref name="setPassword"/>
+    /// (an identity no one has signed in to yet), then authenticates
+    /// </summary>
+    public static Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(DevServer devServer,
+        string identity, string password, bool setPassword) =>
+        RunAsync(devServer.CreateHandler(), devServer.BaseFor(identity), password, setPassword);
+
+    private static async Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(
+        HttpMessageHandler inner, Uri baseUri, string password, bool setPassword)
+    {
+        var jar = new CookieContainer();
+
+        using var handler = new CookieDelegatingHandler(jar, inner);
         using var client = new HttpClient(handler) { BaseAddress = baseUri };
         var svc = RestService.For<IOwnerAuthenticationClient>(client);
 
         var eccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
-        if (_passwordsSet.TryAdd((host, identity), true))
+        if (setPassword)
         {
             var setReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(client, password, eccKey);
             EnsureSuccess(await svc.SetNewPassword(setReply), "SetNewPassword");

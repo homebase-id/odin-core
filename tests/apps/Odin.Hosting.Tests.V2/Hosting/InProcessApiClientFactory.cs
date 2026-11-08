@@ -43,6 +43,7 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
     private static readonly ConditionalWeakTable<TestServer, HttpMessageHandler> _innerHandlerCache = new();
 
     private readonly OdinHost _host;
+    private readonly DevServer? _devServer;
     private readonly string _cookieName;
     private readonly ClientAuthenticationToken _token;
     private readonly SensitiveByteArray? _sharedSecret;
@@ -60,6 +61,17 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
         _token = token;
         _sharedSecret = sharedSecret;
         _v1BasePath = v1BasePath ?? OwnerApiPathConstants.BasePathV1;
+    }
+
+    /// <summary>The same clients, against the local dev server rather than an in-process host</summary>
+    public InProcessApiClientFactory(
+        DevServer devServer,
+        string cookieName,
+        ClientAuthenticationToken token,
+        SensitiveByteArray? sharedSecret = null,
+        string? v1BasePath = null) : this((OdinHost)null!, cookieName, token, sharedSecret, v1BasePath)
+    {
+        _devServer = devServer;
     }
 
     /// <summary>
@@ -94,8 +106,9 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
     {
         // Reuse the inner TestServer handler; wrap in per-client delegating handlers and use
         // disposeHandler:false so HttpClient.Dispose doesn't tear down the shared inner.
-        var innerHandler = _innerHandlerCache.GetValue(_host.Server, s => s.CreateHandler());
-        HttpMessageHandler handler = new NonDisposingPassthroughHandler(innerHandler);
+        HttpMessageHandler handler = _devServer != null
+            ? _devServer.CreateHandler()
+            : new NonDisposingPassthroughHandler(_innerHandlerCache.GetValue(_host.Server, s => s.CreateHandler()));
         if (_sharedSecret != null && encryptGetQueries)
         {
             handler = new SharedSecretGetRequestHandler(handler);
@@ -114,7 +127,7 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
         }
 
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
-        client.BaseAddress = new Uri($"https://{identity}/");
+        client.BaseAddress = _devServer?.BaseFor(identity) ?? new Uri($"https://{identity}/");
 
         // Soft-null: CDN-authenticated callers (and any future bearer-only flow) intentionally have
         // no shared secret. RefitCreator.RestServiceFor handles null cleanly. The SharedSecret

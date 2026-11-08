@@ -47,20 +47,38 @@ public sealed class OwnerSession : IV2Caller
     /// </summary>
     public ITestSync Sync { get; }
 
-    private OwnerSession(OdinHost host, string identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret)
+    /// <summary>The local dev server this session reaches, instead of an in-process <see cref="Host"/>; null in a test</summary>
+    public DevServer? DevServer { get; }
+
+    private OwnerSession(OdinHost host, string identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret,
+        DevServer? devServer = null)
     {
         Identity = (OdinId)identity;
         Host = host;
+        DevServer = devServer;
         Token = token;
         SharedSecret = sharedSecret;
-        Factory = new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret);
+        Factory = devServer != null
+            ? new InProcessApiClientFactory(devServer, OwnerAuthConstants.CookieName, token, sharedSecret)
+            : new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
         V1 = new V1Handles(Identity, Factory);
         Admin = new OwnerAdmin(this);
         Connections = new ConnectionsHandle(this);
         Followers = new FollowersHandle(this);
-        Sync = new OwnerSync(host.GetTestSync(identity), this);
+        Sync = new OwnerSync(devServer ?? host.GetTestSync(identity), this);
+    }
+
+    /// <summary>
+    /// An owner session on the local dev server, for a fixture tool: sets <paramref name="password"/> first when
+    /// <paramref name="setPassword"/> (an identity no one has signed in to yet)
+    /// </summary>
+    public static async Task<OwnerSession> LoginToDevServerAsync(DevServer devServer, string identity, string password,
+        bool setPassword)
+    {
+        var (token, secret) = await OwnerLogin.RunAsync(devServer, identity, password, setPassword);
+        return new OwnerSession(null!, identity, token, secret, devServer);
     }
 
     /// <param name="password">
