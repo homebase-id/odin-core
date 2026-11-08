@@ -286,6 +286,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             return collection;
         }
 
+        /// <summary>
+        /// Whether a file on the drive, of any file system and state, has <paramref name="globalTransitId"/>: the
+        /// database's index allows it once per drive.
+        /// </summary>
+        public async Task<bool> GlobalTransitIdInUseAsync(Guid driveId, Guid globalTransitId, IOdinContext odinContext)
+        {
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
+            return await _driveQuery.GetByGlobalTransitIdAsync(driveId, globalTransitId) != null;
+        }
+
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId,
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false,
@@ -377,7 +387,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     drive,
                     odinContext,
                     forceIncludeServerMetadata,
-                    sharedWithCaller?.LiveRowOf(serverFileHeader.FileMetadata.File.FileId));
+                    sharedWithCaller?.LiveRowsOf(serverFileHeader.FileMetadata.File.FileId));
 
                 if (header?.FileMetadata?.AppData != null)
                 {

@@ -357,19 +357,21 @@ public class OdinConfiguration
         public TimeSpan PeerOperationDelayMs { get; init; }
 
         /// <summary>
-        /// How long one attempt at sending a file to a peer may take, payloads and the recipient storing them included.
-        /// A failed attempt sends the whole file again, up to <see cref="PeerOperationMaxAttempts"/> times, and all of those
-        /// must fit well inside <see cref="InboxOutboxRecoveryAgeSeconds"/>, or the outbox hands the item out a second time.
-        /// </summary>
-        public TimeSpan PeerFileTransferTimeout { get; init; }
-
-        /// <summary>
         /// The age in seconds of items that should be recovered which have been
         /// popped (checked out) of the inbox/outbox queue w/o having been marked complete or failed
         /// </summary>
         public int InboxOutboxRecoveryAgeSeconds { get; init; }
 
         public TimeSpan CapiSessionLifetime { get; init; }
+
+        /// <summary>
+        /// The largest payload this host stores, from its owner or a peer: one past it is refused as it streams in
+        /// (<see cref="Registry.TenantQuotaGuard.LimitPayload"/>).  The quota alone asks only whether the identity is
+        /// already full, so one payload could go over it by its whole size.
+        /// </summary>
+        public long MaxPayloadBytes { get; init; } = DefaultMaxPayloadBytes;
+
+        public const long DefaultMaxPayloadBytes = 50L * 1000 * 1000 * 1000;
 
         public HostSection()
         {
@@ -409,6 +411,7 @@ public class OdinConfiguration
             HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
             ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 120);
+            MaxPayloadBytes = config.GetOrDefault("Host:MaxPayloadBytes", DefaultMaxPayloadBytes);
             SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
 
             PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
@@ -419,11 +422,6 @@ public class OdinConfiguration
 
             PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
             PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
-            PeerFileTransferTimeout = TimeSpan.FromSeconds(config.GetOrDefault("Host:PeerFileTransferTimeoutSeconds", 60 * 60));
-            if (PeerFileTransferTimeout <= TimeSpan.Zero)
-            {
-                throw new OdinConfigException("Invalid PeerFileTransferTimeoutSeconds: must be greater than zero");
-            }
 
             OutboxOperationMaxAttempts = config.GetOrDefault("Host:OutboxOperationMaxAttempts", 30);
 

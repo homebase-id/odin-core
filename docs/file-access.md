@@ -142,6 +142,24 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   goes to every recipient, so a change naming one is for one recipient. A change sent from the sender's own drive
   (`UpdateLocale.Local`, or an upload with recipients) names none, so once someone else has changed a recipient's copy,
   it is refused there for good (I, from the code).
+- **The sender's client hears how it went.** A client's change with no copy on the sender's own drive
+  (`UpdateLocale.Peer`, or an upload sent from the transient drive) leaves no transfer history it could read: the
+  transient copy is deleted once sent. So each outcome goes to the sockets of the app that sent it, or the owner's own
+  client's when no app did, never another app's or a guest's (the server's own sends from the transient drive, such as
+  Shamir shards, tell no one): a `PeerSendResult` event (`PeerSendResultNotification`) **(V, tested)**. It names:
+  - the recipient, the drive id and the global transit id the send named; a file sent again that the recipient
+    matched by its unique id keeps its own (I, from the code);
+  - the version tag the client's upload or update gave back, which tells two sends of one file apart **(V, tested)**;
+  - whether it was an update, the transfer status (delivered, or why not) and whether the outbox tries again
+    **(V, tested)**;
+  - on delivery, the version tag of the recipient's copy, for the next change to name: for a file sent, the one the
+    recipient's server returns when it writes the file at once (`PeerTransferResponse.VersionTag`); for an update, the
+    new version tag the update gave it **(V, tested)**.
+
+  It is told before the outbox records the outcome, so a failure recording it can repeat it: the latest counts (I,
+  from the code). On a drive with an inbox, a change the recipient queued there is told as delivered with no version
+  tag; the inbox may still refuse it, and nothing tells the sender then (I, from the code; a Private Share drive has no
+  inbox). Nothing is kept for a client not connected at the time; it reads the recipient's copy.
 - **The same change sent again,** the outbox retrying one that landed, is that peer's tag already recorded: done,
   nothing written; an inbox item is marked complete and the payloads it streamed in are deleted
   (`SentFileChanges.AlreadyDeliveredAsync`) **(V)**.
@@ -388,13 +406,14 @@ own drive (`CircleMember.sealedShareKey`) **(V)**.
   (`CircleEnrollment.cs`) **(V)**.
 
 **The author keeps their deposit.** A member's new file lands owner-only, so its author couldn't see or change it.
-Their client locks its file key with their individual circle's key (their copy is theirs to open) and sends the row
-with the file, as a member already may for circles they are in (`DriveShareService.AssertMemberMayShareAsync`)
+Their client locks its file key with their individual circle's key (their copy is theirs to open), bound to the global
+transit id the client picked for the file, as the file id is the receiving server's to pick (selective-share-plan.md,
+"Blob formats"), and sends the row with the file, as a member already may for circles they are in (`DriveShareService.AssertMemberMayShareAsync`)
 **(V)**. That row gives them what a drive marked as a community channel gives a file's original sender, through the one rule above: their
 sync finds it, their other devices can open it, and they delete it with a `Write` share, as they may a new file of
 theirs with no share, as its sender **(V, tested)**; their edit
-goes through the same check, sending a new `sealed` key header as a deposit's edit does (I, not tested), and so does
-sending it again **(V, tested)**. The owner can withdraw it like any share.
+goes through the same check, sending a new `sealed` key header of the same file key as a deposit's edit does, its
+payloads included **(V, tested)**, and so does sending it again **(V, tested)**. The owner can withdraw it like any share.
 
 ### Sharing with a group
 

@@ -1125,6 +1125,12 @@ sockets (inferred from its diff).
 **Cause, a hypothesis:** the member's event is dropped, not late: the publish side reads the member's share rows before
 the new row is visible to it, or the test socket's registration races the first event. Filed as #2076.
 
+**Seen again:** locally, 2026-11-07, branch `member-writes-by-gtid`, once in a full `SelectiveShareTests` run (10 s, the
+same symptom), which changes the share rows a member's socket event carries (all of theirs, not the lowest only). It
+passed alone, and the whole fixture passed 3 of 3 runs after. Not run on a clean tree for this sighting; the evidence
+that it predates the branch is the `main` CI failure above. The test's member is in one circle, so the change gives it
+the same single row as before (inferred from the diff).
+
 ## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
 
 - `Disconnect_PushesConnectionChanged`

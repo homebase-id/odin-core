@@ -47,6 +47,7 @@ using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Network;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
@@ -196,6 +197,7 @@ public static class TenantServices
             .As<INotificationHandler<CircleDefinitionChangedNotification>>()
             .As<INotificationHandler<PublicProfileContentPublishedNotification>>()
             .As<INotificationHandler<LiveRelayNotification>>()
+            .As<INotificationHandler<PeerSendResultNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
 

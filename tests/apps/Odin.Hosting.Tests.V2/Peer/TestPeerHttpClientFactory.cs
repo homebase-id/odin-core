@@ -72,13 +72,9 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
     public Task<T> CreateClientUsingAccessTokenAsync<T>(
         OdinId remoteOdinId,
         ClientAuthenticationToken clientAuthenticationToken,
-        FileSystemType? fileSystemType = null)
-        => Task.FromResult(BuildClient<T>(remoteOdinId, clientAuthenticationToken, fileSystemType, headers: null));
-
-    public Task<T> CreateFileTransferClientUsingAccessTokenAsync<T>(
-        OdinId remoteOdinId,
-        ClientAuthenticationToken clientAuthenticationToken)
-        => CreateClientUsingAccessTokenAsync<T>(remoteOdinId, clientAuthenticationToken);
+        FileSystemType? fileSystemType = null,
+        TimeSpan? timeout = null)
+        => Task.FromResult(BuildClient<T>(remoteOdinId, clientAuthenticationToken, fileSystemType, headers: null, timeout));
 
     public Task<T> CreateClientAsync<T>(
         OdinId remoteOdinId,
@@ -90,7 +86,8 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
         OdinId remoteOdinId,
         ClientAuthenticationToken? clientAuthenticationToken,
         FileSystemType? fileSystemType,
-        Dictionary<string, string>? headers)
+        Dictionary<string, string>? headers,
+        TimeSpan? timeout = null)
     {
         var server = _serverHolder.Server
             ?? throw new InvalidOperationException(
@@ -105,6 +102,10 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
         {
             BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixCertApi}.{remoteOdinId}/"),
         };
+        if (timeout is { } requestTimeout)
+        {
+            client.Timeout = requestTimeout;
+        }
 
         // Bypass header for PeerCapiAuthenticationHandler — see TestPeerIdentityHeader xmldoc above.
         client.DefaultRequestHeaders.Add(TestPeerIdentityHeader, _localIdentity.PrimaryDomain);

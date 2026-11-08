@@ -9,6 +9,13 @@ namespace Odin.Services.Peer
         /// Specifies if the transfer was successfully received
         /// </summary>
         public PeerResponseCode Code { get; set; }
+
+        /// <summary>
+        /// The version tag of the recipient's copy once a file sent to it is written at once
+        /// (<see cref="PeerResponseCode.AcceptedDirectWrite"/>), so the sender can name it in its next change; null from
+        /// the inbox, which writes later, and for an update, whose sender named the tag it gives the copy.
+        /// </summary>
+        public System.Guid? VersionTag { get; set; }
     }
 
 

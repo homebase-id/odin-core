@@ -22,7 +22,22 @@ public sealed class CallerShares(IReadOnlyDictionary<Guid, List<DriveAclIndexRec
     /// more than one of their circles, the lowest circle id's, so every read of the file picks the same one (section 6).
     /// Null when none.
     /// </summary>
-    public DriveAclIndexRecord? LiveRowOf(Guid fileId) => Live(fileId).MinBy(r => r.aclMemberId);
+    public DriveAclIndexRecord? LiveRowOf(Guid fileId) => Live(fileId).MinBy(ReadOrder);
+
+    /// <summary>
+    /// Every live row of the caller's circles on <paramref name="fileId"/>, ordered as <see cref="LiveRowOf"/> picks, so the
+    /// one they read it through comes first: shown with the file, so a member's client shares a file it adds to a folder
+    /// with each of their circles the folder is shared with.  Built per file a member reads, sorted only when there are two
+    /// or more.
+    /// </summary>
+    public IReadOnlyList<DriveAclIndexRecord> LiveRowsOf(Guid fileId)
+    {
+        var live = Live(fileId).ToList();
+        return live.Count > 1 ? [.. live.OrderBy(ReadOrder)] : live;
+    }
+
+    // Which of a caller's rows on a file comes first, and so is the one they read it through: one rule for both lookups
+    private static Guid ReadOrder(DriveAclIndexRecord row) => row.aclMemberId;
 
     /// <summary>Whether a live row grants the caller <paramref name="permission"/> on <paramref name="fileId"/>.</summary>
     public bool Grants(Guid fileId, DrivePermission permission) =>

@@ -36,6 +36,12 @@ public class OutboxItemState
     
     public DataSource DataSourceOverride { get; set; }
 
+    /// <summary>
+    /// For a send from the transient drive, which leaves its sender no copy: who hears how it went, and of which copy of
+    /// the recipient's (<see cref="Files.PeerSendResultNotification"/>); null for any other item
+    /// </summary>
+    public Files.PeerSendResultTarget SendResultTo { get; set; }
+
     public T DeserializeData<T>()
     {
         return OdinSystemSerializer.Deserialize<T>(Data.ToStringFromUtf8Bytes());

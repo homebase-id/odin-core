@@ -43,9 +43,10 @@ public class ClientDriveNotification
     /// A context without a shared secret gets neither headers nor refs. The headers are the event's, shared by
     /// every socket, so they are never changed here.
     /// </summary>
-    /// <param name="callerShare">On a Selective Share drive, the share a member reads the file through (section 6).</param>
+    /// <param name="callerShares">On a Selective Share drive, a member's live shares on the file, the one they read it
+    /// through first (section 6).</param>
     public static ClientDriveNotification For(FileResultShape shape, IOdinContext? deviceOdinContext, StorageDrive? drive,
-        ServerFileHeader? header, ServerFileHeader? previousHeader, DriveAclIndexRecord? callerShare = null)
+        ServerFileHeader? header, ServerFileHeader? previousHeader, IReadOnlyList<DriveAclIndexRecord>? callerShares = null)
     {
         var notification = new ClientDriveNotification { TargetDrive = drive?.TargetDriveInfo };
         if (deviceOdinContext?.PermissionsContext?.SharedSecretKey == null)
@@ -60,9 +61,9 @@ public class ClientDriveNotification
             return notification;
         }
 
-        notification.Header = DriveFileUtility.CreateClientFileHeader(header, drive, deviceOdinContext, callerShare: callerShare);
+        notification.Header = DriveFileUtility.CreateClientFileHeader(header, drive, deviceOdinContext, callerShares: callerShares);
         notification.PreviousServerFileHeader = DriveFileUtility.CreateClientFileHeader(previousHeader, drive, deviceOdinContext,
-            callerShare: callerShare);
+            callerShares: callerShares);
 
         if (shape == FileResultShape.NoContent)
         {
@@ -234,7 +235,7 @@ public sealed class DriveEventMessage(
         if (await aclService.CallerMayReadAsync(drive, file!, deviceOdinContext!, shares))
         {
             return Json(notificationType, ClientDriveNotification.For(shape, deviceOdinContext, drive, current,
-                previous, shares.LiveRowOf(file!.FileMetadata.File.FileId)), shape);
+                previous, shares.LiveRowsOf(file!.FileMetadata.File.FileId)), shape);
         }
 
         // From the header as it is now: a change that ended the share announces its own time, which a client goes by

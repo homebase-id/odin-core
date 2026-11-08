@@ -53,6 +53,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     {
         private IncomingTransferStateItem _transferState;
 
+        // The version tag a direct write left the copy with, told to the sender (PeerTransferResponse.VersionTag)
+        private Guid? _versionTagWritten;
+
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
         public async Task InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet,
@@ -110,12 +113,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // Inbox-routed (not direct write) streams straight to long-term under the incoming fileId (no inbox folder).
             // Inbox processing finds the payload already in place (see StagingArea.LongTerm).
             await fileSystem.Storage.WriteIncomingPeerPayload(_transferState.File, descriptor, isEncrypted,
-                _transferState.IsDirectWrite, data, odinContext);
+                _transferState.IsDirectWrite, quotaGuard.LimitPayload(data), odinContext);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
             IOdinContext odinContext)
         {
+            data = quotaGuard.LimitThumbnail(data);
             await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
@@ -218,7 +222,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                 }
 
-                return new PeerTransferResponse() { Code = responseCode };
+                return new PeerTransferResponse() { Code = responseCode, VersionTag = _versionTagWritten };
             }
 
             throw new OdinSystemException("Unhandled Routing");
@@ -424,6 +428,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // S1110 unencrypted, S1205 with the storage key, as sent, or on a zero-knowledge drive: decided on arrival
             await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
                 odinContext, sourceArea: StagingArea.Upload, markComplete: writeShares);
+            _versionTagWritten = writer.VersionTagWritten;
             return true;
         }
 

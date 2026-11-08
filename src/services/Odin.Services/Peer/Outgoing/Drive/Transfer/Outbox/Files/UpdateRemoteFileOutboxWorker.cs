@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -28,7 +29,8 @@ public class UpdateRemoteFileOutboxWorker(
     ILogger<UpdateRemoteFileOutboxWorker> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
-    PeerDriveQueryService peerDriveQueryService) : OutboxWorkerBase(fileItem, logger, fileSystemResolver, odinConfiguration)
+    PeerDriveQueryService peerDriveQueryService,
+    IMediator mediator) : OutboxWorkerBase(fileItem, logger, fileSystemResolver, odinConfiguration, mediator)
 {
     public async Task<OutboxProcessingResult> Send(IOdinContext odinContext,
         CancellationToken cancellationToken)
@@ -40,9 +42,12 @@ public class UpdateRemoteFileOutboxWorker(
 
             Guid versionTag = default;
             Guid globalTransitId = default;
+            Guid? recipientsVersionTag = null;
 
-            await PerformanceCounter.MeasureExecutionTime("Outbox UpdateRemoteFileOutboxWorker",
-                async () => { (versionTag, globalTransitId) = await SendUpdatedFileItemAsync(FileItem, odinContext, cancellationToken); });
+            await PerformanceCounter.MeasureExecutionTime("Outbox UpdateRemoteFileOutboxWorker", async () =>
+            {
+                (versionTag, globalTransitId, recipientsVersionTag) = await SendUpdatedFileItemAsync(FileItem, odinContext, cancellationToken);
+            });
 
             logger.LogDebug("Success Sending updated file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient,
                 globalTransitId);
@@ -51,6 +56,8 @@ public class UpdateRemoteFileOutboxWorker(
             {
                 await UpdateFileTransferHistory(globalTransitId, versionTag, odinContext);
             }
+
+            await TellSendersClientAsync(LatestTransferStatus.Delivered, willRetry: false, recipientsVersionTag);
 
             return OutboxProcessingResult.Complete();
         }
@@ -75,7 +82,10 @@ public class UpdateRemoteFileOutboxWorker(
         }
     }
 
-    private async Task<(Guid versionTag, Guid globalTransitId)> SendUpdatedFileItemAsync(OutboxFileItem outboxFileItem,
+    /// <returns>The update's version tag and global transit id, and the version tag it gave the recipient's copy once
+    /// written there (not yet from its inbox)</returns>
+    private async Task<(Guid versionTag, Guid globalTransitId, Guid? recipientsVersionTag)> SendUpdatedFileItemAsync(
+        OutboxFileItem outboxFileItem,
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
@@ -130,8 +140,8 @@ public class UpdateRemoteFileOutboxWorker(
                     odinContext,
                     datasourceOverride: FileItem.State.DataSourceOverride);
 
-                var client = await odinHttpClientFactory.CreateFileTransferClientUsingAccessTokenAsync<IPeerTransferHttpClient>(
-                    recipient, clientAuthToken);
+                var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerTransferHttpClient>(
+                    recipient, clientAuthToken, timeout: PeerFileSendTimeout.For(header, Configuration.Host));
 
                 var response = await client.UpdatePeerFile(
                     transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray(), cancellationToken);
@@ -169,7 +179,9 @@ public class UpdateRemoteFileOutboxWorker(
             await ForgetOutOfDateDriveKeysAsync(response, peerDriveQueryService, recipient);
             if (response.IsSuccessStatusCode)
             {
-                return (versionTag, globalTransitId.GetValueOrDefault());
+                // The recipient's copy takes the update's new version tag
+                return (versionTag, globalTransitId.GetValueOrDefault(),
+                    response.Content?.Code == PeerResponseCode.AcceptedDirectWrite ? instructionSet.Request.NewVersionTag : null);
             }
 
             throw new OdinOutboxProcessingException("Failed while sending the request")

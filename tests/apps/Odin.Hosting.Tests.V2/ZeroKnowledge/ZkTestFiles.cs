@@ -79,14 +79,16 @@ internal static class ZkTestFiles
     /// <paramref name="sender"/> (an owner, or an app of <paramref name="sendersOwner"/>'s) writes a deposit to the transient
     /// drive and sends it to <paramref name="recipient"/>'s <paramref name="remoteDrive"/>, the Shard Recovery drive unless
     /// named.  Sending it again names <paramref name="versionTag"/>, the one the recipient's copy has (docs/file-access.md,
-    /// "Changing a file you sent").
+    /// "Changing a file you sent").  Under <paramref name="fileKey"/> when given, which shares sent with it lock; with the
+    /// <paramref name="globalTransitId"/> the sender picked, when given, which they may be bound to.
     /// </summary>
     public static async Task<(KeyHeader FileKey, EncryptedKeyHeader Sealed)> SendDepositAsync(IV2Caller sender,
         OwnerSession sendersOwner, OwnerSession recipient, string publicKeyJwk, Guid uniqueId, string content,
         TestPayloadDefinition? payload = null, TargetDrive? remoteDrive = null, Guid? groupId = null, List<ShareRequest>? shares = null,
-        int fileType = 100, Guid? versionTag = null)
+        int fileType = 100, Guid? versionTag = null, KeyHeader? fileKey = null, Guid? globalTransitId = null)
     {
-        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
+        fileKey ??= KeyHeader.NewRandom16();
+        var sealedKeyHeader = EncryptedKeyHeader.SealedTo(fileKey, publicKeyJwk);
         var metadata = Metadata(uniqueId, content, versionTag, fileType);
         metadata.AppData.GroupId = groupId;
         UploadManifest? manifest = null;
@@ -97,7 +99,7 @@ internal static class ZkTestFiles
         }
 
         await SendFromTransientAsync(sender, sendersOwner, recipient, remoteDrive ?? Drive, metadata, manifest, payload == null ? null : [payload],
-            fileKey, sealedKeyHeader, shares);
+            fileKey, sealedKeyHeader, shares, globalTransitId);
         return (fileKey, sealedKeyHeader);
     }
 
@@ -111,7 +113,7 @@ internal static class ZkTestFiles
     {
         fileKey ??= KeyHeader.NewRandom16();
         await SendFromTransientAsync(sender, sender, recipient, drive, Metadata(uniqueId, content, versionTag), null, null, fileKey,
-            null, null);
+            null, null, null);
         return fileKey;
     }
 
@@ -135,7 +137,7 @@ internal static class ZkTestFiles
 
     private static async Task SendFromTransientAsync(IV2Caller sender, OwnerSession sendersOwner, OwnerSession recipient,
         TargetDrive drive, UploadFileMetadata metadata, UploadManifest? manifest, List<TestPayloadDefinition>? payloads, KeyHeader fileKey,
-        EncryptedKeyHeader? lockedKeyHeader, List<ShareRequest>? shares)
+        EncryptedKeyHeader? lockedKeyHeader, List<ShareRequest>? shares, Guid? globalTransitId)
     {
         metadata.AllowDistribution = true;
         var (upload, _, _, _) = await sender.Drives.Writer.CreateEncryptedFile(SystemDriveConstants.TransientTempDrive.Alias, metadata,
@@ -144,7 +146,7 @@ internal static class ZkTestFiles
                 IsTransient = true,
                 Recipients = [recipient.Identity.DomainName],
                 RemoteTargetDrive = drive
-            }, manifest, payloads, keyHeader: fileKey, lockedKeyHeader: lockedKeyHeader, shares: shares);
+            }, manifest, payloads, keyHeader: fileKey, lockedKeyHeader: lockedKeyHeader, shares: shares, globalTransitId: globalTransitId);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
         await sendersOwner.Sync.DrainOutboxAsync();
     }
