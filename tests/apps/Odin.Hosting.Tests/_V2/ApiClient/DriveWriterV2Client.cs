@@ -21,6 +21,7 @@ using Odin.Services.Drives.Shares;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -312,6 +313,14 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             fileMetadata,
             payloads,
             lockedKeyHeader);
+    }
+
+    /// <summary>Whether this caller's send of a file to <paramref name="peer"/>'s drive is still waiting in the outbox</summary>
+    public async Task<ApiResponse<PeerSendStatus>> GetPeerSendStatus(OdinId peer, Guid driveId, Guid globalTransitId, Guid? sentVersionTag)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetPeerSendStatus(peer.DomainName, driveId, globalTransitId, sentVersionTag);
     }
 
     public Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(

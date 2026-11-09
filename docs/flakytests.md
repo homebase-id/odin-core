@@ -1006,6 +1006,33 @@ same way once more. CI passed the branch's commits that day on all three platfor
 41997783776, 41997783347 for `861076d08`), and main's recent CI runs are green. Not run on a clean `main`
 tree locally.
 
+**Again 2026-11-07 and 11-08.** PR #2077 (`server-share-sealed-arrivals`) commit `9f285e8ea`, run
+42364376538 attempt 1, `ubuntu/sqlite/release`; PR #2088 (`peer-send-results-on-socket`) commit
+`2ba22df6c`, run 42466134155 attempt 1, `ubuntu/postgres/release`. The same `source payload does not
+exist` events; both passed on a rerun.
+
+**Cause found and fixed 2026-11-08 (verified).** FusionCache dates a tag remove when the remove starts,
+and stores that date over whatever the tag had when it gets there. When two removes of one drive's tag
+overlap, the slower one can store the earlier date last, and every entry stored after that date is live
+again, though the later remove expired it. A trace of the cache during the hammer (temporary logging,
+removed) caught it: one remove took its date and stored it 70 ms later, after four other removes on the
+drive; the tag's date went back 70 ms, and a file header stored in between was served at a version the
+database had already replaced. `UpdatePayloads` then deleted the payload that stale header listed (the
+previous request had already deleted it: the Error) and left the real previous payload behind. The
+remove count from #1909 cannot see this: the entry was stored with no remove in flight. The same code is
+in FusionCache v2.9.0, the latest release.
+
+- `FusionCacheWrapper` now runs one remove of a tag at a time on a node, so each stores a later date than
+  the one before (`TagRemoveOrderTests` stalls a remove between its date and its store, and fails
+  without this).
+- `UpdatePayloads` refuses with `VersionTagMismatch` when the header it read is not at the caller's
+  version tag, instead of replacing the payloads of whatever version it read.
+- The test now requires every overwrite to succeed: each thread only changes its own file, so a refusal
+  is a stale read, and it no longer passes as a quiet `400`.
+
+Not covered: across nodes sharing Redis, two nodes' removes of one tag still race the same way in L2
+(and their clocks differ).
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`
