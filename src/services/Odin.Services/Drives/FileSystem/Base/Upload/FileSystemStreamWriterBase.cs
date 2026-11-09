@@ -479,7 +479,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 shares: package.Shares,
                 // Nothing of a transient file stays here, so its client names the tag of the recipient's copy
                 expectedVersionTag: transitOptions.IsTransient ? package.Descriptor.FileMetadata.VersionTag : null,
-                tellSendersClient: transitOptions.IsTransient);
+                tellSendersClient: SystemDriveConstants.IsTransientTempDrive(package.InternalFile.DriveId));
 
             return recipientStatus;
         }

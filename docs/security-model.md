@@ -361,7 +361,8 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
 ### Peer file operations (#1977)
 
 - Plain file ops on a peer: get/query = `UseTransitRead`; send/update/delete = `UseTransitWrite`
-  (`PermissionContext.AssertCanUsePeer(PeerAccess)`) **(V)**.
+  (`PermissionContext.AssertCanUsePeer(PeerAccess)`) **(V)**. Asking whether one's own send from the transient drive
+  is still waiting in the outbox (`send-status`) is part of sending: `UseTransitWrite` **(V)**.
 - A write-only grant may never read a peer **(V)**.
 - Everything else (comments, reactions, receipts, introductions, connections, live relay, notification tokens, Shamir)
   keeps its own rule. Don't centralize those.

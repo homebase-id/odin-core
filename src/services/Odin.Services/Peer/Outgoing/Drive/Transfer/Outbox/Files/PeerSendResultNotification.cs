@@ -18,7 +18,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 /// another identity's drive is sent this way.  Heard on the sockets of the app that sent it, or the owner's own client's
 /// (<see cref="IAppTargetedClientNotification"/>), matched to the send by the recipient, drive, global transit id and the
 /// version tag the client got back.  Told before the outcome is recorded, so one may come again; the latest counts.
-/// Nothing is kept for a client not connected at the time: it reads the recipient's copy instead.
+/// Nothing is kept for a client not connected at the time: it asks whether its send is still in the outbox
+/// (<see cref="PeerOutbox.GetTransientSendStatusAsync"/>), and once not, reads the recipient's copy.
 /// </summary>
 public class PeerSendResultNotification : MediatorNotificationBase, IAppTargetedClientNotification
 {
@@ -122,9 +123,21 @@ public class PeerSendResultTarget
 
     public static PeerSendResultTarget Of(IOdinContext odinContext, Guid driveId, Guid? globalTransitId, Guid? sentVersionTag) => new()
     {
-        AppId = odinContext.Caller.OdinClientContext?.AppId?.Value,
+        AppId = AppIdOf(odinContext),
         DriveId = driveId,
         GlobalTransitId = globalTransitId.GetValueOrDefault(),
         SentVersionTag = sentVersionTag.GetValueOrDefault()
     };
+
+    /// <summary>
+    /// Whether this is the caller's send to <paramref name="driveId"/> of the file with <paramref name="globalTransitId"/>:
+    /// the same app's, or the owner's own client's, and, when named, the send the client got
+    /// <paramref name="sentVersionTag"/> back for
+    /// </summary>
+    public bool Matches(IOdinContext odinContext, Guid driveId, Guid globalTransitId, Guid? sentVersionTag) =>
+        AppId == AppIdOf(odinContext) && DriveId == driveId && GlobalTransitId == globalTransitId &&
+        (sentVersionTag == null || SentVersionTag == sentVersionTag);
+
+    // Whose send it is: the app of the request, none for the owner's own client
+    private static Guid? AppIdOf(IOdinContext odinContext) => odinContext.Caller.OdinClientContext?.AppId?.Value;
 }
