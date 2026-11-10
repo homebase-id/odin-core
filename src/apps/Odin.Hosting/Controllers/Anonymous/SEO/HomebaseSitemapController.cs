@@ -33,6 +33,20 @@ public class HomebaseSitemapController(HomebaseSsrService ssrService, TenantCont
         await Response.WriteAsync(contentBuilder.ToString());
     }
 
+    [HttpGet("feed.xml")]
+    public async Task RenderFeed()
+    {
+        if (!tenantContext.EnablePublicWebPresence)
+        {
+            Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        Response.ContentType = "application/rss+xml; charset=utf-8";
+        Response.Headers.TryAdd("Cache-Control", $"max-age={TimeSpan.FromHours(1).TotalSeconds}");
+        await Response.WriteAsync(await ssrService.BuildFeed(WebOdinContext));
+    }
+
     [HttpGet("robots.txt")]
     public IActionResult RenderRobots()
     {

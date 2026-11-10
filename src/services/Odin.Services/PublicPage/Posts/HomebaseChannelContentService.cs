@@ -464,6 +464,7 @@ public class HomebaseChannelContentService(
             PayloadUrlBase = payloadUrlBase,
             Content = content,
             ImageUrl = imageUrl,
+            Created = postFile.FileMetadata.Created,
             Modified = postFile.FileMetadata.Updated,
             ReactionSummary = postFile.FileMetadata.ReactionPreview
         };

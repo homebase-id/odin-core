@@ -11,6 +11,7 @@ public class ChannelPost
     /// <summary>Guest payload URL on the post's channel drive, without the fileId and payload key</summary>
     public string PayloadUrlBase { get; init; }
     public PostContent Content { get; init; }
+    public UnixTimeUtc Created { get; init; }
     public UnixTimeUtc Modified { get; set; }
     public ReactionSummary ReactionSummary { get; init; }
 

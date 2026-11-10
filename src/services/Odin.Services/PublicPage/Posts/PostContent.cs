@@ -40,7 +40,16 @@ public class PostContent
     [JsonPropertyName("primaryMediaFile")]
     public PrimaryMediaFile PrimaryMediaFile { get; set; }
     
+    [JsonPropertyName("readingTimeStats")]
+    public ReadingTimeStats ReadingTimeStats { get; set; }
+
     [JsonIgnore]
     public UnixTimeUtc? UserDate { get; set; }
     
+}
+
+public class ReadingTimeStats
+{
+    [JsonPropertyName("words")]
+    public double? Words { get; set; }
 }
