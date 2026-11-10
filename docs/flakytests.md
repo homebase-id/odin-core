@@ -1008,8 +1008,9 @@ tree locally.
 
 **Again 2026-11-07 and 11-08.** PR #2077 (`server-share-sealed-arrivals`) commit `9f285e8ea`, run
 42364376538 attempt 1, `ubuntu/sqlite/release`; PR #2088 (`peer-send-results-on-socket`) commit
-`2ba22df6c`, run 42466134155 attempt 1, `ubuntu/postgres/release`. The same `source payload does not
-exist` events; both passed on a rerun.
+`2ba22df6c`, run 42466134155 attempt 1, `ubuntu/postgres/release`; PR #2089 (`feed-update-sender-check`)
+commit `b44785b76`, run 42487081735 attempt 1, `ubuntu/postgres/release`. The same `source payload does
+not exist` events; all three passed on a rerun.
 
 **Cause found and fixed 2026-11-08 (verified).** FusionCache dates a tag remove when the remove starts,
 and stores that date over whatever the tag had when it gets there. When two removes of one drive's tag

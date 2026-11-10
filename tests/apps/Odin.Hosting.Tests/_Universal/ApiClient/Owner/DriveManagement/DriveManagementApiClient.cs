@@ -26,7 +26,7 @@ public class DriveManagementApiClient
     public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads,
         bool ownerOnly = false,
         bool allowSubscriptions = false, Dictionary<string, string> attributes = null,
-        OdinSlug driveSlug = default, OdinSlug driveTypeSlug = default)
+        OdinSlug driveSlug = default, OdinSlug driveTypeSlug = default, Guid? appId = null)
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -47,7 +47,8 @@ public class DriveManagementApiClient
                 OwnerOnly = ownerOnly,
                 Attributes = attributes,
                 DriveSlug = driveSlug.HasValue ? driveSlug : TestSlug.New(),
-                DriveTypeSlug = driveTypeSlug.HasValue ? driveTypeSlug : TestSlug.DriveType
+                DriveTypeSlug = driveTypeSlug.HasValue ? driveTypeSlug : TestSlug.DriveType,
+                AppId = appId
             });
 
             return response;

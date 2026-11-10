@@ -673,7 +673,7 @@ namespace Odin.Services.DataSubscription.Follower
                         newFileMetadata.AppData.UniqueId.GetValueOrDefault());
 
                     await feedWriter.ReplaceFileMetadataOnFeedDrive(existingFile.FileId, newFileMetadata, odinContext,
-                        bypassCallerCheck: true);
+                        expectedSender: identityIFollow);
                 }
             }
             catch (Exception e)
