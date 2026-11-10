@@ -675,14 +675,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             //Note: calling to get the file header, so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file, odinContext);
 
-            header.FileMetadata.VersionTag = targetVersionTag;
-
             var descriptorIndex = header.FileMetadata.Payloads?.FindIndex(p => p.KeyEquals(key)) ?? -1;
 
             if (descriptorIndex == -1)
             {
                 return Guid.Empty;
             }
+
+            // The header written back is this one less the payload
+            AssertVersionTagMatches(header, targetVersionTag);
 
             var descriptor = header.FileMetadata.Payloads![descriptorIndex];
 
@@ -939,6 +940,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        /// <summary>
+        /// Refuses with <see cref="OdinClientErrorCode.VersionTagMismatch"/> unless <paramref name="header"/> is at
+        /// <paramref name="expectedVersionTag"/> (no tag, no check).  A write that rebuilds a header it read must call it:
+        /// the write itself checks only the caller's tag against the row, so a header read at another version (a stale
+        /// cache, #2093) would pass and undo whatever changed since.
+        /// </summary>
         public static void AssertVersionTagMatches(ServerFileHeader header, Guid? expectedVersionTag)
         {
             if (expectedVersionTag.HasValue && header?.FileMetadata.VersionTag != expectedVersionTag)
@@ -1236,8 +1243,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
             AssertActiveForUpdate(existingServerHeader);
-            // The payloads replaced below are the ones this header lists, so it must be the version the write is
-            // conditional on: the write checks only the caller's tag, and would pass over a header read at another version
+            // The payloads replaced below are the ones this header lists
             AssertVersionTagMatches(existingServerHeader, expectedVersionTag);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
@@ -1264,7 +1270,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var allPayloads = incomingPayloads.Concat(payloadsToKeep).ToList();
 
                 existingServerHeader.FileMetadata.Payloads = allPayloads;
-                existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
 
                 await WriteFileHeaderInternal(existingServerHeader, odinContext);
             }
