@@ -19,8 +19,11 @@ public static class PlateRichTextParser
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     /// <param name="json">The body JSON (an array of nodes; a single node object is tolerated)</param>
-    /// <param name="payloadUrl">Maps a payload key (local_image fileKey) to a URL for the post's payload, or null when unknown</param>
-    public static string? Parse(string json, Func<string, string?>? payloadUrl = null)
+    /// <param name="payloadUrl">
+    /// Maps a payload key (local_image fileKey) and the file it lives on (local_image fileId; null means the post's own file)
+    /// to a URL for that payload, or null when unknown
+    /// </param>
+    public static string? Parse(string json, Func<string, string?, string?>? payloadUrl = null)
     {
         JsonNode? root;
         try
@@ -50,7 +53,7 @@ public static class PlateRichTextParser
         return sb.ToString();
     }
 
-    private static string ParseNode(JsonNode? node, Func<string, string?>? payloadUrl)
+    private static string ParseNode(JsonNode? node, Func<string, string?, string?>? payloadUrl)
     {
         if (node is not JsonObject obj) return "";
 
@@ -102,7 +105,8 @@ public static class PlateRichTextParser
             case "local_image":
             {
                 var key = Str(obj["fileKey"]);
-                var src = key == null ? null : payloadUrl?.Invoke(key);
+                // an image copied from another post keeps pointing at that post's file
+                var src = key == null ? null : payloadUrl?.Invoke(key, Str(obj["fileId"]));
                 // No payload URL available: an empty figure keeps the layout without a broken image
                 return src == null ? "<figure></figure>\n" : $"<img src=\"{HtmlText(src)}\" alt=\"\" />\n";
             }
@@ -111,7 +115,7 @@ public static class PlateRichTextParser
         }
     }
 
-    private static string ParseChildren(JsonObject obj, Func<string, string?>? payloadUrl)
+    private static string ParseChildren(JsonObject obj, Func<string, string?, string?>? payloadUrl)
     {
         if (obj["children"] is not JsonArray children)
         {
