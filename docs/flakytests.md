@@ -1131,6 +1131,12 @@ passed alone, and the whole fixture passed 3 of 3 runs after. Not run on a clean
 that it predates the branch is the `main` CI failure above. The test's member is in one circle, so the change gives it
 the same single row as before (inferred from the diff).
 
+**Again 2026-11-10:** `ubuntu/sqlite/release` on PR #2092 (`dev-fixture-tool`) commit `0fdaa48da`, run 42795170418, the
+same symptom (Sam's socket saw nothing in 10 s, `SelectiveShareTests.Events.cs:332` from line 152).
+`ubuntu/postgres/release` and `windows/sqlite/debug` passed on the same commit. #2092 changes the test helpers' target
+and a key-locking helper the member-writes tests call; nothing in share events, sockets or this test (inferred from its
+diff). The commit adding this entry ran CI again.
+
 ## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
 
 - `Disconnect_PushesConnectionChanged`
