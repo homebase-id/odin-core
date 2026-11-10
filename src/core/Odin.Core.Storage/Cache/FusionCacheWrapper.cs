@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Threading;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Odin.Core.Storage.Cache;
@@ -42,23 +42,18 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     // Two removes of one tag that overlap can store the earlier date last, and every entry stored after it counts as
     // live again, though the later remove expired it. So one remove of a tag runs at a time on this node, and each
     // stores a later date than the one before. Shared by every wrapper, as tags with the same prefix are one tag.
-    private static readonly SemaphoreSlim[] TagRemoveTurns =
-        Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1)).ToArray();
+    // Still so in FusionCache v2.9.0 (RemoveByTagAsync -> SetTagDataInternalAsync); if a later version keeps the later
+    // of the two dates itself, this can go (#2093).
+    private static readonly KeyedAsyncLock TagRemoveTurns = new();
 
     private async ValueTask RemoveTagInTurnAsync(string prefixedTag, CancellationToken cancellationToken)
     {
-        var turn = TagRemoveTurns[(prefixedTag.GetHashCode() & int.MaxValue) % TagRemoveTurns.Length];
-        await turn.WaitAsync(cancellationToken);
-        try
+        using (await TagRemoveTurns.LockAsync(prefixedTag, cancellationToken))
         {
             await cache.RemoveByTagAsync(
                 prefixedTag,
                 null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
                 cancellationToken);
-        }
-        finally
-        {
-            turn.Release();
         }
     }
 
