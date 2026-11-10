@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -68,8 +69,7 @@ public static class TiptapRichTextParser
                     var level = Math.Clamp(Int(attrs?["level"]) ?? 1, 1, 6);
                     var inner = Kids(obj);
                     var id = Slug(PlainText(obj));
-                    var idAttr = id == "" ? "" : $" id=\"{Enc(id)}\"";
-                    return $"<h{level}{idAttr}>{inner}</h{level}>\n";
+                    return $"<h{level} id=\"{Enc(id)}\">{inner}</h{level}>\n";
                 }
                 case "blockquote":
                     return $"<blockquote>{Kids(obj)}</blockquote>\n";
@@ -94,7 +94,7 @@ public static class TiptapRichTextParser
                 case "taskItem":
                 {
                     var box = Bool(attrs?["checked"]) ? "&#9745; " : "&#9744; ";
-                    return $"<li>{box}{Kids(obj)}</li>\n";
+                    return $"<li>{TaskItemContent(obj, box)}</li>\n";
                 }
                 case "table":
                     return $"<table><tbody>{Kids(obj)}</tbody></table>\n";
@@ -179,10 +179,32 @@ public static class TiptapRichTextParser
             return html;
         }
 
+        /// <summary>The checkbox goes inside the item's first paragraph, so it sits on the same line as the text</summary>
+        private string TaskItemContent(JsonObject item, string box)
+        {
+            if (item["content"] is not JsonArray children || children.Count == 0) return box;
+
+            var sb = new StringBuilder();
+            var first = children[0] as JsonObject;
+            if (first != null && Str(first["type"]) == "paragraph" && !HasImage(first))
+            {
+                sb.Append($"<p>{box}{Kids(first)}</p>\n");
+            }
+            else
+            {
+                sb.Append(box);
+                sb.Append(Render(children[0]));
+            }
+
+            for (var i = 1; i < children.Count; i++) sb.Append(Render(children[i]));
+            return sb.ToString();
+        }
+
         private string RenderImage(JsonObject? attrs)
         {
             var key = Str(attrs?["fileKey"]);
-            var src = key == null ? null : payloadUrl?.Invoke(key, null);
+            // an image copied from another post keeps pointing at that post's file
+            var src = key == null ? null : payloadUrl?.Invoke(key, Str(attrs?["fileId"]));
             src ??= SafeUrl(Str(attrs?["src"]));
             // No resolvable URL: render nothing rather than a broken image
             if (src == null) return "";
@@ -197,10 +219,14 @@ public static class TiptapRichTextParser
             return $"<figure{cls}><img src=\"{Enc(src)}\" alt=\"{alt}\"{widthAttr} />{captionHtml}</figure>\n";
         }
 
+        /// <summary>
+        /// The heading id rule of the JS viewer, which is the reference: NFKD, drop combining marks, lowercase,
+        /// every run of characters that are not a Unicode letter or number (\p{L}\p{N}) becomes '-', '-' trimmed
+        /// at both ends, 'section' when nothing is left, and repeats in one document get -2, -3, ...
+        /// </summary>
         private string Slug(string text)
         {
-            var slug = Regex.Replace(text.ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
-            if (slug == "") return "";
+            var slug = BaseSlug(text);
             var candidate = slug;
             for (var n = 2; !_usedSlugs.Add(candidate); n++) candidate = $"{slug}-{n}";
             return candidate;
@@ -217,6 +243,50 @@ public static class TiptapRichTextParser
             return n;
         }
     }
+
+    internal static string BaseSlug(string text)
+    {
+        var sb = new StringBuilder(text.Length);
+        var dash = false;
+        string normalized;
+        try
+        {
+            normalized = text.Normalize(NormalizationForm.FormKD);
+        }
+        catch (ArgumentException)
+        {
+            // a lone surrogate; it becomes U+FFFD below, which is not a letter, so a '-' just like in JS
+            normalized = text;
+        }
+
+        foreach (var rune in normalized.EnumerateRunes())
+        {
+            if (IsMark(Rune.GetUnicodeCategory(rune))) continue;
+
+            var lower = Rune.ToLowerInvariant(rune);
+            if (IsLetterOrNumber(Rune.GetUnicodeCategory(lower)))
+            {
+                if (dash && sb.Length > 0) sb.Append('-');
+                dash = false;
+                sb.Append(lower.ToString());
+            }
+            else
+            {
+                dash = true;
+            }
+        }
+
+        // a leading run is dropped above and a trailing one is never written, which is the trim
+        return sb.Length == 0 ? "section" : sb.ToString();
+    }
+
+    private static bool IsMark(UnicodeCategory c) =>
+        c is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark or UnicodeCategory.EnclosingMark;
+
+    private static bool IsLetterOrNumber(UnicodeCategory c) =>
+        c is UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter or UnicodeCategory.TitlecaseLetter
+            or UnicodeCategory.ModifierLetter or UnicodeCategory.OtherLetter
+            or UnicodeCategory.DecimalDigitNumber or UnicodeCategory.LetterNumber or UnicodeCategory.OtherNumber;
 
     private static bool HasImage(JsonObject obj)
     {
