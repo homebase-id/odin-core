@@ -1,4 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using Serilog;
+using Odin.Core;
+using Odin.Core.Storage;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -8,20 +15,13 @@ using Odin.Services.Peer.Encryption;
 namespace Odin.Services.Drives;
 
 /// <summary>
-/// A deposit is a file someone writes to a drive they can't read: they encrypt it with a key header
-/// of their own and seal that key header to the drive's write-only public key
-/// (<see cref="EncryptedKeyHeader.Sealed"/>).  The server stores the sealed key header as received,
-/// passes it on as is and returns it as stored; it never opens or re-locks it
-/// (docs/zero-knowledge-recovery-plan.md, "Deposits").  On the drive, a deposit is one of the two kinds
-/// of client-locked file, and who may see or change it is <see cref="ZkDriveFiles"/>'s
-/// (docs/zero-knowledge-drive-api-plan.md, step 2).
+/// A deposit is a file someone writes to a drive they can't read: they encrypt it with a key header of their own and
+/// seal that key header to the drive's write-only public key (<see cref="EncryptedKeyHeader.Sealed"/>).  One set of rules
+/// on every drive that takes one (docs/server-share-sealed-arrivals-plan.md): it carries payloads, is never a comment,
+/// and is stored as received.  On a zero-knowledge drive the server never opens it, and who may see or change it is
+/// <see cref="ZkDriveFiles"/>'s; on a Server Share drive the server opens it on a read and locks it as its own
+/// (<see cref="ConvertedOnServerShare"/>).
 /// </summary>
-/// <remarks>
-/// For now a deposit is a header only.  It was first because a payload's key header left through a
-/// fixed-size response header (<c>SharedSecretEncryptedHeader64</c>) a sealed one doesn't fit; step 1
-/// dropped that header for every client-locked file, so what stops a deposit with payloads now is only
-/// that nothing needs one yet.  Chat lifts it, here (docs/zero-knowledge-drive-api-plan.md, step 2).
-/// </remarks>
 public static class Deposits
 {
     public static bool IsDeposit(bool isEncrypted, EncryptedKeyHeader keyHeader) => isEncrypted && keyHeader?.IsSealed() == true;
@@ -54,55 +54,134 @@ public static class Deposits
         return DriveFileUtility.OpenWithStorageKey(header, odinContext);
     }
 
-    /// <summary>Refuses a malformed deposit, and one with payloads for a drive whose deposits carry none.</summary>
-    public static void AssertValid(FileMetadata metadata, EncryptedKeyHeader sealedKeyHeader, StorageDrive drive)
-    {
-        sealedKeyHeader.AssertValidSealed();
-        if (metadata.Payloads?.Any() == true && !MayCarryPayloads(drive))
-        {
-            ThrowCarriesNoPayloads();
-        }
-    }
-
-    /// <summary>
-    /// Where a deposit may carry payloads: a Selective Share drive, where a member adds a file with its content
-    /// (docs/file-access.md, "With Selective Share"), and the transient drive a deposit is sent from,
-    /// where the receiving drive decides.  Anywhere else a deposit is still a header only.
-    /// </summary>
-    public static bool MayCarryPayloads(StorageDrive drive) =>
-        drive.IsSelectiveShare || SystemDriveConstants.IsTransientTempDrive(drive.Id);
-
-    /// <summary>Refuses payloads added with a sealed key header, as <see cref="AssertValid"/> does for a new deposit.</summary>
-    public static void AssertTakesNoPayloads(KeyHeader keyHeader, bool addsPayloads, StorageDrive drive)
-    {
-        if (addsPayloads && keyHeader is ClientLockedKeyHeader { IsSealed: true } && !MayCarryPayloads(drive))
-        {
-            ThrowCarriesNoPayloads();
-        }
-    }
-
-    /// <summary>Refuses payloads for a stored deposit, as <see cref="AssertValid"/> does for a new one.</summary>
-    public static void AssertTakesNoPayloads(ServerFileHeader existingHeader, StorageDrive drive)
-    {
-        if (IsDeposit(existingHeader) && !MayCarryPayloads(drive))
-        {
-            ThrowCarriesNoPayloads();
-        }
-    }
-
-    private static void ThrowCarriesNoPayloads() =>
-        throw new OdinClientException("A deposit carries no payloads", OdinClientErrorCode.InvalidPayload);
-
     /// <summary>
     /// Refuses a deposit for a drive that can't hold one (<see cref="StorageDrive.CanHoldDeposits"/>); asked
     /// through <see cref="ZkDriveFiles.AssertDriveTakes"/>, which decides which drive takes which key header.
     /// </summary>
-    internal static void AssertCanHold(StorageDrive drive)
+    internal static void AssertCanHold(StorageDrive drive, FileSystemType fileSystem)
     {
+        // A deposit is a file: a comment's key comes with the drive's model, never sealed
+        if (fileSystem == FileSystemType.Comment)
+        {
+            throw new OdinClientException("A comment is never sealed", OdinClientErrorCode.InvalidKeyHeader);
+        }
+
         if (!drive.CanHoldDeposits)
         {
-            throw new OdinClientException("Only a zero-knowledge drive takes a deposit (a sealed key header)",
-                OdinClientErrorCode.DepositNeedsZeroKnowledgeDrive);
+            throw new OdinClientException("This drive takes no deposit (a sealed key header): only a zero-knowledge drive, or a " +
+                                          "Server Share drive that isn't a community channel, does", OdinClientErrorCode.DepositNeedsZeroKnowledgeDrive);
+        }
+    }
+
+    /// <summary>
+    /// On a Server Share drive, the deposits among <paramref name="headers"/> whose key header the server makes its own for
+    /// this caller, each with that key header: the seal opened with the drive's write-only private key, which the drive key
+    /// the caller's request carries opens, and the file key locked with the drive key under the same IV, as any file there.
+    /// Empty when the drive isn't a Server Share drive the server opens deposits on, the request carries no drive key, or the
+    /// write-only private key doesn't open (logged: never a failed read); a header that isn't a deposit, is sealed to
+    /// another key or doesn't open is left out.  The drive key and the private
+    /// key are opened once for the batch, and for this call only
+    /// (<see cref="Odin.Core.Cryptography.Data.EccFullKeyData.OpenPrivateKey"/>).
+    /// </summary>
+    public static List<(ServerFileHeader Header, EncryptedKeyHeader KeyHeader)> ConvertedOnServerShare(StorageDrive drive,
+        IEnumerable<ServerFileHeader> headers, IOdinContext odinContext)
+    {
+        try
+        {
+            return OpenedOnServerShare(drive, headers.Where(IsDeposit).Select(h => (h, h.EncryptedKeyHeader)), odinContext);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // Never a failed read: its deposits are left sealed
+            Log.Warning(e, "The deposits on drive {driveId} could not be opened; left sealed", drive.Id);
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// <see cref="ConvertedOnServerShare"/> for bare key headers, each with what it belongs to: those sealed to the drive's
+    /// write-only key, as the server's own.  A tombstone's too, which <see cref="IsDeposit"/> doesn't count (it isn't
+    /// encrypted any more), for a caller that rewrites every key header of the drive.  Throws when the write-only private
+    /// key doesn't open; a single seal that doesn't open is left out.
+    /// </summary>
+    public static List<(T Item, EncryptedKeyHeader KeyHeader)> OpenedOnServerShare<T>(StorageDrive drive,
+        IEnumerable<(T Item, EncryptedKeyHeader Sealed)> keyHeaders, IOdinContext odinContext)
+    {
+        if (drive?.ServerOpensDeposits != true)
+        {
+            return [];
+        }
+
+        var deposits = keyHeaders
+            .Where(k => k.Sealed?.IsSealed() == true && drive.IsSealedToWriteOnlyKey(k.Sealed.EncryptedAesKey))
+            .ToList();
+        if (deposits.Count == 0 || !odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
+        {
+            return [];
+        }
+
+        var privateKey = default(ECParameters);
+        try
+        {
+            privateKey = drive.WriteOnlyKeyPair.OpenPrivateKey(storageKey);
+            using var me = ECDiffieHellman.Create(privateKey);
+            var converted = new List<(T, EncryptedKeyHeader)>();
+            foreach (var (item, sealedKeyHeader) in deposits)
+            {
+                if (Converted(drive, sealedKeyHeader, me, ref storageKey) is { } keyHeader)
+                {
+                    converted.Add((item, keyHeader));
+                }
+            }
+
+            return converted;
+        }
+        finally
+        {
+            if (privateKey.D != null)
+            {
+                Array.Clear(privateKey.D);
+            }
+
+            storageKey.Wipe();
+        }
+    }
+
+    private static EncryptedKeyHeader Converted(StorageDrive drive, EncryptedKeyHeader sealedKeyHeader, ECDiffieHellman me,
+        ref SensitiveByteArray storageKey)
+    {
+        byte[] plain = null;
+        KeyHeader opened = null;
+        try
+        {
+            plain = ZkSeal.Open(sealedKeyHeader.EncryptedAesKey, me);
+
+            // Exactly the file's IV and key, under the IV the header shows: anything else would lock a key that isn't the
+            // file's over its only sealed copy
+            if (plain.Length != 32 || !plain.AsSpan(0, 16).SequenceEqual(sealedKeyHeader.Iv))
+            {
+                Log.Debug("A deposit on drive {driveId} opened to something other than its file key; left sealed", drive.Id);
+                return null;
+            }
+
+            opened = KeyHeader.FromCombinedBytes(plain);
+            return EncryptedKeyHeader.EncryptKeyHeaderAes(opened, opened.Iv, ref storageKey);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // Sealed to this drive's key but not openable with it, by any error: left sealed, never a failed read.  At Debug:
+            // a sender's junk is met again by every read, and a sender chooses how much of it there is
+            Log.Debug(e, "A deposit on drive {driveId} could not be opened; left sealed", drive.Id);
+            return null;
+        }
+        finally
+        {
+            if (plain != null)
+            {
+                Array.Clear(plain);
+            }
+
+            opened?.AesKey.Wipe();
         }
     }
 }

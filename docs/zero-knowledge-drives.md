@@ -38,9 +38,10 @@ The model in short; the reasons, alternatives and work are in
   client-locked key header is returned as stored, and payload and thumbnail responses carry no packed key header:
   the client uses FileKey and the payload's IV.
 - **One write rule:** a key holder writes `zkDrive`, and can't upload a `sealed` file to the drive; a
-  sender's `sealed` new file is stored as sent. **A `sealed` key header replaces only a `sealed` one**: a
-  file a key holder took over (`zkDrive`) never goes back to sealed, and an `aes` file never loses the key
-  only the server could open. Updates and overwrites go through their usual version-tag and IV checks.
+  sender's `sealed` new file is stored as sent. **A `sealed` key header replaces a `sealed` one, or its
+  sender's own converted one** while no one else has changed the file since their last write
+  (`ZkDriveFiles.AssertMayReplace`): never one the owner or another member wrote, so a file a key holder took
+  over keeps its key. Updates and overwrites go through their usual version-tag and IV checks.
   Nothing else changes a client-locked key header, and a zero-knowledge drive sends nothing (no recipients,
   feeds or CDN) (`ZkDriveFiles.AssertNotSent`) **(V)**.
 - **One "may a peer write directly" check** for new files and updates (`PeerDirectWrites.CanWriteAtOnce`): at once
@@ -93,8 +94,9 @@ The model in short; the reasons, alternatives and work are in
     last write still matches ([file-access.md](file-access.md), "Changing a file you sent") **(V, tested)**.
   - **Races:** a sender's change that lands between the read and the transform stands (`versionTagMismatch`), and the
     key holder transforms the new one when it reads it **(V, tested)**. After the transform, a sender's `sealed`
-    change is refused like any `sealed` key header over a taken-over one **(V, tested)**: whether a deposit's sender
-    may keep editing it (keeping the drive's key header, with a new IV) is **not decided**. Two devices transforming
+    change lands while no one else has changed the file since their last write, sealed again for a key holder to
+    transform; once the owner changes it, the sender's `sealed` change is refused (`ZkDriveFiles.AssertMayReplace`)
+    **(V, tested)**. Two devices transforming
     the same file send the same bytes, since a `zkDrive` key header depends only on DrvK, FileKey and the IV; the
     second to arrive gets `notSealed`, as the stored key header is no longer sealed (I: not tested).
   - **Known race:** a full header write that read the file before the transform keeps the same version tag, so its
@@ -246,6 +248,34 @@ a reader gets the share key differs:
   scheme where clients write keys per file would in some scenarios require clients update 
   very large volume of file records over the network. Today's model needs no client work at all.
 - **Writing:** the server enforces who may write, as today.
+- **Deposits:** a peer who may write the drive but not read it can send a file sealed to the drive's write-only public
+  key, which is written at once instead of waiting in the inbox (`StorageDrive.CanHoldDeposits`, `ServerOpensDeposits`,
+  `PeerDirectWrites.CanWriteAtOnce`) **(V, tested)**. The server opens it on a read whose request carries the drive key,
+  writes it back as its own `aes` key header under the same IV, keeping the version tag and `modified`
+  (`Deposits.ConvertedOnServerShare`, `DriveStorageServiceBase.ConvertDepositsAsync`, from `ReadForCallerAsync` and the
+  query's `FilterVisibleAsync`) **(V, tested)**, and a socket event opens it for each device the same way, unwritten
+  (`DriveEventMessage`) **(V; not tested)**. So a reader sees it sealed only if the server can't open it (a seal that
+  doesn't open to a file key under the header's IV, or a write-only private key that doesn't open, logged and left
+  sealed): the reader then gets it as stored **(V)**. The write-only private key is opened for
+  that call only (`EccFullKeyData.OpenPrivateKey`) **(V)**. Not on a drive marked as a community channel, which re-locks a
+  member's post and sends it on as it lands (a channel drive's followers get only its owner's posts,
+  `FeedDriveDistributionRouter.ShouldDistribute`), nor the Shard Recovery drive before it is zero knowledge, whose
+  shards stay sealed (`StorageDrive.ShardsStaySealed`, which the transform asks too) **(V, tested)**. One set of deposit rules
+  holds on every drive that takes one: sealed to the current write-only key, payloads allowed, never a comment, and a
+  sealed key header replaces a sealed one, or the sender's own converted one while no one else has changed the file
+  since their last write (`ZkDriveFiles.AssertMayReplace`), which is sealed and converted again **(V, tested)**. A
+  sender's unsealed change of a deposit no one has read yet makes it the server's own first, where the request can open
+  it, as a read would (`PeerFileWriter`) **(V, tested)**
+  ([server-share-sealed-arrivals-plan.md](server-share-sealed-arrivals-plan.md)). A deposit comes only from a caller
+  without the drive key, as on a zero-knowledge drive: a local caller holding it is refused a sealed upload
+  (`ZkDriveFiles.OpenForWrite`) **(V, tested)**. A sealed key header there reaches whoever holds the drive's storage key,
+  as any file does (`ZkDriveFiles.VisibleTo`): so a delete reaches an app as it does the owner, whether or not it converted
+  the deposit first (the soft-delete batch, V1 and the hard deletes load with `includeExpired` and don't; the V2 single
+  delete loads it as a write, which does) **(V, tested)**. A tombstone has no content, so a sealed one goes out with an
+  empty key header, as any tombstone the server locked (`DriveFileUtility.CreateClientFileHeader`) **(V, tested)**.
+  Converting the drive to a zero-knowledge one opens its deposits first, with the key pair they were sealed to, and
+  relabels them with the rest (`ZkDriveConversionService.RelabelKeyHeadersAsync`) **(V, tested)**; a write-only private
+  key that doesn't open fails the conversion **(V; not tested)**.
 
 ## Direction: how we get there
 
@@ -320,7 +350,7 @@ Keys open on the peer's devices.
 - **Peer read, on the reader's server:** `PeerDriveQueryService.TransformSharedSecret` (outgoing)
   unwraps it with the connection's shared secret and rewraps it for the reader's app.
 - **Incoming transfer:** the recipient's server rewraps with its own storage key
-  (`PeerInboxProcessor`).
+  (`PeerInboxProcessor`); a deposit is written at once and converted on a read ([Server Share](#server-share)).
 
 ### Private
 
@@ -328,8 +358,8 @@ Keys open on the peer's devices.
   peer readers, and no drive grant on a zero-knowledge drive carries its storage key
   (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
 - **Deposits:** the sending client seals to the drive's public key. The sending server and the
-  receiving server store it as received, written directly. A deposit on a Private drive carries no payloads
-  (`Deposits.MayCarryPayloads`) **(V)**. There is no inbox for a peer's files (read receipts still use it): a peer's
+  receiving server store it as received, written directly. A deposit carries its payloads, on every drive that takes
+  one: no rule refuses them **(V, tested)**. There is no inbox for a peer's files (read receipts still use it): a peer's
   update, delete and reaction are written at once too (see [How a zero-knowledge drive holds files](#how-a-zero-knowledge-drive-holds-files)) **(V)**.
 
 ### Private Share
@@ -340,8 +370,8 @@ Keys open on the peer's devices.
   key), then the locked file key, then the file.
 - **No storage key in the grant:** the circle's drive grant for a Private Share drive carries no
   storage key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
-- **Deposits:** a member's new file may carry payloads (`Deposits.MayCarryPayloads`) **(V)**, and the payload-upload
-  route adds payloads to a deposit too (`Deposits.AssertTakesNoPayloads`) **(V, tested)**. There is no inbox for a
+- **Deposits:** a member's new file may carry payloads, and the payload-upload route adds payloads to a deposit too
+  **(V, tested)**. There is no inbox for a
   member's files (read receipts still use it): a member's update or delete is written at once, through a live share
   with `Write`, or as the file's sender while it has no share **(V, tested)**. A member's update never creates a file:
   one with no stored file to update, a standard file or a comment, is refused, and a standard file keeps its ACL

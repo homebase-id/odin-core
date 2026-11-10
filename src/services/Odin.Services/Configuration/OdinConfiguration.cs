@@ -364,6 +364,15 @@ public class OdinConfiguration
 
         public TimeSpan CapiSessionLifetime { get; init; }
 
+        /// <summary>
+        /// The largest payload this host stores, from its owner or a peer: one past it is refused as it streams in
+        /// (<see cref="Registry.TenantQuotaGuard.LimitPayload"/>).  The quota alone asks only whether the identity is
+        /// already full, so one payload could go over it by its whole size.
+        /// </summary>
+        public long MaxPayloadBytes { get; init; } = DefaultMaxPayloadBytes;
+
+        public const long DefaultMaxPayloadBytes = 50L * 1000 * 1000 * 1000;
+
         public HostSection()
         {
             // Mockable support
@@ -402,6 +411,7 @@ public class OdinConfiguration
             HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
             ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 120);
+            MaxPayloadBytes = config.GetOrDefault("Host:MaxPayloadBytes", DefaultMaxPayloadBytes);
             SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
 
             PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
@@ -1036,7 +1046,7 @@ public class OdinConfiguration
         {
             var guesstimatedMemoryCacheSizeLimit = EntrySize.GuesstimateMemoryCacheSizeLimit();
             MemoryCacheSizeLimit = config.GetOrDefault("Cache:MemoryCacheSizeLimit", guesstimatedMemoryCacheSizeLimit);
-            MemoryCacheCompactionPercentage = config.GetOrDefault("Cache:MemoryCacheSizeLimit", 0.25);
+            MemoryCacheCompactionPercentage = config.GetOrDefault("Cache:MemoryCacheCompactionPercentage", 0.25);
             Level2CacheType = config.GetOrDefault("Cache:Level2CacheType", Level2CacheType.None);
         }
     }

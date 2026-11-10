@@ -81,16 +81,53 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 
     /// <summary>Whether <paramref name="sealedValue"/> was sealed to this drive's write-only key (<see cref="ZkSeal"/>).</summary>
     public bool IsSealedToWriteOnlyKey(byte[] sealedValue) =>
-        WriteOnlyKeyPair != null && ZkSeal.IsSealedTo(sealedValue, WriteOnlyKeyPair.PublicKeyJwk());
+        WriteOnlyKeyId() is { } keyId && ZkSeal.IsSealedTo(sealedValue, keyId);
+
+    // The write-only key's id, worked out once per key pair: every deposit a read, query or socket sees asks it
+    private (EccFullKeyData KeyPair, uint KeyId)? _writeOnlyKeyId;
+
+    private uint? WriteOnlyKeyId()
+    {
+        var keyPair = WriteOnlyKeyPair;
+        if (keyPair == null)
+        {
+            return null;
+        }
+
+        if (_writeOnlyKeyId is not { } cached || !ReferenceEquals(cached.KeyPair, keyPair))
+        {
+            _writeOnlyKeyId = cached = (keyPair, ZkSeal.KeyId(keyPair.PublicKeyJwk()));
+        }
+
+        return cached.KeyId;
+    }
 
     /// <summary>
-    /// Whether this drive takes a deposit: a file whose key header its writer sealed to the drive's
-    /// write-only public key (<c>EncryptionType.Sealed</c>).  A zero-knowledge drive does, as its owner's
-    /// browser opens it; so does the transient drive, which only passes a deposit on to its recipients.
-    /// Any other drive refuses one: the server could open everything else on it, so a deposit there
-    /// would only hide from the owner what the server can't read.
+    /// Whether this drive takes a deposit (a key header sealed to its write-only public key): a zero-knowledge drive, the
+    /// transient drive that passes one on, and a Server Share drive with a write-only key pair, which its server opens
+    /// (<see cref="ServerOpensDeposits"/>).  Never a community channel, nor a drive whose shards stay sealed
+    /// (docs/zero-knowledge-drives.md, "Server Share").
     /// </summary>
-    public bool CanHoldDeposits => IsZeroKnowledge || SystemDriveConstants.IsTransientTempDrive(Id);
+    public bool CanHoldDeposits => IsZeroKnowledge || SystemDriveConstants.IsTransientTempDrive(Id) ||
+                                   (ServerOpensDeposits && !IsCollaborationDrive());
+
+    /// <summary>
+    /// A Server Share drive whose server opens a deposit and locks it as its own on a read (<see cref="Deposits.ConvertedOnServerShare"/>):
+    /// one with a write-only key pair, not the Shard Recovery drive.  A community channel takes no new deposit (it sends a
+    /// member's post on as it lands, needing its key then, <see cref="CanHoldDeposits"/>), but still opens those it took
+    /// before it was marked one.
+    /// </summary>
+    public bool ServerOpensDeposits => SharingModel == DriveSharingModel.Collaborative && WriteOnlyKeyPair != null &&
+                                       !ShardsStaySealed && !SystemDriveConstants.IsTransientTempDrive(Id);
+
+    /// <summary>
+    /// The Shard Recovery drive, whose deposits nothing converts, neither its server nor a key holder's transform
+    /// (<see cref="ZkDriveFiles.AssertCallerMayTransform"/>).  An exception for Shamir, not a rule of drives: before it
+    /// releases a friend's shard the server asks whether their browser can still open it, from the write-only key the seal
+    /// names (ShamirBaseService.CanReleaseAsync), and a converted key header names none.  It goes once Shamir keeps its own
+    /// record of a shard's key (#2075).
+    /// </summary>
+    public bool ShardsStaySealed => Id == WellKnownAppDrives.ShardRecoveryDrive.Alias.Value;
 
     /// <summary>
     /// Whether a grant with <paramref name="permission"/> carries the drive's storage key: reading

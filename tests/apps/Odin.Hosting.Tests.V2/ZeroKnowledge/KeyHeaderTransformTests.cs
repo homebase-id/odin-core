@@ -148,26 +148,32 @@ public class KeyHeaderTransformTests : V2Fixture
     }
 
     [Test]
-    public async Task ASendersSealedChangeAfterTheTransformIsRefused()
+    public async Task ASendersSealedChangeAfterTheTransformLandsUntilTheOwnerChangesIt()
     {
-        // A sealed key header replaces only a sealed one (ZkDriveFiles.AssertMayReplace): once transformed, the file
-        // keeps the drive's key header
+        // The transform keeps the version tag, so the sender's record of their last write still matches: their change is
+        // of their own file, sealed again for a key holder to transform (ZkDriveFiles.AssertMayReplace)
         var (frodo, sam, drive, keys, _) = await ArrangeAsync();
         var received = await DepositAsync(frodo, sam, drive, keys);
-        var untouched = await DepositAsync(frodo, sam, drive, keys);
         await TransformAsync(frodo, drive, Transform(received, keys));
 
-        foreach (var file in new[] { received, untouched })
-        {
-            await SendDepositAsync(sam, sam, frodo, keys.WriteOnlyPublicKeyJwk, UniqueIdOf(file), "Sam's, changed", remoteDrive: drive,
-                versionTag: file.FileMetadata.VersionTag);
-        }
+        await SendDepositAsync(sam, sam, frodo, keys.WriteOnlyPublicKeyJwk, UniqueIdOf(received), "Sam's, changed", remoteDrive: drive,
+            versionTag: received.FileMetadata.VersionTag);
+        var changed = await HeaderByUniqueIdAsync(frodo, UniqueIdOf(received), drive);
+        Assert.That(changed.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Sealed), "sealed again");
+        Assert.That(ZkBrowser.OpenDeposit(changed, keys.WriteOnlyPrivateKey).ToStringFromUtf8Bytes(), Is.EqualTo("Sam's, changed"));
 
+        // Frodo takes it over with the drive's key: a seal of Sam's no longer replaces his write
+        var newKey = WithNewIv(ZkBrowser.OpenDepositFileKey(changed, keys.WriteOnlyPrivateKey));
+        var takeOver = await UpdateAsync(frodo, changed.FileId, UniqueIdOf(changed), newKey, ZkBrowser.LockFileKey(newKey, keys.DriveKey),
+            changed.FileMetadata.VersionTag, drive: drive);
+        Assert.That(takeOver.StatusCode, Is.EqualTo(HttpStatusCode.OK), takeOver.Error?.Content);
+        var frodos = await HeaderByUniqueIdAsync(frodo, UniqueIdOf(received), drive);
+
+        await SendDepositAsync(sam, sam, frodo, keys.WriteOnlyPublicKeyJwk, UniqueIdOf(received), "Sam's, again", remoteDrive: drive,
+            versionTag: frodos.FileMetadata.VersionTag);
         var after = await HeaderByUniqueIdAsync(frodo, UniqueIdOf(received), drive);
         Assert.That(after.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
-        Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(received.FileMetadata.VersionTag), "unchanged");
-        Assert.That((await HeaderByUniqueIdAsync(frodo, UniqueIdOf(untouched), drive)).FileMetadata.VersionTag,
-            Is.Not.EqualTo(untouched.FileMetadata.VersionTag), "the same change to a deposit not transformed lands, so the refusal was the rule's");
+        Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(frodos.FileMetadata.VersionTag), "refused: Frodo changed it since Sam's last write");
     }
 
     [Test]

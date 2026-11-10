@@ -6,7 +6,7 @@ using Odin.Services.AppNotifications.Data;
 namespace Odin.Hosting.UnifiedV2.Notifications;
 
 [ApiController]
-[Route(UnifiedApiRouteConstants.NotifyRoot)]
+[Route(UnifiedApiRouteConstants.NotifyList)]
 [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2NotificationListDataController(

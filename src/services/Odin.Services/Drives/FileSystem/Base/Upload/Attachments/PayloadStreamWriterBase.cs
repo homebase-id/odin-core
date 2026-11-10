@@ -83,7 +83,8 @@ public abstract class PayloadStreamWriterBase : IUploadPartWriter
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
         await using var hashing = descriptor.Hash?.Verifying(key, data);
-        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, hashing ?? data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension,
+            QuotaGuard.LimitPayload(hashing ?? data), odinContext);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
@@ -99,6 +100,7 @@ public abstract class PayloadStreamWriterBase : IUploadPartWriter
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
         IOdinContext odinContext)
     {
+        data = QuotaGuard.LimitThumbnail(data);
         await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc

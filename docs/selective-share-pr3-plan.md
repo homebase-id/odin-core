@@ -149,8 +149,8 @@ needs drive `Read`. Members write files (section 7), not shares, except on their
   `Comment`, and includes `Read`: no upload-only rows yet (decided 2026-11-01). The index rows V1 makes from an ACL on
   other drives always mean `Read`, as today; V1 gets no share API.
 - `expiresAt` is null or later than now.
-- `lockedFileKey` is exactly 45 bytes and starts with format byte 2 (decision 7), when the file is encrypted; absent
-  when it isn't.
+- `lockedFileKey` is exactly 45 bytes and starts with format byte 2 or 3 (decision 7; 3 binds it to the file's global
+  transit id, selective-share-plan.md, "Blob formats"), when the file is encrypted; absent when it isn't.
 
 **Stored** with one upsert per row, in one transaction (insert, or update bits, expiry and locked file key; the generated
 `modified = MAX(modified + 1, now)`) **(V for the generated rule)**. The file's existence is checked in the same
@@ -203,11 +203,12 @@ The header's ACL names no one on these drives. The `GET` lists one file's share 
   (`DriveAclAuthorizationService.CallerMayReadAsync`, section 2) **(V)**. `ZkDriveFiles.VisibleTo` is unchanged.
 - **What a member gets:** the header with their live row's locked file key in place of the key header: they can't open the
   file's own `sealed` or `zkDrive` key header, and the locked file key opens with their circle key. With live rows in more
-  than one of their circles, the row of the lowest circle id, so every read picks the same one. Payload and thumbnail
+  than one of their circles, the row of the lowest circle id, so every read picks the same one; the header shows all of
+  them, that one first (`CallerShares.LiveRowsOf`) **(V, tested)**. Payload and thumbnail
   reads carry no key header for a client-locked file **(V, zero-knowledge-drives.md)**: the client uses the file key and the
   payload's IV, unchanged.
 - **Nothing about other shares:** outside callers never get the header's server metadata (`CreateClientFileHeader`)
-  **(V)**, so a member sees only their own row: its bits and expiry come with the header, for the client to show.
+  **(V)**, so a member sees only their own rows: their bits and expiry come with the header, for the client to show.
 - **Through the Peer API:** a member reads via their own server, which asks the owner's. A client-locked key header is
   passed through as stored today (`PeerDriveQueryService`, zero-knowledge-drives.md) **(V)**; the row's locked file key goes
   the same way (built, below).
@@ -295,6 +296,13 @@ The rules from selective-share-plan.md, "Who may write" and "A member adds a fil
   locked with the drive's key (`zkDrive`): version 1 locks `IV ‖ key` under the IV itself, so the IV is the visible one
   **(V, security-model.md)**; key header version 2 (#2024) would need this revisited. A file a member deposited keeps
   today's rule: a `sealed` key header replaces a `sealed` one, the member sending a new sealed one.
+- **The member's client learns how its write went** (built 2026-11-08): a new file and an edit both go from the member's
+  server's outbox, sent from its transient drive, which keeps no transfer history the client could read. Each outcome
+  goes to the sockets of the app that sent it as a `PeerSendResult` event (file-access.md, "Changing a file you sent"):
+  delivered with the version tag of the owner's copy, refused with why (`RecipientIdentityReturnedVersionTagMismatch`,
+  `RecipientIdentityReturnedInvalidKeyHeader`), or retrying. A member can't tell whether a file is still sealed (their
+  header carries a `share` key header either way), so their client keeps the key, and on an invalid key header seals it
+  again **(V, tested: `SelectiveShareTests.SendResults`)**. A client not connected at the time reads the owner's copy.
 - **Adding a file to a shared folder** (built in PR 3, decided 2026-11-02; **superseded 2026-11-03**: drive `Write`
   alone, and the server reads nothing into `GroupId`): Filesync names a file's folder by the
   folder's unique id in `GroupId` (filesync `wire.rs:324-338`) **(V)**. A member's deposit to a Private Share drive

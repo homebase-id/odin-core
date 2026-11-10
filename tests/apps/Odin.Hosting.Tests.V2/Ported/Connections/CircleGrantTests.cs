@@ -1,14 +1,20 @@
 #nullable enable
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using Refit;
 using static Odin.Hosting.Tests.V2.Ported.Connections.Introductions.IntroductionTestUtils;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
@@ -92,4 +98,39 @@ public class CircleGrantTests : V2Fixture
         var grantCircleResponse = await merry.Connections.GrantCircle(targetCircle, sam.Identity);
         Assert.That(grantCircleResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
+
+    [Test]
+    public async Task TroubleshootingWorksWithACircleThatGrantsOnlyDrives()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "a drive", allowAnonymousReads: false);
+        var circleId = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleId, "drives only", new PermissionSetGrantRequest
+        {
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Write } }]
+        });
+
+        var send = await frodo.Connections.SendConnectionRequest(sam.Identity, []);
+        Assert.That(send.IsSuccessStatusCode, Is.True, "arrange: sending the request failed");
+        var accept = await sam.Connections.AcceptConnectionRequest(frodo.Identity, []);
+        Assert.That(accept.IsSuccessStatusCode, Is.True, "arrange: accepting the request failed");
+
+        var response = await frodo.RefitFor<IOwnerConnectionTroubleshooting>()
+            .GetInfo(new OdinIdRequest { OdinId = sam.Identity });
+
+        Assert.That(response.IsSuccessStatusCode, Is.True, response.Error?.Content);
+        var circle = response.Content!.Circles.Single(c => c.CircleDefinitionId == circleId);
+        Assert.That(circle.Analysis.ExpectedPermissionKeys.Keys, Is.Empty);
+        Assert.That(circle.Analysis.PermissionKeysAreValid, Is.True, "no keys expected and none held");
+        Assert.That(circle.Analysis.IsCircleMember, Is.False);
+    }
+}
+
+public interface IOwnerConnectionTroubleshooting
+{
+    [Post(OwnerApiPathConstants.CirclesV1 + "/connections/troubleshooting-info")]
+    Task<ApiResponse<IcrTroubleshootingInfo>> GetInfo([Body] OdinIdRequest request);
 }

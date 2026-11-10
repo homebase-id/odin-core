@@ -29,6 +29,28 @@ public class TableOutbox(
         return await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>Every queued send of one drive's files to <paramref name="recipient"/>.</summary>
+    public async Task<List<OutboxRecord>> GetByDriveAndRecipientAsync(Guid driveId, string recipient)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "SELECT rowId,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime," +
+                          "value,checkOutStamp,correlationId,created,modified FROM Outbox " +
+                          "WHERE identityId = @identityId AND driveId = @driveId AND recipient = @recipient;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@recipient", DbType.String, recipient);
+
+        var result = new List<OutboxRecord>();
+        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
+        while (await rdr.ReadAsync())
+        {
+            result.Add(ReadRecordFromReaderAll(rdr));
+        }
+
+        return result;
+    }
+
     public async Task<List<OutboxRecord>> GetAsync(Guid driveId, Guid fileId)
     {
         return await base.GetAsync(odinIdentity, driveId, fileId);

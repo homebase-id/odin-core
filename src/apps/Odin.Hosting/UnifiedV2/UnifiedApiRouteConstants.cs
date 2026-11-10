@@ -27,7 +27,7 @@ public static class UnifiedApiRouteConstants
 
     // The notification list sits beside /notify/push, as V1 has it (/notify/list). Under /notify/push its
     // GET list collided with the push-subscription list.
-    public const string NotifyRoot = BasePath + "/notify";
+    public const string NotifyList = BasePath + "/notify";
     public const string LiveRelay = BasePath + "/live-relay";
     public const string NotifySocket = BasePath + "/notify/ws-token";
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
@@ -69,6 +69,7 @@ public static class UnifiedApiRouteConstants
     public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
     public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
     public const string PeerReactionsByGtid = PeerByGtid + "/reactions";
+    public const string PeerSendStatus = PeerByGtid + "/send-status";
 
     // This identity's sealed copy of a peer's circle key (Selective Share)
     public const string PeerCircleShareKey = PeerByOdinId + "/circles/{circleId:guid}/share-key";

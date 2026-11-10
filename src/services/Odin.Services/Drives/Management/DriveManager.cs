@@ -117,10 +117,14 @@ public class DriveManager : IDriveManager
 
         // The purge deletes by drive id, so a drive re-created under the alias before it finishes would lose files.
         // A drive's id is its alias, which is why the alias is the key here.
-        if (await _drivePurges.GetAsync(request.TargetDrive.Alias) is { Kind: DrivePurgeKind.Delete })
+        if (await _drivePurges.GetAsync(request.TargetDrive.Alias) is { Kind: DrivePurgeKind.Delete } purge)
         {
-            throw new OdinClientException("A drive with this alias is still being deleted; try again later",
-                OdinClientErrorCode.InvalidDrive);
+            var deleted = string.IsNullOrWhiteSpace(purge.Name) ? "A deleted drive" : $"The deleted drive '{purge.Name}'";
+            var lastError = purge.LastError == null ? "" : $" Its last attempt failed: {purge.LastError}";
+            throw new OdinClientException(
+                $"{deleted} still uses this alias: its files and folders are being removed in the background. " +
+                $"Create this drive again once that deletion has finished, or retry the deletion if it has stopped.{lastError}",
+                OdinClientErrorCode.DriveStillBeingDeleted);
         }
 
         // Both slugs are the caller's to name (#1901): missing, empty, whitespace-only or malformed is a

@@ -179,7 +179,7 @@ public class EmailKeyMaterialWriter(
     /// </summary>
     private static void AssertCanResolveStorageKey(IOdinContext odinContext)
     {
-        if (!odinContext.PermissionsContext.TryGetDriveStorageKey(DriveId, out _))
+        if (!odinContext.PermissionsContext.HoldsDriveStorageKey(DriveId))
         {
             throw new OdinSystemException(
                 "Email drive access granted without a storage key -- cannot encrypt the keyring.");

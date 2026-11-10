@@ -116,6 +116,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         if (!Package.IsUpdateOperation)
         {
             await AssertUniqueIdNotInUseAsync(Package.Descriptor?.FileMetadata?.AppData?.UniqueId, odinContext);
+            await AssertGlobalTransitIdNotInUseAsync(Package.Descriptor?.GlobalTransitId, odinContext);
         }
     }
 
@@ -140,7 +141,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
         await using var hashing = descriptor.Hash?.Verifying(key, data);
-        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, hashing ?? data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension,
+            QuotaGuard.LimitPayload(hashing ?? data), odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -154,6 +156,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
     {
+        data = QuotaGuard.LimitThumbnail(data);
         await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
@@ -282,6 +285,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         else
         {
             await AssertUniqueIdNotInUseAsync(metadata.AppData.UniqueId, odinContext);
+            await AssertGlobalTransitIdNotInUseAsync(Package.Descriptor?.GlobalTransitId, odinContext);
 
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
         }
@@ -382,6 +386,59 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         }
     }
 
+    /// <summary>
+    /// A global transit id the client picked must not belong to a file on the drive, deleted or not: it stays in the
+    /// index (<see cref="UploadFileDescriptor.GlobalTransitId"/>).  The database's unique index is the final guard.
+    /// </summary>
+    private async Task AssertGlobalTransitIdNotInUseAsync(Guid? globalTransitId, IOdinContext odinContext)
+    {
+        // An empty one, or one on a comment, is refused when the descriptor is unpacked, with no lookup
+        if (globalTransitId is not { } gtid || gtid == Guid.Empty || FileSystem.Storage.GetFileSystemType() != FileSystemType.Standard)
+        {
+            return;
+        }
+
+        if (await FileSystem.Query.GlobalTransitIdInUseAsync(Package.InternalFile.DriveId, gtid, odinContext))
+        {
+            throw new OdinClientException($"A file already has the global transit id {gtid}",
+                OdinClientErrorCode.ExistingFileWithGlobalTransitId);
+        }
+    }
+
+    private static void AssertNoSharesNorGlobalTransitId(UploadFileDescriptor uploadDescriptor)
+    {
+        if (uploadDescriptor.Shares is { Count: > 0 } || uploadDescriptor.GlobalTransitId.HasValue)
+        {
+            throw new OdinClientException("Only a new file's upload carries shares or names its global transit id",
+                OdinClientErrorCode.ArgumentError);
+        }
+    }
+
+    /// <summary>
+    /// A client names a new file's global transit id only where nothing of it reaches a feed, whose copies are found by
+    /// global transit id alone: on a Private Share drive (zero knowledge, so never sent), or a deposit sent from the
+    /// transient drive, which the drives that distribute to feeds don't take.  And it is the id the recipient's copy
+    /// gets: not with another one for it (<see cref="TransitOptions.OverrideRemoteGlobalTransitId"/>).
+    /// </summary>
+    private async Task AssertMayNameGlobalTransitIdAsync(Guid gtid, FileUploadPackage package, EncryptedKeyHeader keyHeader)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(gtid, nameof(UploadFileDescriptor.GlobalTransitId));
+
+        var driveId = package.InternalFile.DriveId;
+        var deposit = SystemDriveConstants.IsTransientTempDrive(driveId) && keyHeader.IsSealed();
+        if (!deposit && !(await _driveManager.GetDriveAsync(driveId, true)).IsSelectiveShare)
+        {
+            throw new OdinClientException("A new file names its global transit id only on a Private Share drive, or as a deposit " +
+                                          "sent from the transient drive", OdinClientErrorCode.ArgumentError);
+        }
+
+        if (package.InstructionSet.TransitOptions?.OverrideRemoteGlobalTransitId != null)
+        {
+            throw new OdinClientException("A new file names one global transit id, not another for its recipient's copy",
+                OdinClientErrorCode.ArgumentError);
+        }
+    }
+
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(
         FileUploadPackage package,
         IOdinContext odinContext)
@@ -421,7 +478,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 odinContext,
                 shares: package.Shares,
                 // Nothing of a transient file stays here, so its client names the tag of the recipient's copy
-                expectedVersionTag: transitOptions.IsTransient ? package.Descriptor.FileMetadata.VersionTag : null);
+                expectedVersionTag: transitOptions.IsTransient ? package.Descriptor.FileMetadata.VersionTag : null,
+                tellSendersClient: SystemDriveConstants.IsTransientTempDrive(package.InternalFile.DriveId));
 
             return recipientStatus;
         }
@@ -468,16 +526,21 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 OdinClientErrorCode.InvalidKeyHeader);
         }
 
+        // A new standard file only: an overwrite keeps the file key (decision 7), so its shares stay valid as they are, and
+        // a comment follows its file's shares; the global transit id the shares may be bound to is the new file's
+        if (FileSystem.Storage.GetFileSystemType() != FileSystemType.Standard || package.IsUpdateOperation)
+        {
+            AssertNoSharesNorGlobalTransitId(uploadDescriptor);
+        }
+
         if (uploadDescriptor.Shares is { Count: > 0 })
         {
-            // A new standard file only: an overwrite keeps the file key (decision 7), so its shares stay valid as they
-            // are, and a comment follows its file's shares
-            if (FileSystem.Storage.GetFileSystemType() != FileSystemType.Standard || package.IsUpdateOperation)
-            {
-                throw new OdinClientException("Only a new file's upload carries shares", OdinClientErrorCode.ArgumentError);
-            }
-
             package.Shares = uploadDescriptor.Shares;
+        }
+
+        if (uploadDescriptor.GlobalTransitId is { } gtid)
+        {
+            await AssertMayNameGlobalTransitIdAsync(gtid, package, transferKeyEncryptedKeyHeader);
         }
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
@@ -508,10 +571,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(
         FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
-        if (uploadDescriptor.Shares is { Count: > 0 })
-        {
-            throw new OdinClientException("Only a new file's upload carries shares", OdinClientErrorCode.ArgumentError);
-        }
+        AssertNoSharesNorGlobalTransitId(uploadDescriptor);
 
         var keyHeader = KeyHeader.Empty();
 
@@ -658,7 +718,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             if (keyHeader is ClientLockedKeyHeader { IsSealed: true } sealedKeyHeader)
             {
                 // Where it may go was checked as it was opened (ZkDriveFiles.OpenForWrite)
-                Deposits.AssertValid(metadata, sealedKeyHeader.Locked, drive);
+                sealedKeyHeader.Locked.AssertValidSealed();
             }
             else if (metadata.IsEncrypted && keyHeader is not ClientLockedKeyHeader) // checked unopened (AssertValidZkDrive)
             {

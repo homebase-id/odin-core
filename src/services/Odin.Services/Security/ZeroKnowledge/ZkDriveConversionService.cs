@@ -59,7 +59,7 @@ public class ZkDriveConversionService(
     /// <summary>
     /// Converts the drive in one transaction: the drive row (the browser's copy of the key, no master-key copy, a new
     /// write-only key pair), each granted app's copy of the key locked with its zero-knowledge key, no key left on any
-    /// grant, and every encrypted file's key header relabelled from <c>aes</c> to <c>zkDrive</c>.
+    /// grant, and every encrypted file's key header relabelled from <c>aes</c> to <c>zkDrive</c>, a deposit's opened first.
     /// </summary>
     public async Task ConvertDriveKeepingKeyAsync(ZkConvertDriveKeepingKeyRequest request, IOdinContext odinContext)
     {
@@ -84,7 +84,9 @@ public class ZkDriveConversionService(
             await circleNetworkService.RemoveStorageKeyFromAllGrantsAsync(drive.Id, odinContext);
             await circleNetworkRequestService.RemoveStorageKeyFromSentRequestsAsync(drive.Id, odinContext);
 
-            relabelled = await RelabelKeyHeadersAsync(drive.Id);
+            // Last, so a file written meanwhile has the least time to miss it.  The drive in hand still has the write-only
+            // key pair its deposits were sealed to: the drive row was written from a copy read from the table
+            relabelled = await RelabelKeyHeadersAsync(drive, odinContext);
 
             // Cached contexts carry grants with the key, and the apps' contexts no copies yet; so does every open
             // socket's, kept from when it authenticated
@@ -103,14 +105,32 @@ public class ZkDriveConversionService(
     /// and nothing is opened.  The version tag and <c>modified</c> don't move, so no client resyncs.  A header is
     /// relabelled when it has the shape every <c>zkDrive</c> header must (<see cref="EncryptedKeyHeader.HasZkDriveShape"/>):
     /// an unencrypted file's empty key header (a zero IV) stays <c>aes</c>; a deleted file's tombstone keeps its real key
-    /// header, and is relabelled with the rest.  A file written meanwhile fails the conversion, which the owner retries.
+    /// header, and is relabelled with the rest.  A deposit the server took for the drive (a Server Share drive opens them,
+    /// <see cref="Deposits"/>) is opened with the write-only key pair it was sealed to, which <paramref name="drive"/> still
+    /// holds, and relabelled with the rest: left sealed, it would be sealed to a private key no one holds any more.  A write-only private
+    /// key that doesn't open fails the conversion, which can't be undone; a deposit whose seal doesn't open to its file key
+    /// (a sender's junk) stays as it is.  A file written meanwhile fails the conversion, which the owner retries.
     /// </summary>
-    private async Task<int> RelabelKeyHeadersAsync(Guid driveId)
+    private async Task<int> RelabelKeyHeadersAsync(StorageDrive drive, IOdinContext odinContext)
     {
-        var relabelled = new List<(Guid, Guid, string)>();
-        foreach (var (fileId, versionTag, encryptedKeyHeader) in await driveMainIndex.GetKeyHeadersByDriveIdAsync(driveId))
+        var keyHeaders = (await driveMainIndex.GetKeyHeadersByDriveIdAsync(drive.Id))
+            .Select(r => (r.FileId, r.VersionTag, KeyHeader: OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(r.EncryptedKeyHeader)))
+            .ToList();
+        Dictionary<Guid, EncryptedKeyHeader> opened;
+        try
         {
-            var keyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(encryptedKeyHeader);
+            opened = Deposits.OpenedOnServerShare(drive, keyHeaders.Select(k => (k.FileId, k.KeyHeader)), odinContext)
+                .ToDictionary(o => o.Item, o => o.KeyHeader);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            throw new OdinSystemException($"Drive {drive.Id}'s deposits can't be opened, so it isn't converted: they would be lost", e);
+        }
+
+        var relabelled = new List<(Guid, Guid, string)>();
+        foreach (var (fileId, versionTag, stored) in keyHeaders)
+        {
+            var keyHeader = opened.GetValueOrDefault(fileId) ?? stored;
             if (keyHeader is not { Type: EncryptionType.Aes } || !keyHeader.HasZkDriveShape())
             {
                 continue;
@@ -120,10 +140,10 @@ public class ZkDriveConversionService(
             relabelled.Add((fileId, versionTag, OdinSystemSerializer.Serialize(keyHeader)));
         }
 
-        var moved = await driveMainIndex.UpdateEncryptedKeyHeadersAsync(driveId, relabelled);
+        var moved = await driveMainIndex.UpdateEncryptedKeyHeadersAsync(drive.Id, relabelled);
         if (moved.Count > 0)
         {
-            throw new OdinClientException($"{moved.Count} file(s) on drive {driveId} changed during the conversion; try again",
+            throw new OdinClientException($"{moved.Count} file(s) on drive {drive.Id} changed during the conversion; try again",
                 OdinClientErrorCode.VersionTagMismatch);
         }
 

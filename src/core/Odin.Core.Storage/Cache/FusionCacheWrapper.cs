@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Threading;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Odin.Core.Storage.Cache;
@@ -35,6 +36,25 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         ctx.Options.SkipMemoryCacheWrite = true;
         ctx.Options.SkipDistributedCacheWrite = true;
         ctx.Options.SkipBackplaneNotifications = true;
+    }
+
+    // FusionCache dates a tag remove when it starts and stores that date over whatever the tag had when it gets there.
+    // Two removes of one tag that overlap can store the earlier date last, and every entry stored after it counts as
+    // live again, though the later remove expired it. So one remove of a tag runs at a time on this node, and each
+    // stores a later date than the one before. Shared by every wrapper, as tags with the same prefix are one tag.
+    // Still so in FusionCache v2.9.0 (RemoveByTagAsync -> SetTagDataInternalAsync); if a later version keeps the later
+    // of the two dates itself, this can go (#2093).
+    private static readonly KeyedAsyncLock TagRemoveTurns = new();
+
+    private async ValueTask RemoveTagInTurnAsync(string prefixedTag, CancellationToken cancellationToken)
+    {
+        using (await TagRemoveTurns.LockAsync(prefixedTag, cancellationToken))
+        {
+            await cache.RemoveByTagAsync(
+                prefixedTag,
+                null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
+                cancellationToken);
+        }
     }
 
     // After a store: a remove may have landed between the last check and the store, so the entry is removed again
@@ -361,10 +381,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     public async ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
         await removals.IncrementAsync(cancellationToken);
-        await cache.RemoveByTagAsync(
-            AddPrefix(tag),
-            null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
-            cancellationToken);
+        await RemoveTagInTurnAsync(AddPrefix(tag), cancellationToken);
     }
 
     //
@@ -375,26 +392,10 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         ArgumentNullException.ThrowIfNull(tags, nameof(tags));
 
         await removals.IncrementAsync(cancellationToken);
-        await cache.RemoveByTagAsync(
-            AddPrefix(tags)!,
-            null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
-            cancellationToken);
-    }
-
-    //
-
-    public bool Contains(string key, CancellationToken cancellationToken = default)
-    {
-        var value = TryGet<object>(key, cancellationToken);
-        return value.HasValue;
-    }
-
-    //
-
-    public async ValueTask<bool> ContainsAsync(string key, CancellationToken cancellationToken = default)
-    {
-        var value = await TryGetAsync<object>(key, cancellationToken);
-        return value.HasValue;
+        foreach (var tag in tags)
+        {
+            await RemoveTagInTurnAsync(AddPrefix(tag), cancellationToken);
+        }
     }
 
     //

@@ -1,3 +1,4 @@
+using Odin.Core.Cryptography.Data;
 using System;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -174,7 +175,8 @@ public sealed class YouAuthAuthorizeRequest
         {
             throw new BadRequestException($"{PermissionRequestName} is required when {ClientTypeName} is {ClientType.app}");
         }
-        if (string.IsNullOrWhiteSpace(PublicKey))
+        // P-384 because [070] answers with a key on that curve. Checked here, or the owner consents to a sign-in that can't finish
+        if (string.IsNullOrWhiteSpace(PublicKey) || !EccPublicKeyData.IsJwkBase64UrlPublicKey(PublicKey, EccKeySize.P384))
         {
             throw new BadRequestException($"Bad or missing {PublicKeyName}");
         }

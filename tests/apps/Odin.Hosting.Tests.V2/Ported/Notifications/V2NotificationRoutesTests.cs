@@ -22,7 +22,7 @@ public class V2NotificationRoutesTests : V2Fixture
         var owner = await LoginAsOwner();
         var (http, _) = owner.NewAdminHttpClient();
 
-        var notifications = await http.GetAsync($"https://{Identities.Frodo}{UnifiedApiRouteConstants.NotifyRoot}/list?count=10");
+        var notifications = await http.GetAsync($"https://{Identities.Frodo}{UnifiedApiRouteConstants.NotifyList}/list?count=10");
         Assert.That(notifications.StatusCode, Is.EqualTo(HttpStatusCode.OK), "notification list");
 
         var subscriptions = await http.GetAsync($"https://{Identities.Frodo}{UnifiedApiRouteConstants.Notify}/list");
