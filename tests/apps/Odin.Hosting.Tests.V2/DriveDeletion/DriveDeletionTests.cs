@@ -10,6 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Exceptions;
+using Odin.Hosting.Tests;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
@@ -164,6 +166,7 @@ public class DriveDeletionTests : V2Fixture
         Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.False);
         var tooSoon = await owner.Admin.TryCreateDrive(drive, "too soon", allowAnonymousReads: false);
         Assert.That(tooSoon.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the alias was reusable before the purge");
+        Assert.That(TestUtils.ParseProblemDetails(tooSoon.Error!), Is.EqualTo(OdinClientErrorCode.DriveStillBeingDeleted));
 
         await RunPurgeAsync(owner);
         Assert.That(Directory.Exists(TenantPaths(owner).GetDrivePath(drive.Alias)), Is.False, "drive directory left behind");
@@ -391,6 +394,26 @@ public class DriveDeletionTests : V2Fixture
         Assert.That(pending.Kind, Is.EqualTo(DrivePurgeKind.Delete));
         Assert.That(pending.Name, Is.EqualTo("deletable"), "a deleted drive is still named");
         Assert.That(pending.FilesRemaining, Is.EqualTo(1));
+        Assert.That(pending.Phase, Is.EqualTo(DrivePurgePhase.RemovingFiles));
+        Assert.That(pending.NextRunAt, Is.Not.Null);
+
+        await RunPurgeAsync(owner);
+        Assert.That(await PurgesAsync(owner), Is.Empty);
+    }
+
+    [Test]
+    public async Task ADeleteWithNoFilesLeftShowsAsFinishingUntilItsJobRuns()
+    {
+        var owner = await LoginAsOwner();
+        var drive = await CreateDriveAsync(owner);
+        await owner.Admin.SetArchiveFlag(drive, archived: true);
+
+        await DeleteAsync(owner, drive);
+
+        // zero files is not done: the alias stays taken until the job has removed the rest
+        var pending = (await PurgesAsync(owner)).Single();
+        Assert.That(pending.FilesRemaining, Is.EqualTo(0));
+        Assert.That(pending.Phase, Is.EqualTo(DrivePurgePhase.Finishing));
 
         await RunPurgeAsync(owner);
         Assert.That(await PurgesAsync(owner), Is.Empty);
@@ -407,7 +430,10 @@ public class DriveDeletionTests : V2Fixture
 
         // what running out of retries leaves: the purge recorded, no job working on it
         await ClearJobs();
-        Assert.That((await PurgesAsync(owner)).Single().Stopped, Is.True);
+        var stopped = (await PurgesAsync(owner)).Single();
+        Assert.That(stopped.Stopped, Is.True);
+        Assert.That(stopped.Phase, Is.EqualTo(DrivePurgePhase.Stopped));
+        Assert.That(stopped.NextRunAt, Is.Null);
 
         var retry = await owner.RefitFor<IRefitDriveManagement>().RetryPurge(new TargetDriveRequest { TargetDrive = drive });
         Assert.That(retry.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));

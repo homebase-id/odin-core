@@ -66,6 +66,12 @@ public enum OdinClientErrorCode
     /// </summary>
     DriveSlugAlreadySet = 4007,
 
+    /// <summary>
+    /// A drive with this alias was deleted -- an app uninstall does this -- and its background purge has not finished,
+    /// so the alias cannot be used again yet. The drive purge status says where it is.
+    /// </summary>
+    DriveStillBeingDeleted = 4008,
+
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,
     CannotUploadEncryptedFileForAnonymous = 4102,
