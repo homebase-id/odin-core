@@ -1246,6 +1246,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             // The payloads replaced below are the ones this header lists
             AssertVersionTagMatches(existingServerHeader, expectedVersionTag);
 
+            // A file whose payloads are remote has none stored here: bytes copied in would be listed as remote, never
+            // served, and never deleted with the file
+            if (existingServerHeader.FileMetadata.PayloadsAreRemote)
+            {
+                throw new OdinClientException("Cannot add a payload to a file whose payloads are remote",
+                    OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+            }
+
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
             var committedPayloads = existingServerHeader.FileMetadata.Payloads?.ToList() ?? [];

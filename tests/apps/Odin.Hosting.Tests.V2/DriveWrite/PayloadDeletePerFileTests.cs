@@ -25,7 +25,8 @@ namespace Odin.Hosting.Tests.V2.DriveWrite;
 /// <summary>
 /// Deleting a file deletes the payloads this identity stores for it, on any drive, and looks for none when its payloads
 /// are remote: those live with the identity they came from (a followed post on the feed drive), so there is nothing here
-/// to delete.  A remote payload looked for would log an Error per payload and thumbnail, which the fixture fails on.
+/// to delete.  A remote payload looked for would log an Error per payload and thumbnail, which the fixture fails on.  So
+/// that stays true, no payload can be added to a file whose payloads are remote.
 /// </summary>
 [TestFixture]
 public class PayloadDeletePerFileTests : V2Fixture
@@ -70,6 +71,25 @@ public class PayloadDeletePerFileTests : V2Fixture
 
         await DeleteAsync(frodo, drive, file.File.FileId, file.NewVersionTag, delete);
         // The fixture fails on any Error the delete logged
+    }
+
+    [Test]
+    public async Task APayloadCannotBeAddedToAFileWhosePayloadsAreRemote()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "remote payloads", allowAnonymousReads: false);
+        var metadata = SampleMetadataData.CreateWithContent(FileType, "payloads elsewhere");
+        metadata.DataSource = new DataSource { Identity = new OdinId(Identities.Sam), DriveId = drive.Alias, PayloadsAreRemote = true };
+        var file = await UploadAsync(frodo, drive, metadata, local: false);
+
+        List<TestPayloadDefinition> added = [SamplePayloadDefinitions.GetPayloadDefinition1()];
+        var upload = await frodo.V1.Drive.UploadPayloads(file.File, file.NewVersionTag,
+            new UploadManifest { PayloadDescriptors = added.ToPayloadDescriptorList().ToList() }, added);
+
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "bytes stored here for a file whose payloads are remote");
+        Assert.That(TestUtils.ParseProblemDetails(upload.Error!), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
+        AssertNoPayloadFiles(frodo, drive);
     }
 
     [Test]
