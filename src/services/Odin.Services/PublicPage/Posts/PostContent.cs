@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Time;
 
@@ -40,16 +41,30 @@ public class PostContent
     [JsonPropertyName("primaryMediaFile")]
     public PrimaryMediaFile PrimaryMediaFile { get; set; }
     
+    /// <summary>Kept as raw JSON so a readingTimeStats in an odd shape never fails the whole post; see <see cref="WordCount"/></summary>
     [JsonPropertyName("readingTimeStats")]
-    public ReadingTimeStats ReadingTimeStats { get; set; }
+    public JsonElement? ReadingTimeStats { get; set; }
+
+    /// <summary>readingTimeStats.words as a positive whole number, or null when it is missing or not a usable number</summary>
+    [JsonIgnore]
+    public int? WordCount
+    {
+        get
+        {
+            if (ReadingTimeStats is not { ValueKind: JsonValueKind.Object } stats ||
+                !stats.TryGetProperty("words", out var words) ||
+                words.ValueKind != JsonValueKind.Number ||
+                !words.TryGetDouble(out var count) ||
+                double.IsNaN(count) || count < 1 || count > int.MaxValue)
+            {
+                return null;
+            }
+
+            return (int)count;
+        }
+    }
 
     [JsonIgnore]
     public UnixTimeUtc? UserDate { get; set; }
     
-}
-
-public class ReadingTimeStats
-{
-    [JsonPropertyName("words")]
-    public double? Words { get; set; }
 }

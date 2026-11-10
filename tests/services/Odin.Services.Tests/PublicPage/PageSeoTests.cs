@@ -1,6 +1,8 @@
 using System;
 using System.Text.Json;
 using NUnit.Framework;
+using Odin.Core.Serialization;
+using Odin.Services.PublicPage.Posts;
 using Odin.Services.PublicPage.Seo;
 
 namespace Odin.Services.Tests.PublicPage;
@@ -95,5 +97,55 @@ public class PageSeoTests
         Assert.That(doc.SelectSingleNode("/rss/channel/item/title")!.InnerText, Is.EqualTo("A <b> post"));
         Assert.That(doc.SelectSingleNode("/rss/channel/item/link")!.InnerText, Is.EqualTo("https://frodo.dotyou.cloud/posts/blog/a"));
         Assert.That(doc.SelectSingleNode("/rss/channel/item/pubDate")!.InnerText, Is.EqualTo("Sun, 01 Mar 2026 10:00:00 GMT"));
+    }
+
+    [Test]
+    public void Rss_EscapesLinkSegmentsAndDropsCharactersXmlCannotHold()
+    {
+        var link = RssFeed.PostLink("frodo.dotyou.cloud", "my blog", "a<b>&c?d#e/f");
+        Assert.That(link, Is.EqualTo("https://frodo.dotyou.cloud/posts/my%20blog/a%3Cb%3E%26c%3Fd%23e%2Ff"));
+
+        var xml = RssFeed.Build("Frodo\u0001", "https://frodo.dotyou.cloud/", "desc\u0008", "https://frodo.dotyou.cloud/feed.xml",
+        [
+            new RssItem("Bad\u0000 \uFFFE title \uD83D\uDE00 \uD800", link, "abs\u001Ftract\ttab", Article.Published)
+        ]);
+
+        var doc = new System.Xml.XmlDocument();
+        doc.LoadXml(xml);
+        Assert.That(doc.SelectSingleNode("/rss/channel/title")!.InnerText, Is.EqualTo("Frodo"));
+        Assert.That(doc.SelectSingleNode("/rss/channel/description")!.InnerText, Is.EqualTo("desc"));
+        Assert.That(doc.SelectSingleNode("/rss/channel/item/title")!.InnerText, Is.EqualTo("Bad  title \uD83D\uDE00 "));
+        Assert.That(doc.SelectSingleNode("/rss/channel/item/description")!.InnerText, Is.EqualTo("abstract\ttab"));
+        Assert.That(doc.SelectSingleNode("/rss/channel/item/link")!.InnerText, Is.EqualTo(link));
+        Assert.That(doc.SelectSingleNode("/rss/channel/item/guid")!.InnerText, Is.EqualTo(link));
+    }
+
+    [TestCase("""{"words":420.6}""", 420)]
+    [TestCase("""{"words":3,"minutes":1}""", 3)]
+    [TestCase("""{"words":"many"}""", null)]
+    [TestCase("""{"words":0}""", null)]
+    [TestCase("""{"words":-5}""", null)]
+    [TestCase("""{"words":1e30}""", null)]
+    [TestCase("""{"words":null}""", null)]
+    [TestCase("""{}""", null)]
+    [TestCase("\"x\"", null)]
+    [TestCase("[]", null)]
+    [TestCase("5", null)]
+    [TestCase("null", null)]
+    public void ReadingTimeStats_InAnyShape_DoesNotFailThePost(string stats, int? expected)
+    {
+        var json = $$"""{"caption":"Trip","type":"Article","readingTimeStats":{{stats}}}""";
+
+        var content = OdinSystemSerializer.Deserialize<PostContent>(json)!;
+
+        Assert.That(content.Caption, Is.EqualTo("Trip"));
+        Assert.That(content.WordCount, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void ReadingTimeStats_Missing_HasNoWordCount()
+    {
+        var content = OdinSystemSerializer.Deserialize<PostContent>("""{"caption":"Trip"}""")!;
+        Assert.That(content.WordCount, Is.Null);
     }
 }

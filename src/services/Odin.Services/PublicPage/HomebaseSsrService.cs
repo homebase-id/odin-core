@@ -241,7 +241,7 @@ public class HomebaseSsrService(
                     var slug = post.Content.Slug?.Trim();
                     var id = string.IsNullOrEmpty(slug) || Guid.TryParse(slug, out _) ? post.FileId.ToString() : slug;
                     var published = post.Created.ToDateTimeOffset();
-                    items.Add((new RssItem(post.Content.Caption, $"https://{tenant}/posts/{channel.Slug}/{id}",
+                    items.Add((new RssItem(post.Content.Caption, RssFeed.PostLink(tenant, channel.Slug, id),
                         post.Content.Abstract, published), published));
                 }
             }

@@ -172,7 +172,7 @@ public class HomebaseSsrController(
                 Modified = post.Modified.ToDateTimeOffset(),
                 AuthorName = person?.Name ?? WebOdinContext.Tenant.DomainName,
                 AuthorUrl = authorUrl,
-                WordCount = post.Content.ReadingTimeStats?.Words is > 0 ? (int)post.Content.ReadingTimeStats.Words : null
+                WordCount = post.Content.WordCount
             };
         }
 
