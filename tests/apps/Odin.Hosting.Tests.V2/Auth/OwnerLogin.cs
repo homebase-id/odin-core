@@ -17,7 +17,7 @@ using Refit;
 namespace Odin.Hosting.Tests.V2.Auth;
 
 /// <summary>
-/// Drives the owner password-set + authenticate dance against an in-process <see cref="OdinHost"/>.
+/// Drives the owner password-set + authenticate dance against an <see cref="IOdinTarget"/>.
 /// Returns the issued <see cref="ClientAuthenticationToken"/> and shared secret — enough to build
 /// any of the V2 client wrappers.
 /// </summary>
@@ -29,7 +29,7 @@ public static class OwnerLogin
     // exactly once per (host, identity) pair, then authenticate fresh on every call. Entries are
     // dropped via Forget(host) from OdinHost.DisposeAsync so this dict can't grow unboundedly even
     // in a long-running test process.
-    private static readonly ConcurrentDictionary<(OdinHost, string), bool> _passwordsSet = new();
+    private static readonly ConcurrentDictionary<(IOdinTarget, string), bool> _passwordsSet = new();
 
     /// <summary>
     /// Drops all <see cref="_passwordsSet"/> entries tied to <paramref name="host"/>. Called by
@@ -47,35 +47,26 @@ public static class OwnerLogin
         }
     }
 
-    public static async Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(
-        OdinHost host,
-        string identity,
-        string password = DefaultPassword)
-    {
-        return await RunAsync(host.Server.CreateHandler(), new Uri($"https://{identity}/"), password,
-            setPassword: _passwordsSet.TryAdd((host, identity), true));
-    }
-
     /// <summary>
-    /// The same against the local dev server: sets <paramref name="password"/> first when <paramref name="setPassword"/>
-    /// (an identity no one has signed in to yet), then authenticates
+    /// Signs <paramref name="identity"/>'s owner in on <paramref name="target"/>, setting <paramref name="password"/> first
+    /// when <paramref name="setPassword"/>; left out, the first sign-in to the identity on that target sets it
     /// </summary>
-    public static Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(DevServer devServer,
-        string identity, string password, bool setPassword) =>
-        RunAsync(devServer.CreateHandler(), devServer.BaseFor(identity), password, setPassword);
-
-    private static async Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(
-        HttpMessageHandler inner, Uri baseUri, string password, bool setPassword)
+    public static async Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(
+        IOdinTarget target,
+        string identity,
+        string password = DefaultPassword,
+        bool? setPassword = null)
     {
         var jar = new CookieContainer();
+        var baseUri = target.BaseFor(identity);
 
-        using var handler = new CookieDelegatingHandler(jar, inner);
+        using var handler = new CookieDelegatingHandler(jar, target.CreateHandler());
         using var client = new HttpClient(handler) { BaseAddress = baseUri };
         var svc = RestService.For<IOwnerAuthenticationClient>(client);
 
         var eccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
-        if (setPassword)
+        if (setPassword ?? _passwordsSet.TryAdd((target, identity), true))
         {
             var setReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(client, password, eccKey);
             EnsureSuccess(await svc.SetNewPassword(setReply), "SetNewPassword");

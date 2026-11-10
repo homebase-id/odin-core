@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
@@ -108,15 +109,18 @@ internal static class ZkOwnerSteps
     }
 
     /// <summary>
-    /// A new drive of <paramref name="model"/> (Private or SelectiveShare), created with keys the browser makes under
-    /// <paramref name="zkMasterKey"/>, and owned by <paramref name="appId"/> when given.  Returns the drive and its keys.
+    /// A drive of <paramref name="model"/> (Private or SelectiveShare), created with keys the browser makes under
+    /// <paramref name="zkMasterKey"/>, and owned by <paramref name="appId"/> when given: <paramref name="drive"/>, or a new
+    /// one.  Returns the drive and its keys.
     /// </summary>
     public static async Task<(TargetDrive Drive, ZkBrowser.DriveKeys Keys)> CreateZeroKnowledgeDriveAsync(OwnerSession owner,
-        byte[] zkMasterKey, DriveSharingModel model, Guid? appId = null, string name = "Shared")
+        byte[] zkMasterKey, DriveSharingModel model, Guid? appId = null, string name = "Shared", TargetDrive? drive = null,
+        OdinSlug driveSlug = default, OdinSlug driveTypeSlug = default)
     {
-        var drive = TargetDrive.NewTargetDrive();
+        drive ??= TargetDrive.NewTargetDrive();
         var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
-        await owner.Admin.CreateDrive(drive, name, allowAnonymousReads: false, appId: appId, sharingModel: model, zkKeys: keys.Request);
+        await owner.Admin.CreateDrive(drive, name, allowAnonymousReads: false, appId: appId, driveSlug: driveSlug,
+            driveTypeSlug: driveTypeSlug, sharingModel: model, zkKeys: keys.Request);
         return (drive, keys);
     }
 

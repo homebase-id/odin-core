@@ -66,17 +66,13 @@ internal static class YouAuthFlow
         RedirectUri = redirectUri
     };
 
-    // The in-process host's client, or one for the local dev server (DevServer)
-    private static HttpClient Client(OdinHost host, DevServer? devServer) =>
-        devServer != null ? new HttpClient(devServer.CreateHandler()) : host.CreateClient();
-
-    private static string Url(DevServer? devServer, string identity, string path) =>
-        devServer != null ? new Uri(devServer.BaseFor(identity), path.TrimStart('/')).ToString() : $"https://{identity}{path}";
+    private static string Url(IOdinTarget target, string identity, string path) =>
+        new Uri(target.BaseFor(identity), path.TrimStart('/')).ToString();
 
     /// <summary>GET authorize as the owner.</summary>
-    public static async Task<HttpResponseMessage> AuthorizeAsync(OdinHost host, OwnerSession owner, YouAuthAuthorizeRequest payload)
+    public static async Task<HttpResponseMessage> AuthorizeAsync(IOdinTarget target, OwnerSession owner, YouAuthAuthorizeRequest payload)
     {
-        var uri = new UriBuilder(Url(owner.DevServer, owner.Identity.DomainName, OwnerApiPathConstants.YouAuthV1Authorize))
+        var uri = new UriBuilder(Url(target, owner.Identity.DomainName, OwnerApiPathConstants.YouAuthV1Authorize))
         {
             Query = payload.ToQueryString()
         }.ToString();
@@ -86,7 +82,7 @@ internal static class YouAuthFlow
             Headers = { { "Cookie", OwnerCookie(owner) } },
         };
 
-        using var client = Client(host, owner.DevServer);
+        using var client = new HttpClient(target.CreateHandler());
         return await client.SendAsync(request);
     }
 
@@ -95,12 +91,12 @@ internal static class YouAuthFlow
     /// consent, authorize again. Returns the callback URL the browser is sent to at [080], query
     /// and all.
     /// </summary>
-    public static async Task<string> AuthorizeWithConsentAsync(OdinHost host, OwnerSession owner, YouAuthAuthorizeRequest payload)
+    public static async Task<string> AuthorizeWithConsentAsync(IOdinTarget target, OwnerSession owner, YouAuthAuthorizeRequest payload)
     {
-        var returnUrl = AssertRedirectsToConsent(await AuthorizeAsync(host, owner, payload));
-        await GiveConsentAsync(host, owner, returnUrl);
+        var returnUrl = AssertRedirectsToConsent(await AuthorizeAsync(target, owner, payload));
+        await GiveConsentAsync(target, owner, returnUrl);
 
-        var response = await AuthorizeAsync(host, owner, payload);
+        var response = await AuthorizeAsync(target, owner, payload);
         AssertRedirectsTo(response, payload.RedirectUri.Split('?')[0]);
         return response.GetHeaderValue("Location")!;
     }
@@ -110,7 +106,7 @@ internal static class YouAuthFlow
     /// swap its digest for the token at the identity's anonymous token endpoint.
     /// </summary>
     public static async Task<(YouAuthTokenResponse token, SensitiveByteArray exchangeSecret)> ExchangeTokenAsync(
-        OdinHost host, string identity, KeyPair keyPair, string callbackUrl, DevServer? devServer = null)
+        IOdinTarget target, string identity, KeyPair keyPair, string callbackUrl)
     {
         var callbackQuery = YouAuthTestHelper.ParseQueryString(callbackUrl);
         Assert.That(callbackQuery, Does.ContainKey(YouAuthDefaults.PublicKey), $"callback query: {string.Join(", ", callbackQuery.Keys)}");
@@ -118,12 +114,12 @@ internal static class YouAuthFlow
         var digest = SHA256.HashData(exchangeSecret.GetKey()).ToBase64();
 
         var body = OdinSystemSerializer.Serialize(new YouAuthTokenRequest { SecretDigest = digest });
-        var request = new HttpRequestMessage(HttpMethod.Post, Url(devServer, identity, OwnerApiPathConstants.YouAuthV1Token))
+        var request = new HttpRequestMessage(HttpMethod.Post, Url(target, identity, OwnerApiPathConstants.YouAuthV1Token))
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json")
         };
 
-        using var client = Client(host, devServer);
+        using var client = new HttpClient(target.CreateHandler());
         var response = await client.SendAsync(request);
         var content = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"token endpoint: {content}");
@@ -146,10 +142,10 @@ internal static class YouAuthFlow
     /// The consent POST the consent page makes when the owner clicks OK, auto-approving for a month; with the app's
     /// zero-knowledge key sealed to the sign-in's public key when the app asked for it, and the locked copy it opened.
     /// </summary>
-    public static async Task GiveConsentAsync(OdinHost host, OwnerSession owner, YouAuthAuthorizeRequest returnUrl,
+    public static async Task GiveConsentAsync(IOdinTarget target, OwnerSession owner, YouAuthAuthorizeRequest returnUrl,
         string? sealedZkAppKey = null, string? lockedZkAppKey = null, HttpStatusCode expected = HttpStatusCode.Redirect)
     {
-        var authorizeUrl = Url(owner.DevServer, owner.Identity.DomainName, OwnerApiPathConstants.YouAuthV1Authorize);
+        var authorizeUrl = Url(target, owner.Identity.DomainName, OwnerApiPathConstants.YouAuthV1Authorize);
         var returnUri = new UriBuilder(authorizeUrl) { Query = returnUrl.ToQueryString() }.ToString();
 
         var consentRequirements = OdinSystemSerializer.Serialize(new ConsentRequirements
@@ -179,7 +175,7 @@ internal static class YouAuthFlow
             Content = new FormUrlEncodedContent(form)
         };
 
-        using var client = Client(host, owner.DevServer);
+        using var client = new HttpClient(target.CreateHandler());
         var response = await client.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(expected),
             $"consent: {response.GetHeaderValue("Location")} {await response.Content.ReadAsStringAsync()}");

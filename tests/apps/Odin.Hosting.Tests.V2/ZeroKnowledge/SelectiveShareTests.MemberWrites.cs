@@ -323,8 +323,7 @@ public partial class SelectiveShareTests
     // A new file's key locked for the arranged circle, or the one named, bound to the global transit id the writer picked
     // (format 3)
     private static byte[] LockFileKey(Arranged s, byte[] circleKey, KeyHeader fileKey, Guid gtid, Guid? circleId = null) =>
-        ShareKeys.Lock(circleKey, fileKey.AesKey.GetKey(), ShareKeys.FileKeyAad(s.Drive.Alias, gtid, circleId ?? s.CircleId),
-            RandomNumberGenerator.GetBytes(12), ShareKeys.FormatByGlobalTransitId);
+        ShareKeys.LockFileKeyByGlobalTransitId(circleKey, fileKey.AesKey.GetKey(), s.Drive.Alias, gtid, circleId ?? s.CircleId);
 
     // A payload for an upload, which encrypts it with the file key and the payload's own IV
     private static TestPayloadDefinition Payload(TestPayloadDefinition payload, string content)

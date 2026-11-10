@@ -1,3 +1,4 @@
+using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -13,7 +14,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 namespace Odin.Hosting.Tests.V2.Api;
 
 /// <summary>
-/// An owner caller bound to one identity on a running <see cref="OdinHost"/>. Bundles the
+/// An owner caller bound to one identity on a running <see cref="OdinHost"/> (or the local dev server). Bundles the
 /// issued <see cref="ClientAuthenticationToken"/>, shared secret, an <see cref="InProcessApiClientFactory"/>,
 /// pre-built V2 client wrappers, and a V1 <see cref="OwnerAdmin"/> facade for the admin endpoints
 /// (drives, apps, circles, YouAuth domains) that V2 doesn't yet expose.
@@ -21,7 +22,13 @@ namespace Odin.Hosting.Tests.V2.Api;
 public sealed class OwnerSession : IV2Caller
 {
     public OdinId Identity { get; }
-    public OdinHost Host { get; }
+    /// <summary>Where this session's requests go: the in-process host in a test, the local dev server in a fixture tool</summary>
+    public IOdinTarget Target { get; }
+
+    /// <summary>The in-process host, for a test that reaches past the API into it; a session on the dev server has none</summary>
+    public OdinHost Host => Target as OdinHost
+        ?? throw new InvalidOperationException($"{Identity} is on the local dev server, which has no in-process host");
+
     public ClientAuthenticationToken Token { get; }
     public SensitiveByteArray SharedSecret { get; }
 
@@ -47,27 +54,20 @@ public sealed class OwnerSession : IV2Caller
     /// </summary>
     public ITestSync Sync { get; }
 
-    /// <summary>The local dev server this session reaches, instead of an in-process <see cref="Host"/>; null in a test</summary>
-    public DevServer? DevServer { get; }
-
-    private OwnerSession(OdinHost host, string identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret,
-        DevServer? devServer = null)
+    private OwnerSession(IOdinTarget target, string identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret)
     {
         Identity = (OdinId)identity;
-        Host = host;
-        DevServer = devServer;
+        Target = target;
         Token = token;
         SharedSecret = sharedSecret;
-        Factory = devServer != null
-            ? new InProcessApiClientFactory(devServer, OwnerAuthConstants.CookieName, token, sharedSecret)
-            : new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret);
+        Factory = new InProcessApiClientFactory(target, OwnerAuthConstants.CookieName, token, sharedSecret);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
         V1 = new V1Handles(Identity, Factory);
         Admin = new OwnerAdmin(this);
         Connections = new ConnectionsHandle(this);
         Followers = new FollowersHandle(this);
-        Sync = new OwnerSync(devServer ?? host.GetTestSync(identity), this);
+        Sync = new OwnerSync(target.GetTestSync(identity), this);
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public sealed class OwnerSession : IV2Caller
         bool setPassword)
     {
         var (token, secret) = await OwnerLogin.RunAsync(devServer, identity, password, setPassword);
-        return new OwnerSession(null!, identity, token, secret, devServer);
+        return new OwnerSession(devServer, identity, token, secret);
     }
 
     /// <param name="password">

@@ -12,7 +12,9 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Hosting.Tests.V2.Hosting;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Hosting.UnifiedV2.Circles;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -21,11 +23,11 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
-using Odin.Services.Membership.Connections;
 using Odin.Services.Drives.Shares;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.UnifiedV2.Drive.Write;
+using Refit;
 
 namespace Odin.Hosting.Tests.V2.DevFixture;
 
@@ -44,9 +46,14 @@ namespace Odin.Hosting.Tests.V2.DevFixture;
 [Explicit("A local tool for the dev server, not a test")]
 public class CollaborativeFolderDevFixture
 {
-    private const string Pippin = "pippin.dotyou.cloud";
-    private const string Tom = "tom.dotyou.cloud";
+    private static readonly string Pippin = Identities.Pippin;
+    private static readonly string Tom = Identities.TomBombadil;
     private const int DevServerPort = 4444;
+    private static readonly DevServer Dev = new(DevServerPort, new HashSet<string> { Pippin, Tom });
+
+    // What each circle grants on the Filesync drive
+    private const DrivePermission FolderPermissions =
+        DrivePermission.Read | DrivePermission.Write | DrivePermission.React | DrivePermission.Comment;
 
     // chat-kmp's Filesync registration (AppConfig.kt filesyncAppRegistration)
     private static readonly Guid FilesyncAppId = Guid.Parse("03ae1a49cdae483f9da7fedc0e8f20b9");
@@ -66,10 +73,9 @@ public class CollaborativeFolderDevFixture
         Assert.That(outPath, Is.Not.Null.And.Not.Empty, "Set ODIN_DEV_FIXTURE_OUT to the file the keys and credentials go to");
         Assert.That(File.Exists(outPath), Is.False, $"{outPath} exists: the fixture is set up already");
 
-        var dev = new DevServer(DevServerPort, new HashSet<string> { Pippin, Tom });
         foreach (var identity in new[] { Pippin, Tom })
         {
-            Assert.That(await IsPasswordSetAsync(dev, identity), Is.False,
+            Assert.That(await IsPasswordSetAsync(identity), Is.False,
                 $"{identity} has a password: someone uses it, so this tool won't touch it");
         }
 
@@ -77,8 +83,8 @@ public class CollaborativeFolderDevFixture
         var result = new Dictionary<string, object> { ["devServer"] = $"https://{{identity}}:{DevServerPort}", ["password"] = password };
 
         // 1. Owners, initialized and zero knowledge, each with Filesync and its Private Share drive
-        var pippin = await OwnerSession.LoginToDevServerAsync(dev, Pippin, password, setPassword: true);
-        var tom = await OwnerSession.LoginToDevServerAsync(dev, Tom, password, setPassword: true);
+        var pippin = await OwnerSession.LoginToDevServerAsync(Dev, Pippin, password, setPassword: true);
+        var tom = await OwnerSession.LoginToDevServerAsync(Dev, Tom, password, setPassword: true);
         var pippinFilesync = await SetUpOwnerAsync(pippin, password);
         var tomFilesync = await SetUpOwnerAsync(tom, password);
 
@@ -101,11 +107,14 @@ public class CollaborativeFolderDevFixture
             circles.Add(await CircleWithTomAsync(pippin, pippinFilesync.App, name, appZkK, tomFilesync.Keys.WriteOnlyPublicKeyJwk));
         }
 
-        result["pippin"] = OwnerResult(pippin, pippinFilesync, appZkK, circles);
-        result["tom"] = OwnerResult(tom, tomFilesync, null, []);
-        ((Dictionary<string, object>)result["tom"])["chatApp"] = AppResult(chat);
+        var pippinResult = OwnerResult(pippin, pippinFilesync, circles);
+        pippinResult["filesyncAppZkKey"] = Convert.ToBase64String(appZkK);
+        var tomResult = OwnerResult(tom, tomFilesync, []);
+        tomResult["chatApp"] = AppResult(chat);
+        result["pippin"] = pippinResult;
+        result["tom"] = tomResult;
 
-        await File.WriteAllTextAsync(outPath!, JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        await WriteFixtureAsync(outPath!, result);
         TestContext.Out.WriteLine($"Set up; keys and credentials in {outPath}");
     }
 
@@ -119,42 +128,39 @@ public class CollaborativeFolderDevFixture
     [Test]
     public async Task GiveFilesyncDevicesTheirKeyAndCirclesLockedWithIt()
     {
-        var outPath = Environment.GetEnvironmentVariable("ODIN_DEV_FIXTURE_OUT");
-        Assert.That(File.Exists(outPath), Is.True, "Set ODIN_DEV_FIXTURE_OUT to the fixture's file");
-        var root = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(await File.ReadAllTextAsync(outPath!))!;
-        Assert.That(root["pippin"].TryGetProperty("filesyncDevice", out _), Is.False, "done already");
+        var (outPath, root) = await ReadFixtureAsync();
+        Assert.That(root.GetProperty("pippin").TryGetProperty("filesyncDevice", out _), Is.False, "done already");
 
-        var dev = new DevServer(DevServerPort, new HashSet<string> { Pippin, Tom });
-        var password = root["password"].GetString()!;
-        var pippin = await OwnerSession.LoginToDevServerAsync(dev, Pippin, password, setPassword: false);
-        var tom = await OwnerSession.LoginToDevServerAsync(dev, Tom, password, setPassword: false);
+        var password = root.GetProperty("password").GetString()!;
+        var pippin = await OwnerSession.LoginToDevServerAsync(Dev, Pippin, password, setPassword: false);
+        var tom = await OwnerSession.LoginToDevServerAsync(Dev, Tom, password, setPassword: false);
 
         var (pippinDevice, pippinAppKey) = await ZkAppSteps.SignInAsync(pippin,
-            FilesyncAppId, Convert.FromBase64String(root["pippin"].GetProperty("zkMasterKey").GetString()!));
+            FilesyncAppId, Convert.FromBase64String(root.GetProperty("pippin").GetProperty("zkMasterKey").GetString()!));
         var (tomDevice, tomAppKey) = await ZkAppSteps.SignInAsync(tom,
-            FilesyncAppId, Convert.FromBase64String(root["tom"].GetProperty("zkMasterKey").GetString()!));
+            FilesyncAppId, Convert.FromBase64String(root.GetProperty("tom").GetProperty("zkMasterKey").GetString()!));
 
-        var tomsPublicKey = root["tom"].GetProperty("filesyncDrive").GetProperty("writeOnlyPublicKeyJwk").GetString()!;
+        var tomsPublicKey = root.GetProperty("tom").GetProperty("filesyncDrive").GetProperty("writeOnlyPublicKeyJwk").GetString()!;
         var circles = new List<object>();
         foreach (var name in new[] { "filesync-edit (keyed)", "Tom (individual, keyed)" })
         {
             circles.Add(await CircleWithTomAsync(pippin, pippinDevice, name, pippinAppKey, tomsPublicKey));
         }
 
-        var pippinResult = JsonSerializer.Deserialize<Dictionary<string, object>>(root["pippin"].GetRawText())!;
+        var pippinResult = JsonSerializer.Deserialize<Dictionary<string, object>>(root.GetProperty("pippin").GetRawText())!;
         pippinResult["standInCircles"] = pippinResult["circles"];
         pippinResult["circles"] = circles;
         pippinResult["filesyncAppZkKey"] = Convert.ToBase64String(pippinAppKey);
         pippinResult["filesyncDevice"] = AppResult(pippinDevice);
-        var tomResult = JsonSerializer.Deserialize<Dictionary<string, object>>(root["tom"].GetRawText())!;
+        var tomResult = JsonSerializer.Deserialize<Dictionary<string, object>>(root.GetProperty("tom").GetRawText())!;
         tomResult["filesyncAppZkKey"] = Convert.ToBase64String(tomAppKey);
         tomResult["filesyncDevice"] = AppResult(tomDevice);
 
         var result = new Dictionary<string, object>
         {
-            ["devServer"] = root["devServer"], ["password"] = password, ["pippin"] = pippinResult, ["tom"] = tomResult
+            ["devServer"] = root.GetProperty("devServer"), ["password"] = password, ["pippin"] = pippinResult, ["tom"] = tomResult
         };
-        await File.WriteAllTextAsync(outPath!, JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        await WriteFixtureAsync(outPath, result);
         TestContext.Out.WriteLine($"Devices and keyed circles in {outPath}");
     }
 
@@ -166,17 +172,10 @@ public class CollaborativeFolderDevFixture
     [Test]
     public async Task PippinsFilesyncDeviceWritesAClientLockedSharedFile()
     {
-        var outPath = Environment.GetEnvironmentVariable("ODIN_DEV_FIXTURE_OUT");
-        Assert.That(File.Exists(outPath), Is.True, "Set ODIN_DEV_FIXTURE_OUT to the fixture's file");
-        using var json = JsonDocument.Parse(await File.ReadAllTextAsync(outPath!));
-        var pippin = json.RootElement.GetProperty("pippin");
-        var dev = new DevServer(DevServerPort, new HashSet<string> { Pippin, Tom });
-        var owner = await OwnerSession.LoginToDevServerAsync(dev, Pippin, json.RootElement.GetProperty("password").GetString()!,
-            setPassword: false);
-        var deviceJson = pippin.GetProperty("filesyncDevice");
-        var device = AppSession.FromToken(owner, FilesyncAppId,
-            ClientAuthenticationToken.FromPortableBytes64(deviceJson.GetProperty("clientAuthToken").GetString()!),
-            Convert.FromBase64String(deviceJson.GetProperty("sharedSecret").GetString()!));
+        var (_, root) = await ReadFixtureAsync();
+        var pippin = root.GetProperty("pippin");
+        var owner = await OwnerSession.LoginToDevServerAsync(Dev, Pippin, root.GetProperty("password").GetString()!, setPassword: false);
+        var device = AppFromJson(owner, pippin.GetProperty("filesyncDevice"));
 
         var fileKey = KeyHeader.NewRandom16();
         var gtid = Guid.NewGuid();
@@ -188,10 +187,9 @@ public class CollaborativeFolderDevFixture
             {
                 FileId = Guid.Empty,
                 CircleId = circleId,
-                Permissions = DrivePermission.Read | DrivePermission.Write | DrivePermission.React | DrivePermission.Comment,
-                LockedFileKey = ShareKeys.Lock(Convert.FromBase64String(circle.GetProperty("circleKey").GetString()!), fileKey.AesKey.GetKey(),
-                    ShareKeys.FileKeyAad(FilesyncDrive.Alias, gtid, circleId), RandomNumberGenerator.GetBytes(12),
-                    ShareKeys.FormatByGlobalTransitId)
+                Permissions = FolderPermissions,
+                LockedFileKey = ShareKeys.LockFileKeyByGlobalTransitId(Convert.FromBase64String(circle.GetProperty("circleKey").GetString()!),
+                    fileKey.AesKey.GetKey(), FilesyncDrive.Alias, gtid, circleId)
             });
         }
 
@@ -216,18 +214,10 @@ public class CollaborativeFolderDevFixture
     [Test]
     public async Task TomsChatAppReachesWhatTheFixtureSetUp()
     {
-        var outPath = Environment.GetEnvironmentVariable("ODIN_DEV_FIXTURE_OUT");
-        Assert.That(File.Exists(outPath), Is.True, "Set ODIN_DEV_FIXTURE_OUT to the fixture's file");
-        using var json = JsonDocument.Parse(await File.ReadAllTextAsync(outPath!));
-        var root = json.RootElement;
-        var dev = new DevServer(DevServerPort, new HashSet<string> { Pippin, Tom });
-
-        var tomOwner = await OwnerSession.LoginToDevServerAsync(dev, Tom, root.GetProperty("password").GetString()!, setPassword: false);
+        var (_, root) = await ReadFixtureAsync();
+        var tomOwner = await OwnerSession.LoginToDevServerAsync(Dev, Tom, root.GetProperty("password").GetString()!, setPassword: false);
         var tom = root.GetProperty("tom");
-        var chatApp = tom.GetProperty("chatApp");
-        var chat = AppSession.FromToken(tomOwner, chatApp.GetProperty("appId").GetGuid(),
-            ClientAuthenticationToken.FromPortableBytes64(chatApp.GetProperty("clientAuthToken").GetString()!),
-            Convert.FromBase64String(chatApp.GetProperty("sharedSecret").GetString()!));
+        var chat = AppFromJson(tomOwner, tom.GetProperty("chatApp"));
 
         var pippin = root.GetProperty("pippin");
         var publicKey = await chat.RefitFor<IPeerAppDriveHttpClientApiV2>().GetDriveWriteOnlyPublicKey(Pippin, "filesync", "filesync");
@@ -257,40 +247,16 @@ public class CollaborativeFolderDevFixture
         var (zkMasterKey, _, _) = await ZkOwnerSteps.MakeZeroKnowledgeAsync(owner, password);
 
         await owner.Admin.RegisterApp(FilesyncAppId, new PermissionSetGrantRequest(), appSlug: new OdinSlug("filesync"));
-        var keys = ZkBrowser.MakeDriveKeys(FilesyncDrive.Alias, zkMasterKey);
-        await owner.Admin.CreateDrive(FilesyncDrive, "Filesync", allowAnonymousReads: false, appId: FilesyncAppId,
-            driveSlug: new OdinSlug("filesync"), driveTypeSlug: new OdinSlug("filesync"), sharingModel: DriveSharingModel.SelectiveShare,
-            zkKeys: keys.Request);
-        var app = await AppSession.SetupAsync(owner, FilesyncDrive, DrivePermission.Read | DrivePermission.Write | DrivePermission.React |
-                                                                     DrivePermission.Comment,
-            [PermissionKeys.ReadConnections], knownAppId: FilesyncAppId);
+        var (_, keys) = await ZkOwnerSteps.CreateZeroKnowledgeDriveAsync(owner, zkMasterKey, DriveSharingModel.SelectiveShare,
+            FilesyncAppId, "Filesync", FilesyncDrive, driveSlug: new OdinSlug("filesync"), driveTypeSlug: new OdinSlug("filesync"));
+        var app = await AppSession.SetupAsync(owner, FilesyncDrive, FolderPermissions, [PermissionKeys.ReadConnections],
+            knownAppId: FilesyncAppId);
         return new OwnersFilesync(zkMasterKey, keys, app);
     }
 
     private static async Task ConnectAsync(OwnerSession owner, OwnerSession member)
     {
-        var send = await owner.Connections.SendConnectionRequest(member.Identity);
-        Assert.That(send.IsSuccessStatusCode, Is.True, $"connection request: {send.StatusCode} {send.Error?.Content}");
-
-        for (var i = 0; i < 30 && !(await member.Connections.GetIncomingRequestFrom(owner.Identity)).IsSuccessStatusCode; i++)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(1));
-        }
-
-        var accept = await member.Connections.AcceptConnectionRequest(owner.Identity);
-        Assert.That(accept.IsSuccessStatusCode, Is.True, $"accept: {accept.StatusCode} {accept.Error?.Content}");
-
-        for (var i = 0; i < 30; i++)
-        {
-            var info = await owner.Connections.GetConnectionInfo(member.Identity);
-            if (info.Content?.Status == ConnectionStatus.Connected)
-            {
-                break;
-            }
-
-            await Task.Delay(TimeSpan.FromSeconds(1));
-        }
-
+        await PeerFlow.ConnectAsync(owner, member);
         var review = await new V2ConnectionNetworkClient(owner.Identity, owner.Factory).MarkReviewedAsync(member.Identity);
         Assert.That(review.IsSuccessStatusCode, Is.True, $"review: {review.StatusCode} {review.Error?.Content}");
     }
@@ -303,11 +269,7 @@ public class CollaborativeFolderDevFixture
         {
             Drives = [new DriveGrantRequest
             {
-                PermissionedDrive = new PermissionedDrive
-                {
-                    Drive = FilesyncDrive,
-                    Permission = DrivePermission.Read | DrivePermission.Write | DrivePermission.React | DrivePermission.Comment
-                }
+                PermissionedDrive = new PermissionedDrive { Drive = FilesyncDrive, Permission = FolderPermissions }
             }]
         }, FilesyncAppId);
 
@@ -338,9 +300,7 @@ public class CollaborativeFolderDevFixture
         };
     }
 
-    private static Dictionary<string, object> OwnerResult(OwnerSession owner, OwnersFilesync filesync, byte[]? appZkK, List<object> circles)
-    {
-        var result = new Dictionary<string, object>
+    private static Dictionary<string, object> OwnerResult(OwnerSession owner, OwnersFilesync filesync, List<object> circles) => new()
         {
             ["identity"] = owner.Identity.DomainName,
             ["zkMasterKey"] = Convert.ToBase64String(filesync.ZkMasterKey),
@@ -355,13 +315,6 @@ public class CollaborativeFolderDevFixture
             ["filesyncApp"] = AppResult(filesync.App),
             ["circles"] = circles
         };
-        if (appZkK != null)
-        {
-            result["filesyncAppZkKey"] = Convert.ToBase64String(appZkK);
-        }
-
-        return result;
-    }
 
     private static Dictionary<string, object> AppResult(AppSession app) => new()
     {
@@ -370,11 +323,28 @@ public class CollaborativeFolderDevFixture
         ["sharedSecret"] = Convert.ToBase64String(app.SharedSecret)
     };
 
-    private static async Task<bool> IsPasswordSetAsync(DevServer dev, string identity)
+    // The inverse of AppResult
+    private static AppSession AppFromJson(OwnerSession owner, JsonElement app) =>
+        AppSession.FromToken(owner, app.GetProperty("appId").GetGuid(),
+            ClientAuthenticationToken.FromPortableBytes64(app.GetProperty("clientAuthToken").GetString()!),
+            Convert.FromBase64String(app.GetProperty("sharedSecret").GetString()!));
+
+    // The fixture's file, which the first test wrote
+    private static async Task<(string Path, JsonElement Root)> ReadFixtureAsync()
     {
-        using var client = new HttpClient(dev.CreateHandler()) { BaseAddress = dev.BaseFor(identity) };
-        var response = await client.PostAsync("api/owner/v1/authentication/ispasswordset", null);
+        var path = Environment.GetEnvironmentVariable("ODIN_DEV_FIXTURE_OUT");
+        Assert.That(File.Exists(path), Is.True, "Set ODIN_DEV_FIXTURE_OUT to the fixture's file");
+        return (path!, JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(path!)));
+    }
+
+    private static Task WriteFixtureAsync(string path, Dictionary<string, object> result) =>
+        File.WriteAllTextAsync(path, JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+
+    private static async Task<bool> IsPasswordSetAsync(string identity)
+    {
+        using var client = new HttpClient(Dev.CreateHandler()) { BaseAddress = Dev.BaseFor(identity) };
+        var response = await RestService.For<IOwnerAuthenticationClient>(client).IsPasswordSet();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"{identity}: is a password set?");
-        return bool.Parse(await response.Content.ReadAsStringAsync());
+        return response.Content;
     }
 }

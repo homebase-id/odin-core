@@ -31,6 +31,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
         //TODO: move these to a secrets/provisioning controller
 
+        [Post(RootPath + "/ispasswordset")]
+        Task<ApiResponse<bool>> IsPasswordSet();
+
         [Post(RootPath + "/passwd")]
         Task<ApiResponse<NoResultResponse>> SetNewPassword([Body] PasswordReply reply);
 

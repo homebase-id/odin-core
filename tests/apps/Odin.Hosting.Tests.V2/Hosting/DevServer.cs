@@ -13,39 +13,53 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 /// The local dev server (Odin.Hosting on :4444, *.dotyou.cloud) as the target of the V2 test clients, for a local
 /// fixture tool rather than a test: it reaches only the identities named here, and never another host.
 /// </summary>
-public sealed class DevServer(int port, IReadOnlySet<string> identities) : ITestSync
+public sealed class DevServer : IOdinTarget, ITestSync
 {
-    public int Port { get; } = port;
+    private readonly int _port;
+    private readonly IReadOnlySet<string> _identities;
+
+    // One connection pool for every client: its certificates are the repo's dev ones, trusted for these hosts alone
+    private readonly SocketsHttpHandler _handler;
+
+    public DevServer(int port, IReadOnlySet<string> identities)
+    {
+        _port = port;
+        _identities = identities;
+        _handler = new SocketsHttpHandler
+        {
+            UseCookies = false,
+            // As the in-process host's client: a test reads a redirect, never follows it
+            AllowAutoRedirect = false,
+            SslOptions =
+            {
+                RemoteCertificateValidationCallback = (sender, _, _, _) =>
+                    sender is System.Net.Security.SslStream { TargetHostName: { } host } && identities.Contains(host)
+            }
+        };
+    }
+
+    public HttpMessageHandler CreateHandler() => new NonDisposingPassthroughHandler(_handler);
 
     /// <summary>The address of <paramref name="identity"/> on the dev server; refuses any identity not named</summary>
     public Uri BaseFor(string identity)
     {
-        if (!identities.Contains(identity) || !identity.EndsWith(".dotyou.cloud", StringComparison.Ordinal))
+        if (!_identities.Contains(identity) || !identity.EndsWith(".dotyou.cloud", StringComparison.Ordinal))
         {
             throw new InvalidOperationException($"{identity} isn't a dev identity this tool may reach");
         }
 
-        return new Uri($"https://{identity}:{Port}/");
+        return new Uri($"https://{identity}:{_port}/");
     }
 
-    /// <summary>A handler for the dev server: its certificates are the repo's dev ones, trusted for these hosts alone</summary>
-    public HttpMessageHandler CreateHandler() => new SocketsHttpHandler
-    {
-        UseCookies = false,
-        // As the in-process host's client: a test reads a redirect, never follows it
-        AllowAutoRedirect = false,
-        SslOptions =
-        {
-            RemoteCertificateValidationCallback = (sender, _, _, _) =>
-                sender is System.Net.Security.SslStream { TargetHostName: { } host } && identities.Contains(host)
-        }
-    };
+    // The dev server runs its own outbox and inbox: a tool waits for what they deliver, as a client would
+    public ITestSync GetTestSync(string identity) => this;
 
-    // The dev server runs its own outbox; a drain only gives it time
-    public Task DrainOutboxAsync(CancellationToken cancellationToken = default) => Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+    private const string NoTestSync = "The dev server runs its own outbox and inbox; wait for what they deliver instead";
+
+    public Task DrainOutboxAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException(NoTestSync);
 
     public Task<InboxStatus> ProcessInboxAsync(TargetDrive drive, int batchSize = 100, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Process an inbox through the caller's own HTTP endpoint");
+        throw new NotSupportedException(NoTestSync);
 
-    public Task<bool> IsOutboxEmptyAsync(TargetDrive drive) => throw new NotSupportedException();
+    public Task<bool> IsOutboxEmptyAsync(TargetDrive drive) => throw new NotSupportedException(NoTestSync);
 }

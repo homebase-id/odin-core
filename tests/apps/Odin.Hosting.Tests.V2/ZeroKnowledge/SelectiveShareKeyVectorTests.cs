@@ -129,6 +129,15 @@ internal static class ShareKeys
         return ByteArrayUtil.Combine([format], nonce, ciphertext, tag);
     }
 
+    /// <summary>
+    /// A new file's key locked with a circle's key, bound to the global transit id its writer picked (format 3): what a
+    /// client puts in an upload's share, before the server has given the file an id
+    /// </summary>
+    public static byte[] LockFileKeyByGlobalTransitId(byte[] circleKey, byte[] fileKey, Guid driveId, Guid globalTransitId,
+        Guid circleId) =>
+        Lock(circleKey, fileKey, FileKeyAad(driveId, globalTransitId, circleId), RandomNumberGenerator.GetBytes(NonceLength),
+            FormatByGlobalTransitId);
+
     public static byte[] Open(byte[] key, byte[] locked, byte[] aad, byte format = Format)
     {
         Assert.That(locked[0], Is.EqualTo(format), "format");

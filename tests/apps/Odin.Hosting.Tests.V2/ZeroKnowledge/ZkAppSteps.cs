@@ -147,11 +147,11 @@ internal static class ZkAppSteps
         var keyPair = YouAuthFlow.NewKeyPair();
         var request = SignInRequest(appId, keyPair, clientId: clientId);
 
-        var returnUrl = YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(owner.Host, owner, request));
+        var returnUrl = YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(owner.Target, owner, request));
         Assert.That(returnUrl.WantsZkAppKey, Is.True, "the consent page sees what the app asked for");
 
         var (appKey, locked) = await BackfillAsync(owner, appId, zkMasterKey);
-        await YouAuthFlow.GiveConsentAsync(owner.Host, owner, returnUrl, SealToSignIn(appKey, keyPair), locked);
+        await YouAuthFlow.GiveConsentAsync(owner.Target, owner, returnUrl, SealToSignIn(appKey, keyPair), locked);
 
         var (device, token) = await CompleteSignInAsync(owner, appId, keyPair, request);
         Assert.That(token.ZkAppKey, Is.Not.Null.And.Not.Empty, "the token response carries the app's key");
@@ -192,10 +192,10 @@ internal static class ZkAppSteps
     public static async Task<(AppSession Device, YouAuthTokenResponse Token)> CompleteSignInAsync(OwnerSession owner, Guid appId,
         YouAuthFlow.KeyPair keyPair, YouAuthAuthorizeRequest request)
     {
-        var response = await YouAuthFlow.AuthorizeAsync(owner.Host, owner, request);
+        var response = await YouAuthFlow.AuthorizeAsync(owner.Target, owner, request);
         YouAuthFlow.AssertRedirectsTo(response, request.RedirectUri);
-        var (token, exchangeSecret) = await YouAuthFlow.ExchangeTokenAsync(owner.Host, owner.Identity.DomainName, keyPair,
-            response.GetHeaderValue("Location")!, owner.DevServer);
+        var (token, exchangeSecret) = await YouAuthFlow.ExchangeTokenAsync(owner.Target, owner.Identity.DomainName, keyPair,
+            response.GetHeaderValue("Location")!);
 
         var (authToken, sharedSecret) = YouAuthFlow.OpenAppToken(token, exchangeSecret);
         return (AppSession.FromToken(owner, appId, authToken, sharedSecret), token);

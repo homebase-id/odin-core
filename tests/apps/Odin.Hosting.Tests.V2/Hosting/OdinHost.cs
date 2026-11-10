@@ -62,7 +62,7 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 ///   </description></item>
 /// </list>
 /// </remarks>
-public sealed partial class OdinHost : IAsyncDisposable
+public sealed partial class OdinHost : IAsyncDisposable, IOdinTarget
 {
     private readonly IHost _host;
     private readonly List<DbSnapshot> _snapshots = [];
@@ -214,6 +214,16 @@ public sealed partial class OdinHost : IAsyncDisposable
     /// middleware resolves the right tenant from the Host header.
     /// </summary>
     public HttpClient CreateClient() => Server.CreateClient();
+
+    // Every client's handler wraps this one: it only routes requests into the TestServer, so one serves them all, and
+    // building a delegating chain per client (every OwnerAdmin call makes a client) is spared
+    private HttpMessageHandler? _serverHandler;
+
+    public HttpMessageHandler CreateHandler() =>
+        new NonDisposingPassthroughHandler(LazyInitializer.EnsureInitialized(ref _serverHandler, () => Server.CreateHandler()));
+
+    /// <summary><c>https://{identity}/</c>: the multi-tenant middleware resolves the tenant from the Host header</summary>
+    public Uri BaseFor(string identity) => new($"https://{identity}/");
 
     /// <summary>
     /// Resolves the Autofac tenant scope for the given identity. Lets tests poke tenant-scoped

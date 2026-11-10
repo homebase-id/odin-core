@@ -47,15 +47,12 @@ public sealed class AppSession : IV2Caller
         AppId = appId;
         Token = token;
         SharedSecret = sharedSecret;
-        Factory = owner.DevServer != null
-            ? new InProcessApiClientFactory(owner.DevServer, YouAuthConstants.AppCookieName, token,
-                sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1)
-            : new InProcessApiClientFactory(owner.Host, YouAuthConstants.AppCookieName, token,
-                sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1);
+        Factory = new InProcessApiClientFactory(owner.Target, YouAuthConstants.AppCookieName, token,
+            sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
         V1 = new V1Handles(Identity, Factory);
-        Sync = new AppSync(owner.DevServer ?? owner.Host.GetTestSync(owner.Identity), this);
+        Sync = new AppSync(owner.Target.GetTestSync(owner.Identity), this);
     }
 
     /// <summary>
