@@ -31,9 +31,12 @@ public class PostContent
     [JsonPropertyName("body")]
     public object Body { get; set; }
     
-    /// <summary>Tiptap copy of the body; only valid while SlateHash matches the stored body</summary>
+    /// <summary>
+    /// Tiptap copy of the body, {format, doc, slateHash}; only valid while slateHash matches the stored body.
+    /// Kept as raw JSON so a bodyDoc in an odd shape never fails the whole post; <see cref="ArticleBodyRenderer"/> checks it.
+    /// </summary>
     [JsonPropertyName("bodyDoc")]
-    public BodyDoc BodyDoc { get; set; }
+    public JsonElement? BodyDoc { get; set; }
 
     [JsonPropertyName("slug")] 
     public string Slug { get; set; }
@@ -71,17 +74,4 @@ public class PostContent
     [JsonIgnore]
     public UnixTimeUtc? UserDate { get; set; }
     
-}
-
-public class BodyDoc
-{
-    [JsonPropertyName("format")]
-    public string Format { get; set; }
-
-    [JsonPropertyName("doc")]
-    public JsonElement? Doc { get; set; }
-
-    /// <summary>Lowercase hex SHA-256 of the UTF-8 JSON text of the body when this doc was written</summary>
-    [JsonPropertyName("slateHash")]
-    public string SlateHash { get; set; }
 }
