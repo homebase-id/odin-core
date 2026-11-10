@@ -107,7 +107,7 @@ A file's **key header** is its file key and IV, locked. Its kind says who locked
 |---|---|---|---|
 | **server-locked** | `Aes` | the drive key, by the server | Server Share drives |
 | **drive-locked** | `ZkDrive` | the drive key, by an owner device | zero-knowledge drives |
-| **sealed** | `Sealed` | the drive's write-only public key, by whoever wrote the file | deposits: only a zero-knowledge drive takes one, and the transient drive a deposit is sent from (`StorageDrive.CanHoldDeposits`) **(V)** |
+| **sealed** | `Sealed` | the drive's write-only public key, by whoever wrote the file | deposits: a zero-knowledge drive takes one, a Server Share drive that isn't a community channel (its server then locks it as its own, on a read), and the transient drive a deposit is sent from (`StorageDrive.CanHoldDeposits`) **(V)**. Never a comment (`Deposits.AssertCanHold`) **(V)** |
 | **file-key** | `FileKey` | nothing: a comment encrypted with the key of the file it comments on, which every reader of that file holds, so the header holds only the comment's IV | Private Share comments |
 | **share** | `Share` | a circle key: the share row's locked file key and the file's IV | sent to a member for a file shared with them; a member's update sends one back with only the new IV. Never stored as a file's key header (`ZkDriveFiles.AssertPeerMayUpdate`) **(V)** |
 

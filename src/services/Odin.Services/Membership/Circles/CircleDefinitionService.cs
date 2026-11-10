@@ -464,7 +464,7 @@ namespace Odin.Services.Membership.Circles
             var permissions = odinContext.PermissionsContext;
             return AssertMayGrantDrivesAsync(driveGrantRequests, appId,
                 (driveId, permission) => permissions.HasDrivePermission(driveId, permission),
-                driveId => permissions.TryGetDriveStorageKey(driveId, out _));
+                permissions.HoldsDriveStorageKey);
         }
 
         /// <summary>

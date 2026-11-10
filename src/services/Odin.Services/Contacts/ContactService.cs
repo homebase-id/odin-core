@@ -16,6 +16,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.Management;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Registry;
@@ -38,6 +39,7 @@ namespace Odin.Services.Contacts;
 public class ContactService(
     ILogger<ContactService> logger,
     StandardFileSystem fileSystem,
+    IDriveManager driveManager,
     TenantQuotaGuard quotaGuard)
 {
     public const int ContactFileType = 100;
@@ -147,7 +149,7 @@ public class ContactService(
                 Outcome = ContactWriteOutcome.AlreadyExists,
                 UniqueId = uniqueId,
                 VersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault(),
-                CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, odinContext)
+                CurrentOnConflict = await CurrentOnConflictAsync(existing, odinContext)
             };
         }
 
@@ -197,7 +199,7 @@ public class ContactService(
             logger.LogDebug("Contact update version conflict for uid {uid} (caller {caller} vs current {current})",
                 uniqueId, versionTag, currentVersionTag);
 
-            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
+            return await VersionConflictResultAsync(uniqueId, existing, currentVersionTag, odinContext);
         }
 
         // Owner edits never touch ext_data (peer-only); pass null so any stored ext_data is preserved.
@@ -294,7 +296,7 @@ public class ContactService(
         var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
         if (request.VersionTag != currentVersionTag)
         {
-            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
+            return await VersionConflictResultAsync(uniqueId, existing, currentVersionTag, odinContext);
         }
 
         var newVersionTag = await WriteImagePayloadAsync(existing, request, writeContext);
@@ -320,7 +322,7 @@ public class ContactService(
         var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
         if (versionTag != currentVersionTag)
         {
-            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
+            return await VersionConflictResultAsync(uniqueId, existing, currentVersionTag, odinContext);
         }
 
         var hasImage = (existing.FileMetadata.Payloads ?? []).Any(p => p.KeyEquals(ProfileImagePayloadKey));
@@ -397,8 +399,7 @@ public class ContactService(
                 return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
             }
 
-            var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-            var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
             var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
 
             if (requireExistingBlob && (content.AppData == null || !content.AppData.ContainsKey(appKey)))
@@ -438,7 +439,7 @@ public class ContactService(
             return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
         }
 
-        return VersionConflictResult(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
+        return await VersionConflictResultAsync(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
     }
 
     /// <summary>
@@ -528,8 +529,7 @@ public class ContactService(
                 return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
             }
 
-            var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-            var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
             var appExtData = await ReadAppExtDataAsync(existing, keyHeader, writeContext) ?? new ContactAppData();
 
             if (requireExistingBlob && (appExtData.AppData == null || !appExtData.AppData.ContainsKey(appKey)))
@@ -561,7 +561,7 @@ public class ContactService(
             return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
         }
 
-        return VersionConflictResult(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
+        return await VersionConflictResultAsync(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
     }
 
     /// <summary>
@@ -768,8 +768,7 @@ public class ContactService(
         ContactExtData extData, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
-        var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-        var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
 
         // Merge incoming over existing without clobbering fields the caller left null. Capture the set
         // of overwritten field values for the merge log before we replace the content.
@@ -931,8 +930,7 @@ public class ContactService(
         IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
-        var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-        var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
         var aesKey = keyHeader.AesKey;
 
         // Preserve the existing content; the content IV must rotate on every update.
@@ -1003,8 +1001,7 @@ public class ContactService(
     private async Task<Guid> RemoveImagePayloadAsync(ServerFileHeader existing, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
-        var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
-        var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        var keyHeader = DriveFileUtility.OpenWithStorageKey(existing, writeContext);
 
         var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
         var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = keyHeader.AesKey };
@@ -1057,7 +1054,11 @@ public class ContactService(
             .ToList();
     }
 
-    private static ContactWriteResult VersionConflictResult(Guid uniqueId, ServerFileHeader existing,
+    // The contact as the caller would read it, returned with a conflict
+    private async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader> CurrentOnConflictAsync(ServerFileHeader existing, IOdinContext odinContext) =>
+        DriveFileUtility.CreateClientFileHeader(existing, await driveManager.GetDriveAsync(DriveId), odinContext);
+
+    private async Task<ContactWriteResult> VersionConflictResultAsync(Guid uniqueId, ServerFileHeader existing,
         Guid currentVersionTag, IOdinContext odinContext)
     {
         return new ContactWriteResult
@@ -1065,7 +1066,7 @@ public class ContactService(
             Outcome = ContactWriteOutcome.VersionConflict,
             UniqueId = uniqueId,
             VersionTag = currentVersionTag,
-            CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, odinContext)
+            CurrentOnConflict = await CurrentOnConflictAsync(existing, odinContext)
         };
     }
 

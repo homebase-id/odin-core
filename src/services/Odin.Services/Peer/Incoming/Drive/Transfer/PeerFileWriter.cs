@@ -30,6 +30,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// </summary>
     public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver, IDriveManager driveManager, FeedWriter feedWriter)
     {
+        /// <summary>
+        /// The version tag the last <see cref="HandleFile"/> left the recipient's copy with, for its sender's next change
+        /// to name; null for a feed item
+        /// </summary>
+        public Guid? VersionTagWritten { get; private set; }
+
         public async Task<(bool success, List<PayloadDescriptor> payloads)> HandleFile(InternalDriveFileId file,
             IDriveFileSystem fs,
             KeyHeader decryptedKeyHeader,
@@ -37,7 +43,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet,
             IOdinContext odinContext,
             StagingArea sourceArea,
-            bool driveOriginWasCollaborative = false,
             WriteSecondDatabaseRowBase markComplete = null,
             FileMetadata metadataOverride = null)
         {
@@ -101,7 +106,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 case TransferFileType.EncryptedFileForFeed:
                 case TransferFileType.EncryptedFileForFeedViaTransit:
                     return await StoreEncryptedFeedFile(fs, file, decryptedKeyHeader, metadata,
-                        driveOriginWasCollaborative,
                         odinContext, markComplete);
 
                 default:
@@ -203,6 +207,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 (success, payloads) = await fs.Storage.CommitNewFile(file, keyHeader, metadata,
                     serverMetadata, ignorePayloads, odinContext, useThisVersionTag: versionTag, markComplete: markComplete,
                     sourceArea: sourceArea);
+                VersionTagWritten = versionTag;
             });
 
             logger.LogDebug("Handle file->CommitNewFile: {ms} ms", ms);
@@ -270,6 +275,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 memberMayUseShares: false, sendersVersionTag, encryptedRecipientTransferInstructionSet.ExpectedVersionTag, odinContext);
             if (alreadyLanded)
             {
+                // The tag their write gave it, not the file's now: they may not have read another's change since
+                VersionTagWritten = stored.ServerMetadata.SendersWrite.VersionTag;
                 return await SentFileChanges.AlreadyDeliveredAsync(fs, file, newMetadata.Payloads, markComplete, odinContext);
             }
 
@@ -285,7 +292,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             DriveStorageServiceBase.AssertSameDataSource(stored, newMetadata);
             if (newMetadata.IsEncrypted)
             {
-                ZkDriveFiles.AssertFitsUpdate(stored, keyHeader);
+                // A Server Share deposit the request can open is the server's own first, as a read, and the overwrite's own
+                // load, would make it: then an unsealed change fits it as any server-locked file's, and this check sees the
+                // header the overwrite does (docs/server-share-sealed-arrivals-plan.md, step 1b)
+                await fs.Storage.ConvertDepositsAsync(drive, [stored], odinContext);
+                ZkDriveFiles.AssertFitsUpdate(stored, keyHeader, writeContext);
             }
 
             // The tag the header write replaces, which its SQL checks again, and the one it gives the file
@@ -294,6 +305,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             serverMetadata.SendersWrite = SentFileChanges.SendersWriteOf(sender, sendersVersionTag, versionTag);
 
             //note: we also update the key header because it might have been changed by the sender
+            VersionTagWritten = versionTag;
             return await UpdateExistingFile(fs, file, stored.FileMetadata.File, keyHeader, newMetadata, serverMetadata, ignorePayloads,
                 writeContext, sourceArea, markComplete, versionTag);
         }
@@ -301,7 +313,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<(bool success, List<PayloadDescriptor> payloads)> StoreEncryptedFeedFile(IDriveFileSystem fs, InternalDriveFileId file,
             KeyHeader keyHeader,
-            FileMetadata newMetadata, bool driveOriginWasCollaborative, IOdinContext odinContext,
+            FileMetadata newMetadata, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
             // Rules:
@@ -336,10 +348,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             header.AssertFileIsActive();
-            if (!driveOriginWasCollaborative) //collab channel hack to allow multiple editors to the same file
-            {
-                header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);
-            }
+            // On a collaborative channel the host delivers every member's edit, so the sender is still the host
+            header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);
 
             newMetadata.VersionTag = header.FileMetadata.VersionTag;
 
@@ -358,7 +368,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await feedWriter.ReplaceFileMetadataOnFeedDrive(header.FileId,
                 newMetadata,
                 odinContext,
-                bypassCallerCheck: driveOriginWasCollaborative, // the caller will not be original sender in the case of a collab drive 
+                expectedSender: (OdinId)newMetadata.SenderOdinId,
                 keyHeader: keyHeader);
 
             logger.LogDebug("{method} -> markComplete {message}", 

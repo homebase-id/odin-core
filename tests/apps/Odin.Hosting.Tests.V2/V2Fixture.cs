@@ -379,6 +379,30 @@ public abstract class V2Fixture
         Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
 
     /// <summary>
+    /// Where <paramref name="owner"/>'s server stores the payload <paramref name="key"/> of a file, for a test that changes
+    /// the bytes behind its back (the outbox sends them only when drained)
+    /// </summary>
+    protected async Task<string> StoredPayloadPathAsync(OwnerSession owner, TargetDrive drive, System.Guid fileId, string key)
+    {
+        var descriptor = (await owner.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId)).Content!
+            .FileMetadata.Payloads.Single(p => p.Key == key);
+        return TenantPaths(owner).GetPayloadDirectoryAndFileName(drive.Alias, fileId, key, descriptor.Uid);
+    }
+
+    /// <summary>
+    /// No payload bytes on <paramref name="owner"/>'s drive, stored or staged: a refused payload leaves none behind.  The
+    /// transfer's .metadata/.transferkeyheader staging files are written before any payload arrives and are not removed
+    /// when a peer transfer fails for any reason (pre-existing: #1897)
+    /// </summary>
+    protected void AssertNoPayloadFiles(OwnerSession owner, TargetDrive drive)
+    {
+        var paths = TenantPaths(owner);
+        var leftovers = FilesUnder(paths.GetDrivePayloadPath(drive.Alias), "*.payload")
+            .Concat(FilesUnder(paths.GetDriveUploadPath(drive.Alias), "*.payload"));
+        Assert.That(leftovers, Is.Empty, "a refused payload must not be left behind on the receiving server");
+    }
+
+    /// <summary>
     /// Files under <paramref name="directory"/> and its subdirectories; none when it does not exist
     /// </summary>
     protected static string[] FilesUnder(string directory, string pattern = "*") =>

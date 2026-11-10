@@ -320,7 +320,8 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
 - Owner and `System` callers skip the ACL **(V)**.
 - Reading a file needs **both** drive Read and the ACL. Past drive Read, one rule decides whether the caller may see a stored
   file (`IDriveAclAuthorizationService.CallerMayReadAsync`): the ACL, and a client-locked file (sealed, zkDrive or fileKey: `EncryptedKeyHeader.IsLockedByClient`) only for a caller holding the
-  drive's key, except a deposit staged on the transient drive (`ZkDriveFiles.VisibleTo`); on a Private Share drive an
+  drive's key, except a deposit staged on the transient drive, and a deposit on a Server Share drive, which reaches a caller
+  holding that drive's storage key since the server opens it (`ZkDriveFiles.VisibleTo`); on a Private Share drive an
   outside caller's live share decides instead, and opens a client-locked file to them too
   (`DriveAclAuthorizationService.CallerMayReadAsync`) **(V)**. A read by id, a query and a socket event all ask it **(V)**. Queries also drop
   encrypted files the caller has no storage key for (`DriveQueryServiceBase` filter) **(V)**.
@@ -360,7 +361,8 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
 ### Peer file operations (#1977)
 
 - Plain file ops on a peer: get/query = `UseTransitRead`; send/update/delete = `UseTransitWrite`
-  (`PermissionContext.AssertCanUsePeer(PeerAccess)`) **(V)**.
+  (`PermissionContext.AssertCanUsePeer(PeerAccess)`) **(V)**. Asking whether one's own send from the transient drive
+  is still waiting in the outbox (`send-status`) is part of sending: `UseTransitWrite` **(V)**.
 - A write-only grant may never read a peer **(V)**.
 - Everything else (comments, reactions, receipts, introductions, connections, live relay, notification tokens, Shamir)
   keeps its own rule. Don't centralize those.
@@ -408,7 +410,10 @@ serverMetadata
 thumbnails are all encrypted with FileKey, each with its own IV **(V)**. Only the key header is locked:
 - **Server Share drive:** by the server with the drive's key (DrvK, `type: aes`). A peer's key header arrives
   wrapped in the connection's shared secret and waits in the drive's inbox until the owner or an app is
-  signed in; the server then re-locks it with the keys that caller lends it (`PeerInboxProcessor`) **(V)**.
+  signed in; the server then re-locks it with the keys that caller lends it (`PeerInboxProcessor`) **(V)**. Or the
+  peer seals it to the drive's write-only public key (a deposit): it is written at once, and the server opens it and
+  locks it as its own on a read whose request carries DrvK, before the read rule
+  ([zero-knowledge-drives.md](zero-knowledge-drives.md), "Server Share") **(V, tested)**.
   Only a Server Share drive needs an inbox for a peer's files, since only there does the server re-lock what arrives;
   the plan is to remove it there too, later. Read receipts go through the inbox on every drive
   (`PeerDriveIncomingTransferService.MarkFileAsReadAsync`) **(V)**.

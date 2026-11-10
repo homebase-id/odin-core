@@ -47,7 +47,8 @@ Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → 
 | 1 | the drive isn't archived | 400 `InvalidDrive` | the owner console (master key) |
 | 2 | drive `Read` | 403 | `System`; not asked on a public drive (`StandardFileDriveStorageService`) |
 | 3 | the file exists and its TTL hasn't passed | no file (I: a 404 to the client) | a delete, which must still see an expired file |
-| 4 | the read rule, part 1: a client-locked file only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) | 403, or no file when the path asks for that (`aclDeniedAsMissing`) | `System`; files on the transient drive |
+| 3a | on a Server Share drive, a deposit the caller's request can open becomes the server's own file, so it is no longer client-locked at 4 (`DriveStorageServiceBase.ConvertDepositsAsync`; a query does the same, `FilterVisibleAsync`) | never refuses: a deposit it can't open stays sealed | the soft-delete batch, V1 and hard deletes and the TTL jobs (loading with `includeExpired`), which 4 lets through anyway |
+| 4 | the read rule, part 1: a client-locked file only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) | 403, or no file when the path asks for that (`aclDeniedAsMissing`) | `System`; files on the transient drive; on a Server Share drive, a sealed file for a caller holding its storage key, which the server opens for them; a tombstone's sealed key header goes out empty |
 | 5 | the read rule, part 2: the file's ACL (`CallerPassesAcl`) | as 4 | owner callers; `System` |
 
 **The ACL check (step 5)**, in order (`DriveAclAuthorizationService.Allows`, `:101-123`) **(V)**:
@@ -130,10 +131,10 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   recipient dropped, leaves the sender free to send their next change. Every device of the sender's sends the same way.
 - **Anyone else's write ends it:** the owner's edit, or another member's, gives the file a new tag, after which the
   sender's change must name the file's tag like anyone's, which a sender who can only write it never learns **(V,
-  tested)**. On a zero-knowledge drive the owner's edit also takes a deposit over, and a `sealed` key header never
-  replaces a taken-over one ([zero-knowledge-drives.md](zero-knowledge-drives.md)) **(V, tested)**. A key holder's
-  transform of a deposit's key header isn't such a write: it keeps the file's version tag, so the sender may still
-  delete it, though no longer change it with a `sealed` key header **(V, tested)**.
+  tested)**. A deposit's `sealed` key header then no longer replaces the owner's ([zero-knowledge-drives.md](zero-knowledge-drives.md))
+  **(V, tested)**. Converting a deposit's key header, by the server on a Server Share drive or a key holder's transform
+  on a zero-knowledge drive, isn't such a write: it keeps the file's version tag, so the sender may still change it with
+  a `sealed` key header, which is converted again, or delete it (`ZkDriveFiles.AssertMayReplace`) **(V, tested)**.
 - **A sender or member who can read the file** names its tag, as for any update, and gets a version tag error with a
   stale one: the ordinary case of people editing together **(V, tested)**. Only a change that has no copy on the sender's own drive
   names one: an update of the recipient's copy only (`UpdateLocale.Peer`) or a send from the transient drive, where the
@@ -141,6 +142,36 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   goes to every recipient, so a change naming one is for one recipient. A change sent from the sender's own drive
   (`UpdateLocale.Local`, or an upload with recipients) names none, so once someone else has changed a recipient's copy,
   it is refused there for good (I, from the code).
+- **The sender's client hears how it went.** A client's change with no copy on the sender's own drive
+  (`UpdateLocale.Peer`, or an upload sent from the transient drive) leaves no transfer history it could read: the
+  transient copy is deleted once sent. So each outcome goes to the sockets of the app that sent it, or the owner's own
+  client's when no app did, never another app's or a guest's (the server's own sends from the transient drive, such as
+  Shamir shards, tell no one): a `PeerSendResult` event (`PeerSendResultNotification`) **(V, tested)**. It names:
+  - the recipient, the drive id and the global transit id the send named; a file sent again that the recipient
+    matched by its unique id keeps its own (I, from the code);
+  - the version tag the client's upload or update gave back, which tells two sends of one file apart **(V, tested)**;
+  - whether it was an update, the transfer status (delivered, or why not) and whether the outbox tries again
+    **(V, tested)**;
+  - on delivery, the version tag of the recipient's copy, for the next change to name: for a file sent, the one the
+    recipient's server returns when it writes the file at once (`PeerTransferResponse.VersionTag`); for an update, the
+    new version tag the update gave it **(V, tested)**.
+
+  It is told before the outbox records the outcome, so a failure recording it can repeat it: the latest counts (I,
+  from the code). On a drive with an inbox, a change the recipient queued there is told as delivered with no version
+  tag; the inbox may still refuse it, and nothing tells the sender then (I, from the code; a Private Share drive has no
+  inbox). Nothing is kept for a client not connected at the time: it asks whether its send is still waiting in the
+  outbox, and once not, reads the recipient's copy.
+- **A client asks whether its send is still waiting.** `GET /api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/send-status?sentVersionTag=…`
+  answers for the caller's own sends alone, an app's or the owner's own client's, as the event is matched, and asks
+  `UseTransitWrite`, as the send did (`PeerOutbox.GetTransientSendStatusAsync`) **(V, tested)**:
+  - pending while the outbox holds it, with how often it has taken it up and when it next does, or that it is being
+    sent right now;
+  - not pending once the outbox is done with it, delivered or not, or for a send it doesn't know.
+
+  Naming no `sentVersionTag`, for a client that lost its upload's answer, it asks about any of the caller's sends of
+  the file, the one due soonest first **(V, tested)**; that client must know the global transit id, so it picked it
+  (a deposit, or a Private Share drive). It reads the outbox's own rows, so it keeps nothing new; each lookup reads every
+  queued send of the transient drive to that recipient (I, from the code).
 - **The same change sent again,** the outbox retrying one that landed, is that peer's tag already recorded: done,
   nothing written; an inbox item is marked complete and the payloads it streamed in are deleted
   (`SentFileChanges.AlreadyDeliveredAsync`) **(V)**.
@@ -305,7 +336,7 @@ the index rows aren't a copy of the ACL but the record.
 | A file with no rows | open to every caller who reaches the required group | owner callers only, whatever its group |
 | Which rows count in a query | a row naming the caller, or no row at all | a row naming the caller, live or not, so a withdrawn share reaches their sync; the read rule then lets through only a file with a live row, and turns the rest into tombstones. A file no row names the caller on is missing, by query and by id. A comment goes by the rows of the file its group names |
 | The read rule's ACL part | the ACL's names | the caller's live row, and the caller reaching the required group, as everywhere |
-| Who may add a file | drive `Write` | the same: drive `Write`, nothing else asked. It lands owner-only unless it carries rows: for circles the writer is in, their individual circle included ("Sharing with one person"). A deposit takes payloads through the payload-upload route too (`Deposits.AssertTakesNoPayloads`, `MayCarryPayloads`) **(V, tested)** |
+| Who may add a file | drive `Write` | the same: drive `Write`, nothing else asked. It lands owner-only unless it carries rows: for circles the writer is in, their individual circle included ("Sharing with one person"). A deposit takes payloads through the payload-upload route too **(V, tested)** |
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member with drive `Write` whose live row has `Write`. The author of a deposit edits it through the row for their individual circle it carries |
 | Sending a file again | the original sender's send again updates it while no one else has written it since; anyone else's (on a drive marked as a community channel, a member who may read it) names the file's version tag: "Changing a file you sent" **(V, tested)** | the same, as its original sender: a file with no share by that rule alone, one with a share through a live row with `Write` too ("Changing a file you sent") **(V, tested)**. It keeps its rows and its required group: shares come only with a new file, and a send again carrying any is refused. The same delivery again, the outbox retrying one that already landed, is taken as done (`PeerFileWriter.StoreNormalFileLongTermAsync`) **(V, tested)** |
 | Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member with drive `React` or `Comment` whose live row has the same bit. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it |
@@ -387,13 +418,14 @@ own drive (`CircleMember.sealedShareKey`) **(V)**.
   (`CircleEnrollment.cs`) **(V)**.
 
 **The author keeps their deposit.** A member's new file lands owner-only, so its author couldn't see or change it.
-Their client locks its file key with their individual circle's key (their copy is theirs to open) and sends the row
-with the file, as a member already may for circles they are in (`DriveShareService.AssertMemberMayShareAsync`)
+Their client locks its file key with their individual circle's key (their copy is theirs to open), bound to the global
+transit id the client picked for the file, as the file id is the receiving server's to pick (selective-share-plan.md,
+"Blob formats"), and sends the row with the file, as a member already may for circles they are in (`DriveShareService.AssertMemberMayShareAsync`)
 **(V)**. That row gives them what a drive marked as a community channel gives a file's original sender, through the one rule above: their
 sync finds it, their other devices can open it, and they delete it with a `Write` share, as they may a new file of
 theirs with no share, as its sender **(V, tested)**; their edit
-goes through the same check, sending a new `sealed` key header as a deposit's edit does (I, not tested), and so does
-sending it again **(V, tested)**. The owner can withdraw it like any share.
+goes through the same check, sending a new `sealed` key header of the same file key as a deposit's edit does, its
+payloads included **(V, tested)**, and so does sending it again **(V, tested)**. The owner can withdraw it like any share.
 
 ### Sharing with a group
 

@@ -161,9 +161,7 @@ public class PayloadHashPeerTests : V2Fixture
     /// </summary>
     private async Task CorruptStoredPayload(OwnerSession sender, TargetDrive drive, CreateFileResult sent, string key)
     {
-        var descriptor = (await sender.Drives.Reader.GetFileHeaderAsync(sent.DriveId, sent.FileId)).Content!
-            .FileMetadata.Payloads.Single(p => p.Key == key);
-        var storedPath = TenantPaths(sender).GetPayloadDirectoryAndFileName(drive.Alias, sent.FileId, key, descriptor.Uid);
+        var storedPath = await StoredPayloadPathAsync(sender, drive, sent.FileId, key);
         var bytes = await File.ReadAllBytesAsync(storedPath);
         bytes[0] ^= 0xFF;
         await File.WriteAllBytesAsync(storedPath, bytes);
@@ -226,16 +224,5 @@ public class PayloadHashPeerTests : V2Fixture
         });
         Assert.That(query.IsSuccessStatusCode, Is.True, $"Sam query failed: {query.StatusCode}");
         return query.Content!.SearchResults.SingleOrDefault()?.FileMetadata.Payloads.SingleOrDefault(p => p.Key == key);
-    }
-
-    private void AssertNoPayloadFiles(OwnerSession owner, TargetDrive drive)
-    {
-        // Payload bytes only: the transfer's .metadata/.transferkeyheader staging files are written before any
-        // payload arrives and are not removed when a peer transfer fails for any reason (pre-existing: #1897)
-        var paths = TenantPaths(owner);
-        var leftovers = FilesUnder(paths.GetDrivePayloadPath(drive.Alias), "*.payload")
-            .Concat(FilesUnder(paths.GetDriveUploadPath(drive.Alias), "*.payload"));
-
-        Assert.That(leftovers, Is.Empty, "the rejected payload must not be left behind on the receiving server");
     }
 }

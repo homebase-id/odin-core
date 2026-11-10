@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Services.Drives.Reactions;
 
 namespace Odin.Hosting.Controllers.Base.Drive;
@@ -20,13 +22,15 @@ public abstract class DriveReactionContentControllerBase : OdinControllerBase
     /// <summary />
     protected async Task AddReaction(AddReactionRequest request)
     {
-        await _reactionContentService.AddReactionAsync(await MapToInternalFileAsync(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext, markComplete: null);
+        var caller = SignedInCallerOrFail();
+        await _reactionContentService.AddReactionAsync(await MapToInternalFileAsync(request.File), request.Reaction, caller, WebOdinContext, markComplete: null);
     }
 
     /// <summary />
     protected async Task DeleteReaction(DeleteReactionRequest request)
     {
-        await _reactionContentService.DeleteReactionAsync(await MapToInternalFileAsync(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext, markComplete: null);
+        var caller = SignedInCallerOrFail();
+        await _reactionContentService.DeleteReactionAsync(await MapToInternalFileAsync(request.File), request.Reaction, caller, WebOdinContext, markComplete: null);
     }
 
     /// <summary />
@@ -42,6 +46,13 @@ public abstract class DriveReactionContentControllerBase : OdinControllerBase
         return await _reactionContentService.GetReactionsAsync(await MapToInternalFileAsync(request.File), cursor: c,
             maxCount: request.MaxRecords, WebOdinContext);
     }
+
+    /// <summary>
+    /// A reaction's author is the caller's identity. The guest route lets anonymous visitors in for its
+    /// reads, so a visitor reaching a write is refused here (403) rather than failing as a server error.
+    /// </summary>
+    private OdinId SignedInCallerOrFail() =>
+        WebOdinContext.Caller.OdinId ?? throw new OdinSecurityException("A reaction needs a signed-in caller");
 
     /// <summary />
     protected async Task<GetReactionCountsResponse> GetReactionCounts(GetReactionsRequest request)

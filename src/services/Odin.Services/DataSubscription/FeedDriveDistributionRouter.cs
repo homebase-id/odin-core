@@ -15,6 +15,7 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
@@ -240,8 +241,7 @@ namespace Odin.Services.DataSubscription
 
                 if (header.FileMetadata.IsEncrypted)
                 {
-                    var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-                    var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                    var keyHeader = DriveFileUtility.OpenWithStorageKey(header, odinContext);
                     payload.KeyHeaderBytes = keyHeader.Combine().GetKey();
                 }
 

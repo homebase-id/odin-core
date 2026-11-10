@@ -1006,6 +1006,34 @@ same way once more. CI passed the branch's commits that day on all three platfor
 41997783776, 41997783347 for `861076d08`), and main's recent CI runs are green. Not run on a clean `main`
 tree locally.
 
+**Again 2026-11-07 and 11-08.** PR #2077 (`server-share-sealed-arrivals`) commit `9f285e8ea`, run
+42364376538 attempt 1, `ubuntu/sqlite/release`; PR #2088 (`peer-send-results-on-socket`) commit
+`2ba22df6c`, run 42466134155 attempt 1, `ubuntu/postgres/release`; PR #2089 (`feed-update-sender-check`)
+commit `b44785b76`, run 42487081735 attempt 1, `ubuntu/postgres/release`. The same `source payload does
+not exist` events; all three passed on a rerun.
+
+**Cause found and fixed 2026-11-08 (verified).** FusionCache dates a tag remove when the remove starts,
+and stores that date over whatever the tag had when it gets there. When two removes of one drive's tag
+overlap, the slower one can store the earlier date last, and every entry stored after that date is live
+again, though the later remove expired it. A trace of the cache during the hammer (temporary logging,
+removed) caught it: one remove took its date and stored it 70 ms later, after four other removes on the
+drive; the tag's date went back 70 ms, and a file header stored in between was served at a version the
+database had already replaced. `UpdatePayloads` then deleted the payload that stale header listed (the
+previous request had already deleted it: the Error) and left the real previous payload behind. The
+remove count from #1909 cannot see this: the entry was stored with no remove in flight. The same code is
+in FusionCache v2.9.0, the latest release.
+
+- `FusionCacheWrapper` now runs one remove of a tag at a time on a node, so each stores a later date than
+  the one before (`TagRemoveOrderTests` stalls a remove between its date and its store, and fails
+  without this).
+- `UpdatePayloads` refuses with `VersionTagMismatch` when the header it read is not at the caller's
+  version tag, instead of replacing the payloads of whatever version it read.
+- The test now requires every overwrite to succeed: each thread only changes its own file, so a refusal
+  is a stale read, and it no longer passes as a quiet `400`.
+
+Not covered: across nodes sharing Redis, two nodes' removes of one tag still race the same way in L2
+(and their clocks differ).
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`
@@ -1109,6 +1137,28 @@ was re-run.
 42092307328, the same `TearDown` NullReferenceException; the re-run passed. Filed as #2069, with a hypothesis: the
 multiplexer is disposed twice, once by FusionCache's Redis L2/backplane and once by the container.
 
+## `Odin.Hosting.Tests.V2.ZeroKnowledge.SelectiveShareTests`
+
+- `ASharesWritesReachTheOwnersDevicesAndItsMember`
+
+**Where:** CI, `ubuntu/postgres/release` on `main`, commit `104b80a8b` (the #2074 merge), run 42180919649, 2026-11-06.
+`ubuntu/sqlite/release` and `windows/sqlite/debug` passed on the same commit, and the re-run of the failed job passed.
+
+**Symptom:** after the share write, Frodo's device socket got its FileModified, but Sam's member socket saw no event at
+all within 10 s (`KeptSocket.WaitForAsync`, `SelectiveShareTests.Events.cs:331`, from line 152).
+
+**Not caused by the commit:** #2074 adds the key-header transform; it changes nothing in shares, share events or
+sockets (inferred from its diff).
+
+**Cause, a hypothesis:** the member's event is dropped, not late: the publish side reads the member's share rows before
+the new row is visible to it, or the test socket's registration races the first event. Filed as #2076.
+
+**Seen again:** locally, 2026-11-07, branch `member-writes-by-gtid`, once in a full `SelectiveShareTests` run (10 s, the
+same symptom), which changes the share rows a member's socket event carries (all of theirs, not the lowest only). It
+passed alone, and the whole fixture passed 3 of 3 runs after. Not run on a clean tree for this sighting; the evidence
+that it predates the branch is the `main` CI failure above. The test's member is in one circle, so the change gives it
+the same single row as before (inferred from the diff).
+
 ## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
 
 - `Disconnect_PushesConnectionChanged`
@@ -1159,7 +1209,12 @@ resulting abort escapes `DisconnectAsync` instead of being treated as the expect
   `OperationCanceledException: Aborted` over a disposed `WebSocket`; `(Minimal)` then failed its handshake with
   `Unauthorized to read to drive`. Passed on re-running the job (attempt 2) with no change, and passes on the
   ubuntu jobs of the same commit and on recent `main` Windows runs. The branch touches nothing in peer
-  WebSockets (hosting plans and quota checks). Undiagnosed.
+  WebSockets (hosting plans and quota checks). Undiagnosed. Seen again locally on Linux, 2026-11-07, on an
+  earlier version of branch `sealed-change-after-conversion`: `(Minimal)` timed out waiting for the fileAdded event
+  (30 s) in a full V1 run that shared the machine with the V2 and unit suites. It passed in the branch's two earlier
+  full V1 runs that day, and 3 of 3 runs of the class alone on the same tree. The `main` CI runs of 2026-11-06 and
+  2026-11-07 passed on all three jobs (ubuntu sqlite and postgres, windows; e.g. run 42337240572), which run this project
+  (I: not checked in their logs). Not run on a clean tree locally.
 - Four `_Universal` tests that call the admin API fail locally on macOS with `HttpRequestException: nodename
   nor servname provided, or not known (admin.dotyou.cloud:4444)`: `AnUnsentOutboxItemsFileIsAmongTheQueuedFiles`,
   `ItemIsDroppedOnceItHasBeenDeferredForLongerThanTheMaxAge`, `PausedSenderDoesNotSendFromItsOutbox` and

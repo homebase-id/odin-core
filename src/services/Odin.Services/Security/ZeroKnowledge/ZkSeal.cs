@@ -12,8 +12,9 @@ namespace Odin.Services.Security.ZeroKnowledge;
 
 /// <summary>
 /// Sealing to a public key: anyone with the public key seals, only its private half opens
-/// (docs/owner-keys.md, <c>seal</c>).  The browser seals and opens; the server only seals (the
-/// recovery bundle) and reads which key a sealed value is for.
+/// (docs/owner-keys.md, <c>seal</c>).  The browser seals and opens; the server seals (the recovery
+/// bundle), reads which key a sealed value is for, and opens a deposit on a Server Share drive, whose
+/// write-only private key it holds (<see cref="Open"/>).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -53,11 +54,7 @@ public static class ZkSeal
     public static byte[] Seal(byte[] data, string publicKeyJwk)
     {
         var recipientPoint = RawPublicKey(publicKeyJwk);
-        using var recipient = ECDiffieHellman.Create(new ECParameters
-        {
-            Curve = ECCurve.NamedCurves.nistP384,
-            Q = new ECPoint { X = recipientPoint[1..(1 + CoordinateLength)], Y = recipientPoint[(1 + CoordinateLength)..] }
-        });
+        using var recipient = ECDiffieHellman.Create(PublicPoint(recipientPoint));
         using var throwaway = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP384);
         var q = throwaway.ExportParameters(false).Q;
 
@@ -70,6 +67,32 @@ public static class ZkSeal
         return ByteArrayUtil.Combine([Version], keyId, [0x04], q.X!, q.Y!, iv, cipher);
     }
 
+    /// <summary>
+    /// Opens a value <see cref="Seal"/> made, with the private half of the key it was sealed to: the server's part on a
+    /// Server Share drive, whose write-only private key it holds under the drive key and opens once for a batch of
+    /// deposits (<see cref="Drives.Deposits"/>).  On a zero-knowledge drive only the owner's devices open one.
+    /// </summary>
+    public static byte[] Open(byte[] sealedValue, ECDiffieHellman me)
+    {
+        if (!IsSealed(sealedValue))
+        {
+            throw new OdinClientException("Not a sealed value", OdinClientErrorCode.ArgumentError);
+        }
+
+        using var throwaway = ECDiffieHellman.Create(PublicPoint(sealedValue[PublicKeyOffset..HeaderLength]));
+
+        using var key = DeriveKey(me, throwaway.PublicKey).ToSensitiveByteArray();
+        var locked = sealedValue[HeaderLength..];
+        return AesGcm.Decrypt(locked[IvLength..], key, locked[..IvLength]);
+    }
+
+    /// <summary>A P-384 public key from its uncompressed point, <c>0x04 ‖ x ‖ y</c>.</summary>
+    public static ECParameters PublicPoint(byte[] uncompressed) => new()
+    {
+        Curve = ECCurve.NamedCurves.nistP384,
+        Q = new ECPoint { X = uncompressed[1..(1 + CoordinateLength)], Y = uncompressed[(1 + CoordinateLength)..] }
+    };
+
     /// <summary>The key id of <paramref name="publicKeyJwk"/>, as a value sealed to it carries.</summary>
     public static uint KeyId(string publicKeyJwk) => KeyId(RawPublicKey(publicKeyJwk));
 
@@ -80,8 +103,10 @@ public static class ZkSeal
         sealedValue is { Length: >= MinLength } && sealedValue[0] == Version && sealedValue[5] == 0x04;
 
     /// <summary>Whether <paramref name="sealedValue"/> is a sealed value, sealed to <paramref name="publicKeyJwk"/>.</summary>
-    public static bool IsSealedTo(byte[] sealedValue, string publicKeyJwk) =>
-        IsSealed(sealedValue) && ReadKeyId(sealedValue) == KeyId(publicKeyJwk);
+    public static bool IsSealedTo(byte[] sealedValue, string publicKeyJwk) => IsSealedTo(sealedValue, KeyId(publicKeyJwk));
+
+    /// <summary>Whether <paramref name="sealedValue"/> is a sealed value, sealed to the key with id <paramref name="keyId"/>.</summary>
+    public static bool IsSealedTo(byte[] sealedValue, uint keyId) => IsSealed(sealedValue) && ReadKeyId(sealedValue) == keyId;
 
     /// <summary>Which public key <paramref name="sealedValue"/> was sealed to.</summary>
     public static uint ReadKeyId(byte[] sealedValue)

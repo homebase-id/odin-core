@@ -103,6 +103,27 @@ public class VaultConversionTests : V2Fixture
     }
 
     [Test]
+    public async Task ADepositNobodyReadIsOpenedBeforeVaultGoesPrivate()
+    {
+        // While Vault is Server Share its server opens a deposit; the conversion replaces the write-only key pair it was
+        // sealed to, so it is opened first and relabelled with the rest
+        var (frodo, zkMasterKey) = await OwnerWithZeroKnowledgeKeysAsync();
+        var writer = await AppSession.SetupAsync(frodo, Vault, DrivePermission.Write);
+        var (fileKey, sealedKeyHeader) = ZkBrowser.SealNewFileKey((await frodo.Admin.GetDrive(Vault)).WriteOnlyPublicKeyJwk!);
+        var (deposit, _, _, _) = await writer.Drives.Writer.CreateEncryptedFile(VaultId, Metadata(Guid.NewGuid(), Content),
+            transitOptions: null!, keyHeader: fileKey, lockedKeyHeader: sealedKeyHeader);
+        Assert.That(deposit.StatusCode, Is.EqualTo(HttpStatusCode.OK), deposit.Error?.Content);
+
+        var converted = await ConvertVaultAsync(frodo, zkMasterKey);
+
+        var after = await HeaderAsync(frodo, deposit.Content!.FileId);
+        Assert.That(after.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.ZkDrive));
+        var opened = ZkBrowser.OpenFileKey(after.SharedSecretEncryptedKeyHeader, converted.DriveKey);
+        Assert.That(opened.Decrypt(after.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes(), Is.EqualTo(Content),
+            "the drive's own key opens it");
+    }
+
+    [Test]
     public async Task EditingTheAppsCirclesKeepsItsKeys()
     {
         // The registration is rebuilt field by field there; a field left out would strand the app's devices
@@ -372,11 +393,12 @@ public class VaultConversionTests : V2Fixture
         await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, returnUrl, SealToSignIn(appKey, keyPair), ZkBrowser.Lock(appKey, zkMasterKey),
             HttpStatusCode.BadRequest);
 
-        // A sign-in whose public key isn't one: a 400 at consent, not a 500
+        // A sign-in whose public key isn't one: refused before the consent page, and by consent if it gets there anyway
         var malformed = SignInRequest(app.AppId, keyPair);
         malformed.PublicKey = "not-a-key";
-        var malformedReturn = YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, malformed));
-        await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, malformedReturn, SealToSignIn(appKey, keyPair), locked, HttpStatusCode.BadRequest);
+        var malformedAuthorize = await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, malformed);
+        Assert.That(malformedAuthorize.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, malformed, SealToSignIn(appKey, keyPair), locked, HttpStatusCode.BadRequest);
 
         // Still at the consent page: nothing lets a sign-in that asked for the key skip it
         YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, request));

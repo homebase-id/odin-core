@@ -46,6 +46,13 @@ public class DriveShareService(
     /// <summary>AES-GCM under the circle key: format (1) ‖ nonce (12) ‖ file key (16) ‖ tag (16) (decision 7).</summary>
     public const int LockedFileKeyLength = 45;
 
+    /// <summary>
+    /// A locked file key's format bound to its file's global transit id (AAD <c>driveId ‖ globalTransitId ‖ circleId</c>),
+    /// which a client can know before the file exists; <see cref="CircleShareKeyService.FormatVersion"/> binds it to the
+    /// file id instead (docs/selective-share-plan.md, "Blob formats").  The server opens neither.
+    /// </summary>
+    public const byte LockedFileKeyByGlobalTransitId = 3;
+
     /// <summary>The bits a share may hold, each narrowing the same bit of its circle's drive grant (docs/file-access.md).</summary>
     public const DrivePermission ShareBits = DrivePermission.Read | DrivePermission.Write | DrivePermission.React | DrivePermission.Comment;
 
@@ -347,11 +354,12 @@ public class DriveShareService(
             throw new OdinClientException("A share expires in the future", OdinClientErrorCode.ArgumentError);
         }
 
-        if (share.LockedFileKey is { } key && (key.Length != LockedFileKeyLength || key[0] != CircleShareKeyService.FormatVersion))
+        if (share.LockedFileKey is { } key && (key.Length != LockedFileKeyLength ||
+                                                key[0] is not (CircleShareKeyService.FormatVersion or LockedFileKeyByGlobalTransitId)))
         {
             throw new OdinClientException(
-                $"A locked file key is {LockedFileKeyLength} bytes of format version {CircleShareKeyService.FormatVersion}",
-                OdinClientErrorCode.InvalidShareKey);
+                $"A locked file key is {LockedFileKeyLength} bytes of format version {CircleShareKeyService.FormatVersion} " +
+                $"or {LockedFileKeyByGlobalTransitId}", OdinClientErrorCode.InvalidShareKey);
         }
     }
 

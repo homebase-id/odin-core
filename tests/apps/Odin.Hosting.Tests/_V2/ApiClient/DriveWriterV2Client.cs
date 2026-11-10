@@ -21,6 +21,7 @@ using Odin.Services.Drives.Shares;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -73,7 +74,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         AppNotificationOptions notificationOptions = null,
         KeyHeader keyHeader = null,
         EncryptedKeyHeader lockedKeyHeader = null,
-        List<ShareRequest> shares = null)
+        List<ShareRequest> shares = null,
+        Guid? globalTransitId = null)
     {
         if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
         {
@@ -124,7 +126,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
                 instructionSet.TransferIv,
                 ref sharedSecret),
             FileMetadata = fileMetadata,
-            Shares = shares
+            Shares = shares,
+            GlobalTransitId = globalTransitId
         };
 
         var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
@@ -213,7 +216,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
         TransitOptions transitOptions = null,
-        List<ShareRequest> shares = null)
+        List<ShareRequest> shares = null,
+        Guid? globalTransitId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -238,7 +242,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata,
-                Shares = shares
+                Shares = shares,
+                GlobalTransitId = globalTransitId
             };
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
@@ -308,6 +313,14 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             fileMetadata,
             payloads,
             lockedKeyHeader);
+    }
+
+    /// <summary>Whether this caller's send of a file to <paramref name="peer"/>'s drive is still waiting in the outbox</summary>
+    public async Task<ApiResponse<PeerSendStatus>> GetPeerSendStatus(OdinId peer, Guid driveId, Guid globalTransitId, Guid? sentVersionTag)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetPeerSendStatus(peer.DomainName, driveId, globalTransitId, sentVersionTag);
     }
 
     public Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(

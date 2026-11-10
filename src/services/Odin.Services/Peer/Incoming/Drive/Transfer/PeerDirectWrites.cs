@@ -29,7 +29,7 @@ internal static class PeerDirectWrites
         }
 
         if (!isEncrypted || !drive.HasInbox || sentKeyHeader?.IsPassedOnAsSent() == true ||
-            odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out _))
+            odinContext.PermissionsContext.HoldsDriveStorageKey(drive.Id))
         {
             return true;
         }
@@ -43,7 +43,7 @@ internal static class PeerDirectWrites
         return false;
     }
 
-    private static bool IsPeerToken(IOdinContext odinContext) =>
+    internal static bool IsPeerToken(IOdinContext odinContext) =>
         string.Equals(odinContext.AuthContext, "TransitCapiAuthScheme", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(odinContext.AuthContext, "AutomatedIdentityAuthScheme", StringComparison.OrdinalIgnoreCase);
 }
