@@ -445,9 +445,20 @@ public class HomebaseChannelContentService(
             }
         }
 
+        string payloadUrlBase = null;
+        if (context != null)
+        {
+            payloadUrlBase = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
+            {
+                Path = "api/guest/v1/drive/files/payload",
+                Query = $"alias={channelDrive.Alias}&type={channelDrive.Type}&fileId={postFile.FileId}"
+            }.ToString();
+        }
+
         var post = new ChannelPost()
         {
             FileId = fileId.FileId,
+            PayloadUrlBase = payloadUrlBase,
             Content = content,
             ImageUrl = imageUrl,
             Modified = postFile.FileMetadata.Updated,
