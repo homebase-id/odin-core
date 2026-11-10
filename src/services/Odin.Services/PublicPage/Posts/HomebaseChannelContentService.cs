@@ -352,6 +352,8 @@ public class HomebaseChannelContentService(
                 {
                     var bodyFromPayload = await LoadPayload(fileId, PostFullTextPayloadKey);
                     content.Body = bodyFromPayload.Body;
+                    // bodyDoc travels with body: its hash only matches the body it was written with
+                    content.BodyDoc = bodyFromPayload.BodyDoc;
                 }
             }
         }

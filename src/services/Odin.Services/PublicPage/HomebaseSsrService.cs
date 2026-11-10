@@ -428,7 +428,7 @@ public class HomebaseSsrService(
             }
             else
             {
-                var bodyHtml = PlateRichTextParser.Parse(bodyJson, post.PayloadUrl);
+                var bodyHtml = ArticleBodyRenderer.Render(bodyJson, post.Content.BodyDoc, post.PayloadUrl);
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
 
