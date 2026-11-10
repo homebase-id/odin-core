@@ -174,8 +174,12 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             IEnumerable<DeviceSocket> sockets = _deviceSocketCollection.GetAll().Values;
 
-            // App-targeted notifications only reach sockets authenticated as that app.
-            if (notification.TargetAppId.HasValue)
+            // App-targeted notifications only reach sockets authenticated as that app, or the owner's of no app
+            if (notification.TargetAppId == IAppTargetedClientNotification.OwnersOwnClient)
+            {
+                sockets = sockets.Where(ds => ds.AppId == null && ds.DeviceOdinContext?.Caller?.IsOwner == true);
+            }
+            else if (notification.TargetAppId.HasValue)
             {
                 sockets = sockets.Where(ds => ds.AppId == notification.TargetAppId.Value);
             }

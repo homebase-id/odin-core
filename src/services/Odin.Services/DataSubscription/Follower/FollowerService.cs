@@ -455,7 +455,7 @@ namespace Odin.Services.DataSubscription.Follower
             // Error line each time. The same split inbound distribution makes -- FeedDistributionPerimeterService
             // writes an unencrypted post and routes an encrypted one to the inbox for a keyed pass.
             var canWriteEncrypted = patchedContext.PermissionsContext
-                .TryGetDriveStorageKey(WellKnownAppDrives.FeedDrive.Alias, out _);
+                .HoldsDriveStorageKey(WellKnownAppDrives.FeedDrive.Alias);
             var deferredEncrypted = 0;
 
             foreach (var results in collection.Results)
@@ -673,7 +673,7 @@ namespace Odin.Services.DataSubscription.Follower
                         newFileMetadata.AppData.UniqueId.GetValueOrDefault());
 
                     await feedWriter.ReplaceFileMetadataOnFeedDrive(existingFile.FileId, newFileMetadata, odinContext,
-                        bypassCallerCheck: true);
+                        expectedSender: identityIFollow);
                 }
             }
             catch (Exception e)

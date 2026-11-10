@@ -209,6 +209,9 @@ Idempotent by construction, since enrolment already no-ops on existing membershi
 
 ## Open decision: when someone enters the recovery circle
 
+(#1800 corrected the circle's description to match its grant: a member deposits a shard with you. The
+points below that mention "the description" are about the old wording quoted here.)
+
 **Not decided.** `RecoveryCircle` conflates two facts. Its grant is `ShardRecoveryDrive: Write` --
 *may deposit a shard on me*, which is eligibility. Its description says *members hold a shard of your
 recovery key*, which is selection. Today they coincide only by accident: Confirmed granted that write

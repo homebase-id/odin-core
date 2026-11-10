@@ -74,7 +74,10 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         // Note 2: UseWebSockets must be before UseLoggingMiddleware
         app.UseWebSockets(new WebSocketOptions
         {
-            KeepAliveInterval = TimeSpan.FromMinutes(2)
+            KeepAliveInterval = TimeSpan.FromMinutes(2),
+            // Drop a client that has stopped answering pings, rather than hold its socket open for good. Generous,
+            // for a phone that answers late; a client that's dropped reconnects.
+            KeepAliveTimeout = TimeSpan.FromMinutes(2)
         });
 
         app.UseLoggingMiddleware();

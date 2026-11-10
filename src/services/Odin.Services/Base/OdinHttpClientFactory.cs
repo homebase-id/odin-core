@@ -29,9 +29,10 @@ namespace Odin.Services.Base
         public Task<T> CreateClientUsingAccessTokenAsync<T>(
             OdinId remoteOdinId,
             ClientAuthenticationToken clientAuthenticationToken,
-            FileSystemType? fileSystemType = null)
+            FileSystemType? fileSystemType = null,
+            TimeSpan? timeout = null)
         {
-            return CreateClientInternalAsync<T>(remoteOdinId, clientAuthenticationToken, fileSystemType);
+            return CreateClientInternalAsync<T>(remoteOdinId, clientAuthenticationToken, fileSystemType, timeout: timeout);
         }
 
         //
@@ -50,7 +51,8 @@ namespace Odin.Services.Base
             OdinId remoteOdinId,
             ClientAuthenticationToken clientAuthenticationToken,
             FileSystemType? fileSystemType,
-            Dictionary<string, string> headers = null)
+            Dictionary<string, string> headers = null,
+            TimeSpan? timeout = null)
         {
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + remoteOdinId;
             var httpClient = httpClientFactory.CreateClient($"{nameof(OdinHttpClientFactory)}:{remoteHost}", cfg =>
@@ -79,6 +81,10 @@ namespace Odin.Services.Base
 #if DEBUG
             httpClient.Timeout = TimeSpan.FromHours(1);
 #endif
+            if (timeout is { } requestTimeout)
+            {
+                httpClient.Timeout = requestTimeout;
+            }
 
             if (null != clientAuthenticationToken)
             {

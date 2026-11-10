@@ -136,7 +136,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
-            GlobalTransitId = Guid.NewGuid(),
+            GlobalTransitId = uploadDescriptor.GlobalTransitId ?? Guid.NewGuid(),
 
             //Note: this intentionally does not map ReferenceToFile; this can only be done through the comment system
             // ReferencedFile = null,

@@ -65,6 +65,15 @@ It is a soft limit: an upload's size is not known until it has been streamed, so
 already full", not "would this fit". The usage it reads is `SUM(byteCount)` over the identity's index rows,
 cached for up to a minute: an upload or two can go over, and freed space can take a minute to count.
 
+**The largest payload** bounds how far: one payload past the host's `Host:MaxPayloadBytes` (50 GB unless set) is
+refused with 400 `MaxContentLengthExceeded` as it streams in, from the owner, an app or a peer
+(`TenantQuotaGuard.LimitPayload`, in the upload, update and attachment writers and both peer receivers), and a peer's
+payload refused part way is deleted, a refusal a store wraps included (`DriveStorageServiceBase.WriteIncomingPeerPayload`)
+**(V; tested for a new file's upload and a peer's new file, on disk)**. A thumbnail is refused the same way past 1 MB
+(`LimitThumbnail`) **(V; tested for a new file's upload)**. A sender of a file that large gets five minutes plus a
+second per MiB to send it to a peer, at most six hours by default so its attempts end before the outbox takes the item
+for dead (`PeerFileSendTimeout`) **(V)**.
+
 ## 4. `GET /api/v2/plan`, for the owner and apps
 
 Policy `OwnerOrApp`, no permission key: the identity's plan, what it gives, how much of it is used, and who to

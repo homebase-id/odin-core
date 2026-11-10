@@ -5,6 +5,7 @@ using Odin.Hosting.UnifiedV2;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -47,6 +48,13 @@ public interface IDriveWriterHttpClientApiV2
         [AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("gtid:guid")] Guid globalTransitId,
         StreamPart[] streamdata);
+
+    [Get(UnifiedApiRouteConstants.PeerSendStatus)]
+    Task<ApiResponse<PeerSendStatus>> GetPeerSendStatus(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("gtid:guid")] Guid globalTransitId,
+        [Query] Guid? sentVersionTag);
 
     [Multipart]
     [Patch(UnifiedApiRouteConstants.ByUniqueId)]

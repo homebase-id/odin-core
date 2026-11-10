@@ -51,17 +51,21 @@ public static class DriveFileUtility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
-    /// <param name="callerShare">On a Selective Share drive, the live share the read rule let an outside caller in
-    /// through: the header comes with that share, and an encrypted file's key header is the share's locked file key
-    /// with the file's IV (docs/selective-share-pr3-plan.md, section 6), never the file's own.  For a comment, the share
-    /// of the file it comments on: its key header is that file's locked file key with the comment's own IV (section 10).</param>
-    public static SharedSecretEncryptedFileHeader CreateClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
-        bool forceIncludeServerMetadata = false, DriveAclIndexRecord callerShare = null)
+    /// <param name="callerShares">On a Selective Share drive, an outside caller's live shares (<see cref="CallerShares.LiveRowsOf"/>),
+    /// the one the read rule let them in through first: the header comes with them, and an encrypted file's key header is
+    /// that first share's locked file key with the file's IV (docs/selective-share-pr3-plan.md, section 6), never the
+    /// file's own.  For a comment, the shares of the file it comments on: its key header is that file's locked file key
+    /// with the comment's own IV (section 10).</param>
+    /// <param name="drive">The file's drive, for the read rule's backstop (<see cref="ZkDriveFiles.VisibleTo"/>).</param>
+    public static SharedSecretEncryptedFileHeader CreateClientFileHeader(ServerFileHeader header, StorageDrive drive,
+        IOdinContext odinContext, bool forceIncludeServerMetadata = false, IReadOnlyList<DriveAclIndexRecord> callerShares = null)
     {
         if (header == null)
         {
             return null;
         }
+
+        var callerShare = callerShares?.FirstOrDefault();
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
         if (callerShare != null)
@@ -72,11 +76,16 @@ public static class DriveFileUtility
         }
         else if (ZkDriveFiles.IsClientLocked(header))
         {
-            // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it.  A
-            // backstop: the read rule (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a
-            // file this refuses
-            ZkDriveFiles.AssertVisibleTo(header, odinContext);
-            sharedSecretEncryptedKeyHeader = header.EncryptedKeyHeader;
+            // A backstop: the read rule (IDriveAclAuthorizationService.CallerMayReadAsync) has already left out a file this
+            // refuses
+            ZkDriveFiles.AssertVisibleTo(drive, header, odinContext);
+
+            // Returned as stored, sealed or zkDrive: only a device holding the drive's keys opens it.  But a Server Share
+            // deposit's tombstone has no content for its sealed key header to open, so it goes out empty, as any tombstone the
+            // server locked does
+            sharedSecretEncryptedKeyHeader = header.FileMetadata.FileState == FileState.Deleted && drive?.ServerOpensDeposits == true
+                ? EncryptedKeyHeader.Empty()
+                : header.EncryptedKeyHeader;
         }
         else if (header.FileMetadata.IsEncrypted)
         {
@@ -127,11 +136,11 @@ public static class DriveFileUtility
             clientFileHeader.ServerMetadata = header.ServerMetadata;
         }
 
-        // The member sees only their own share: its bits and expiry, for the client to show.  A comment's share is its
-        // file's (section 10), shown with the file
+        // The member sees only their own shares: their bits and expiry, for the client to show.  A comment's shares are
+        // its file's (section 10), shown with the file
         if (callerShare != null && callerShare.fileId == header.FileMetadata.File.FileId)
         {
-            clientFileHeader.Shares = [ShareRow.From(callerShare)];
+            clientFileHeader.Shares = callerShares.Select(ShareRow.From).ToList();
         }
 
         return clientFileHeader;

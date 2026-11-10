@@ -171,7 +171,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
 
         await using var hashing = descriptor.Hash?.Verifying(key, data);
-        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, hashing ?? data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension,
+            QuotaGuard.LimitPayload(hashing ?? data), odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -186,6 +187,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
     {
+        data = QuotaGuard.LimitThumbnail(data);
         await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc

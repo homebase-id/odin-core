@@ -12,7 +12,9 @@ using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Core.Identity;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
@@ -89,6 +91,30 @@ public class ChangingAFileYouSentTests : V2Fixture
         await UpdateAsync(pippin, frodo, pippinsCopy, newTag, "Pippin's, after Frodo's", sent.FileKey);
         Assert.That((await HeaderAsync(frodo, drive, sent.Gtid)).FileMetadata.AppData.Content, Is.EqualTo(frodosEdit),
             "refused: Frodo changed it");
+    }
+
+    [Test]
+    public async Task ASendersRefusedUpdateRecordsWhyInItsTransferHistory()
+    {
+        // An unencrypted file is written at once, so the recipient's refusal comes back to the sending server, which
+        // records why: Frodo changed his copy since Pippin's last write
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var drive = await SentToFrodoAsync(pippin, frodo);
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        metadata.AllowDistribution = true;
+        var sent = await pippin.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata, new UploadManifest { PayloadDescriptors = [] },
+            [], new TransitOptions { Recipients = [frodo.Identity] });
+        Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
+        await PeerFlow.DistributeAsync(pippin, frodo, drive);
+
+        var frodos = await HeaderAsync(frodo, drive, sent.Content!.GlobalTransitId!.Value);
+        await UpdateUnencryptedAsync(frodo, drive, frodos.FileId, frodos.FileMetadata.VersionTag, null, "Frodo's edit");
+        await UpdateUnencryptedAsync(pippin, drive, sent.Content.FileId, sent.Content.NewVersionTag, frodo.Identity, "Pippin's, after Frodo's");
+        await PeerFlow.DistributeAsync(pippin, frodo, drive);
+
+        await DriveAsserts.AssertTransferStatus(pippin, new ExternalFileIdentifier { FileId = sent.Content.FileId, TargetDrive = drive },
+            frodo.Identity, LatestTransferStatus.RecipientIdentityReturnedVersionTagMismatch);
     }
 
     [Test]
@@ -171,6 +197,24 @@ public class ChangingAFileYouSentTests : V2Fixture
         }
 
         return (encrypted, update.Content!.NewVersionTag);
+    }
+
+    /// <summary><paramref name="caller"/> updates their unencrypted copy, sent on to <paramref name="recipient"/> when given.</summary>
+    private static async Task UpdateUnencryptedAsync(OwnerSession caller, TargetDrive drive, Guid fileId, Guid versionTag, OdinId? recipient,
+        string content)
+    {
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        metadata.AllowDistribution = recipient != null;
+        metadata.AppData.Content = content;
+        metadata.VersionTag = versionTag;
+        var update = await caller.Drives.Writer.UpdateFileByFileId(drive.Alias, fileId, new FileUpdateInstructionSetV2
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            Recipients = recipient is { } r ? [r] : [],
+            Manifest = new UploadManifest { PayloadDescriptors = [] }
+        }, metadata, []);
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
     }
 
     private static Task<SharedSecretEncryptedFileHeader> HeaderAsync(OwnerSession owner, TargetDrive drive, Guid gtid) =>

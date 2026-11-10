@@ -27,6 +27,7 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Util;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
@@ -60,12 +61,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <param name="shares">A member's shares for the file they add to a peer's Selective Share drive, sent on with it.</param>
         /// <param name="expectedVersionTag">For a file sent from the transient drive, the version tag of the recipient's copy
         /// it changes, as the client named it.</param>
+        /// <param name="tellSendersClient">A client's upload sent from the transient drive, which keeps it no copy: its
+        /// client hears how it went (<see cref="PeerSendResultNotification"/>)</param>
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             IOdinContext odinContext,
             DataSource overrideDataSource = null,
             List<ShareRequest> shares = null,
-            Guid? expectedVersionTag = null)
+            Guid? expectedVersionTag = null,
+            bool tellSendersClient = false)
         {
             odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
 
@@ -86,7 +90,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
 
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, sfo, odinContext, priority,
-                overrideDataSource);
+                overrideDataSource, tellSendersClient);
             foreach (var item in outboxItems)
             {
                 item.State.TransferInstructionSet.Shares = shares;
@@ -657,7 +661,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             FileTransferOptions fileTransferOptions,
             IOdinContext odinContext,
             int priority,
-            DataSource overrideDataSource)
+            DataSource overrideDataSource,
+            bool tellSendersClient)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
             var drive = await driveManager.GetDriveAsync(internalFile.DriveId, failIfInvalid: true);
@@ -709,7 +714,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 fileTransferOptions.FileSystemType,
                                 options),
                             Data = [],
-                            DataSourceOverride = overrideDataSource
+                            DataSourceOverride = overrideDataSource,
+                            SendResultTo = tellSendersClient
+                                ? PeerSendResultTarget.Of(odinContext, targetDrive.Alias,
+                                    options.OverrideRemoteGlobalTransitId ?? header.FileMetadata.GlobalTransitId,
+                                    header.FileMetadata.VersionTag)
+                                : null
                         }
                     });
 
@@ -773,7 +783,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                             },
                             OriginalTransitOptions = null,
                             DataSourceOverride = overrideDataSource,
-                            Data = OdinSystemSerializer.Serialize(updateInstructionSet).ToUtf8ByteArray()
+                            Data = OdinSystemSerializer.Serialize(updateInstructionSet).ToUtf8ByteArray(),
+                            SendResultTo = updateLocale == UpdateLocale.Peer
+                                ? PeerSendResultTarget.Of(odinContext, request.File.TargetDrive.Alias, request.File.GlobalTransitId,
+                                    request.NewVersionTag)
+                                : null
                         }
                     });
 

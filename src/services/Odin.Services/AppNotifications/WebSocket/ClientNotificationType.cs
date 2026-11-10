@@ -47,6 +47,12 @@ public enum ClientNotificationType
     /// running; the queue is durable, so missing this costs only time.
     /// </summary>
     PendingEnrollmentsAwaiting = 5005,
+    /// <summary>
+    /// How a file or an update sent from the transient drive to a peer went: delivered, refused, or retrying.  Only to
+    /// the app that sent it (or the owner's own client); see PeerSendResultNotification.
+    /// </summary>
+    PeerSendResult = 5006,
+    /// <summary>
     /// An opaque live-relay data point (e.g. live GPS) pushed by a connected identity to an app.
     /// Carries the sending identity, a channel key, the opaque blob, and the server-received time.
     /// </summary>

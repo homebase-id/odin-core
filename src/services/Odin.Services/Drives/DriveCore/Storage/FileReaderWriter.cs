@@ -78,9 +78,11 @@ public sealed class FileReaderWriter(
 
         try
         {
+            // A stream that refuses the caller (past the largest payload) refuses every retry too
             await TryRetry.Create()
                 .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
                 .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .RetryOnPredicate((e, _) => e is not OdinClientException)
                 .ExecuteAsync(async () =>
                 {
                     try

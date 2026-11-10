@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -27,8 +28,9 @@ public class SendFileOutboxWorkerAsync(
     ILogger<SendFileOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
-    PeerDriveQueryService peerDriveQueryService
-) : OutboxWorkerBase(fileItem, logger, fileSystemResolver, odinConfiguration)
+    PeerDriveQueryService peerDriveQueryService,
+    IMediator mediator
+) : OutboxWorkerBase(fileItem, logger, fileSystemResolver, odinConfiguration, mediator)
 {
     public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
@@ -40,11 +42,15 @@ public class SendFileOutboxWorkerAsync(
 
             Guid versionTag = default;
             Guid globalTransitId = default;
+            Guid? recipientsVersionTag = null;
 
-            await PerformanceCounter.MeasureExecutionTime("Outbox SendOutboxFileItemAsync",
-                async () => { (versionTag, globalTransitId) = await SendOutboxFileItemAsync(FileItem, odinContext, cancellationToken); });
+            await PerformanceCounter.MeasureExecutionTime("Outbox SendOutboxFileItemAsync", async () =>
+            {
+                (versionTag, globalTransitId, recipientsVersionTag) = await SendOutboxFileItemAsync(FileItem, odinContext, cancellationToken);
+            });
 
             await UpdateFileTransferHistory(globalTransitId, versionTag, odinContext);
+            await TellSendersClientAsync(LatestTransferStatus.Delivered, willRetry: false, recipientsVersionTag);
             logger.LogDebug("Successful transfer of {gtid} to {recipient} - ", globalTransitId, FileItem.Recipient);
 
             return OutboxProcessingResult.Complete();
@@ -70,7 +76,10 @@ public class SendFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<(Guid versionTag, Guid globalTransitId)> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem,
+    /// <returns>The sent file's version tag and global transit id, and the version tag the recipient's server says its copy
+    /// has</returns>
+    private async Task<(Guid versionTag, Guid globalTransitId, Guid? recipientsVersionTag)> SendOutboxFileItemAsync(
+        OutboxFileItem outboxFileItem,
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
@@ -132,7 +141,7 @@ public class SendFileOutboxWorkerAsync(
                     outboxFileItem.State.DataSourceOverride);
 
                 var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerTransferHttpClient>(
-                    recipient, clientAuthToken);
+                    recipient, clientAuthToken, timeout: PeerFileSendTimeout.For(header, Configuration.Host));
 
                 var response = await client.SendHostToHost(
                     transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray(), cancellationToken);
@@ -172,7 +181,7 @@ public class SendFileOutboxWorkerAsync(
             await ForgetOutOfDateDriveKeysAsync(response, peerDriveQueryService, recipient);
             if (response.IsSuccessStatusCode)
             {
-                return (versionTag, globalTransitId.GetValueOrDefault());
+                return (versionTag, globalTransitId.GetValueOrDefault(), response.Content?.VersionTag);
             }
 
             throw new OdinOutboxProcessingException("Failed while sending the request")

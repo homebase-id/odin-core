@@ -1,7 +1,9 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Util;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -54,6 +56,21 @@ public class TenantQuotaGuard(
 {
     // How stale the usage behind the quota may be; see GetTotalSizeAllDrivesForQuotaAsync
     private static readonly TimeSpan UsageMaxAge = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// <paramref name="payload"/>, refused with a 400 (<see cref="OdinClientErrorCode.MaxContentLengthExceeded"/>) as
+    /// soon as more than the host's largest payload is read from it (<see cref="OdinConfiguration.HostSection.MaxPayloadBytes"/>):
+    /// the quota check asks only whether the identity is already full, so this bounds how far one payload goes past it.
+    /// </summary>
+    public Stream LimitPayload(Stream payload) => BoundedRead.Limit(payload, configuration.Host.MaxPayloadBytes);
+
+    /// <summary>
+    /// <paramref name="thumbnail"/>, refused the same way past the largest thumbnail
+    /// (<see cref="Drives.DriveCore.Storage.ThumbnailDescriptor.MaxThumbnailSize"/>), which its descriptor is checked
+    /// against only once it is stored.
+    /// </summary>
+    public Stream LimitThumbnail(Stream thumbnail) =>
+        BoundedRead.Limit(thumbnail, Drives.DriveCore.Storage.ThumbnailDescriptor.MaxThumbnailSize);
 
     public async Task AssertCanAddPayloadBytesAsync()
     {

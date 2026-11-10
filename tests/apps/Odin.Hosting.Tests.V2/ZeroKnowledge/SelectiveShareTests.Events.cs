@@ -286,25 +286,26 @@ public partial class SelectiveShareTests
             await _ownerSockets.RemoveSocket(Owner.Device.Key);
             await _peerSockets.RemoveSocket(Member.Device.Key);
         }
+    }
 
-        private static OdinContext Context(TargetDrive drive, string identity, SecurityGroupType level, Guid? circleId,
-            DrivePermission permission, bool masterKey = false, bool reviewed = true)
+    /// <summary>A socket's context, as a handshake builds it: its caller, its grant on <paramref name="drive"/> and a shared secret</summary>
+    private static OdinContext Context(TargetDrive drive, string identity, SecurityGroupType level, Guid? circleId,
+        DrivePermission permission, bool masterKey = false, bool reviewed = true)
+    {
+        var context = new OdinContext
         {
-            var context = new OdinContext
-            {
-                Caller = new CallerContext((OdinId)identity, masterKey ? Guid.NewGuid().ToByteArray().ToSensitiveByteArray() : null!, level,
-                    circleIds: circleId is { } c ? [new GuidId(c)] : null) { IsReviewed = reviewed }
-            };
-            var grant = new DriveGrant
-            {
-                DriveId = drive.Alias,
-                PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = permission }
-            };
-            context.SetPermissionContext(new PermissionContext(
-                new Dictionary<string, PermissionGroup> { ["drive"] = new(new PermissionSet(), [grant], null, null) },
-                ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray()));
-            return context;
-        }
+            Caller = new CallerContext((OdinId)identity, masterKey ? Guid.NewGuid().ToByteArray().ToSensitiveByteArray() : null!, level,
+                circleIds: circleId is { } c ? [new GuidId(c)] : null) { IsReviewed = reviewed }
+        };
+        var grant = new DriveGrant
+        {
+            DriveId = drive.Alias,
+            PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = permission }
+        };
+        context.SetPermissionContext(new PermissionContext(
+            new Dictionary<string, PermissionGroup> { ["drive"] = new(new PermissionSet(), [grant], null, null) },
+            ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray()));
+        return context;
     }
 
     /// <summary>A device socket that keeps the drive events it is sent, decrypted.</summary>
@@ -336,11 +337,7 @@ public partial class SelectiveShareTests
 
         private (ClientNotificationType? Type, SharedSecretEncryptedFileHeader? Header) Read(string sent)
         {
-            var payload = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(sent)!;
-            var json = payload.IsEncrypted
-                ? SharedSecretEncryptedPayload.Decrypt(payload.Payload, Context.PermissionsContext.SharedSecretKey).ToStringFromUtf8Bytes()
-                : payload.Payload;
-            var envelope = OdinSystemSerializer.Deserialize<Envelope>(json)!;
+            var envelope = ReadEnvelope(sent, Context);
             if (envelope.NotificationType is not (ClientNotificationType.FileAdded or ClientNotificationType.FileModified
                 or ClientNotificationType.FileDeleted))
             {
@@ -349,12 +346,22 @@ public partial class SelectiveShareTests
 
             return (envelope.NotificationType, OdinSystemSerializer.Deserialize<ClientDriveNotification>(envelope.Data)?.Header);
         }
+    }
 
-        private sealed class Envelope
-        {
-            public ClientNotificationType NotificationType { get; set; }
-            public string Data { get; set; } = "";
-        }
+    /// <summary>A message a socket was sent, as its client reads it: decrypted with the socket's shared secret</summary>
+    private static Envelope ReadEnvelope(string sent, OdinContext context)
+    {
+        var payload = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(sent)!;
+        var json = payload.IsEncrypted
+            ? SharedSecretEncryptedPayload.Decrypt(payload.Payload, context.PermissionsContext.SharedSecretKey).ToStringFromUtf8Bytes()
+            : payload.Payload;
+        return OdinSystemSerializer.Deserialize<Envelope>(json)!;
+    }
+
+    private sealed class Envelope
+    {
+        public ClientNotificationType NotificationType { get; set; }
+        public string Data { get; set; } = "";
     }
 
     /// <summary>An open web socket that keeps what is sent on it, as text.</summary>
