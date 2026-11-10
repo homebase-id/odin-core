@@ -39,8 +39,9 @@ namespace Odin.Hosting.Tests.V2.DevFixture;
 /// </summary>
 /// <remarks>
 /// Run: <c>ODIN_DEV_FIXTURE_OUT=/path/out.json dotnet test tests/apps/Odin.Hosting.Tests.V2 -c Release
-/// --filter FullyQualifiedName~CollaborativeFolderDevFixture</c>.  It refuses to run when either identity already has a
-/// password, so it never changes an identity someone uses.
+/// --filter FullyQualifiedName~CollaborativeFolderDevFixture</c>, which runs the steps in order.  The set-up refuses to
+/// run when either identity already has a password, so it never changes an identity someone uses, and when the file
+/// exists; the devices step refuses to run twice.  To repeat a later step, filter on its name.
 /// </remarks>
 [TestFixture]
 [Explicit("A local tool for the dev server, not a test")]
@@ -66,7 +67,7 @@ public class CollaborativeFolderDevFixture
     // A chat-like app on Tom's identity, which chat-kmp's harness sends as
     private static readonly Guid ChatLikeAppId = Guid.Parse("7c1f2e0a-5d3b-4f6e-9a8c-1b2d3e4f5a6b");
 
-    [Test]
+    [Test, Order(1)]
     public async Task SetUpACollaborativeFilesyncFolderOnTheDevServer()
     {
         var outPath = Environment.GetEnvironmentVariable("ODIN_DEV_FIXTURE_OUT");
@@ -81,6 +82,8 @@ public class CollaborativeFolderDevFixture
 
         var password = Convert.ToBase64String(RandomNumberGenerator.GetBytes(18));
         var result = new Dictionary<string, object> { ["devServer"] = $"https://{{identity}}:{DevServerPort}", ["password"] = password };
+        // Written before the password is set, so a run that fails part way still leaves a way in
+        await WriteFixtureAsync(outPath!, result);
 
         // 1. Owners, initialized and zero knowledge, each with Filesync and its Private Share drive
         var pippin = await OwnerSession.LoginToDevServerAsync(Dev, Pippin, password, setPassword: true);
@@ -125,7 +128,7 @@ public class CollaborativeFolderDevFixture
     /// (a circle's key is set once, and the first two were locked with a stand-in), Tom in both with his sealed copy.
     /// Rewrites the fixture's file; refuses to run twice.
     /// </summary>
-    [Test]
+    [Test, Order(2)]
     public async Task GiveFilesyncDevicesTheirKeyAndCirclesLockedWithIt()
     {
         var (outPath, root) = await ReadFixtureAsync();
@@ -169,7 +172,7 @@ public class CollaborativeFolderDevFixture
     /// with the drive key, shared with both keyed circles in the same upload (format 3, by the global transit id it picks).
     /// Hard-deletes the file after, so nothing is left.
     /// </summary>
-    [Test]
+    [Test, Order(3)]
     public async Task PippinsFilesyncDeviceWritesAClientLockedSharedFile()
     {
         var (_, root) = await ReadFixtureAsync();
@@ -211,7 +214,7 @@ public class CollaborativeFolderDevFixture
     /// Checks the setup as chat-kmp will use it, with Tom's chat-like app: Pippin's Filesync public key by slug, Tom's
     /// sealed copy of each circle key opened with his Filesync drive's key, and the send status route.  Changes nothing.
     /// </summary>
-    [Test]
+    [Test, Order(4)]
     public async Task TomsChatAppReachesWhatTheFixtureSetUp()
     {
         var (_, root) = await ReadFixtureAsync();
@@ -333,12 +336,23 @@ public class CollaborativeFolderDevFixture
     private static async Task<(string Path, JsonElement Root)> ReadFixtureAsync()
     {
         var path = Environment.GetEnvironmentVariable("ODIN_DEV_FIXTURE_OUT");
-        Assert.That(File.Exists(path), Is.True, "Set ODIN_DEV_FIXTURE_OUT to the fixture's file");
+        Assert.That(path, Is.Not.Null.And.Not.Empty, "Set ODIN_DEV_FIXTURE_OUT to the fixture's file");
+        Assert.That(File.Exists(path), Is.True, $"{path} doesn't exist: run {nameof(SetUpACollaborativeFilesyncFolderOnTheDevServer)} first");
         return (path!, JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(path!)));
     }
 
-    private static Task WriteFixtureAsync(string path, Dictionary<string, object> result) =>
-        File.WriteAllTextAsync(path, JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+    // Readable by its owner alone: it holds the identities' password and keys
+    private static async Task WriteFixtureAsync(string path, Dictionary<string, object> result)
+    {
+        var options = new FileStreamOptions { Mode = FileMode.Create, Access = FileAccess.Write };
+        if (!OperatingSystem.IsWindows())
+        {
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        }
+
+        await using var file = new FileStream(path, options);
+        await JsonSerializer.SerializeAsync(file, result, new JsonSerializerOptions { WriteIndented = true });
+    }
 
     private static async Task<bool> IsPasswordSetAsync(string identity)
     {

@@ -1,7 +1,9 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Drives;
@@ -18,7 +20,8 @@ public sealed class DevServer : IOdinTarget, ITestSync
     private readonly int _port;
     private readonly IReadOnlySet<string> _identities;
 
-    // One connection pool for every client: its certificates are the repo's dev ones, trusted for these hosts alone
+    // One connection pool for every client.  It dials this machine whatever DNS answers for the names, so the certificate
+    // check only has to keep to the names: the dev certificates' private keys are in the repo anyway
     private readonly SocketsHttpHandler _handler;
 
     public DevServer(int port, IReadOnlySet<string> identities)
@@ -30,6 +33,26 @@ public sealed class DevServer : IOdinTarget, ITestSync
             UseCookies = false,
             // As the in-process host's client: a test reads a redirect, never follows it
             AllowAutoRedirect = false,
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                var (host, connectPort) = (context.DnsEndPoint.Host, context.DnsEndPoint.Port);
+                if (!identities.Contains(host) || connectPort != port)
+                {
+                    throw new InvalidOperationException($"{host}:{connectPort} isn't the dev server this tool may reach");
+                }
+
+                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                try
+                {
+                    await socket.ConnectAsync(new IPEndPoint(IPAddress.Loopback, port), cancellationToken);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            },
             SslOptions =
             {
                 RemoteCertificateValidationCallback = (sender, _, _, _) =>
