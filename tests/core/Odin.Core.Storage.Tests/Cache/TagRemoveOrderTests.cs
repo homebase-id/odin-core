@@ -16,7 +16,8 @@ namespace Odin.Core.Storage.Tests.Cache;
 /// FusionCache dates a tag remove when it starts and stores the date when it gets there, over whatever date the tag
 /// had. A remove that stalls in between stores an earlier date over a later remove's, and every entry stored after
 /// the earlier date counts as live again: a drive's file headers served at a version the database had moved past
-/// (PayloadConcurrentHammerEncryptedTests). The wrapper lets one remove of a tag run at a time.
+/// (PayloadConcurrentHammerEncryptedTests). The wrapper lets one remove of a tag run at a time. Seen in FusionCache
+/// v2.9.0; see #2093 for dropping the workaround once FusionCache keeps the later date itself.
 /// </summary>
 public class TagRemoveOrderTests
 {
