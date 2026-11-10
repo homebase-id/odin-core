@@ -451,7 +451,7 @@ public class HomebaseChannelContentService(
             payloadUrlBase = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
             {
                 Path = "api/guest/v1/drive/files/payload",
-                Query = $"alias={channelDrive.Alias}&type={channelDrive.Type}&fileId={postFile.FileId}"
+                Query = $"alias={channelDrive.Alias}&type={channelDrive.Type}"
             }.ToString();
         }
 

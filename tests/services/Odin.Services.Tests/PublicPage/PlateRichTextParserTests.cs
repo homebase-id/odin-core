@@ -10,7 +10,8 @@ public class PlateRichTextParserTests
     private static string Fixture(string name) =>
         File.ReadAllText(Path.Combine(TestContext.CurrentContext.TestDirectory, "PublicPage", "Fixtures", name));
 
-    private static string? Url(string key) => $"https://x.test/payload?key={key}";
+    private static string? Url(string key, string? fileId) =>
+        fileId == null ? $"https://x.test/payload?key={key}" : $"https://x.test/payload?fileId={fileId}&key={key}";
 
     [Test]
     public void EditorArticle_RendersAllKnownNodes()
@@ -60,6 +61,14 @@ public class PlateRichTextParserTests
     {
         var html = PlateRichTextParser.Parse("""[{"type":"local_image","fileKey":"k","children":[{"text":""}]}]""");
         Assert.That(html, Is.EqualTo("<figure></figure>\n"));
+    }
+
+    [Test]
+    public void LocalImage_WithFileId_PassesItToThePayloadUrl()
+    {
+        var html = PlateRichTextParser.Parse(
+            """[{"type":"local_image","fileKey":"k","fileId":"f1","children":[{"text":""}]}]""", Url);
+        Assert.That(html, Is.EqualTo("<img src=\"https://x.test/payload?fileId=f1&amp;key=k\" alt=\"\" />\n"));
     }
 
     [Test]
