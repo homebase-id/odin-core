@@ -1,10 +1,14 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests.V2.Api;
@@ -387,6 +391,44 @@ public abstract class V2Fixture
         var descriptor = (await owner.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId)).Content!
             .FileMetadata.Payloads.Single(p => p.Key == key);
         return TenantPaths(owner).GetPayloadDirectoryAndFileName(drive.Alias, fileId, key, descriptor.Uid);
+    }
+
+    /// <summary>The stored row of a file's header as it is now: for <see cref="ServeStaleHeaderRowAsync"/> after a later write</summary>
+    protected async Task<DriveMainIndexRecord> HeaderRowAsync(OwnerSession owner, Guid driveId, Guid fileId)
+    {
+        await using var scope = Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
+        var row = await scope.Resolve<TableDriveMainIndexCached>().GetAsync(driveId, fileId);
+        Assert.That(row, Is.Not.Null, $"precondition: file {fileId} has a row");
+        return row!;
+    }
+
+    /// <summary>
+    /// Makes <paramref name="owner"/>'s server read a file's header as <paramref name="staleRow"/>, an earlier row of it,
+    /// until <see cref="ForgetCachedHeaderRowsAsync"/> or the file's next write: the stale cache entry a lost invalidation
+    /// leaves (#2093), for a test of a write that must not build on one.  Call it after the write that made the row stale.
+    /// </summary>
+    /// <remarks>
+    /// Fills the entry the server's own read fills (<see cref="TableDriveMainIndexCached"/>: the table's prefix, the
+    /// file's key, the drive's tag), through the cache's public get-or-set, so the server serves it as its own.  Checked:
+    /// the server's read answers the stale row after.
+    /// </remarks>
+    protected async Task ServeStaleHeaderRowAsync(OwnerSession owner, DriveMainIndexRecord staleRow)
+    {
+        await using var scope = Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
+        var cache = scope.Resolve<IIdentityTransactionalCacheFactory>().Create(nameof(TableDriveMainIndex), "DriveMainIndex");
+        await cache.GetOrSetAsync($"{staleRow.driveId}:file:{staleRow.fileId}",
+            _ => Task.FromResult(staleRow), TimeSpan.FromHours(1), tags: [$"driveId:{staleRow.driveId}"]);
+
+        var served = await scope.Resolve<TableDriveMainIndexCached>().GetAsync(staleRow.driveId, staleRow.fileId);
+        Assert.That(served?.hdrVersionTag, Is.EqualTo(staleRow.hdrVersionTag),
+            "precondition: the server reads the stale row (has the cache key of TableDriveMainIndexCached changed?)");
+    }
+
+    /// <summary>Drops every header row <paramref name="owner"/>'s server has cached, stale ones included</summary>
+    protected async Task ForgetCachedHeaderRowsAsync(OwnerSession owner)
+    {
+        await using var scope = Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
+        await scope.Resolve<TableDriveMainIndexCached>().InvalidateAllAsync();
     }
 
     /// <summary>
