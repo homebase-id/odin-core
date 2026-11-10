@@ -77,6 +77,30 @@ public class HomeSiteLoginTests : V2Fixture
         Assert.That(payload.GetValueOrDefault("returnUrl"), Is.EqualTo("/"));
     }
 
+    /// <summary>
+    /// The browser's token from the home site (BuiltInBrowserApp, in XT32) is a guest's on V2, as it is on V1's guest
+    /// routes: its access is what Sam's connection to Frodo allows, so nothing is granted that V1 doesn't already.
+    /// </summary>
+    [Test]
+    public async Task TheHomeSiteTokenIsAGuestOnV2()
+    {
+        var (response, _) = await SignInOnFrodosHomeSiteAsync(peerCipher: "", pageCipher: null);
+        AssertSignedIn(response);
+        var xToken = GetSetCookieValue(response, YouAuthDefaults.XTokenCookieName);
+
+        using var browser = Host.CreateClient();
+        var verifyToken = $"https://{Identities.Frodo}/api/v2/auth/verify-token";
+
+        var signedIn = await browser.SendAsync(new HttpRequestMessage(HttpMethod.Get, verifyToken)
+        {
+            Headers = { { "Cookie", $"{YouAuthDefaults.XTokenCookieName}={xToken}" } }
+        });
+        Assert.That(signedIn.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the home site's token passes the guest policy");
+
+        var anonymous = await browser.GetAsync(verifyToken);
+        Assert.That(anonymous.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "and without it the caller is anonymous, not a guest");
+    }
+
     // ---------------------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------------------
@@ -115,6 +139,24 @@ public class HomeSiteLoginTests : V2Fixture
         var response = await Host.AnonymousRefitFor<IPublicPrivateKeyHttpClientForOwner>(Identities.Frodo).GetEccOfflinePublicKey();
         Assert.That(response.IsSuccessStatusCode, Is.True, $"offline_ecc: {response.StatusCode}");
         return response.Content!;
+    }
+
+    /// <summary>
+    /// The whole value of a cookie the response sets; base64 padding included, which a split on '=' would drop.
+    /// </summary>
+    private static string GetSetCookieValue(HttpResponseMessage response, string name)
+    {
+        var prefix = name + "=";
+        foreach (var header in response.Headers.GetValues("Set-Cookie"))
+        {
+            var pair = header.Split(';')[0];
+            if (pair.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return pair[prefix.Length..];
+            }
+        }
+
+        throw new AssertionException($"the response sets no {name} cookie");
     }
 
     private static string AssertSignedIn(HttpResponseMessage response)
