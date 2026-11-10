@@ -13,11 +13,9 @@ namespace Odin.Core.Storage.Tests.Cache;
 #nullable enable
 
 /// <summary>
-/// FusionCache dates a tag remove when it starts and stores the date when it gets there, over whatever date the tag
-/// had. A remove that stalls in between stores an earlier date over a later remove's, and every entry stored after
-/// the earlier date counts as live again: a drive's file headers served at a version the database had moved past
-/// (PayloadConcurrentHammerEncryptedTests). The wrapper lets one remove of a tag run at a time. Seen in FusionCache
-/// v2.9.0; see #2093 for dropping the workaround once FusionCache keeps the later date itself.
+/// Guards the wrapper's turns for removes of one tag (<see cref="FusionCacheWrapper"/>): a remove that stalls between
+/// dating itself and storing the date must not bring back an entry a later remove expired. The stall is a memory cache
+/// that holds the write of the tag's date until released.
 /// </summary>
 public class TagRemoveOrderTests
 {
@@ -39,7 +37,7 @@ public class TagRemoveOrderTests
 
         // The first remove has its date and stalls before storing it
         memory.StallNextTagWrite();
-        var stalledRemove = Task.Run(async () => await cache.RemoveByTagAsync(tags));
+        var stalledRemove = Task.Run(() => cache.RemoveByTagAsync(tags).AsTask());
         await memory.Stalled;
 
         // An entry stored after that date, which the second remove must expire
@@ -47,7 +45,7 @@ public class TagRemoveOrderTests
             TimeSpan.FromHours(1), tags: tags);
         Assert.That(stored, Is.EqualTo("read between the removes"));
 
-        var laterRemove = Task.Run(async () => await cache.RemoveByTagAsync(tags));
+        var laterRemove = Task.Run(() => cache.RemoveByTagAsync(tags).AsTask());
         await Task.WhenAny(laterRemove, Task.Delay(TimeSpan.FromMilliseconds(500))); // left to finish first, if it may
         memory.ReleaseStall();
         await Task.WhenAll(stalledRemove, laterRemove);

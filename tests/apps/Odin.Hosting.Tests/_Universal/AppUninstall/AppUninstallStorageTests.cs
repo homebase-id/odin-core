@@ -9,22 +9,17 @@ using Amazon.S3.Model;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Odin.Hosting.Controllers.OwnerToken.AppManagement;
-using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.JobManagement;
-using Odin.Services.Registry;
-using Odin.Services.Tenant.Container;
 using Odin.Test.Helpers;
 
 namespace Odin.Hosting.Tests._Universal.AppUninstall;
@@ -63,72 +58,60 @@ public class AppUninstallStorageTests
         var registered = await owner.AppManager.RegisterApp(appId, new PermissionSetGrantRequest());
         Assert.That(registered.IsSuccessStatusCode, Is.True, $"register the app: {registered.StatusCode}");
 
+        await using var scope = _scaffold.TenantScope(identity, nameof(AppUninstallStorageTests));
+        var store = scope.Resolve<LongTermPayloadStore>();
+        var paths = scope.Resolve<TenantContext>().TenantPathManager;
+
         var drives = new[] { TargetDrive.NewTargetDrive(), TargetDrive.NewTargetDrive() };
         var objects = new List<string>();
         foreach (var drive in drives)
         {
-            await CreateAppDriveAsync(identity, drive, appId);
+            var created = await owner.DriveManager.CreateDrive(drive, "app drive", "", allowAnonymousReads: false, appId: appId);
+            Assert.That(created.IsSuccessStatusCode, Is.True, $"create the app's drive: {created.StatusCode}");
             for (var i = 0; i < FilesPerDrive; i++)
             {
-                objects.AddRange(await UploadAsync(owner, Paths(identity), drive, $"file {i}"));
+                objects.AddRange(await UploadAsync(owner, paths, drive, $"file {i}"));
             }
         }
 
-        var paths = Paths(identity);
-        await using (var scope = TenantScope(identity))
+        Assert.That(objects, Has.Count.EqualTo(drives.Length * FilesPerDrive * 4),
+            "precondition: two payloads with a thumbnail each, per file");
+        foreach (var path in objects)
         {
-            var store = scope.Resolve<LongTermPayloadStore>();
-            Assert.That(objects, Has.Count.EqualTo(drives.Length * FilesPerDrive * 4),
-                "precondition: two payloads with a thumbnail each, per file");
-            foreach (var path in objects)
-            {
-                Assert.That(await store.ExistsAsync(path), Is.True, $"precondition: stored before the uninstall: {path}");
-            }
-            Console.WriteLine($"Payload store: {(store.GetS3Location(paths.GetDrivePath(drives[0].Alias)) == null ? "disk" : "S3")}");
+            Assert.That(await store.ExistsAsync(path), Is.True, $"precondition: stored before the uninstall: {path}");
         }
+        Console.WriteLine($"Payload store: {(store.GetS3Location(paths.GetDrivePath(drives[0].Alias)) == null ? "disk" : "S3")}");
 
-        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var sharedSecret);
-        var uninstall = await RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, sharedSecret)
-            .Uninstall(new UninstallAppRequest { AppId = appId, DeleteOwnedCirclesAndDrives = true });
+        var uninstall = await owner.AppManager.Uninstall(appId, deleteOwnedCirclesAndDrives: true);
         Assert.That(uninstall.StatusCode, Is.EqualTo(HttpStatusCode.OK), "uninstall");
 
-        Assert.That(await PurgesDoneAsync(identity), Is.True, "the purge did not finish");
+        // The host's job runner works through the purges the uninstall scheduled
+        var jobs = _scaffold.Services.GetRequiredService<IJobManager>();
+        var purgesLeft = new List<string>();
+        await Poll.UntilAsync(async () =>
+            {
+                purgesLeft = (await jobs.GetJobsByIdentityIdAsync(_scaffold.IdOf(identity)))
+                    .Where(j => j.jobType == DrivePurgeJob.JobTypeId.ToString())
+                    .Select(j => $"{j.id} (state {j.state})")
+                    .ToList();
+                return purgesLeft.Count == 0;
+            }, TimeSpan.FromSeconds(60),
+            () => $"drive purges still queued: {string.Join(", ", purgesLeft)}");
 
-        await using (var scope = TenantScope(identity))
+        foreach (var path in objects)
         {
-            var store = scope.Resolve<LongTermPayloadStore>();
-            foreach (var path in objects)
-            {
-                Assert.That(await store.ExistsAsync(path), Is.False, $"left in the store after the uninstall: {path}");
-            }
-
-            foreach (var drive in drives)
-            {
-                var left = await EverythingUnderAsync(store, paths.GetDrivePath(drive.Alias));
-                Assert.That(left, Is.Empty, $"left under drive {drive.Alias}: {string.Join(", ", left)}");
-            }
+            Assert.That(await store.ExistsAsync(path), Is.False, $"left in the store after the uninstall: {path}");
         }
-    }
 
-    // Through the owner console's drive call, naming the app as the drive's owner
-    private async Task CreateAppDriveAsync(TestIdentity identity, TargetDrive drive, Guid appId)
-    {
-        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var sharedSecret);
-        var response = await RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret).CreateDrive(
-            new CreateDriveRequest
-            {
-                TargetDrive = drive,
-                Name = "app drive",
-                Metadata = "",
-                AppId = appId,
-                DriveSlug = TestSlug.New(),
-                DriveTypeSlug = TestSlug.DriveType
-            });
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"create the app's drive: {response.StatusCode}");
+        foreach (var drive in drives)
+        {
+            var left = await EverythingUnderAsync(store, paths.GetDrivePath(drive.Alias));
+            Assert.That(left, Is.Empty, $"left under drive {drive.Alias}: {string.Join(", ", left)}");
+        }
     }
 
     // A file with two payloads, each with a thumbnail; answers the store path of each of the four objects
-    private static async Task<List<string>> UploadAsync(ApiClient.Owner.OwnerApiClientRedux owner, TenantPathManager paths,
+    private static async Task<List<string>> UploadAsync(OwnerApiClientRedux owner, TenantPathManager paths,
         TargetDrive drive, string content)
     {
         var definitions = new List<TestPayloadDefinition>
@@ -153,8 +136,7 @@ public class AppUninstallStorageTests
         var objects = new List<string>();
         foreach (var payload in header.Content!.FileMetadata.Payloads)
         {
-            objects.Add(paths.GetPayloadDirectoryAndFileName(drive.Alias, file.FileId, payload.Key,
-                payload.Uid));
+            objects.Add(paths.GetPayloadDirectoryAndFileName(drive.Alias, file.FileId, payload.Key, payload.Uid));
             objects.AddRange(payload.Thumbnails.Select(t => paths.GetThumbnailDirectoryAndFileName(
                 drive.Alias, file.FileId, payload.Key, payload.Uid, t.PixelWidth, t.PixelHeight)));
         }
@@ -181,33 +163,4 @@ public class AppUninstallStorageTests
         });
         return (listed.S3Objects ?? []).Select(o => o.Key).ToList();
     }
-
-    // The host's job runner works through the purges the uninstall scheduled; wait until none is left
-    private async Task<bool> PurgesDoneAsync(TestIdentity identity)
-    {
-        var jobs = _scaffold.Services.GetRequiredService<IJobManager>();
-        var deadline = DateTime.UtcNow.AddSeconds(60);
-        while (DateTime.UtcNow < deadline)
-        {
-            var purges = (await jobs.GetJobsByIdentityIdAsync(IdOf(identity)))
-                .Where(j => j.jobType == DrivePurgeJob.JobTypeId.ToString());
-            if (!purges.Any())
-            {
-                return true;
-            }
-
-            await Task.Delay(250);
-        }
-
-        return false;
-    }
-
-    private TenantPathManager Paths(TestIdentity identity) =>
-        new(_scaffold.Services.GetRequiredService<OdinConfiguration>(), IdOf(identity));
-
-    private Guid IdOf(TestIdentity identity) =>
-        _scaffold.Services.GetRequiredService<IIdentityRegistry>().ResolveId(identity.OdinId.DomainName)!.Value;
-
-    private ILifetimeScope TenantScope(TestIdentity identity) => _scaffold.Services.GetRequiredService<IMultiTenantContainer>()
-        .GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope(nameof(AppUninstallStorageTests));
 }

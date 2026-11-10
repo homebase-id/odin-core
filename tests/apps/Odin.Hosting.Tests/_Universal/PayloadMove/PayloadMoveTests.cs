@@ -29,7 +29,6 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Registry;
 using Odin.Services.Registry.PayloadMove;
-using Odin.Services.Tenant.Container;
 using static Odin.Hosting.Tests._Universal.TenantStatus.TenantStatusTestSupport;
 using Status = Odin.Services.Registry.TenantStatus;
 
@@ -356,8 +355,7 @@ public class PayloadMoveTests
 
     //
 
-    private ILifetimeScope TenantScope(TestIdentity identity) => _scaffold.Services.GetRequiredService<IMultiTenantContainer>()
-        .GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("PayloadMoveTests");
+    private ILifetimeScope TenantScope(TestIdentity identity) => _scaffold.TenantScope(identity, nameof(PayloadMoveTests));
 
     private async Task AssertStoredAsync(ILifetimeScope scope, TestIdentity identity, List<PayloadObject> objects)
     {
@@ -408,8 +406,7 @@ public class PayloadMoveTests
 
     private PayloadMoveSource Source() => _scaffold.Services.GetRequiredService<PayloadMoveSource>();
 
-    private Guid IdOf(TestIdentity identity) =>
-        _scaffold.Services.GetRequiredService<IIdentityRegistry>().ResolveId(identity.OdinId.DomainName)!.Value;
+    private Guid IdOf(TestIdentity identity) => _scaffold.IdOf(identity);
 
     private Task<string> MintAsync() => Source().MintHandoffAsync(IdOf(TestIdentities.Frodo));
 

@@ -1237,7 +1237,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             AssertActiveForUpdate(existingServerHeader);
             // The payloads replaced below are the ones this header lists, so it must be the version the write is
-            // conditional on: the write checks only the caller's tag, and would pass over a header read at another
+            // conditional on: the write checks only the caller's tag, and would pass over a header read at another version
             AssertVersionTagMatches(existingServerHeader, expectedVersionTag);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
