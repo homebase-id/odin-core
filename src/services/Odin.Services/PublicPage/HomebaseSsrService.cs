@@ -346,7 +346,10 @@ public class HomebaseSsrService(
             }
             else
             {
-                var bodyHtml = PlateRichTextParser.Parse(bodyJson);
+                var bodyHtml = PlateRichTextParser.Parse(bodyJson,
+                    key => string.IsNullOrEmpty(post.PayloadUrlBase)
+                        ? null
+                        : $"{post.PayloadUrlBase}&key={Uri.EscapeDataString(key)}");
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
 

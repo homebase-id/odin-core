@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <None Include="Profile/CardContract/*.json" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="PublicPage/Fixtures/*.json" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
   <ItemGroup>
