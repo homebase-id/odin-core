@@ -148,4 +148,13 @@ public class PageSeoTests
         var content = OdinSystemSerializer.Deserialize<PostContent>("""{"caption":"Trip"}""")!;
         Assert.That(content.WordCount, Is.Null);
     }
+
+    // Like the sitemap, the feed is served to anonymous callers; without this the
+    // request runs with no permissions context and the feed comes back empty.
+    [TestCase("/feed.xml")]
+    [TestCase("/sitemap.xml")]
+    public void SeoFiles_AreAllowedPublicPaths(string path)
+    {
+        Assert.That(Odin.Services.PublicPage.HomebasePublicPageService.IsAllowedPath(path), Is.True);
+    }
 }

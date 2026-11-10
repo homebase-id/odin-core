@@ -523,7 +523,8 @@ public class HomebasePublicPageService(
         "/connections",
         "/links",
         "/about",
-        "/sitemap.xml"
+        "/sitemap.xml",
+        "/feed.xml"
     ];
 
     /// <summary>

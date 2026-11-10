@@ -102,7 +102,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         }
 
         // Provisioning mapping
-        string[] excludedPaths = ["/sitemap.xml", "/robots.txt"];
+        string[] excludedPaths = ["/sitemap.xml", "/feed.xml", "/robots.txt"];
 
         // An API on the provisioning domain, whether or not this host provisions, mapped before the tenant middleware
         void MapProvisioningDomainApi(string rootPath) => app.MapWhen(
