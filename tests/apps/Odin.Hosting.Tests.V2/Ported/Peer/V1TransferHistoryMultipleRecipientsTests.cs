@@ -118,7 +118,9 @@ public class V1TransferHistoryMultipleRecipientsTests : V2Fixture
         Assert.That(summary.TotalDelivered, Is.EqualTo(0));
         Assert.That(summary.TotalReadByRecipient, Is.EqualTo(0));
 
-        Assert.That(summary.TotalFailed, Is.EqualTo(connectedRecipients.Count),
+        // #2087: the outbox is still retrying every recipient, so none has failed yet; a client that shows totalFailed
+        // used to show Failed while the send was still being tried
+        Assert.That(summary.TotalFailed, Is.EqualTo(0),
             $"(delivered:{summary.TotalDelivered}, in outbox: {summary.TotalInOutbox})");
 
         Assert.That(summary.TotalInOutbox, Is.EqualTo(connectedRecipients.Count));
