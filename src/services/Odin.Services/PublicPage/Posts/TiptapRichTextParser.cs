@@ -78,11 +78,20 @@ public static class TiptapRichTextParser
     {
         var sb = new StringBuilder();
         ExcerptText(root, sb, maxLength * 2);
-        var text = WhitespaceRegex.Replace(sb.ToString(), " ").Trim();
+        var text = sb.ToString().Trim();
         return text.Length == 0 ? null : Cut(text, maxLength);
     }
 
-    private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.CultureInvariant);
+
+    /// <summary>Appends text with every run of whitespace as one space, so the budget counts what is kept</summary>
+    private static void Add(StringBuilder sb, string? text)
+    {
+        foreach (var c in text ?? "")
+        {
+            if (!char.IsWhiteSpace(c)) sb.Append(c);
+            else if (sb.Length > 0 && sb[^1] != ' ') sb.Append(' ');
+        }
+    }
 
     private static void ExcerptText(JsonNode? node, StringBuilder sb, int enough)
     {
@@ -94,28 +103,31 @@ public static class TiptapRichTextParser
             case "codeBlock" or "footnotes":
                 return;
             case "hardBreak":
-                sb.Append(' ');
+                Add(sb, " ");
                 return;
             case "noteLink":
-                sb.Append(Str(attrs?["label"]));
+                Add(sb, Str(attrs?["label"]));
                 return;
             case "mention":
-                if (Str(attrs?["id"])?.Trim() is { Length: > 0 } id) sb.Append('@').Append(id);
+                if (Str(attrs?["id"])?.Trim() is { Length: > 0 } id) Add(sb, "@" + id);
                 return;
             case "toggle":
-                sb.Append(' ').Append(Str(attrs?["summary"])).Append(' ');
+                Add(sb, $" {Str(attrs?["summary"])} ");
                 break;
         }
 
-        if (Str(obj["text"]) is { } text) sb.Append(text);
+        Add(sb, Str(obj["text"]));
         if (obj["content"] is not JsonArray children) return;
         foreach (var child in children)
         {
             ExcerptText(child, sb, enough);
             // blocks are separate words; inline nodes run on
-            if (child is JsonObject co && Str(co["type"]) is not ("text" or "noteLink" or "mention")) sb.Append(' ');
+            if (child is JsonObject co && !IsInline(Str(co["type"]))) Add(sb, " ");
         }
     }
+
+    private static bool IsInline(string? type) =>
+        type is "text" or "noteLink" or "mention" or "footnoteReference" or "inlineMath" or "image" or "hardBreak";
 
     internal static string Cut(string text, int maxLength)
     {
@@ -149,6 +161,7 @@ public static class TiptapRichTextParser
             switch (Str(obj["type"]))
             {
                 case "doc":
+                    NumberFootnotes(obj);
                     return Kids(obj);
                 case "text":
                     return RenderText(obj);
@@ -235,8 +248,9 @@ public static class TiptapRichTextParser
                 case "footnote":
                 {
                     var id = IdSafe(Str(attrs?["id"]));
-                    var back = _footnoteNumbers.ContainsKey(id) ? $" <a href=\"#fnref-{id}\" aria-label=\"Back to reference\">&#8617;</a>" : "";
-                    return $"<li id=\"fn-{id}\">{Kids(obj)}{back}</li>\n";
+                    if (!_footnoteNumbers.TryGetValue(id, out var n)) return $"<li id=\"fn-{id}\">{Kids(obj)}</li>\n";
+                    var back = $" <a href=\"#fnref-{id}\" aria-label=\"Back to reference\">&#8617;</a>";
+                    return $"<li id=\"fn-{id}\" value=\"{n}\">{Kids(obj)}{back}</li>\n";
                 }
                 case "inlineMath":
                     return $"<code class=\"math\">{Enc(Str(attrs?["latex"]))}</code>";
@@ -245,8 +259,12 @@ public static class TiptapRichTextParser
                 case "mention":
                     return Mention(Str(attrs?["id"]));
                 case "noteLink":
-                    // a link to one of the author's private notes: only its label means anything to a reader
-                    return Enc(Str(attrs?["label"]));
+                    // a link to one of the author's private notes: only its label means anything to a reader.
+                    // Its marks stay, as in the JS viewer
+                    return RenderText(new JsonObject
+                    {
+                        ["text"] = Str(attrs?["label"]) ?? "", ["marks"] = obj["marks"]?.DeepClone()
+                    });
                 default:
                     // a node this renderer does not know: keep its text
                     return Str(obj["text"]) is { } text ? Enc(text) : Kids(obj);
@@ -351,7 +369,7 @@ public static class TiptapRichTextParser
             var widthAttr = width is > 0 and <= 10000 ? $" width=\"{width}\"" : "";
             var align = inGallery ? null : Pick(Str(attrs?["align"]), ImageAligns);
             var cls = align == null ? "" : $" class=\"align-{align}\"";
-            return $"<figure{cls}><img src=\"{Enc(src)}\" alt=\"{Enc(alt)}\"{widthAttr} />{captionHtml}</figure>\n";
+            return $"<figure{cls}><img src=\"{Enc(src)}\" alt=\"{Enc(alt)}\"{widthAttr}{EditStyle(attrs)} />{captionHtml}</figure>\n";
         }
 
         /// <summary>
@@ -365,6 +383,23 @@ public static class TiptapRichTextParser
             var candidate = slug;
             for (var n = 2; !_usedSlugs.Add(candidate); n++) candidate = $"{slug}-{n}";
             return candidate;
+        }
+
+        /// <summary>As the JS viewer: references numbered in document order before anything renders, so a
+        /// footnotes section anywhere gets the same numbers and back links</summary>
+        private void NumberFootnotes(JsonNode? node)
+        {
+            if (node is not JsonObject obj) return;
+            if (Str(obj["type"]) == "footnoteReference")
+            {
+                FootnoteNumber(IdSafe(Str((obj["attrs"] as JsonObject)?["id"])));
+                return;
+            }
+
+            if (obj["content"] is JsonArray children)
+            {
+                foreach (var child in children) NumberFootnotes(child);
+            }
         }
 
         private int FootnoteNumber(string id)
@@ -496,6 +531,40 @@ public static class TiptapRichTextParser
     private static string IdSafe(string? id) => IdUnsafeRegex.Replace(id ?? "", "");
 
     private static readonly Regex IdUnsafeRegex = new(@"[^\w-]", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Journal's non-destructive edits (rich-text imageEdits.ts) as CSS: the crop hides what was cut away
+    /// (clip-path, so no natural size is needed; the space it leaves stays), rotate and flip as a transform.
+    /// ponytail: approximate for crawlers and no-script readers; the JS viewer lays the edited box out exactly
+    /// </summary>
+    private static string EditStyle(JsonObject? attrs)
+    {
+        if (attrs == null) return "";
+        var css = new StringBuilder();
+        if (attrs["crop"] is JsonObject crop && Num(crop["x"]) is { } x && Num(crop["y"]) is { } y &&
+            Num(crop["w"]) is { } w && Num(crop["h"]) is { } h && w is > 0 and <= 1 && h is > 0 and <= 1)
+        {
+            string Pct(double v) => (Math.Clamp(v, 0, 1) * 100).ToString("0.##", CultureInfo.InvariantCulture) + "%";
+            css.Append($"clip-path:inset({Pct(y)} {Pct(1 - x - w)} {Pct(1 - y - h)} {Pct(x)});");
+        }
+
+        var rotate = Int(attrs["rotate"]) is 90 or 180 or 270 ? Int(attrs["rotate"]) : null;
+        var flipH = Bool(attrs["flipH"]);
+        var flipV = Bool(attrs["flipV"]);
+        if (rotate != null || flipH || flipV)
+        {
+            // flips mirror what is shown, after the rotation
+            css.Append("transform:");
+            if (flipH || flipV) css.Append($"scale({(flipH ? -1 : 1)},{(flipV ? -1 : 1)}) ");
+            if (rotate != null) css.Append($"rotate({rotate}deg)");
+            css.Append(';');
+        }
+
+        return css.Length == 0 ? "" : $" style=\"{css.ToString().Replace(" ;", ";")}\"";
+    }
+
+    private static double? Num(JsonNode? node) =>
+        node is JsonValue v && v.TryGetValue<double>(out var d) && double.IsFinite(d) ? d : null;
 
     /// <summary>The value when it is one of the allowed ones, else null</summary>
     private static string? Pick(string? value, HashSet<string> allowed) =>
