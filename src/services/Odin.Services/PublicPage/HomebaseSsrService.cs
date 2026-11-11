@@ -350,7 +350,7 @@ public class HomebaseSsrService(
             // Title with link
             if (!string.IsNullOrWhiteSpace(content.Caption))
             {
-                contentBuilder.AppendLine($"  <h3><a href=\"{link}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
+                contentBuilder.AppendLine($"  <h3><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
             }
 
             // Abstract
@@ -362,7 +362,7 @@ public class HomebaseSsrService(
             // Image
             if (!string.IsNullOrWhiteSpace(post.ImageUrl))
             {
-                contentBuilder.AppendLine($"<a href=\"{link}\">");
+                contentBuilder.AppendLine($"<a href=\"{HttpUtility.HtmlEncode(link)}\">");
                 contentBuilder.AppendLine(
                     $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(content.Caption)}\" />");
                 contentBuilder.AppendLine("</a>");
@@ -442,46 +442,44 @@ public class HomebaseSsrService(
                 var bodyHtml = ArticleBodyRenderer.Render(bodyJson, post.Content.BodyDoc, post.PayloadUrl);
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
-
-                // render the reaction preview
-
-                try
-                {
-                    if (null != post.ReactionSummary)
-                    {
-                        contentBuilder.AppendLine($"<h3>Comments {post.ReactionSummary.TotalCommentCount}</h3>");
-                        contentBuilder.AppendLine("<ul>");
-                        foreach (var comment in post.ReactionSummary.Comments ?? [])
-                        {
-                            contentBuilder.AppendLine("<li>");
-                            var href = $"<a href='{E($"https://{comment.OdinId}")}'>{E(comment.OdinId)}</a>";
-                            contentBuilder.AppendLine($"{href} : {E(comment.Content)} ({comment.Updated.ToDateTime()})");
-
-                            contentBuilder.AppendLine("<span>");
-                            foreach (var reaction in comment.Reactions ?? [])
-                            {
-                                contentBuilder.AppendLine($"{E(reaction.ReactionContent)} ({reaction.Count})");
-                            }
-
-                            contentBuilder.AppendLine("</span>");
-
-                            contentBuilder.AppendLine("</li>");
-                        }
-
-                        contentBuilder.AppendLine("</ul>");
-                    }
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, "Failed to render reaction summary");
-                }
-
                 contentBuilder.AppendLine($"</div>");
             }
         }
         catch (Exception e)
         {
-            logger.LogDebug(e, "Failed to Post article body");
+            logger.LogWarning(e, "Failed to render the body of post {f} on channel [{ck}]", post.FileId, channelKey);
+        }
+
+        // the reaction preview renders even when the body could not
+        try
+        {
+            if (null != post.ReactionSummary)
+            {
+                contentBuilder.AppendLine($"<h3>Comments {post.ReactionSummary.TotalCommentCount}</h3>");
+                contentBuilder.AppendLine("<ul>");
+                foreach (var comment in post.ReactionSummary.Comments ?? [])
+                {
+                    contentBuilder.AppendLine("<li>");
+                    var href = $"<a href='{E($"https://{comment.OdinId}")}'>{E(comment.OdinId)}</a>";
+                    contentBuilder.AppendLine($"{href} : {E(comment.Content)} ({comment.Updated.ToDateTime()})");
+
+                    contentBuilder.AppendLine("<span>");
+                    foreach (var reaction in comment.Reactions ?? [])
+                    {
+                        contentBuilder.AppendLine($"{E(reaction.ReactionContent)} ({reaction.Count})");
+                    }
+
+                    contentBuilder.AppendLine("</span>");
+
+                    contentBuilder.AppendLine("</li>");
+                }
+
+                contentBuilder.AppendLine("</ul>");
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to render reaction summary");
         }
     }
 

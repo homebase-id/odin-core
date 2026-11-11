@@ -143,6 +143,7 @@ public static class TiptapRichTextParser
     private sealed class Renderer(Func<string, string?, string?>? payloadUrl)
     {
         private readonly HashSet<string> _usedSlugs = [];
+        private readonly Dictionary<string, int> _nextSuffix = [];
         private readonly Dictionary<string, int> _footnoteNumbers = [];
 
         public string Render(JsonNode? node) => node is JsonObject obj ? RenderNode(obj) : "";
@@ -381,7 +382,10 @@ public static class TiptapRichTextParser
         {
             var slug = BaseSlug(text);
             var candidate = slug;
-            for (var n = 2; !_usedSlugs.Add(candidate); n++) candidate = $"{slug}-{n}";
+            // the next suffix per base slug keeps N equal headings linear, not quadratic
+            var n = _nextSuffix.GetValueOrDefault(slug, 2);
+            while (!_usedSlugs.Add(candidate)) candidate = $"{slug}-{n++}";
+            _nextSuffix[slug] = n;
             return candidate;
         }
 
@@ -579,8 +583,19 @@ public static class TiptapRichTextParser
             ? (int)d
             : null;
 
-    private static string? Str(JsonNode? node) =>
-        node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+    /// <summary>Null for a string that is not valid UTF-16 (a lone surrogate, e.g. an emoji cut in half),
+    /// so one bad string drops itself and not the whole document</summary>
+    private static string? Str(JsonNode? node)
+    {
+        try
+        {
+            return node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
 
     private static string Enc(string? text) => WebUtility.HtmlEncode(text ?? "");
 }

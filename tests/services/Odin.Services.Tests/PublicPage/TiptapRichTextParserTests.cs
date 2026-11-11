@@ -158,6 +158,38 @@ public class TiptapRichTextParserTests
     }
 
     [Test]
+    public void HeadingIds_ManyRepeats_StayLinearAndSkipLiteralSuffixes()
+    {
+        var h = """{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"a"}]}""";
+        var literal = """{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"a 2"}]}""";
+        var json = $$"""{"type":"doc","content":[{{literal}},{{string.Join(",", Enumerable.Repeat(h, 20000))}}]}""";
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var html = TiptapRichTextParser.Parse(json)!;
+
+        Assert.That(watch.Elapsed.TotalSeconds, Is.LessThan(2)); // was 11.5 s when the suffix search restarted at 2
+        Assert.That(html, Does.Contain("<h2 id=\"a-2\">a 2</h2>"));
+        Assert.That(html, Does.Contain("<h2 id=\"a\">a</h2>"));
+        Assert.That(html, Does.Contain("<h2 id=\"a-3\">a</h2>"));
+        Assert.That(html, Does.Not.Contain("id=\"a-2\">a</h2>"));
+    }
+
+    [Test]
+    public void LoneSurrogate_DropsOnlyThatString()
+    {
+        // what JSON.stringify writes for an emoji cut in half
+        var json = """
+                   {"type":"doc","content":[
+                     {"type":"paragraph","content":[{"type":"text","text":"cut \ud83d"}]},
+                     {"type":"paragraph","content":[{"type":"text","text":"kept"}]}]}
+                   """;
+
+        Assert.That(TiptapRichTextParser.Parse(json), Does.Contain("kept"));
+        Assert.That(PlateRichTextParser.Parse("""[{"type":"p","children":[{"text":"cut \ud83d"}]},{"type":"p","children":[{"text":"kept"}]}]"""),
+            Does.Contain("kept"));
+    }
+
+    [Test]
     public void HeadingIds_FollowTheViewerSlugRule()
     {
         var json = """
