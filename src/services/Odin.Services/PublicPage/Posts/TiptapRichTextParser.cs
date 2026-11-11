@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -23,7 +22,9 @@ public static class TiptapRichTextParser
 
     private static readonly Regex LanguageRegex = new(@"[^a-z0-9_+#.-]", RegexOptions.CultureInvariant);
 
-    private static readonly HashSet<string> TextAligns = ["left", "center", "right", "justify"];
+    // left is the default, so it needs no style
+    private static readonly HashSet<string> TextAligns = ["center", "right", "justify"];
+    private static readonly HashSet<string> ImageAligns = ["left", "right", "center"];
     private static readonly HashSet<string> GalleryLayouts = ["row", "grid", "masonry", "carousel"];
 
     private static readonly Dictionary<string, string> CalloutLabels = new()
@@ -40,39 +41,44 @@ public static class TiptapRichTextParser
     /// <param name="json">The Tiptap doc JSON</param>
     /// <param name="payloadUrl">Maps an image fileKey to a URL for the post's payload, or null when unknown</param>
     /// <returns>The HTML, or null when the JSON is not a document this can read</returns>
-    public static string? Parse(string json, Func<string, string?, string?>? payloadUrl = null)
+    public static string? Parse(string json, Func<string, string?, string?>? payloadUrl = null) =>
+        Guard(() => JsonNode.Parse(json) is JsonObject root ? new Renderer(payloadUrl).Render(root) : null);
+
+    /// <inheritdoc cref="Parse(string, Func{string, string?, string?}?)"/>
+    public static string? Parse(JsonElement doc, Func<string, string?, string?>? payloadUrl = null) =>
+        Guard(() => JsonObject.Create(doc) is { } root ? new Renderer(payloadUrl).Render(root) : null);
+
+    /// <summary>
+    /// The document's prose as one line of plain text, cut at a word boundary to at most maxLength characters
+    /// (with an ellipsis when cut), for a meta description, JSON-LD or RSS. Code blocks (live blocks included)
+    /// and footnotes are left out. Null when there is no text or the JSON is unreadable.
+    /// </summary>
+    public static string? Excerpt(string json, int maxLength) =>
+        Guard(() => JsonNode.Parse(json) is JsonObject root ? ExcerptOf(root, maxLength) : null);
+
+    /// <inheritdoc cref="Excerpt(string, int)"/>
+    public static string? Excerpt(JsonElement doc, int maxLength) =>
+        Guard(() => JsonObject.Create(doc) is { } root ? ExcerptOf(root, maxLength) : null);
+
+    /// <summary>Null for a document this can't read: malformed JSON, or a node with duplicate keys
+    /// (JsonObject only finds out when it is read)</summary>
+    private static string? Guard(Func<string?> read)
     {
         try
         {
-            return JsonNode.Parse(json) is JsonObject root ? new Renderer(payloadUrl).Render(root) : null;
+            return read();
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException or ArgumentException or FormatException)
         {
-            // malformed JSON, or a node with duplicate keys (JsonObject only finds out when it is read)
             return null;
         }
     }
 
-    /// <summary>
-    /// The document's prose as one line of plain text, cut at a word boundary to at most maxLength characters
-    /// (with an ellipsis when cut), for a meta description, JSON-LD or RSS. Code blocks (live blocks included),
-    /// math, images, link previews and footnotes are left out. Null when there is no text or the JSON is unreadable.
-    /// </summary>
-    public static string? Excerpt(string json, int maxLength)
+    private static string? ExcerptOf(JsonObject root, int maxLength)
     {
-        string text;
-        try
-        {
-            if (JsonNode.Parse(json) is not JsonObject root) return null;
-            var sb = new StringBuilder();
-            ExcerptText(root, sb, maxLength * 2);
-            text = WhitespaceRegex.Replace(sb.ToString(), " ").Trim();
-        }
-        catch (Exception e) when (e is JsonException or InvalidOperationException or ArgumentException or FormatException)
-        {
-            return null;
-        }
-
+        var sb = new StringBuilder();
+        ExcerptText(root, sb, maxLength * 2);
+        var text = WhitespaceRegex.Replace(sb.ToString(), " ").Trim();
         return text.Length == 0 ? null : Cut(text, maxLength);
     }
 
@@ -84,8 +90,8 @@ public static class TiptapRichTextParser
         var attrs = obj["attrs"] as JsonObject;
         switch (Str(obj["type"]))
         {
-            case "codeBlock" or "blockMath" or "inlineMath" or "image" or "gallery" or "linkPreview" or "footnotes"
-                or "footnoteReference" or "horizontalRule":
+            // the rest without prose keep their data in attrs, which this never reads
+            case "codeBlock" or "footnotes":
                 return;
             case "hardBreak":
                 sb.Append(' ');
@@ -94,7 +100,7 @@ public static class TiptapRichTextParser
                 sb.Append(Str(attrs?["label"]));
                 return;
             case "mention":
-                if (!string.IsNullOrWhiteSpace(Str(attrs?["id"]))) sb.Append('@').Append(Str(attrs?["id"])!.Trim());
+                if (Str(attrs?["id"])?.Trim() is { Length: > 0 } id) sb.Append('@').Append(id);
                 return;
             case "toggle":
                 sb.Append(' ').Append(Str(attrs?["summary"])).Append(' ');
@@ -111,7 +117,7 @@ public static class TiptapRichTextParser
         }
     }
 
-    private static string Cut(string text, int maxLength)
+    internal static string Cut(string text, int maxLength)
     {
         if (maxLength <= 0 || text.Length <= maxLength) return text;
         var cut = text[..Math.Max(1, maxLength - 1)];
@@ -127,19 +133,17 @@ public static class TiptapRichTextParser
         private readonly HashSet<string> _usedSlugs = [];
         private readonly Dictionary<string, int> _footnoteNumbers = [];
 
-        public string Render(JsonNode? node, string? parentType = null) =>
-            node is JsonObject obj ? RenderNode(obj, parentType) : "";
+        public string Render(JsonNode? node) => node is JsonObject obj ? RenderNode(obj) : "";
 
         private string Kids(JsonObject obj)
         {
             if (obj["content"] is not JsonArray children) return "";
-            var type = Str(obj["type"]);
             var sb = new StringBuilder();
-            foreach (var child in children) sb.Append(Render(child, type));
+            foreach (var child in children) sb.Append(Render(child));
             return sb.ToString();
         }
 
-        private string RenderNode(JsonObject obj, string? parentType)
+        private string RenderNode(JsonObject obj)
         {
             var attrs = obj["attrs"] as JsonObject;
             switch (Str(obj["type"]))
@@ -194,17 +198,24 @@ public static class TiptapRichTextParser
                 case "hardBreak":
                     return "<br/>";
                 case "image":
-                    return RenderImage(attrs, parentType == "gallery");
+                    return RenderImage(attrs, inGallery: false);
                 case "gallery":
                 {
-                    var layout = Str(attrs?["layout"]);
-                    layout = layout != null && GalleryLayouts.Contains(layout) ? layout : "row";
-                    return $"<div class=\"gallery gallery-{layout}\">{Kids(obj)}</div>\n";
+                    var layout = Pick(Str(attrs?["layout"]), GalleryLayouts) ?? "row";
+                    // a gallery lays its images out itself
+                    var images = new StringBuilder();
+                    foreach (var child in obj["content"] as JsonArray ?? [])
+                    {
+                        images.Append(child is JsonObject co && Str(co["type"]) == "image"
+                            ? RenderImage(co["attrs"] as JsonObject, inGallery: true)
+                            : Render(child));
+                    }
+
+                    return $"<div class=\"gallery gallery-{layout}\">{images}</div>\n";
                 }
                 case "callout":
                 {
-                    var variant = Str(attrs?["variant"]);
-                    variant = variant != null && CalloutLabels.ContainsKey(variant) ? variant : "info";
+                    var variant = Str(attrs?["variant"]) is { } v && CalloutLabels.ContainsKey(v) ? v : "info";
                     return $"<aside class=\"callout callout-{variant}\" role=\"note\" aria-label=\"{CalloutLabels[variant]}\">{Kids(obj)}</aside>\n";
                 }
                 case "toggle":
@@ -249,7 +260,7 @@ public static class TiptapRichTextParser
         private static string RenderCodeBlock(JsonObject obj, JsonObject? attrs)
         {
             var info = Str(attrs?["language"])?.Trim() ?? "";
-            var first = info.Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+            var first = info.Split((char[]?)null, 2)[0];
             var lang = LanguageRegex.Replace(first.ToLowerInvariant(), "");
             if (lang.Length > 32) lang = lang[..32];
 
@@ -338,8 +349,8 @@ public static class TiptapRichTextParser
             // a gallery lays its images out itself
             var width = inGallery ? null : Int(attrs?["width"]);
             var widthAttr = width is > 0 and <= 10000 ? $" width=\"{width}\"" : "";
-            var align = inGallery ? null : Str(attrs?["align"]);
-            var cls = align is "left" or "right" or "center" ? $" class=\"align-{align}\"" : "";
+            var align = inGallery ? null : Pick(Str(attrs?["align"]), ImageAligns);
+            var cls = align == null ? "" : $" class=\"align-{align}\"";
             return $"<figure{cls}><img src=\"{Enc(src)}\" alt=\"{Enc(alt)}\"{widthAttr} />{captionHtml}</figure>\n";
         }
 
@@ -426,7 +437,15 @@ public static class TiptapRichTextParser
     private static string PlainText(JsonNode? node)
     {
         if (node is not JsonObject obj) return "";
-        if (Str(obj["type"]) == "hardBreak") return "\n";
+        switch (Str(obj["type"]))
+        {
+            case "hardBreak":
+                return "\n";
+            case "noteLink":
+                // as the JS viewer, which turns it into its label, so heading ids match
+                return Str((obj["attrs"] as JsonObject)?["label"]) ?? "";
+        }
+
         if (Str(obj["text"]) is { } text) return text;
         if (obj["content"] is not JsonArray children) return "";
         var sb = new StringBuilder();
@@ -455,26 +474,32 @@ public static class TiptapRichTextParser
     /// <summary>text-align and Journal's indent (2rem a step), from allow-listed values only</summary>
     private static string BlockStyle(JsonObject? attrs)
     {
-        var align = Str(attrs?["textAlign"]);
-        var indent = Math.Clamp(Int(attrs?["indent"]) ?? 0, 0, 20);
-        var style = new StringBuilder();
-        if (align != null && TextAligns.Contains(align) && align != "left") style.Append($"text-align:{align};");
-        if (indent > 0) style.Append($"padding-left:{indent * 2}rem;");
-        return style.Length == 0 ? "" : $" style=\"{style}\"";
+        if (attrs == null) return "";
+        var align = Pick(Str(attrs["textAlign"]), TextAligns);
+        var indent = Math.Clamp(Int(attrs["indent"]) ?? 0, 0, 20);
+        if (align == null && indent == 0) return "";
+        var alignCss = align == null ? "" : $"text-align:{align};";
+        var indentCss = indent == 0 ? "" : $"padding-left:{indent * 2}rem;";
+        return $" style=\"{alignCss}{indentCss}\"";
     }
 
     private static string Span(JsonObject? attrs)
     {
-        var colspan = Int(attrs?["colspan"]);
-        var rowspan = Int(attrs?["rowspan"]);
-        var sb = new StringBuilder();
-        if (colspan is > 1 and <= 1000) sb.Append($" colspan=\"{colspan}\"");
-        if (rowspan is > 1 and <= 1000) sb.Append($" rowspan=\"{rowspan}\"");
-        return sb.ToString();
+        if (attrs == null) return "";
+        var colspan = Int(attrs["colspan"]);
+        var rowspan = Int(attrs["rowspan"]);
+        return (colspan is > 1 and <= 1000 ? $" colspan=\"{colspan}\"" : "") +
+               (rowspan is > 1 and <= 1000 ? $" rowspan=\"{rowspan}\"" : "");
     }
 
     /// <summary>The viewer's footnote id rule: only word characters and '-'</summary>
-    private static string IdSafe(string? id) => Regex.Replace(id ?? "", @"[^\w-]", "");
+    private static string IdSafe(string? id) => IdUnsafeRegex.Replace(id ?? "", "");
+
+    private static readonly Regex IdUnsafeRegex = new(@"[^\w-]", RegexOptions.CultureInvariant);
+
+    /// <summary>The value when it is one of the allowed ones, else null</summary>
+    private static string? Pick(string? value, HashSet<string> allowed) =>
+        value != null && allowed.Contains(value) ? value : null;
 
     private static string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : url;
 
