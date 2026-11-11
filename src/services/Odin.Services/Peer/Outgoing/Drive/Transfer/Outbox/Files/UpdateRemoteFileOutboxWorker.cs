@@ -220,12 +220,24 @@ public class UpdateRemoteFileOutboxWorker(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
+    protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
-        var nextRunTime = CalculateNextRunTime(e.TransferStatus);
-        return Task.FromResult(nextRunTime);
+
+        // As SendFileOutboxWorkerAsync does: without it the recipient kept its last status, usually Delivered from the
+        // first send, so the sender couldn't tell the edit was stuck (#2087)
+        var update = new UpdateTransferHistoryData()
+        {
+            IsInOutbox = true,
+            LatestTransferStatus = e.TransferStatus,
+            VersionTag = null
+        };
+
+        var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, null);
+
+        return CalculateNextRunTime(e.TransferStatus);
     }
 
     protected override async Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,

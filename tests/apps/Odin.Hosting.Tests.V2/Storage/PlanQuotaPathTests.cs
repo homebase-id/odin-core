@@ -191,6 +191,57 @@ public class PlanQuotaPathTests : V2Fixture
         Assert.That(received.Single().FileMetadata.Payloads.Single().Key, Is.EqualTo(payloads[0].Key), "with its payload");
     }
 
+    // #2087: an edit the outbox is retrying was recorded nowhere, so the recipient kept its Delivered from the first send
+    [Test]
+    public async Task AnEditWaitingForRoomIsRecordedAsStillBeingTried()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var drive = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write);
+
+        var send = await sam.V1.Drive.UploadNewMetadata(drive, SharedMetadata("before"),
+            new TransitOptions { Recipients = [frodo.Identity] });
+        Assert.That(send.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        await PeerFlow.DistributeAsync(sam, frodo, drive);
+        var file = send.Content!.File;
+        Assert.That((await sam.V1.Drive.GetTransferHistory(file)).Content!.GetHistoryItem(frodo.Identity).LatestTransferStatus,
+            Is.EqualTo(LatestTransferStatus.Delivered), "the first send arrived");
+
+        await SetPlanAsync(Identities.Frodo, FullPlan);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var after = SharedMetadata("after");
+        after.VersionTag = send.Content.NewVersionTag;
+        var update = await sam.V1.Drive.UpdateFile(new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = file.ToFileIdentifier(),
+            Recipients = [frodo.Identity],
+            Manifest = new UploadManifest
+            {
+                PayloadDescriptors =
+                [
+                    new UploadManifestPayloadDescriptor
+                    {
+                        PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
+                        Iv = Guid.Empty.ToByteArray(),
+                        PayloadKey = payload.Key,
+                        ContentType = payload.ContentType,
+                        Thumbnails = []
+                    }
+                ]
+            }
+        }, after, [payload]);
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        await sam.Sync.DrainOutboxAsync();
+        var waiting = (await sam.V1.Drive.GetTransferHistory(file)).Content!.GetHistoryItem(frodo.Identity);
+        Assert.That(waiting.LatestTransferStatus, Is.EqualTo(LatestTransferStatus.RecipientIdentityOutOfStorage),
+            "the sender knows the edit is waiting, and why");
+        Assert.That(waiting.IsInOutbox, Is.True, "and that it is still trying");
+    }
+
     [Test]
     public async Task APeerUpdateThatAddsAPayloadWaitsUntilSetPlanGivesRoom()
     {
