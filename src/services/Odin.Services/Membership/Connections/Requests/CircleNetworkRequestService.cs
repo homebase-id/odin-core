@@ -584,6 +584,10 @@ namespace Odin.Services.Membership.Connections.Requests
                     OdinClientErrorCode.RecipientIdentityNotConfigured);
             }
 
+            // Pre-flight: refuse a request our data is too old to accept (#2105).  Checked before the
+            // request is stored, so the sender hears it now and can retry once we have upgraded.
+            await AssertDataIsCurrentForConnectingAsync(odinContext.GetCallerOdinIdOrFail());
+
             try
             {
                 //TODO: check robot detection code
@@ -851,6 +855,10 @@ namespace Odin.Services.Membership.Connections.Requests
             IOdinContext odinContext, ClientAuthenticationToken callerToken = null)
         {
             header.Validate();
+
+            // Every accept goes through here: auto-accepts (app-initiated and introductions), a manual
+            // accept-incoming and send-becomes-accept.  Refuse before anything is written (#2105).
+            await AssertDataIsCurrentForConnectingAsync((OdinId)header.Sender);
 
             // [DEBUG-754] Trace the entry point so we can tell whether AcceptConnectionRequestAsync
             // was reached via the IdentityOwner Send short-circuit, an explicit accept-incoming
@@ -1977,6 +1985,33 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             return circles;
+        }
+
+        /// <summary>
+        /// Throws <see cref="OdinClientErrorCode.RecipientRequiresUpgrade"/> when this tenant's data is below
+        /// the release's data version.
+        /// </summary>
+        /// <remarks>
+        /// A connection is granted the <see cref="CircleGrantOn.Connect"/> circles, and stored circles only
+        /// become Connect circles in v17 -&gt; v18, while the system circles that used to carry chat access are
+        /// no longer granted.  On older data an accept succeeds with no grants at all, and every write the
+        /// new contact makes is refused (#2105).  Deliberately stricter than
+        /// <see cref="VersionUpgradeScheduler.RequiresUpgradeAsync"/>: an upgrade that failed on this build is
+        /// still too old to connect on.
+        /// </remarks>
+        private async Task AssertDataIsCurrentForConnectingAsync(OdinId sender)
+        {
+            var (_, tenantVersion, _) = await versionUpgradeScheduler.RequiresUpgradeAsync();
+            if (tenantVersion >= Version.DataVersionNumber)
+            {
+                return;
+            }
+
+            logger.LogInformation("Refusing connection from {sender}: tenant data is v{tenant}, release is v{release}",
+                sender, tenantVersion, Version.DataVersionNumber);
+
+            throw new OdinClientException("Recipient identity server requires a version upgrade",
+                OdinClientErrorCode.RecipientRequiresUpgrade);
         }
 
         private async Task<List<GuidId>> EnabledConnectCircleIdsAsync()
