@@ -1,8 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using Odin.Services.Configuration;
 
 #nullable enable
 
@@ -15,31 +14,42 @@ namespace Odin.Services.Email;
 /// </summary>
 public static class MtaStsPolicy
 {
-    // "testing" until the mail servers are live and proven; flipping to "enforce" changes
-    // the policy body and thereby the published id, which is what makes receivers refetch
-    private const string Mode = "testing";
-    private const int MaxAgeSeconds = 86400;
+    /// <summary>
+    /// "testing" until the mail servers are live and proven. A fleet switches to "enforce" by config
+    /// (<c>Email:TenantMail:MtaStsMode</c>), which changes the policy body and thereby the published id, which is what
+    /// makes receivers refetch; only once every MX node serves a certificate valid for its name
+    /// (docs/stalwart-production-checklist.md)
+    /// </summary>
+    public const string DefaultMode = "testing";
 
-    public static string Build(IEnumerable<string> mxNodes)
+    public const int DefaultMaxAgeSeconds = 86400;
+
+    /// <summary>The modes RFC 8461 allows</summary>
+    public static readonly string[] Modes = ["testing", "enforce", "none"];
+
+    /// <summary>RFC 8461's upper bound on max_age, about one year</summary>
+    public const int MaxMaxAgeSeconds = 31557600;
+
+    public static string Build(OdinConfiguration.TenantMailSection tenantMail)
     {
         var sb = new StringBuilder();
         sb.Append("version: STSv1\n");
-        sb.Append($"mode: {Mode}\n");
-        foreach (var node in mxNodes)
+        sb.Append($"mode: {tenantMail.MtaStsMode}\n");
+        foreach (var node in tenantMail.MxNodes)
         {
             sb.Append($"mx: {node}\n");
         }
-        sb.Append($"max_age: {MaxAgeSeconds}\n");
+        sb.Append($"max_age: {tenantMail.MtaStsMaxAgeSeconds}\n");
         return sb.ToString();
     }
 
     /// <summary>
-    /// Deterministic policy id: derived from the policy body, so it changes exactly when
-    /// the policy changes - no config knob, no clock dependency.
+    /// Deterministic policy id: derived from the whole policy body, so it changes exactly when
+    /// the policy changes, its mode and max_age included - no clock dependency.
     /// </summary>
-    public static string ComputeId(IEnumerable<string> mxNodes)
+    public static string ComputeId(OdinConfiguration.TenantMailSection tenantMail)
     {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(Build(mxNodes)));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(Build(tenantMail)));
         return Convert.ToHexString(hash)[..12].ToLowerInvariant();
     }
 }
