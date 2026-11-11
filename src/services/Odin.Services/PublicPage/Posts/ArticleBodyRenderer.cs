@@ -1,0 +1,54 @@
+#nullable enable
+using System;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+namespace Odin.Services.PublicPage.Posts;
+
+public static class ArticleBodyRenderer
+{
+    public const string TiptapFormat = "tiptap-v1";
+
+    /// <summary>
+    /// Renders bodyDoc when it is an object whose format is the string tiptap-v1, whose doc is an object and whose
+    /// slateHash is a string equal to the hash of the stored body; anything else renders the Slate body.
+    /// </summary>
+    /// <param name="bodyJson">Raw JSON text of the stored body</param>
+    /// <param name="bodyDoc">The post's bodyDoc as stored, in whatever shape</param>
+    /// <param name="payloadUrl">Maps an image's payload key and fileId (null for the post's own file) to a URL</param>
+    public static string? Render(string bodyJson, JsonElement? bodyDoc, Func<string, string?, string?>? payloadUrl = null)
+    {
+        if (TiptapDoc(bodyDoc, bodyJson) is { } doc)
+        {
+            var html = TiptapRichTextParser.Parse(doc.GetRawText(), payloadUrl);
+            if (html != null) return html;
+        }
+
+        return PlateRichTextParser.Parse(bodyJson, payloadUrl);
+    }
+
+    private static JsonElement? TiptapDoc(JsonElement? bodyDoc, string bodyJson)
+    {
+        if (bodyDoc is not { ValueKind: JsonValueKind.Object } d) return null;
+
+        if (!d.TryGetProperty("format", out var format) || format.ValueKind != JsonValueKind.String ||
+            format.GetString() != TiptapFormat)
+        {
+            return null;
+        }
+
+        if (!d.TryGetProperty("doc", out var doc) || doc.ValueKind != JsonValueKind.Object) return null;
+
+        if (!d.TryGetProperty("slateHash", out var hash) || hash.ValueKind != JsonValueKind.String ||
+            !string.Equals(hash.GetString(), Sha256Hex(bodyJson), StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return doc;
+    }
+
+    private static string Sha256Hex(string text) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
+}
