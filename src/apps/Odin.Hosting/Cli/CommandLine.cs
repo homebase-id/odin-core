@@ -12,7 +12,6 @@ using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
 using Odin.Hosting.Cli.Commands;
 using Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
-using Odin.Services.Background;
 using Odin.Services.Configuration;
 using Odin.Services.Dns.PowerDns;
 using Odin.Services.JobManagement;
@@ -52,9 +51,6 @@ public class CommandLine
             cb =>
             {
                 cb.ConfigureSystemServices(_config);
-                cb.RegisterType<NothingToWakeNotifier<JobRunnerBackgroundService>>()
-                    .As<IBackgroundServiceNotifier<JobRunnerBackgroundService>>()
-                    .SingleInstance();
             });
         _serviceProvider = _serviceProviders.ServiceProvider;
         _multiTenantContainer = _serviceProviders.MultiTenantContainer;
