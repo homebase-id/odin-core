@@ -749,6 +749,12 @@ public class OdinConfiguration
         public string DmarcReportEmail { get; init; } = "";
         public string TlsReportEmail { get; init; } = "";
 
+        /// <summary>The served MTA-STS policy's mode: testing, enforce or none (see <see cref="MtaStsPolicy"/>)</summary>
+        public string MtaStsMode { get; init; } = MtaStsPolicy.DefaultMode;
+
+        /// <summary>The served MTA-STS policy's max_age: how long a receiver caches it</summary>
+        public int MtaStsMaxAgeSeconds { get; init; } = MtaStsPolicy.DefaultMaxAgeSeconds;
+
         public TenantMailSection()
         {
             // Mockable support
@@ -764,6 +770,20 @@ public class OdinConfiguration
                 SpfIncludeTarget = config.Required<string>("Email:TenantMail:SpfIncludeTarget");
                 DmarcReportEmail = config.Required<string>("Email:TenantMail:DmarcReportEmail");
                 TlsReportEmail = config.Required<string>("Email:TenantMail:TlsReportEmail");
+
+                MtaStsMode = config.GetOrDefault("Email:TenantMail:MtaStsMode", MtaStsPolicy.DefaultMode);
+                if (!MtaStsPolicy.Modes.Contains(MtaStsMode))
+                {
+                    throw new OdinConfigException(
+                        $"Invalid Email:TenantMail:MtaStsMode '{MtaStsMode}': must be one of {string.Join(", ", MtaStsPolicy.Modes)}");
+                }
+
+                MtaStsMaxAgeSeconds = config.GetOrDefault("Email:TenantMail:MtaStsMaxAgeSeconds", MtaStsPolicy.DefaultMaxAgeSeconds);
+                if (MtaStsMaxAgeSeconds <= 0 || MtaStsMaxAgeSeconds > MtaStsPolicy.MaxMaxAgeSeconds)
+                {
+                    throw new OdinConfigException(
+                        $"Invalid Email:TenantMail:MtaStsMaxAgeSeconds {MtaStsMaxAgeSeconds}: must be 1 to {MtaStsPolicy.MaxMaxAgeSeconds}");
+                }
             }
         }
     }

@@ -15,6 +15,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 
@@ -38,8 +39,8 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// default <c>SetupCallerWithOwner</c> identity is the one the original operated as, leaving Frodo as
 /// the "remote" identity the data source names.
 ///
-/// The last test is the original's placeholder: it asserts nothing but <c>Assert.Pass</c> and keeps
-/// its case source so the expanded case count is unchanged. The four negative tests likewise keep the
+/// The last test was the original's placeholder (<c>Assert.Pass</c>); it now checks that an overwrite can't change a
+/// file's data source (#2108). The four negative tests keep the
 /// <c>expected</c> parameter they never read — in the original both rows carry <c>OK</c> (both callers
 /// reach the handler) and the assertion is the specific <c>BadRequest</c> error code instead.
 /// </remarks>
@@ -66,6 +67,16 @@ public class V1RemotePayloadTests : V2Fixture
     {
         yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
         yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
+    }
+
+    /// <summary>
+    /// An overwrite needs the drive's storage key, which the write-only app doesn't hold, so it's refused that first;
+    /// the owner reaches the data-source check.
+    /// </summary>
+    public static IEnumerable<object[]> OverwriteCases()
+    {
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.BadRequest];
     }
 
     [Test, TestCaseSource(nameof(RemotePayloadCases))]
@@ -197,6 +208,68 @@ public class V1RemotePayloadTests : V2Fixture
         Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(OdinClientErrorCode.MissingPayloadKeys));
     }
 
+    // #2108: the batch update compared DataSource by reference, so it refused any file that has one, the same one included
+    [Test, TestCaseSource(nameof(RemotePayloadCases))]
+    public async Task CanUpdateBatchAFileWithRemotePayloadsKeepingItsDataSource(CallerSpec spec, HttpStatusCode expected)
+    {
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var (metadata, file) = await UploadFileWithRemotePayloadsAsync(owner, spec.TargetDrive);
+
+        metadata.AppData.Content = "updated, same data source";
+        var response = await caller.V1.Drive.UpdateFile(UpdateInstructions(file), metadata, payloads: []);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            () => $"error code {WebScaffold.GetErrorCode(response.Error)}");
+
+        var header = (await owner.V1.Drive.GetFileHeader(file.File)).Content;
+        Assert.That(header!.FileMetadata.AppData.Content, Is.EqualTo("updated, same data source"));
+        Assert.That(header.FileMetadata.DataSource.Identity, Is.EqualTo(metadata.DataSource.Identity));
+    }
+
+    // #2108: once such an update is let through, it still can't store payload bytes for a file whose payloads are remote
+    [Test, TestCaseSource(nameof(RemotePayloadCases))]
+    public async Task FailToUpdateBatchPayloadBytesOnAFileWithRemotePayloads(CallerSpec spec, HttpStatusCode expected)
+    {
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var (metadata, file) = await UploadFileWithRemotePayloadsAsync(owner, spec.TargetDrive);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var instructions = UpdateInstructions(file,
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite)] });
+        var response = await caller.V1.Drive.UpdateFile(instructions, metadata, payloads: [payload]);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(OdinClientErrorCode.InvalidPayloadContent));
+    }
+
+    private static async Task<(UploadFileMetadata Metadata, UploadResult File)> UploadFileWithRemotePayloadsAsync(
+        OwnerSession owner, TargetDrive drive)
+    {
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        metadata.DataSource = new DataSource
+        {
+            Identity = new OdinId(Identities.Frodo),
+            DriveId = drive.Alias,
+            PayloadsAreRemote = true
+        };
+        var manifest = new UploadManifest
+        {
+            PayloadDescriptors = new List<TestPayloadDefinition> { SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1() }
+                .ToPayloadDescriptorList().ToList()
+        };
+
+        var upload = await owner.V1.Drive.UploadNewFile(drive, metadata, manifest, payloads: []);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
+        metadata.VersionTag = upload.Content!.NewVersionTag;
+        return (metadata, upload.Content);
+    }
+
+    private static FileUpdateInstructionSet UpdateInstructions(UploadResult file, UploadManifest manifest = null) => new()
+    {
+        Locale = UpdateLocale.Local,
+        TransferIv = ByteArrayUtil.GetRndByteArray(16),
+        File = file.File.ToFileIdentifier(),
+        Manifest = manifest ?? new UploadManifest { PayloadDescriptors = null }
+    };
+
     [Test, TestCaseSource(nameof(RemotePayloadCases))]
     public async Task FailToModifyRemotePayloadIdentityOnExistingFile_UpdateBatch(CallerSpec spec, HttpStatusCode expected)
     {
@@ -286,10 +359,33 @@ public class V1RemotePayloadTests : V2Fixture
         Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
     }
 
-    [Test, TestCaseSource(nameof(RemotePayloadCases))]
+    [Test, TestCaseSource(nameof(OverwriteCases))]
     public async Task FailToModifyRemotePayloadIdentityOnExistingFile_OverwriteFile(CallerSpec spec, HttpStatusCode expected)
     {
-        await Task.CompletedTask;
-        Assert.Pass("Overwrite file is going away");
+        // #2108: an overwrite that changed the DataSource was accepted, and left the file's old local payloads behind
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        var upload = await owner.V1.Drive.UploadNewMetadata(spec.TargetDrive, metadata);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
+
+        metadata.DataSource = new DataSource
+        {
+            Identity = new OdinId(Identities.Frodo),
+            DriveId = spec.TargetDrive.Alias
+        };
+        metadata.VersionTag = upload.Content!.NewVersionTag;
+        var response = await caller.V1.Drive.UploadNewMetadata(spec.TargetDrive, metadata, new TransitOptions(),
+            overwriteFileId: upload.Content.File.FileId);
+
+        // A caller that may not overwrite the file at all (a write-only app has no storage key) is still told that first
+        Assert.That(response.StatusCode, Is.EqualTo(expected));
+        if (expected == HttpStatusCode.BadRequest)
+        {
+            Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
+        }
+
+        var header = (await owner.V1.Drive.GetFileHeader(upload.Content.File)).Content;
+        Assert.That(header!.FileMetadata.DataSource, Is.Null, "the file keeps its own payloads");
     }
 }

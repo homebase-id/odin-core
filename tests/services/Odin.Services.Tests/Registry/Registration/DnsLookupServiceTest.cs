@@ -379,7 +379,7 @@ public class DnsLookupServiceTest
             email: TenantMailEnabled());
 
         // The _mta-sts TXT value embeds the policy id - compute the expectation the same way
-        var mtaStsValue = $"v=STSv1; id={Odin.Services.Email.MtaStsPolicy.ComputeId(configuration.Email.TenantMail.MxNodes)}";
+        var mtaStsValue = $"v=STSv1; id={Odin.Services.Email.MtaStsPolicy.ComputeId(configuration.Email.TenantMail)}";
         SetupQuery(mock, QueryType.TXT, $"_mta-sts.{TestDomain}", Txt($"_mta-sts.{TestDomain}", mtaStsValue));
 
         var service = CreateDnsLookupService(configuration, mock.Object);

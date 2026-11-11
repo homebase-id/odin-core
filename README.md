@@ -87,6 +87,8 @@ Email__TenantMail__TlsReportEmail=tls@dotyou.cloud \
 dotnet run --project src/apps/Odin.Hosting
 ```
 
+The served MTA-STS policy defaults to `mode: testing` and `max_age: 86400`. `Email:TenantMail:MtaStsMode` (`testing`, `enforce` or `none`) and `Email:TenantMail:MtaStsMaxAgeSeconds` change them. Switch a fleet to `enforce` only once every MX node in its policy serves a certificate valid for its name (`docs/stalwart-production-checklist.md`). The `_mta-sts` id is a hash of the whole policy, so it changes with either setting and receivers refetch.
+
 Expect one deliberate boot ERR — `Email:TenantMail:Enabled is true but Email:Provider is 'None'` — the startup verifier flagging the provider-less combination; tenant mail behavior itself works for testing (record emission, MTA-STS policy, the mail activation API).
 
 **Stale environment / "No certificate configured" trap.** The dev certificates from `src/apps/Odin.Hosting/https/` are imported into an environment's certificate store **only when an identity is first registered** — i.e. on the environment's very first run. Renewing the repo certs later does NOT propagate into an existing `$HOME/tmp/dotyou`; the identities keep their old certs, ACME renewal is deliberately impossible for `dotyou.cloud` domains (they resolve to 127.0.0.1), and once those stored certs expire every HTTPS connection dies mid-TLS-handshake ("unexpected eof"). The log symptoms are:
