@@ -282,7 +282,7 @@ public class HomebasePublicPageService(
 
         PostContent content = post.Content;
         string imageUrl = post.ImageUrl;
-        return (true, content.Caption, imageUrl, content.Abstract, post);
+        return (true, content.Caption, imageUrl, ArticleBodyRenderer.Description(content), post);
     }
 
     private async Task WriteGenericPreview(string indexFilePath, IOdinContext odinContext)
