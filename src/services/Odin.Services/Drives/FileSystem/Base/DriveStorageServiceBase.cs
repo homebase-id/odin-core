@@ -1155,6 +1155,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ? await EncryptKeyHeader(originFile.DriveId, keyHeader, odinContext)
                 : EncryptedKeyHeader.Empty();
 
+            // An overwrite keeps the file's DataSource, as the batch update and a peer's write do (#2108). Changing it left
+            // the old local payloads in the store with nothing pointing at them: whether to delete them goes by the new
+            // metadata, whose payloads are remote. After the caller's own checks, so one who may not overwrite still
+            // hears that, and before any payload is copied
+            AssertSameDataSource(existingServerHeader, newMetadata);
+
             // Snapshot what the committed header points at before anything is copied over it. Both the mid-copy
             // rollback and the post-commit-failure rollback below must leave these objects alone.
             var committedPayloads = existingServerHeader.FileMetadata.Payloads?.ToList() ?? [];
