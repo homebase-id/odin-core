@@ -360,16 +360,27 @@ namespace Odin.Services.Drives.FileSystem.Base
             //HACKed in for Feed drive -> Should become a data subscription check
             if (raiseEvent)
             {
-                if (await TryShouldRaiseDriveEventAsync(targetFile))
+                await PublishFileChangedAsync(targetFile, header, odinContext, ignoreFeedDistribution: ignoreFeedDistribution);
+            }
+        }
+
+        /// <summary>
+        /// Tells the rest of the system that <paramref name="file"/> changed, when its drive raises events
+        /// </summary>
+        private async Task PublishFileChangedAsync(InternalDriveFileId file, ServerFileHeader header, IOdinContext odinContext,
+            bool ignoreFeedDistribution = false, bool ignoreReactionPreviewCalculation = false, bool ignoreWebSocketNotification = false)
+        {
+            if (await TryShouldRaiseDriveEventAsync(file))
+            {
+                await TryPublishAsync(new DriveFileChangedNotification
                 {
-                    await TryPublishAsync(new DriveFileChangedNotification
-                    {
-                        File = targetFile,
-                        ServerFileHeader = header,
-                        OdinContext = odinContext,
-                        IgnoreFeedDistribution = ignoreFeedDistribution
-                    });
-                }
+                    File = file,
+                    ServerFileHeader = header,
+                    OdinContext = odinContext,
+                    IgnoreFeedDistribution = ignoreFeedDistribution,
+                    IgnoreReactionPreviewCalculation = ignoreReactionPreviewCalculation,
+                    IgnoreWebSocketNotification = ignoreWebSocketNotification
+                });
             }
         }
 
@@ -1189,14 +1200,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // job already queued for the old time re-reads the header and no-ops if it lost the race.
                 await TryScheduleExpiryAsync(serverHeader, odinContext);
 
-                if (serverHeader != null && await TryShouldRaiseDriveEventAsync(targetFile))
+                if (serverHeader != null)
                 {
-                    await TryPublishAsync(new DriveFileChangedNotification
-                    {
-                        File = targetFile,
-                        ServerFileHeader = serverHeader,
-                        OdinContext = odinContext,
-                    });
+                    await PublishFileChangedAsync(targetFile, serverHeader, odinContext);
                 }
             }
             finally
@@ -1284,15 +1290,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
-                if (await TryShouldRaiseDriveEventAsync(targetFile))
-                {
-                    await TryPublishAsync(new DriveFileChangedNotification
-                    {
-                        File = targetFile,
-                        ServerFileHeader = existingServerHeader,
-                        OdinContext = odinContext,
-                    });
-                }
+                await PublishFileChangedAsync(targetFile, existingServerHeader, odinContext);
             }
             finally
             {
@@ -1318,15 +1316,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await OverwriteMetadataInternal(newKeyHeader, existingServerHeader, newMetadata, newServerMetadata, odinContext);
 
-            if (await TryShouldRaiseDriveEventAsync(targetFile))
-            {
-                await TryPublishAsync(new DriveFileChangedNotification
-                {
-                    File = targetFile,
-                    ServerFileHeader = existingServerHeader,
-                    OdinContext = odinContext,
-                });
-            }
+            await PublishFileChangedAsync(targetFile, existingServerHeader, odinContext);
         }
 
         /// <summary>
@@ -1414,17 +1404,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.ServerMetadata.TransferHistory = updatedHistory;
             header.FileMetadata.SetCreatedModifiedWithDatabaseValue(header.FileMetadata.Created, modifiedTime);
 
-            if (await TryShouldRaiseDriveEventAsync(file))
-            {
-                await TryPublishAsync(new DriveFileChangedNotification
-                {
-                    File = file,
-                    ServerFileHeader = header,
-                    OdinContext = odinContext,
-                    IgnoreFeedDistribution = true,
-                    IgnoreReactionPreviewCalculation = true
-                });
-            }
+            await PublishFileChangedAsync(file, header, odinContext, ignoreFeedDistribution: true, ignoreReactionPreviewCalculation: true);
         }
 
         public async Task<bool> UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
@@ -1478,17 +1458,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
 
-                if (await TryShouldRaiseDriveEventAsync(file))
-                {
-                    await TryPublishAsync(new DriveFileChangedNotification
-                    {
-                        File = file,
-                        ServerFileHeader = header,
-                        OdinContext = odinContext,
-                        IgnoreFeedDistribution = true,
-                        IgnoreReactionPreviewCalculation = true
-                    });
-                }
+                await PublishFileChangedAsync(file, header, odinContext, ignoreFeedDistribution: true, ignoreReactionPreviewCalculation: true);
             }
             catch (OdinSecurityException)
             {
@@ -1574,16 +1544,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 // And publish the event
-                if (await TryShouldRaiseDriveEventAsync(targetFile))
-                {
-                    await TryPublishAsync(new DriveFileChangedNotification // TODO remove await
-                    {
-                        File = targetFile,
-                        ServerFileHeader = header,
-                        OdinContext = odinContext,
-                        IgnoreFeedDistribution = false
-                    });
-                }
+                await PublishFileChangedAsync(targetFile, header, odinContext);
             }
             finally
             {
@@ -1788,15 +1749,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // sets the new VersionTag and Updated on the header
             await WriteFileHeaderInternal(header, odinContext, CarrySendersWrite(header));
 
-            if (await TryShouldRaiseDriveEventAsync(file))
-            {
-                await TryPublishAsync(new DriveFileChangedNotification
-                {
-                    File = file,
-                    ServerFileHeader = header,
-                    OdinContext = odinContext,
-                });
-            }
+            await PublishFileChangedAsync(file, header, odinContext);
 
             return (header.FileMetadata.VersionTag.GetValueOrDefault(), UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
         }
@@ -1929,15 +1882,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata, newVersionTag);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
-            if (await TryShouldRaiseDriveEventAsync(file))
-            {
-                await TryPublishAsync(new DriveFileChangedNotification
-                {
-                    File = file,
-                    ServerFileHeader = updatedHeader,
-                    OdinContext = odinContext,
-                });
-            }
+            await PublishFileChangedAsync(file, updatedHeader, odinContext);
 
             return new UpdateLocalMetadataResult()
             {
@@ -1983,15 +1928,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
-            if (await TryShouldRaiseDriveEventAsync(file))
-            {
-                await TryPublishAsync(new DriveFileChangedNotification
-                {
-                    File = file,
-                    ServerFileHeader = updatedHeader,
-                    OdinContext = odinContext,
-                });
-            }
+            await PublishFileChangedAsync(file, updatedHeader, odinContext);
 
             return new UpdateLocalMetadataResult()
             {
@@ -2047,15 +1984,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             try
             {
                 var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
-                if (await TryShouldRaiseDriveEventAsync(file))
-                {
-                    await TryPublishAsync(new DriveFileChangedNotification
-                    {
-                        File = file,
-                        ServerFileHeader = updatedHeader,
-                        OdinContext = odinContext,
-                    });
-                }
+                await PublishFileChangedAsync(file, updatedHeader, odinContext);
             }
             catch (Exception e)
             {
@@ -2098,20 +2027,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             try
             {
                 var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
-                if (await TryShouldRaiseDriveEventAsync(file))
-                {
-                    await TryPublishAsync(new DriveFileChangedNotification
-                    {
-                        File = file,
-                        ServerFileHeader = updatedHeader,
-                        OdinContext = odinContext,
-                        // localReactions is only written in the group-reaction flow, which also raises
-                        // a ReactionPreviewUpdatedNotification (now a fileModified) carrying the full
-                        // fresh header. Suppress this redundant WS broadcast so a reaction sends the
-                        // header once; the MediatR event still fires for cache/feed handlers.
-                        IgnoreWebSocketNotification = true,
-                    });
-                }
+                // localReactions is only written in the group-reaction flow, which also raises
+                // a ReactionPreviewUpdatedNotification (now a fileModified) carrying the full
+                // fresh header. Suppress this redundant WS broadcast so a reaction sends the
+                // header once; the MediatR event still fires for cache/feed handlers.
+                await PublishFileChangedAsync(file, updatedHeader, odinContext, ignoreWebSocketNotification: true);
             }
             catch (Exception e)
             {
