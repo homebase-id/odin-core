@@ -12,13 +12,13 @@
     <!-- Direct reference to override the vulnerable transitive 3.0.308 from FusionCache (GHSA-hv8m-jj95-wg3x);
          3.1.9 is the first release past GHSA-qhrr-8q5h-9q3h (3.0.0 to 3.1.8) -->
     <PackageReference Include="MessagePack" Version="3.1.9" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.15" />
     <!-- Direct reference to override the vulnerable transitive 2.1.10 from Microsoft.Data.Sqlite (GHSA-2m69-gcr7-jv3q).
          The entire 2.1.x line is affected with no patch; the fix ships in the 3.x series. -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.15" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
-    <PackageReference Include="System.Runtime.Caching" Version="10.0.13" />
+    <PackageReference Include="System.Runtime.Caching" Version="10.0.15" />
     <PackageReference Include="ZiggyCreatures.FusionCache" Version="2.1.0" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.1.0" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.NeueccMessagePack" Version="2.1.0" />
