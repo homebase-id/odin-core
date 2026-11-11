@@ -206,6 +206,18 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinClientException("You've blocked this connection", OdinClientErrorCode.BlockedConnection);
             }
 
+            // Our own data too old to connect on (#2105): the grant the recipient would hold is minted from our
+            // Connect circles, which old data does not have yet.  Checked before anything is created or sent,
+            // and before the send-becomes-accept branch, so the caller hears it as its own upgrade.
+            var ownVersion = await DataVersionIfTooOldToConnectAsync();
+            if (ownVersion.HasValue)
+            {
+                logger.LogInformation("Refusing connection request to {recipient}: tenant data is v{tenant}, release is v{release}",
+                    recipient, ownVersion.Value, Version.DataVersionNumber);
+                throw new OdinClientException("This identity server requires a version upgrade before it can connect",
+                    OdinClientErrorCode.SenderRequiresUpgrade);
+            }
+
             // [DEBUG-754] Snapshot local state before any branching: ICR status, sent-request,
             // pending-incoming. These three answer "did we have any reason to short-circuit
             // into accept-mode?" If pending-incoming is non-null here, we will go through
@@ -536,6 +548,11 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 return new ConnectionRequestResult
                     { Outcome = AutoConnectOutcome.RecipientRequiresUpgrade, Detail = e.Message };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.SenderRequiresUpgrade)
+            {
+                return new ConnectionRequestResult
+                    { Outcome = AutoConnectOutcome.SenderRequiresUpgrade, Detail = e.Message };
             }
             catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RemoteServerReturnedForbidden)
             {
@@ -1988,30 +2005,39 @@ namespace Odin.Services.Membership.Connections.Requests
         }
 
         /// <summary>
-        /// Throws <see cref="OdinClientErrorCode.RecipientRequiresUpgrade"/> when this tenant's data is below
-        /// the release's data version.
+        /// Throws <see cref="OdinClientErrorCode.RecipientRequiresUpgrade"/> when this tenant's data is too old
+        /// to accept a connection on; see <see cref="DataVersionIfTooOldToConnectAsync"/>.
         /// </summary>
-        /// <remarks>
-        /// A connection is granted the <see cref="CircleGrantOn.Connect"/> circles, and stored circles only
-        /// become Connect circles in v17 -&gt; v18, while the system circles that used to carry chat access are
-        /// no longer granted.  On older data an accept succeeds with no grants at all, and every write the
-        /// new contact makes is refused (#2105).  Deliberately stricter than
-        /// <see cref="VersionUpgradeScheduler.RequiresUpgradeAsync"/>: an upgrade that failed on this build is
-        /// still too old to connect on.
-        /// </remarks>
         private async Task AssertDataIsCurrentForConnectingAsync(OdinId sender)
         {
-            var (_, tenantVersion, _) = await versionUpgradeScheduler.RequiresUpgradeAsync();
-            if (tenantVersion >= Version.DataVersionNumber)
+            var tenantVersion = await DataVersionIfTooOldToConnectAsync();
+            if (!tenantVersion.HasValue)
             {
                 return;
             }
 
             logger.LogInformation("Refusing connection from {sender}: tenant data is v{tenant}, release is v{release}",
-                sender, tenantVersion, Version.DataVersionNumber);
+                sender, tenantVersion.Value, Version.DataVersionNumber);
 
             throw new OdinClientException("Recipient identity server requires a version upgrade",
                 OdinClientErrorCode.RecipientRequiresUpgrade);
+        }
+
+        /// <summary>
+        /// This tenant's data version when it is below the release's, else null.
+        /// </summary>
+        /// <remarks>
+        /// A connection's grants, on both sides, are the <see cref="CircleGrantOn.Connect"/> circles, and stored
+        /// circles only become Connect circles in v17 -&gt; v18, while the system circles that used to carry chat
+        /// access are no longer granted.  On older data a connection is made with no grants at all, and every
+        /// write the other side makes is refused (#2105).  Deliberately stricter than
+        /// <see cref="VersionUpgradeScheduler.RequiresUpgradeAsync"/>: an upgrade that failed on this build is
+        /// still too old to connect on.
+        /// </remarks>
+        private async Task<int?> DataVersionIfTooOldToConnectAsync()
+        {
+            var (_, tenantVersion, _) = await versionUpgradeScheduler.RequiresUpgradeAsync();
+            return tenantVersion < Version.DataVersionNumber ? tenantVersion : null;
         }
 
         private async Task<List<GuidId>> EnabledConnectCircleIdsAsync()

@@ -22,6 +22,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -32,7 +33,8 @@ using static Odin.Hosting.Tests.V2.Ported.Connections.Introductions.Introduction
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
 
 /// <summary>
-/// #2105: an identity whose data is below the release's data version must not make connections.
+/// #2105: an identity whose data is below the release's data version must not make connections, as the
+/// recipient or as the sender.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -42,8 +44,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// refuses with <see cref="OdinClientErrorCode.RecipientRequiresUpgrade"/> until it has upgraded.
 /// </para>
 /// <para>
-/// v12 is what the identity in the report was on.  The data underneath is today's shape, so this pins the
-/// gate, not that each migration converts real v12 data (the per-version tests cover that).
+/// v12 is what the identity in the report was on.  <see cref="MakeDataOldAsync"/> also stores the Connect
+/// circles as v12 data has them; the rest of the data is today's shape, so this pins the gate, not that
+/// each migration converts real v12 data (the per-version tests cover that).
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -76,7 +79,7 @@ public class ConnectOnOldDataTests : V2Fixture
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
-        await ForceDataVersionAsync(sam, OldDataVersion);
+        await MakeDataOldAsync(sam);
 
         var response = await AutoConnectAsync(frodo, kind, sam.Identity);
 
@@ -96,7 +99,7 @@ public class ConnectOnOldDataTests : V2Fixture
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
-        await ForceDataVersionAsync(sam, OldDataVersion);
+        await MakeDataOldAsync(sam);
 
         var send = await frodo.Connections.SendConnectionRequest(sam.Identity);
 
@@ -116,7 +119,7 @@ public class ConnectOnOldDataTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await SendPendingRequestAsync(frodo, sam);
-        await ForceDataVersionAsync(sam, OldDataVersion);
+        await MakeDataOldAsync(sam);
 
         var accept = await sam.Connections.AcceptIncomingRequestV2Async(frodo.Identity, null);
 
@@ -132,13 +135,14 @@ public class ConnectOnOldDataTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await SendPendingRequestAsync(frodo, sam);
-        await ForceDataVersionAsync(sam, OldDataVersion);
+        await MakeDataOldAsync(sam);
 
-        // A request from frodo is waiting, so sam's send is an accept of it.
+        // A request from frodo is waiting, so sam's send is an accept of it.  Sam is the caller, so it hears
+        // the refusal as its own upgrade.
         var send = await sam.Connections.SendConnectionRequest(frodo.Identity);
 
         Assert.That(send.IsSuccessStatusCode, Is.False, "send-becomes-accept should be refused");
-        Assert.That(send.ErrorCode(), Is.EqualTo(OdinClientErrorCode.RecipientRequiresUpgrade), send.Error?.Content);
+        Assert.That(send.ErrorCode(), Is.EqualTo(OdinClientErrorCode.SenderRequiresUpgrade), send.Error?.Content);
         await AssertNotConnectedAsync(sam, frodo.Identity);
         await AssertNotConnectedAsync(frodo, sam.Identity);
     }
@@ -176,7 +180,7 @@ public class ConnectOnOldDataTests : V2Fixture
         var fromSam = await merry.Connections.GetIncomingRequestFrom(sam.Identity);
         Assert.That(fromSam.Content, Is.Not.Null, "precondition: sam's introductory request reached merry");
 
-        await ForceDataVersionAsync(merry, OldDataVersion);
+        await MakeDataOldAsync(merry);
 
         var force = await Requests(merry).AutoAcceptEligibleIntroductions();
         Assert.That(force.IsSuccessStatusCode, Is.True, $"auto-accept endpoint failed: {force.StatusCode}");
@@ -192,7 +196,7 @@ public class ConnectOnOldDataTests : V2Fixture
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
-        await ForceDataVersionAsync(sam, OldDataVersion);
+        await MakeDataOldAsync(sam);
 
         var refused = await AutoConnectAsync(frodo, CallerKind.Owner, sam.Identity);
         Assert.That(refused.Content!.Outcome, Is.EqualTo(AutoConnectOutcome.RecipientRequiresUpgrade),
@@ -236,7 +240,7 @@ public class ConnectOnOldDataTests : V2Fixture
             "precondition: no circle grants, as the accept on old data left it");
         Assert.That(await SendChatFileAsync(frodo, sam), Is.False, "precondition: frodo's chat is refused");
 
-        await ForceDataVersionAsync(sam, OldDataVersion);
+        await MakeDataOldAsync(sam);
         await RunUpgradeAsync(sam);
 
         Assert.That((await GetIcrAsync(sam, frodo.Identity)).PeerKeyStore.CircleGrants.Keys,
@@ -244,13 +248,88 @@ public class ConnectOnOldDataTests : V2Fixture
         Assert.That(await SendChatFileAsync(frodo, sam), Is.True, "frodo's chat file should reach sam after the upgrade");
     }
 
+    // Sender side -----------------------------------------------------------------------------
+
+    /// <summary>
+    /// The grant the recipient holds is minted from the sender's Connect circles.  On old data there are
+    /// none, so the sender's messages arrive while every reply is refused; the sender refuses to connect.
+    /// </summary>
+    [Test, TestCaseSource(nameof(AutoConnectCallers))]
+    public async Task AnAutoConnect_FromASenderOnOldData_IsRefusedAndNothingIsMade(CallerKind kind)
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await MakeDataOldAsync(frodo);
+
+        var response = await AutoConnectAsync(frodo, kind, sam.Identity);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
+        Assert.That(response.Content!.Outcome, Is.EqualTo(AutoConnectOutcome.SenderRequiresUpgrade),
+            $"detail: {response.Content.Detail}");
+
+        await AssertNotConnectedAsync(frodo, sam.Identity);
+        await AssertNotConnectedAsync(sam, frodo.Identity);
+        Assert.That((await frodo.Connections.GetOutgoingSentRequestTo(sam.Identity)).Content, Is.Null,
+            "nothing should be stored on the sender");
+        Assert.That((await sam.Connections.GetIncomingRequestFrom(frodo.Identity)).Content, Is.Null,
+            "nothing should reach the recipient");
+    }
+
+    [Test]
+    public async Task AnOwnerRequest_FromASenderOnOldData_IsRefusedWith5011()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await MakeDataOldAsync(frodo);
+
+        var send = await frodo.Connections.SendConnectionRequest(sam.Identity);
+
+        Assert.That(send.IsSuccessStatusCode, Is.False, "the send should be refused");
+        Assert.That(send.ErrorCode(), Is.EqualTo(OdinClientErrorCode.SenderRequiresUpgrade), send.Error?.Content);
+        Assert.That((await sam.Connections.GetIncomingRequestFrom(frodo.Identity)).Content, Is.Null,
+            "nothing should reach the recipient");
+    }
+
+    [Test]
+    public async Task AfterTheSendersUpgrade_ChatWorksBothWays()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await MakeDataOldAsync(frodo);
+
+        var refused = await AutoConnectAsync(frodo, CallerKind.Owner, sam.Identity);
+        Assert.That(refused.Content!.Outcome, Is.EqualTo(AutoConnectOutcome.SenderRequiresUpgrade),
+            $"precondition: refused before the upgrade; detail: {refused.Content.Detail}");
+
+        await RunUpgradeAsync(frodo);
+
+        var response = await AutoConnectAsync(frodo, CallerKind.Owner, sam.Identity);
+        Assert.That(response.Content!.Outcome, Is.EqualTo(AutoConnectOutcome.Connected), $"detail: {response.Content.Detail}");
+
+        Assert.That((await GetIcrAsync(frodo, sam.Identity)).PeerKeyStore.CircleGrants.Keys,
+            Does.Contain(BuiltinCircles.ChatCircle.Id.Value), "sam should be in frodo's Chat circle");
+        Assert.That(await SendChatFileAsync(frodo, sam), Is.True, "frodo's chat file should reach sam");
+        Assert.That(await SendChatFileAsync(sam, frodo), Is.True, "sam's reply should reach frodo");
+    }
+
     // -----------------------------------------------------------------------------------------
     // helpers
     // -----------------------------------------------------------------------------------------
 
-    private async Task ForceDataVersionAsync(OwnerSession owner, int version)
+    /// <summary>
+    /// Puts the owner's data in the shape the report's identity had: below the release's version, and with
+    /// no stored circle declaring <see cref="CircleGrantOn.Connect"/> yet -- only v17 -&gt; v18 writes that.
+    /// </summary>
+    private async Task MakeDataOldAsync(OwnerSession owner)
     {
-        await Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantConfigService>().ForceVersionNumberAsync(version);
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var definitions = scope.Resolve<CircleDefinitionService>();
+        foreach (var def in BuiltinApps.AllCircles.Where(c => c.GrantOn == CircleGrantOn.Connect))
+        {
+            await definitions.ApplyTreeDefinitionAsync(def.Id, def.AppId!.Value, CircleGrantOn.None, def.Designation);
+        }
+
+        await scope.Resolve<TenantConfigService>().ForceVersionNumberAsync(OldDataVersion);
     }
 
     /// <summary>The upgrade job the scheduler runs, as <c>SystemCircleRemovalMigrationTests</c> runs it.</summary>

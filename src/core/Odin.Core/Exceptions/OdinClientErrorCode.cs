@@ -133,6 +133,7 @@ public enum OdinClientErrorCode
     ConnectionRequestAlreadySent = 5007,
     RecipientIdentityNotConfigured = 5008,
     RecipientRequiresUpgrade = 5009,
+    SenderRequiresUpgrade = 5011, // the caller's own identity must upgrade before it may connect (#2105)
 
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
