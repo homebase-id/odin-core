@@ -1,0 +1,32 @@
+[
+  { "text": "Imported from " },
+  { "type": "a", "url": "https://blog.example.com/post", "text": "https://blog.example.com/post" },
+  { "text": " by " },
+  { "type": "mention", "value": "sam.dotyou.cloud" },
+  {
+    "type": "p",
+    "id": "w1",
+    "children": [
+      { "text": "Some " },
+      { "type": "strong", "children": [{ "text": "bold" }] },
+      { "text": " and " },
+      { "type": "em", "children": [{ "type": "strong", "children": [{ "text": "bold italic" }] }] },
+      { "text": " text." }
+    ]
+  },
+  { "type": "h3", "id": "w2", "children": [{ "text": "A third-level heading" }] },
+  {
+    "type": "figure",
+    "id": "w3",
+    "children": [
+      { "type": "local_image", "fileKey": "pst_rtei0", "children": [{ "text": "" }] },
+      { "type": "figcaption", "children": [{ "text": "A caption" }] }
+    ]
+  },
+  { "type": "image", "id": "w4", "url": "https://blog.example.com/remote.jpg", "children": [{ "text": "" }] },
+  { "type": "div", "id": "w5", "children": [{ "type": "p", "children": [{ "text": "Inside a div" }] }] },
+  { "type": "ul", "id": "w6", "children": [{ "type": "li", "children": [{ "text": "Inline list item" }] }] },
+  { "type": "blockquote", "id": "w7", "children": [{ "type": "p", "children": [{ "text": "Quoted paragraph" }] }] },
+  { "type": "link", "linkText": "Read the original", "linkTarget": "https://blog.example.com/post" },
+  { "type": "pre", "id": "w8", "children": [{ "text": "unknown tag text" }] }
+]
