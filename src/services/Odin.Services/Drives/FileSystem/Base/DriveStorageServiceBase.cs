@@ -2878,6 +2878,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
+            // A copy received over transit keeps the time it arrived through its owner's own update (#2101).  Only a peer's
+            // update sets one (PeerFileUpdateWriter), and keeps it
+            if (newMetadata.TransitCreated.milliseconds == 0)
+            {
+                newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
+            }
+
             ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 
             //fields we keep
