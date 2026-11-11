@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -52,7 +53,7 @@ public class TiptapRichTextParserTests
         Assert.That(html, Does.Contain("key=pst_rtei2"));
         Assert.That(html, Does.Contain("<a href=\"https://example.com/post\">Example post</a><p>A description</p>"));
         Assert.That(html, Does.Contain("<hr/>"));
-        Assert.That(html, Does.Contain("<li id=\"fn-fn1\"><p>The note</p>"));
+        Assert.That(html, Does.Contain("<li id=\"fn-fn1\" value=\"1\"><p>The note</p>"));
         Assert.That(html, Does.Not.Contain("<p><figure"));
     }
 
@@ -277,7 +278,7 @@ public class TiptapRichTextParserTests
 
         // footnotes: ids keep word characters and '-' only, like the viewer
         Assert.That(html, Does.Contain("<sup><a href=\"#fn-n1onclickx\" id=\"fnref-n1onclickx\">[1]</a></sup>"));
-        Assert.That(html, Does.Contain("<li id=\"fn-n1onclickx\"><p>The footnote</p>\n <a href=\"#fnref-n1onclickx\" aria-label=\"Back to reference\">&#8617;</a></li>"));
+        Assert.That(html, Does.Contain("<li id=\"fn-n1onclickx\" value=\"1\"><p>The footnote</p>\n <a href=\"#fnref-n1onclickx\" aria-label=\"Back to reference\">&#8617;</a></li>"));
 
         // nodes this renderer does not know keep their text
         Assert.That(html, Does.Contain("<p>future text kept</p>"));
@@ -377,9 +378,69 @@ public class TiptapRichTextParserTests
                 ",\"bodyDoc\":{\"format\":\"tiptap-v1\",\"slateHash\":\"" + hash + "\",\"doc\":" + TiptapDoc + "}}")!;
 
         Assert.That(ArticleBodyRenderer.Description(Content("The abstract", Hash(Body))), Is.EqualTo("The abstract"));
+        // the abstract stays whole: RSS and JSON-LD carry all of it
+        var longAbstract = string.Join(' ', Enumerable.Repeat("word", 80));
+        Assert.That(ArticleBodyRenderer.Description(Content(longAbstract, Hash(Body))), Is.EqualTo(longAbstract));
         Assert.That(ArticleBodyRenderer.Description(Content(null, Hash(Body))), Is.EqualTo("tiptap text"));
         Assert.That(ArticleBodyRenderer.Description(Content(" ", Hash(Body))), Is.EqualTo("tiptap text"));
         Assert.That(ArticleBodyRenderer.Description(Content(null, Hash("stale"))), Is.Null);
         Assert.That(ArticleBodyRenderer.Description(null), Is.Null);
+    }
+
+    [Test]
+    public void ImageEdits_HideTheCropAndTurnTheImage()
+    {
+        var html = TiptapRichTextParser.Parse("""
+            {"type":"doc","content":[{"type":"image","attrs":{"src":"https://e.x/a.jpg",
+              "crop":{"x":0.1,"y":0.2,"w":0.5,"h":0.6},"rotate":90,"flipH":true}}]}
+            """)!;
+        Assert.That(html, Does.Contain("clip-path:inset(20% 40% 20% 10%)"));
+        Assert.That(html, Does.Contain("transform:scale(-1,1) rotate(90deg);"));
+
+        var hostile = TiptapRichTextParser.Parse("""
+            {"type":"doc","content":[{"type":"image","attrs":{"src":"https://e.x/a.jpg",
+              "crop":{"x":"\"onload","y":0,"w":1,"h":1},"rotate":"45"}}]}
+            """)!;
+        Assert.That(hostile, Does.Not.Contain("style="));
+    }
+
+    [Test]
+    public void Footnotes_AreNumberedByReferenceOrder_WhereverTheSectionIs()
+    {
+        var html = TiptapRichTextParser.Parse("""
+            {"type":"doc","content":[
+              {"type":"footnotes","content":[
+                {"type":"footnote","attrs":{"id":"b"},"content":[{"type":"paragraph","content":[{"type":"text","text":"B"}]}]},
+                {"type":"footnote","attrs":{"id":"a"},"content":[{"type":"paragraph","content":[{"type":"text","text":"A"}]}]}]},
+              {"type":"paragraph","content":[{"type":"text","text":"x"},{"type":"footnoteReference","attrs":{"id":"a"}},
+                {"type":"footnoteReference","attrs":{"id":"b"}}]}]}
+            """)!;
+        Assert.That(html, Does.Contain("<li id=\"fn-b\" value=\"2\">"));
+        Assert.That(html, Does.Contain("<li id=\"fn-a\" value=\"1\">"));
+        Assert.That(html, Does.Contain("href=\"#fnref-b\""));
+    }
+
+    [Test]
+    public void NoteLink_KeepsItsMarks()
+    {
+        var html = TiptapRichTextParser.Parse("""
+            {"type":"doc","content":[{"type":"paragraph","content":[
+              {"type":"noteLink","attrs":{"noteId":"n","label":"Other <note>"},"marks":[{"type":"bold"}]}]}]}
+            """)!;
+        Assert.That(html, Does.Contain("<strong>Other &lt;note&gt;</strong>"));
+    }
+
+    [Test]
+    public void Excerpt_PutsNoSpaceBeforeInlineAtoms_AndCollapsesWhitespaceAsItGoes()
+    {
+        var excerpt = TiptapRichTextParser.Excerpt("""
+            {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Water boils"},
+              {"type":"footnoteReference","attrs":{"id":"a"}},{"type":"text","text":", usually"}]}]}
+            """, 160);
+        Assert.That(excerpt, Is.EqualTo("Water boils, usually"));
+
+        var spaced = "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"" +
+                     new string(' ', 500) + "prose\"}]}]}";
+        Assert.That(TiptapRichTextParser.Excerpt(spaced, 160), Is.EqualTo("prose"));
     }
 }
