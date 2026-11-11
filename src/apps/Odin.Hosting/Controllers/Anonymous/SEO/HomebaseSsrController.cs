@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using Odin.Services.PublicPage;
 using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
 using Odin.Services.PublicPage.Posts;
 using Odin.Services.PublicPage.Profile;
+using Odin.Services.PublicPage.Seo;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
 
@@ -136,7 +138,8 @@ public class HomebaseSsrController(
 
         // We need the post title in the tab title xxx
         string suffix = string.IsNullOrEmpty(post.Content.Caption) ? "Posts" : post.Content.Caption;
-        var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website");
+        var isArticle = string.Equals(post.Content.Type, "Article", StringComparison.OrdinalIgnoreCase);
+        var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website", post: isArticle ? post : null);
 
         var contentBuilder = new StringBuilder();
         await ssrService.WritePostBodyContent(channelKey, post, contentBuilder, WebOdinContext, HttpContext.RequestAborted);
@@ -145,7 +148,8 @@ public class HomebaseSsrController(
 
     private async Task<(string head, PersonSchema person)> BuildHeadSection(
         string suffix = LinkPreviewDefaults.DefaultTitle,
-        string siteType = "profile")
+        string siteType = "profile",
+        ChannelPost post = null)
     {
         var person = await profileContentService.LoadPersonSchema();
         var title = $"{person?.Name ?? WebOdinContext.Tenant} | {suffix}";
@@ -153,7 +157,26 @@ public class HomebaseSsrController(
                           Truncate(DataOrNull(person?.Bio), 160) ?? LinkPreviewDefaults.DefaultDescription;
         var imageUrl = profileContentService.GetPublicImageUrl(WebOdinContext);
 
-        var head = LayoutBuilder.BuildHeadContent(title, description, siteType, imageUrl, person, HttpContext, WebOdinContext);
+        ArticleSeo article = null;
+        if (post != null)
+        {
+            // the article's own image and abstract win over the profile's
+            imageUrl = post.ImageUrl ?? imageUrl;
+            description = DataOrNull(post.Content.Abstract) ?? description;
+            var authorUrl = $"https://{WebOdinContext.Tenant.DomainName}";
+            article = new ArticleSeo
+            {
+                Headline = post.Content.Caption,
+                Description = DataOrNull(post.Content.Abstract),
+                Published = post.Created.ToDateTimeOffset(),
+                Modified = post.Modified.ToDateTimeOffset(),
+                AuthorName = person?.Name ?? WebOdinContext.Tenant.DomainName,
+                AuthorUrl = authorUrl,
+                WordCount = post.Content.WordCount
+            };
+        }
+
+        var head = LayoutBuilder.BuildHeadContent(title, description, siteType, imageUrl, person, HttpContext, WebOdinContext, article);
         return (head.ToString(), person);
     }
 

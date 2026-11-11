@@ -8,6 +8,7 @@ using Odin.Core.Serialization;
 using Odin.Services.Base;
 using Odin.Services.PublicPage;
 using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
+using Odin.Services.PublicPage.Seo;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
 
@@ -42,10 +43,12 @@ public static class LayoutBuilder
         string imageUrl,
         PersonSchema person,
         HttpContext httpContext,
-        IOdinContext odinContext)
+        IOdinContext odinContext,
+        ArticleSeo article = null)
     {
-        title = HttpUtility.HtmlEncode(Truncate(title, MaxDescriptionLength));
-        description = HttpUtility.HtmlEncode(Truncate(description, MaxDescriptionLength));
+        title = Truncate(title, MaxDescriptionLength);
+        description = Truncate(description, MaxDescriptionLength);
+        var siteName = string.IsNullOrWhiteSpace(person?.Name) ? odinContext.Tenant.DomainName : person.Name;
 
         // var request = HttpContext.Request;
         // var canonical = new UriBuilder(request.Scheme, request.Host.Host)
@@ -59,16 +62,14 @@ public static class LayoutBuilder
         var b = new StringBuilder(1024);
 
         // SEO
-        b.AppendLine($"<title>{title}</title>");
-        b.AppendLine($"<meta name='description' content='{description}'/>");
+        b.AppendLine($"<title>{HttpUtility.HtmlEncode(title)}</title>");
+        b.AppendLine($"<meta name='description' content='{HttpUtility.HtmlEncode(description)}'/>");
 
-        // Open Graph
-        b.AppendLine($"<meta property='og:title' content='{title}'/>");
-        b.AppendLine($"<meta property='og:description' content='{description}'/>");
-        b.AppendLine($"<meta property='og:url' content='{humanReadableVersion}'/>");
-        b.AppendLine($"<meta property='og:site_name' content='{title}'/>");
-        b.AppendLine($"<meta property='og:type' content='{siteType}'/>");
-        b.AppendLine($"<meta property='og:image' content='{imageUrl}'/>");
+        // Open Graph, Twitter card, and article tags
+        b.Append(PageSeo.BuildMetaTags(title, description, siteName, siteType, humanReadableVersion, imageUrl, article));
+
+        b.AppendLine($"<link rel='alternate' type='application/rss+xml' title='{HttpUtility.HtmlEncode(siteName)}' " +
+                     $"href='https://{odinContext.Tenant.DomainName}/feed.xml' />");
 
         b.AppendLine($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContext)}' />");
         b.AppendLine($"<link rel='canonical' href='{humanReadableVersion}' />");

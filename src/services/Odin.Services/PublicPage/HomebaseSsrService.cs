@@ -14,6 +14,7 @@ using Odin.Services.DataSubscription.Follower;
 using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
 using Odin.Services.PublicPage.Posts;
 using Odin.Services.PublicPage.Profile;
+using Odin.Services.PublicPage.Seo;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.PublicPage;
@@ -217,6 +218,45 @@ public class HomebaseSsrService(
         CreateMenu(contentBuilder);
 
         return true;
+    }
+
+    private const int MaxFeedItems = 20;
+
+    /// <summary>RSS 2.0 feed of the latest public articles across all channels</summary>
+    public async Task<string> BuildFeed(IOdinContext odinContext)
+    {
+        var tenant = odinContext.Tenant.DomainName;
+        var person = await profileContentService.LoadPersonSchema();
+        var items = new List<(RssItem item, DateTimeOffset published)>();
+
+        try
+        {
+            foreach (var channel in await channelContentService.GetChannels(odinContext))
+            {
+                var (posts, _) = await channelContentService.GetChannelPosts(
+                    channel.Slug, odinContext, maxPosts: MaxFeedItems, includePayloadBody: false);
+
+                foreach (var post in posts.Where(p => string.Equals(p.Content.Type, "Article", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var slug = post.Content.Slug?.Trim();
+                    var id = string.IsNullOrEmpty(slug) || Guid.TryParse(slug, out _) ? post.FileId.ToString() : slug;
+                    var published = post.Created.ToDateTimeOffset();
+                    items.Add((new RssItem(post.Content.Caption, RssFeed.PostLink(tenant, channel.Slug, id),
+                        post.Content.Abstract, published), published));
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed rendering posts in feed");
+        }
+
+        return RssFeed.Build(
+            person?.Name ?? tenant,
+            $"https://{tenant}/",
+            person?.BioSummary ?? LinkPreviewDefaults.DefaultDescription,
+            $"https://{tenant}/feed.xml",
+            items.OrderByDescending(i => i.published).Take(MaxFeedItems).Select(i => i.item));
     }
 
     public async Task WriteSitemap(StringBuilder contentBuilder, IOdinContext odinContext)
