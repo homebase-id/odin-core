@@ -1505,10 +1505,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             // A member's update keeping a shared file's key becomes the file's own key header with the new IV
             manifest.KeyHeader = ZkDriveFiles.KeepFileKey(existingHeader, manifest.KeyHeader);
 
-            if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
+            // By value: the stored header and the manifest never share an instance, so a reference compare refused every
+            // update of a file with a DataSource, the same one included (#2108)
+            AssertSameDataSource(existingHeader, manifest.FileMetadata);
+
+            // A file whose payloads live on another identity stores none here, as on upload (FileSystemStreamWriterBase)
+            if (manifest.FileMetadata.PayloadsAreRemote &&
+                (manifest.PayloadInstruction ?? []).Any(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
             {
-                throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates",
-                    OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+                throw new OdinClientException("Payload content cannot be uploaded when RemotePayloadIdentity is set",
+                    OdinClientErrorCode.InvalidPayloadContent);
             }
 
             // First prepare by copying everything needed

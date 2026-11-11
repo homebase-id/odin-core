@@ -197,6 +197,68 @@ public class V1RemotePayloadTests : V2Fixture
         Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(OdinClientErrorCode.MissingPayloadKeys));
     }
 
+    // #2108: the batch update compared DataSource by reference, so it refused any file that has one, the same one included
+    [Test, TestCaseSource(nameof(RemotePayloadCases))]
+    public async Task CanUpdateBatchAFileWithRemotePayloadsKeepingItsDataSource(CallerSpec spec, HttpStatusCode expected)
+    {
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var (metadata, file) = await UploadFileWithRemotePayloadsAsync(owner, spec.TargetDrive);
+
+        metadata.AppData.Content = "updated, same data source";
+        var response = await caller.V1.Drive.UpdateFile(UpdateInstructions(file), metadata, payloads: []);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            () => $"error code {WebScaffold.GetErrorCode(response.Error)}");
+
+        var header = (await owner.V1.Drive.GetFileHeader(file.File)).Content;
+        Assert.That(header!.FileMetadata.AppData.Content, Is.EqualTo("updated, same data source"));
+        Assert.That(header.FileMetadata.DataSource.Identity, Is.EqualTo(metadata.DataSource.Identity));
+    }
+
+    // #2108: once such an update is let through, it still can't store payload bytes for a file whose payloads are remote
+    [Test, TestCaseSource(nameof(RemotePayloadCases))]
+    public async Task FailToUpdateBatchPayloadBytesOnAFileWithRemotePayloads(CallerSpec spec, HttpStatusCode expected)
+    {
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var (metadata, file) = await UploadFileWithRemotePayloadsAsync(owner, spec.TargetDrive);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var instructions = UpdateInstructions(file,
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite)] });
+        var response = await caller.V1.Drive.UpdateFile(instructions, metadata, payloads: [payload]);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(OdinClientErrorCode.InvalidPayloadContent));
+    }
+
+    private static async Task<(UploadFileMetadata Metadata, UploadResult File)> UploadFileWithRemotePayloadsAsync(
+        OwnerSession owner, TargetDrive drive)
+    {
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        metadata.DataSource = new DataSource
+        {
+            Identity = new OdinId(Identities.Frodo),
+            DriveId = drive.Alias,
+            PayloadsAreRemote = true
+        };
+        var manifest = new UploadManifest
+        {
+            PayloadDescriptors = new List<TestPayloadDefinition> { SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1() }
+                .ToPayloadDescriptorList().ToList()
+        };
+
+        var upload = await owner.V1.Drive.UploadNewFile(drive, metadata, manifest, payloads: []);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
+        metadata.VersionTag = upload.Content!.NewVersionTag;
+        return (metadata, upload.Content);
+    }
+
+    private static FileUpdateInstructionSet UpdateInstructions(UploadResult file, UploadManifest manifest = null) => new()
+    {
+        Locale = UpdateLocale.Local,
+        TransferIv = ByteArrayUtil.GetRndByteArray(16),
+        File = file.File.ToFileIdentifier(),
+        Manifest = manifest ?? new UploadManifest { PayloadDescriptors = null }
+    };
+
     [Test, TestCaseSource(nameof(RemotePayloadCases))]
     public async Task FailToModifyRemotePayloadIdentityOnExistingFile_UpdateBatch(CallerSpec spec, HttpStatusCode expected)
     {
