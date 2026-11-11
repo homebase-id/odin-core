@@ -334,7 +334,15 @@ public class DnsHealthService(
         catch (Exception e)
         {
             logger.LogWarning(e, "Relay: could not re-verify {domain} from the health check", domain);
-            return relay;
+
+            // The next check may ask again: a failed or cancelled call (the owner leaving the tab) must not hold the slot
+            // for the interval (#1891). Only our own claim is released, not a newer one
+            _relayReverifiedAt.TryRemove(new KeyValuePair<string, DateTimeOffset>(key, now));
+
+            // The stored verdict is stale (every row is live, which is why we asked), so its "not verified" would blame
+            // the owner for the relay's outage. Say what happened instead: we couldn't ask, a Warning, as on the read
+            // path (#1891)
+            return new MailRelayHealthResult { Status = MailRelayHealthStatus.Unreachable };
         }
     }
 
