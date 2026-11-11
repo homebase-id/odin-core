@@ -313,10 +313,8 @@ public class TiptapRichTextParserTests
         Assert.That(html, Does.Not.Contain("<img src=x"));
         Assert.That(html, Does.Not.Contain("javascript:").IgnoreCase);
         Assert.That(html, Does.Not.Contain("data:text"));
-        Assert.That(html, Does.Not.Contain("onclick=\""));
-        Assert.That(html, Does.Not.Contain("onload=\""));
-        Assert.That(html, Does.Not.Contain("onmouseover=\""));
-        Assert.That(html, Does.Not.Contain("onerror=\""));
+        // no event handler attribute of any name
+        Assert.That(html, Does.Not.Match(@"<[^>]*\son\w+\s*="));
         // the unsafe links keep their text
         Assert.That(html, Does.Contain("</u>that<s>"));
         Assert.That(html, Does.Contain("</code>data. H"));
