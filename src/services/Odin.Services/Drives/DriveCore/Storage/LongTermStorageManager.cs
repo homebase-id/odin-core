@@ -246,15 +246,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        public Task TryHardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
+        /// <summary>
+        /// Deletes payloads <paramref name="file"/> has had, and their thumbnails, from the payload store: none when its
+        /// payloads are remote, as the identity they came from stores them (a followed post on the feed drive), not this one
+        /// </summary>
+        public Task TryHardDeletePayloadsOf(StorageDrive drive, FileMetadata file, List<PayloadDescriptor> descriptors) =>
+            file.PayloadsAreRemote ? Task.CompletedTask : TryHardDeleteCopiedPayloads(drive, file.File.FileId, descriptors);
+
+        /// <summary>
+        /// Deletes payloads, and their thumbnails, that this request stored itself: the rollback of a copy that never became
+        /// the file's.  A file's own payloads go through <see cref="TryHardDeletePayloadsOf"/>, which knows when they're remote.
+        /// </summary>
+        public Task TryHardDeleteCopiedPayloads(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
             return Task.Run(async () =>
             {
-                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
-                {
-                    return;
-                }
-
                 foreach (var descriptor in descriptors)
                 {
                     try
@@ -272,16 +278,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index
         /// </summary>
-        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors,
-            Guid? expectedVersionTag = null)
+        public async Task HardDeleteAsync(StorageDrive drive, FileMetadata file, Guid? expectedVersionTag = null)
         {
             // First delete the DB header; a stale expectedVersionTag throws here, before any payload is touched
-            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId), expectedVersionTag);
+            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, file.File.FileId), expectedVersionTag);
 
             // If some files fail, they are simply orphaned
-            if (descriptors is { Count: > 0 })
+            if (file.Payloads is { Count: > 0 })
             {
-                forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
+                forgottenTasks.Add(TryHardDeletePayloadsOf(drive, file, file.Payloads));
             }
         }
 
