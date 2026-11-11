@@ -2,26 +2,31 @@ name: "SetupHelper: Build and deploy container"
 
 on:
   workflow_dispatch:
+    inputs:
+      start_choice:
+        type: choice
+        required: true
+        description: "Start container"
+        default: 'true'
+        options:
+        - 'true'
+        - 'false'
 
-permissions:
-  contents: read
-  packages: write
-
 #
-# Build and push only. The deploy step is gone: it used secrets.ANSIBLE_SSH_KEY,
-# an SSH key for the `ansible` account on the ansible controller, which is root
-# on every host in the fleet and holds the ansible-vault password. That credential
-# is the 2026 breach path, and sshd on the rebuilt ansible controller now pins
-# `ansible@` to fixed operator addresses, so this step could no longer connect
-# either way.
+# Build and push to ghcr, then ask the ansible controller to deploy with the
+# constrained CONTROLLER_DEPLOY_KEY: the same shape as homebase-social-sync's and
+# raven-hosting's build-and-deploy.yml. The controller routes only what
+# odin-deploy.sh and run-playbook.sh in the DevOps repo allowlist; the route is
+# setup-helper:aux (DevOps PR #285), which runs deploy-setup-helper.yml on blackbird_aux.
 #
-# The constrained deploy button routes odin-core only, deliberately: the aux
-# service name is not its ghcr repository name and each playbook wants a
-# different extra-var. Aux images are also private and need a PAT minted per
-# deploy, which no workflow does. So deploy this from an operator workstation:
+# The ghcr package is public (2026-11-11), so the playbook pulls without a PAT.
 #
-#   ansible-playbook deploy-setup-helper.yml \
-#     -e setup_helper_docker_image=<the image this workflow pushed>
+# The old deploy step used secrets.ANSIBLE_SSH_KEY, root on every host, and is not
+# coming back. The deploy job below holds only the constrained key, and runs no
+# `uses:` step of any kind.
+#
+# Manual fallback, from an operator workstation:
+#   ansible-playbook deploy-setup-helper.yml -e setup_helper_docker_image=<the image this workflow pushed>
 #
 # See the DevOps repo:
 # docs/superpowers/specs/2026-08-10-github-deploy-button-design.md
@@ -34,10 +39,23 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.image.outputs.image_tag }}
 
     steps:
+      - name: Log all workflow inputs and current branch
+        run: |
+          echo "GITHUB_REF: $GITHUB_REF"
+          echo "Workflow inputs as JSON: $INPUTS"
+        env:
+          INPUTS: ${{ toJson(github.event.inputs) }}
+          GITHUB_REF: ${{ github.ref }}
+
       - name: Checkout Repository
-        uses: actions/checkout@v4 
+        uses: actions/checkout@v4
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3.1.0
@@ -49,29 +67,78 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata (labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      # The controller builds the image reference itself from a fixed registry, an
+      # allowlisted repository and this tag, so the tag must be a docker tag and the
+      # repository must be the one it allowlists.
+      - name: Derive and check the image reference
+        id: image
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          FULL_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          image="$(printf '%s' "$FULL_IMAGE" | tr '[:upper:]' '[:lower:]')"
+          if [[ "$image" != "ghcr.io/homebase-id/odin-core-setup-helper-internal" ]]; then
+            echo "Refusing: the controller allowlists odin-core-setup-helper-internal,"
+            echo "but this workflow would build and deploy '${image}'."
+            exit 1
+          fi
+          tag="$(printf '%s' "$REF_NAME" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-')"
+          tag="${tag:0:128}"
+          [[ "$tag" =~ ^[a-z0-9] ]] || tag="x${tag:0:127}"
+          echo "image_tag=${tag}" >>"$GITHUB_OUTPUT"
+          echo "image_ref=${image}:${tag}" >>"$GITHUB_OUTPUT"
+          echo "Building and deploying: ${image}:${tag}"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           file: ./docker/Dockerfile-setup-helper
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.image.outputs.image_ref }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           provenance: false
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=setup.homebase.id
 
-      - name: Report what was pushed
-        run: |
-          echo "Pushed:"
-          printf '%s\n' "$META_TAGS"
-          echo
-          echo "Deploy from an operator workstation:"
-          echo "  ansible-playbook deploy-setup-helper.yml -e setup_helper_docker_image=<tag above>"
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    # Environment secrets reach only the job that declares the environment
+    environment: deploy
+    permissions: {}
+
+    steps:
+      # Every ${{ }} goes through env: and is read back as a shell variable, so a tag
+      # cannot inject into the script. The `deploy ...` string is not a remote command:
+      # the key is pinned to odin-deploy.sh on the controller, which validates every
+      # field. See host-build-and-deploy-branch-to-environment.yml for the full
+      # explanation.
+      - name: Deploy through the ansible controller
         env:
-          META_TAGS: ${{ steps.meta.outputs.tags }}
+          ANSIBLE_CONTROLLER: deploy@167.235.203.161
+          TAG: ${{ needs.build.outputs.image_tag }}
+          START_CONTAINER: ${{ github.event.inputs.start_choice }}
+          DEPLOY_KEY: ${{ secrets.CONTROLLER_DEPLOY_KEY }}
+        run: |
+          key="${RUNNER_TEMP}/ansible_controller_deploy_key"
+          trap 'rm -f "$key"' EXIT
+          install -m 600 /dev/null "$key"
+          printf '%s\n' "$DEPLOY_KEY" >"$key"
+          ssh -i "$key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            "$ANSIBLE_CONTROLLER" \
+            "deploy setup-helper aux odin-core-setup-helper-internal ${TAG} start_container=${START_CONTAINER}"
