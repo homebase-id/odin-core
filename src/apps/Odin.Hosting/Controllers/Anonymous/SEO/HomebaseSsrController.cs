@@ -162,12 +162,13 @@ public class HomebaseSsrController(
         {
             // the article's own image and abstract win over the profile's
             imageUrl = post.ImageUrl ?? imageUrl;
-            description = DataOrNull(post.Content.Abstract) ?? description;
+            var articleDescription = ArticleBodyRenderer.Description(post.Content);
+            description = articleDescription ?? description;
             var authorUrl = $"https://{WebOdinContext.Tenant.DomainName}";
             article = new ArticleSeo
             {
                 Headline = post.Content.Caption,
-                Description = DataOrNull(post.Content.Abstract),
+                Description = articleDescription,
                 Published = post.Created.ToDateTimeOffset(),
                 Modified = post.Modified.ToDateTimeOffset(),
                 AuthorName = person?.Name ?? WebOdinContext.Tenant.DomainName,

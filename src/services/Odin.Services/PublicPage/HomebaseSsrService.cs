@@ -242,7 +242,7 @@ public class HomebaseSsrService(
                     var id = string.IsNullOrEmpty(slug) || Guid.TryParse(slug, out _) ? post.FileId.ToString() : slug;
                     var published = post.Created.ToDateTimeOffset();
                     items.Add((new RssItem(post.Content.Caption, RssFeed.PostLink(tenant, channel.Slug, id),
-                        post.Content.Abstract, published), published));
+                        ArticleBodyRenderer.Description(post.Content), published), published));
                 }
             }
         }

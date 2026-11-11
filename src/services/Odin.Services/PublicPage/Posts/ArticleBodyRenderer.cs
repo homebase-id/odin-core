@@ -28,6 +28,21 @@ public static class ArticleBodyRenderer
         return PlateRichTextParser.Parse(bodyJson, payloadUrl);
     }
 
+    /// <summary>
+    /// The post's description for meta tags, JSON-LD and RSS: its abstract, or when that is blank, an excerpt of the
+    /// prose of a bodyDoc that still matches the body (code and live blocks left out). Null when neither has text.
+    /// </summary>
+    public static string? Description(PostContent? content, int maxLength = LinkPreviewDefaults.MaxDescriptionLength)
+    {
+        if (content == null) return null;
+        if (!string.IsNullOrWhiteSpace(content.Abstract)) return content.Abstract;
+
+        var bodyJson = Convert.ToString(content.Body) ?? string.Empty;
+        return TiptapDoc(content.BodyDoc, bodyJson) is { } doc
+            ? TiptapRichTextParser.Excerpt(doc.GetRawText(), maxLength)
+            : null;
+    }
+
     private static JsonElement? TiptapDoc(JsonElement? bodyDoc, string bodyJson)
     {
         if (bodyDoc is not { ValueKind: JsonValueKind.Object } d) return null;
