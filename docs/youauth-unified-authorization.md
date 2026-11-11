@@ -169,9 +169,9 @@ The V2 controllers (`UnifiedV2/SignIn`) inherit V1's, so there is one implementa
 
 The path-based behaviour that names these routes: the redirect at step [040] (`OwnerAuthenticationHandler.RedirectPaths`), the upgrade middleware's exemptions and its redirect at authorize (`VersionUpgradeMiddleware`), the guest scheme's path check (`YouAuthAuthenticationHandler`), and shared-secret encryption (`NoSharedSecret*` on the controllers, and the path list for `is-authenticated`). All the cookies are `Path=/`, host-only, `Secure`, `SameSite=Strict`, so a cookie set on either generation is sent to both.
 
-**Consent posts to the route the sign-in started on.** The handler refuses a return URL with any path but its own, so the consent page takes the form's action from the return URL (`getConsentFormAction`, odin-js).
+**Consent posts to V2.** The handler refuses a return URL with any path but its own (`Path mismatch`), and the owner console's consent page posts to `/api/v2/youauth/authorize`, so a sign-in has to start there.
 
-**A client calling another identity uses these routes too.** Every identity gets a release at the same time, so the login box's ident check and its authorize redirect, and the token exchange, can count on them. The identity server's own exchange at [100] (`IHomePerimeterHttpClient`) still calls V1's token route.
+**A client calling another identity uses these routes too.** Every identity gets a release at the same time, so the login box's ident check and its authorize redirect, and the token exchange, can count on them. So does the identity server's own exchange at [100] (`IHomePerimeterHttpClient`). V1's routes stay for clients that haven't moved, but the consent page posts to V2 only, so a sign-in started on V1 fails at consent.
 
 ## `Shared secret` calculation
 Both the identity host and the third-party site compute the shared secret independently using their private keys and the other party's public key, combined with a random salt provided by the identity host. The formula for the shared secret could be expressed as:
