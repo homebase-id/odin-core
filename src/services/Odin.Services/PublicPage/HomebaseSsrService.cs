@@ -256,7 +256,7 @@ public class HomebaseSsrService(
                     var slug = post.Content.Slug?.Trim();
                     var id = string.IsNullOrEmpty(slug) || Guid.TryParse(slug, out _) ? post.FileId.ToString() : slug;
                     items.Add(new RssItem(post.Content.Caption, RssFeed.PostUrl(tenant, channel.Slug, id),
-                        post.FileId.ToString(), post.Content.Abstract, post.PublishedDate.ToDateTimeOffset()));
+                        post.FileId.ToString(), ArticleBodyRenderer.Description(post.Content), post.PublishedDate.ToDateTimeOffset()));
                 }
             }
             catch (Exception e) when (e is not OperationCanceledException)
