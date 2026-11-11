@@ -325,16 +325,35 @@ public class DnsHealthService(
             return relay;
         }
 
+        // Entries past the interval decide nothing any more; without this the map kept one per domain that stayed
+        // unverified, or whose tenant was deleted or moved, until the process exited (#1891)
+        foreach (var entry in _relayReverifiedAt)
+        {
+            if (now - entry.Value >= RelayReverifyInterval)
+            {
+                _relayReverifiedAt.TryRemove(entry);
+            }
+        }
+
         try
         {
             var state = await relayProvider.VerifyDomainAsync(domain, cancellationToken);
-            logger.LogInformation("Relay: re-verified {domain} from the health check -> {verified}", domain, state.Verified);
+            // The relay provider logs the result at Information
+            logger.LogDebug("Relay: re-verified {domain} from the health check -> {verified}", domain, state.Verified);
             return MailRelayHealthResult.From(state);
         }
         catch (Exception e)
         {
             logger.LogWarning(e, "Relay: could not re-verify {domain} from the health check", domain);
-            return relay;
+
+            // The next check may ask again: a failed or cancelled call (the owner leaving the tab) must not hold the slot
+            // for the interval (#1891). Only our own claim is released, not a newer one
+            _relayReverifiedAt.TryRemove(new KeyValuePair<string, DateTimeOffset>(key, now));
+
+            // The stored verdict is stale (every row is live, which is why we asked), so its "not verified" would blame
+            // the owner for the relay's outage. Say what happened instead: we couldn't ask, a Warning, as on the read
+            // path (#1891)
+            return new MailRelayHealthResult { Status = MailRelayHealthStatus.Unreachable };
         }
     }
 

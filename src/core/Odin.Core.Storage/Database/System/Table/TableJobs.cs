@@ -376,7 +376,8 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
     // whatever state it was previously in (including a terminal Succeeded/Failed).
     // With `ifUnchangedFrom`, the row as the caller read it: only if it still has that state and modified time,
     // so a caller that changed the data it read does not write it over a run that started, or saved, since.
-    public async Task<int> UpdateAsync(Guid id, Guid identityId, string jobData, long nextRun,
+    // A null identityId matches only a job with none (a system job), never any identity's.
+    public async Task<int> UpdateAsync(Guid id, Guid? identityId, string jobData, long nextRun,
         JobsRecord? ifUnchangedFrom = null)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -385,7 +386,7 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
             $"""
             UPDATE jobs
             SET jobData = @jobData, nextRun = @nextRun, state = @scheduled, runCount = 0, lastError = NULL, expiresAt = NULL, modified = @modified
-            WHERE id = @id AND identityId = @identityId{(ifUnchangedFrom == null ? "" : " AND state = @state AND modified = @readModified")};
+            WHERE id = @id AND {(identityId == null ? "identityId IS NULL" : "identityId = @identityId")}{(ifUnchangedFrom == null ? "" : " AND state = @state AND modified = @readModified")};
             """;
         if (ifUnchangedFrom != null)
         {
@@ -398,7 +399,11 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
         cmd.AddParameter("@scheduled", DbType.Int32, (int)JobState.Scheduled);
         cmd.AddParameter("@modified", DbType.Int64, UnixTimeUtc.Now().milliseconds);
         cmd.AddParameter("@id", DbType.Binary, id);
-        cmd.AddParameter("@identityId", DbType.Binary, identityId);
+        if (identityId != null)
+        {
+            cmd.AddParameter("@identityId", DbType.Binary, identityId.Value);
+        }
+
         var count = await cmd.ExecuteNonQueryAsync();
         return count;
     }
