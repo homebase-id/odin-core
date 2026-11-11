@@ -71,8 +71,8 @@ public static class LayoutBuilder
         b.AppendLine($"<link rel='alternate' type='application/rss+xml' title='{HttpUtility.HtmlEncode(siteName)}' " +
                      $"href='https://{odinContext.Tenant.DomainName}/feed.xml' />");
 
-        b.AppendLine($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContext)}' />");
-        b.AppendLine($"<link rel='canonical' href='{humanReadableVersion}' />");
+        b.AppendLine($"<link rel='alternate' href='{HttpUtility.HtmlEncode(GetDisplayUrlWithSsr(httpContext))}' />");
+        b.AppendLine($"<link rel='canonical' href='{HttpUtility.HtmlEncode(humanReadableVersion)}' />");
         b.AppendLine(PrepareIdentityContent(person, odinContext));
 
         return b;
@@ -85,8 +85,8 @@ public static class LayoutBuilder
 
         string odinId = odinContext.Tenant;
 
-        b.Append($"<meta property='profile:first_name' content='{person?.GivenName}'/>\n");
-        b.Append($"<meta property='profile:last_name' content='{person?.FamilyName}'/>\n");
+        b.Append($"<meta property='profile:first_name' content='{HttpUtility.HtmlEncode(person?.GivenName)}'/>\n");
+        b.Append($"<meta property='profile:last_name' content='{HttpUtility.HtmlEncode(person?.FamilyName)}'/>\n");
         b.Append($"<meta property='profile:username' content='{odinId}'/>\n");
         b.Append($"<link rel='webfinger' href='https://{odinId}/.well-known/webfinger?resource=acct:@{odinId}'/>\n");
         b.Append($"<link rel='did' href='https://{odinId}/.well-known/did.json'/>\n");

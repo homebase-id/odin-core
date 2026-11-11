@@ -169,7 +169,7 @@ public class HomebaseSsrController(
             {
                 Headline = post.Content.Caption,
                 Description = articleDescription,
-                Published = post.Created.ToDateTimeOffset(),
+                Published = (post.Content.UserDate ?? post.Created).ToDateTimeOffset(),
                 Modified = post.Modified.ToDateTimeOffset(),
                 AuthorName = person?.Name ?? WebOdinContext.Tenant.DomainName,
                 AuthorUrl = authorUrl,

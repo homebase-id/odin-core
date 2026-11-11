@@ -37,6 +37,18 @@ public static class PlateRichTextParser
 
         if (root == null) return null;
 
+        try
+        {
+            return Render(root, payloadUrl);
+        }
+        catch (Exception e) when (e is InvalidOperationException or ArgumentException or FormatException)
+        {
+            return null; // e.g. a node with duplicate keys, which JsonObject only finds out when it is read
+        }
+    }
+
+    private static string Render(JsonNode root, Func<string, string?, string?>? payloadUrl)
+    {
         var sb = new StringBuilder();
         if (root is JsonArray array)
         {
@@ -203,8 +215,19 @@ public static class PlateRichTextParser
     private static bool Flag(JsonObject obj, string name) =>
         obj[name] is JsonValue v && v.TryGetValue<bool>(out var b) && b;
 
-    private static string? Str(JsonNode? node) =>
-        node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+    /// <summary>Null for a string that is not valid UTF-16 (a lone surrogate, e.g. an emoji cut in half),
+    /// so one bad string drops itself and not the whole document</summary>
+    private static string? Str(JsonNode? node)
+    {
+        try
+        {
+            return node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
 
     private static string HtmlText(string? text) => WebUtility.HtmlEncode(text ?? "");
 }
