@@ -25,7 +25,7 @@ public class TiptapRichTextParserTests
         var html = TiptapRichTextParser.Parse(Fixture("tiptap-all-blocks.json"), Url)!;
 
         Assert.That(html, Does.Contain("<h1 id=\"every-block\">Every block</h1>"));
-        Assert.That(html, Does.Contain("<h3 id=\"a-third-level-heading\">A third-level heading</h3>"));
+        Assert.That(html, Does.Contain("<h3 id=\"a-third-level-heading\" style=\"text-align:center;\">A third-level heading</h3>"));
         Assert.That(html, Does.Contain("<strong>bold</strong>"));
         Assert.That(html, Does.Contain("<u><em> italic</em></u>"));
         Assert.That(html, Does.Contain("<s> strike</s>"));
@@ -35,8 +35,8 @@ public class TiptapRichTextParserTests
         Assert.That(html, Does.Contain("<a href=\"https://example.com\">a link</a>"));
         Assert.That(html, Does.Contain("<a href=\"https://frodo.dotyou.cloud\">@frodo.dotyou.cloud</a>"));
         Assert.That(html, Does.Contain("<sup><a href=\"#fn-fn1\" id=\"fnref-fn1\">[1]</a></sup>"));
-        Assert.That(html, Does.Contain("<code>E = mc^2</code>"));
-        Assert.That(html, Does.Contain("<pre>\\int_0^1 x\\,dx</pre>"));
+        Assert.That(html, Does.Contain("<code class=\"math\">E = mc^2</code>"));
+        Assert.That(html, Does.Contain("<pre class=\"math\">\\int_0^1 x\\,dx</pre>"));
         Assert.That(html, Does.Contain("<blockquote><p>A quote</p>"));
         Assert.That(html, Does.Contain("<pre><code class=\"language-ts\">const a = 1;\nconst b = 2;</code></pre>"));
         Assert.That(html, Does.Contain("<li><p>two</p>\n<ol><li>"));
@@ -44,7 +44,7 @@ public class TiptapRichTextParserTests
         Assert.That(html, Does.Contain("<li><p>&#9744; to do</p>"));
         Assert.That(html, Does.Contain("<th><p>Name</p>"));
         Assert.That(html, Does.Contain("<td><p>a</p>"));
-        Assert.That(html, Does.Contain("<aside class=\"callout callout-warning\">"));
+        Assert.That(html, Does.Contain("<aside class=\"callout callout-warning\" role=\"note\" aria-label=\"Warning\">"));
         Assert.That(html, Does.Contain("<details><summary>More</summary>"));
         Assert.That(html, Does.Contain(
             "<figure class=\"align-left\"><img src=\"https://x.test/payload?key=pst_rtei0\" alt=\"A photo\" width=\"320\" /><figcaption>Its caption</figcaption></figure>"));
@@ -218,5 +218,170 @@ public class TiptapRichTextParserTests
         Assert.That(html, Does.Contain("<li><p>&#9745; first</p>\n<p>second</p>\n</li>"));
         Assert.That(html, Does.Contain("<li>&#9744; <ul></ul>\n</li>"));
         Assert.That(html, Does.Contain("<li>&#9744; </li>"));
+    }
+
+    [Test]
+    public void JournalArticle_RendersEveryNodeAndAttr()
+    {
+        var html = TiptapRichTextParser.Parse(Fixture("journal-article.json"), Url)!;
+
+        // headings and paragraphs carry textAlign and indent
+        Assert.That(html, Does.Contain("<h1 id=\"field-notes\" style=\"text-align:center;\">Field notes</h1>"));
+        Assert.That(html, Does.Contain("<h2 id=\"indented-heading\" style=\"padding-left:2rem;\">"));
+        Assert.That(html, Does.Contain("<p style=\"text-align:justify;padding-left:4rem;\">Read "));
+
+        // a note link is its label, as text
+        Assert.That(html, Does.Contain("Read My &lt;b&gt;other&lt;/b&gt; note and "));
+        Assert.That(html, Does.Not.Contain("7f1c2e0a"));
+
+        // marks
+        Assert.That(html, Does.Contain("<a href=\"https://example.com/a?b=1&amp;c=&quot;2&quot;\">this</a>"));
+        Assert.That(html, Does.Contain("<u>, not </u>"));
+        Assert.That(html, Does.Contain("<s> or </s>"));
+        Assert.That(html, Does.Contain("<code> or </code>"));
+        Assert.That(html, Does.Contain("H<sub>2</sub>O and x<sup>2</sup>"));
+        Assert.That(html, Does.Contain("<code class=\"math\">a&lt;b &amp;&amp; &quot;c&quot;</code>"));
+        Assert.That(html, Does.Contain("<pre class=\"math\">\\frac{1}{2} &lt; x</pre>"));
+
+        // nested task lists
+        Assert.That(html, Does.Contain("<li><p>&#9745; outer done</p>\n<ul class=\"task-list\"><li><p>&#9744; inner to do</p>"));
+
+        // tables keep a real colspan and drop one that is not a number
+        Assert.That(html, Does.Contain("<th colspan=\"2\"><p>Wide header</p>"));
+        Assert.That(html, Does.Contain("<td><p>right</p>"));
+
+        // images: the paragraph that holds them is a div; caption null shows the alt, "" shows none
+        Assert.That(html, Does.Contain(
+            "<div><figure class=\"align-right\"><img src=\"https://x.test/payload?key=pst_rtei0\" alt=\"Alt &quot;quoted&quot;\" width=\"240\" /><figcaption>Alt &quot;quoted&quot;</figcaption></figure>"));
+        Assert.That(html, Does.Contain("<figure><img src=\"https://x.test/payload?key=pst_rtei1\" alt=\"Hidden caption\" /></figure>"));
+        Assert.That(html, Does.Contain("<figcaption>&lt;script&gt;alert(1)&lt;/script&gt;</figcaption>"));
+        Assert.That(html, Does.Not.Contain("bad src"));
+
+        // galleries: known layouts only; images in one take no width or float
+        Assert.That(html, Does.Contain("<div class=\"gallery gallery-masonry\"><figure><img src=\"https://x.test/payload?key=pst_rtei3\" alt=\"M1\" />"));
+        Assert.That(html, Does.Contain("<div class=\"gallery gallery-carousel\">"));
+        Assert.That(html, Does.Contain("<div class=\"gallery gallery-row\"><figure><img src=\"https://x.test/payload?key=pst_rtei7\""));
+
+        // link previews
+        Assert.That(html, Does.Contain(
+            "<div class=\"link-preview\"><a href=\"https://journal.example/post\">A &quot;great&quot; &lt;post&gt;</a><p>&lt;img src=x onerror=alert(1)&gt;</p></div>"));
+        Assert.That(html, Does.Contain("<a href=\"https://no-title.example/path\">no-title.example</a></div>"));
+        Assert.That(html, Does.Not.Contain("Bad preview"));
+
+        // toggles, callouts
+        Assert.That(html, Does.Contain("<details><summary>Details</summary><p>toggle body</p>"));
+        Assert.That(html, Does.Contain("<summary>&lt;/summary&gt;&lt;script&gt;alert(1)&lt;/script&gt;</summary>"));
+        Assert.That(html, Does.Contain("<aside class=\"callout callout-tip\" role=\"note\" aria-label=\"Tip\"><p>A tip</p>"));
+        Assert.That(html, Does.Contain("<aside class=\"callout callout-error\" role=\"note\" aria-label=\"Error\">"));
+        Assert.That(html, Does.Contain("<aside class=\"callout callout-info\" role=\"note\" aria-label=\"Info\"><p>Bad variant</p>"));
+
+        // footnotes: ids keep word characters and '-' only, like the viewer
+        Assert.That(html, Does.Contain("<sup><a href=\"#fn-n1onclickx\" id=\"fnref-n1onclickx\">[1]</a></sup>"));
+        Assert.That(html, Does.Contain("<li id=\"fn-n1onclickx\"><p>The footnote</p>\n <a href=\"#fnref-n1onclickx\" aria-label=\"Back to reference\">&#8617;</a></li>"));
+
+        // nodes this renderer does not know keep their text
+        Assert.That(html, Does.Contain("<p>future text kept</p>"));
+        Assert.That(html, Does.Contain("loose &lt;text&gt;"));
+    }
+
+    [Test]
+    public void JournalArticle_LiveBlocksAreEscapedSourceWithALabel()
+    {
+        var html = TiptapRichTextParser.Parse(Fixture("journal-article.json"), Url)!;
+
+        Assert.That(html, Does.Contain(
+            "<figure class=\"live-block live-block-html\"><figcaption>Interactive block (HTML)</figcaption><pre><code class=\"language-html\">&lt;div id=&quot;app&quot;&gt;&lt;/div&gt;\n&lt;script&gt;alert(&#39;pwned&#39;)&lt;/script&gt;</code></pre></figure>"));
+        Assert.That(html, Does.Contain("<figcaption>Interactive block (React)</figcaption><pre><code class=\"language-react\">"));
+        Assert.That(html, Does.Contain("<figcaption>Interactive block (Mermaid)</figcaption><pre><code class=\"language-mermaid\">graph TD; A--&gt;B</code>"));
+        Assert.That(html, Does.Contain("<code class=\"language-svg\">&lt;svg onload=&quot;alert(1)&quot;&gt;"));
+        // the rest of the info string is not the language
+        Assert.That(html, Does.Not.Contain("k3f9"));
+        Assert.That(html, Does.Not.Contain("wide"));
+        // a hostile language is cut down to safe class characters
+        Assert.That(html, Does.Contain("<pre><code class=\"language-scriptalert1script\">evil language</code></pre>"));
+        Assert.That(html, Does.Contain("<pre><code>plain code</code></pre>"));
+    }
+
+    [Test]
+    public void JournalArticle_EmitsNoScriptOrUnsafeMarkup()
+    {
+        var html = TiptapRichTextParser.Parse(Fixture("journal-article.json"), Url)!;
+
+        Assert.That(html, Does.Not.Contain("<script"));
+        Assert.That(html, Does.Not.Contain("<svg"));
+        Assert.That(html, Does.Not.Contain("<b>"));
+        Assert.That(html, Does.Not.Contain("<img src=x"));
+        Assert.That(html, Does.Not.Contain("javascript:").IgnoreCase);
+        Assert.That(html, Does.Not.Contain("data:text"));
+        Assert.That(html, Does.Not.Contain("onclick=\""));
+        Assert.That(html, Does.Not.Contain("onload=\""));
+        Assert.That(html, Does.Not.Contain("onmouseover=\""));
+        Assert.That(html, Does.Not.Contain("onerror=\""));
+        // the unsafe links keep their text
+        Assert.That(html, Does.Contain("</u>that<s>"));
+        Assert.That(html, Does.Contain("</code>data. H"));
+    }
+
+    [TestCase("""{"type":"doc","content":[{"type":"text","text":"a"},{"type":"text","text":"b"}],"content":[]}""")]
+    [TestCase("""{"type":"doc","content":[{"type":"paragraph","attrs":{"indent":"x","textAlign":5},"content":"no"}]}""")]
+    [TestCase("""{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":["html"]},"content":[{"type":"text","text":"<b>"}]}]}""")]
+    [TestCase("""{"type":"doc","content":[{"type":"noteLink","attrs":{"label":7}},{"type":"image","attrs":{"width":"1e400"}}]}""")]
+    [TestCase("""not json""")]
+    public void OddDocuments_NeverThrow(string json)
+    {
+        Assert.DoesNotThrow(() => TiptapRichTextParser.Parse(json));
+        Assert.DoesNotThrow(() => TiptapRichTextParser.Excerpt(json, 160));
+    }
+
+    [Test]
+    public void Excerpt_IsProseOnly()
+    {
+        var excerpt = TiptapRichTextParser.Excerpt(Fixture("journal-article.json"), 1000)!;
+
+        Assert.That(excerpt, Does.StartWith("Field notes Indented heading Read My <b>other</b> note and this, not that"));
+        Assert.That(excerpt, Does.Contain("outer done inner to do"));
+        Assert.That(excerpt, Does.Contain("inner to do Wide header left right toggle body"));
+        Assert.That(excerpt, Does.Contain("A tip"));
+        Assert.That(excerpt, Does.Contain("future text kept"));
+        // no code (live blocks or not), math, captions, previews or footnotes
+        Assert.That(excerpt, Does.Not.Contain("pwned"));
+        Assert.That(excerpt, Does.Not.Contain("graph TD"));
+        Assert.That(excerpt, Does.Not.Contain("plain code"));
+        Assert.That(excerpt, Does.Not.Contain("frac"));
+        Assert.That(excerpt, Does.Not.Contain("a<b"));
+        Assert.That(excerpt, Does.Not.Contain("Alt"));
+        Assert.That(excerpt, Does.Not.Contain("great"));
+        Assert.That(excerpt, Does.Not.Contain("The footnote"));
+        Assert.That(excerpt, Does.Not.Contain("  "));
+    }
+
+    [Test]
+    public void Excerpt_CutsAtAWordWithAnEllipsis()
+    {
+        var excerpt = TiptapRichTextParser.Excerpt(Fixture("journal-article.json"), 40)!;
+        Assert.That(excerpt.Length, Is.LessThanOrEqualTo(40));
+        Assert.That(excerpt, Is.EqualTo("Field notes Indented heading Read My…"));
+    }
+
+    [Test]
+    public void Excerpt_OfALiveBlockOnlyDocument_IsNull()
+    {
+        var json = """{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"html id=abcd"},"content":[{"type":"text","text":"<p>lots of html</p>"}]}]}""";
+        Assert.That(TiptapRichTextParser.Excerpt(json, 160), Is.Null);
+    }
+
+    [Test]
+    public void Description_PrefersTheAbstractThenAMatchingBodyDoc()
+    {
+        PostContent Content(string? @abstract, string hash) =>
+            Odin.Core.Serialization.OdinSystemSerializer.Deserialize<PostContent>(
+                "{\"type\":\"Article\",\"abstract\":" + (@abstract == null ? "null" : $"\"{@abstract}\"") + ",\"body\":" + Body +
+                ",\"bodyDoc\":{\"format\":\"tiptap-v1\",\"slateHash\":\"" + hash + "\",\"doc\":" + TiptapDoc + "}}")!;
+
+        Assert.That(ArticleBodyRenderer.Description(Content("The abstract", Hash(Body))), Is.EqualTo("The abstract"));
+        Assert.That(ArticleBodyRenderer.Description(Content(null, Hash(Body))), Is.EqualTo("tiptap text"));
+        Assert.That(ArticleBodyRenderer.Description(Content(" ", Hash(Body))), Is.EqualTo("tiptap text"));
+        Assert.That(ArticleBodyRenderer.Description(Content(null, Hash("stale"))), Is.Null);
+        Assert.That(ArticleBodyRenderer.Description(null), Is.Null);
     }
 }
