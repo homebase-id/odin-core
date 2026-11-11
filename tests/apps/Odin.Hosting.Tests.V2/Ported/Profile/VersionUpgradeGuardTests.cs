@@ -70,6 +70,45 @@ public class VersionUpgradeGuardTests : V2Fixture
     }
 
     /// <summary>
+    /// The V2 notification socket's cookie routes and preauth are behind the guard too, like the V1 routes they
+    /// replace: no <c>/api/v2</c> path is exempt but health.
+    /// </summary>
+    [Test]
+    public async Task V2CookieSocketRoutesAndPreAuthAreRefused()
+    {
+        var owner = await LoginAsOwner(Identities.TomBombadil);
+        var runState = Host.GetTenantScope(owner.Identity.DomainName).Resolve<VersionUpgradeRunState>();
+        var (client, _) = owner.NewAdminHttpClient();
+
+        try
+        {
+            runState.SetRunning(true);
+
+            foreach (var route in new[] { UnifiedApiRouteConstants.NotifySocketOwnerCookie, UnifiedApiRouteConstants.NotifySocketAppCookie })
+            {
+                var socketClient = Host.Server.CreateWebSocketClient();
+                socketClient.ConfigureRequest = request =>
+                {
+                    request.Headers.Origin = $"https://{owner.Identity.DomainName}";
+                    request.Headers.Cookie = $"{OwnerAuthConstants.CookieName}={owner.Token}";
+                };
+
+                var refused = Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    socketClient.ConnectAsync(new Uri($"wss://{owner.Identity.DomainName}{route}"), default));
+                Assert.That(refused!.Message, Does.Contain("503"), route);
+            }
+
+            var preAuth = await client.PostAsync(UnifiedApiRouteConstants.NotifyPreAuth, null);
+            Assert.That(preAuth.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable));
+            Assert.That(preAuth.Headers.Contains(OdinHeaderNames.UpgradeIsRunning), Is.True);
+        }
+        finally
+        {
+            runState.SetRunning(false);
+        }
+    }
+
+    /// <summary>
     /// The YouAuth code-for-token exchange is refused like anything else, and says why.
     /// </summary>
     /// <remarks>

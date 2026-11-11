@@ -8,11 +8,18 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Odin.Core.Exceptions;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.UnifiedV2.Authentication;
+using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -32,6 +39,12 @@ namespace Odin.Hosting.UnifiedV2.Notifications
     /// resolves it to an IOdinContext before accepting the upgrade; once the WS is open
     /// the protocol is the same as the cookie-authenticated route.
     /// </summary>
+    /// <remarks>
+    /// Browsers with no bearer token (the owner console, an app holding only its cookie) use the cookie routes here:
+    /// one route per cookie, as V1 has, because an app served from the identity's own host sends the owner cookie
+    /// too, and <see cref="UnifiedAuthenticationHandler"/> would pick that one. So they read their own cookie rather
+    /// than run that handler. Unlike V1 they check the Origin; see <see cref="IsAllowedCookieOrigin"/>.
+    /// </remarks>
     [ApiController]
     [AllowAnonymous]
     [ApiExplorerSettings(GroupName = "v2")]
@@ -88,6 +101,180 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             return HandleAsync();
         }
 
+        /// <summary>The owner console's socket: the owner cookie only, as V1's <c>/api/owner/v1/notify/ws</c>.</summary>
+        // GET and CONNECT: a browser may upgrade over HTTP/2 Extended CONNECT, as on the wasm route above
+        [AcceptVerbs("GET", "CONNECT")]
+        [Route(UnifiedApiRouteConstants.NotifySocketOwnerCookie)]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public async Task ConnectOwnerCookie()
+        {
+            if (!HttpContext.WebSockets.IsWebSocketRequest)
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
+
+            if (!IsAllowedCookieOrigin(HttpContext.Request.Headers.Origin, HttpContext.Request.Host, corsHostName: null))
+            {
+                RefuseCookieOrigin();
+                return;
+            }
+
+            if (!ClientAuthenticationToken.TryParse(HttpContext.Request.Cookies[OwnerAuthConstants.CookieName], out var token) ||
+                token.ClientTokenType != ClientTokenType.Owner)
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            try
+            {
+                var authService = HttpContext.RequestServices.GetRequiredService<OwnerAuthenticationService>();
+                var clientContext = new OdinClientContext
+                {
+                    CorsHostName = null,
+                    ClientIdOrDomain = null,
+                    AccessRegistrationId = token.Id,
+                    DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(HttpContext.Request)
+                };
+
+                if (!await authService.UpdateOdinContextAsync(token, clientContext, WebOdinContext))
+                {
+                    HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return;
+                }
+            }
+            catch (OdinSecurityException e)
+            {
+                _logger.LogDebug("V2 WS upgrade rejected (401): owner cookie failed: {error}", e.Message);
+                HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            // V1's owner handler does this on the same upgrade; the console's socket shouldn't stop being a trigger
+            var versionUpgradeScheduler = HttpContext.RequestServices.GetRequiredService<VersionUpgradeScheduler>();
+            await versionUpgradeScheduler.EnsureScheduledAsync(token, WebOdinContext);
+
+            await AcceptAndRunAsync(WebOdinContext, RequestedNotifySubProtocol());
+        }
+
+        /// <summary>An app's socket by its cookie (see <see cref="PreAuth"/>), as V1's <c>/api/apps/v1/notify/ws</c>.</summary>
+        // GET and CONNECT: a browser may upgrade over HTTP/2 Extended CONNECT, as on the wasm route above
+        [AcceptVerbs("GET", "CONNECT")]
+        [Route(UnifiedApiRouteConstants.NotifySocketAppCookie)]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public async Task ConnectAppCookie()
+        {
+            if (!HttpContext.WebSockets.IsWebSocketRequest)
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
+
+            if (!ClientAuthenticationToken.TryParse(HttpContext.Request.Cookies[YouAuthConstants.AppCookieName], out var token))
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            var authenticatedContext = await TryResolveContextAsync(token);
+            if (authenticatedContext == null)
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            var corsHostName = authenticatedContext.Caller.OdinClientContext?.CorsHostName;
+            if (!IsAllowedCookieOrigin(HttpContext.Request.Headers.Origin, HttpContext.Request.Host, corsHostName))
+            {
+                RefuseCookieOrigin();
+                return;
+            }
+
+            await AcceptAndRunAsync(authenticatedContext, RequestedNotifySubProtocol());
+        }
+
+        /// <summary>
+        /// Sets the app cookie <see cref="ConnectAppCookie"/> reads, from the app's bearer token or, to extend it, the
+        /// cookie itself. The V2 twin of V1's <c>/api/apps/v1/notify/preauth</c>. Reads its own token, because with no
+        /// bearer the unified handler would pick an owner cookie over the app's.
+        /// </summary>
+        [HttpPost]
+        [Route(UnifiedApiRouteConstants.NotifyPreAuth)]
+        [NoSharedSecretOnRequest]
+        [NoSharedSecretOnResponse]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public async Task<IActionResult> PreAuth()
+        {
+            if (!UnifiedAuthenticationHandler.TryGetClientAuthTokenFromHeader(HttpContext, out var token) &&
+                !ClientAuthenticationToken.TryParse(HttpContext.Request.Cookies[YouAuthConstants.AppCookieName], out token))
+            {
+                return Unauthorized();
+            }
+
+            if (await TryResolveContextAsync(token) == null)
+            {
+                return Unauthorized();
+            }
+
+            AuthenticationCookieUtil.SetCookie(HttpContext.Response, YouAuthConstants.AppCookieName, token);
+            return Ok();
+        }
+
+        private async Task<IOdinContext?> TryResolveContextAsync(ClientAuthenticationToken token)
+        {
+            try
+            {
+                return await ResolveContextAsync(token);
+            }
+            catch (OdinSecurityException e)
+            {
+                _logger.LogDebug("V2 WS auth rejected (401): app token failed: {error}", e.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Whether a browser page at <paramref name="origin"/> may use a cookie on a socket: the identity's own host,
+        /// or the host the owner registered the app on (<paramref name="corsHostName"/>).
+        /// </summary>
+        /// <remarks>
+        /// Against cross-site WebSocket hijacking. V1 has no Origin check: its only guard is that the auth cookies are
+        /// SameSite=Strict, which says nothing about a sibling on the same site (<c>evil.example.com</c> against
+        /// <c>frodo.example.com</c>). A browser always sends Origin on an upgrade and a page can't change it, so a
+        /// missing one is refused too: a client with no browser has a bearer token to use instead.
+        /// </remarks>
+        internal static bool IsAllowedCookieOrigin(StringValues origin, HostString requestHost, string? corsHostName)
+        {
+            if (origin.Count != 1 || !Uri.TryCreate(origin[0], UriKind.Absolute, out var originUri) ||
+                originUri.Scheme != Uri.UriSchemeHttps)
+            {
+                return false;
+            }
+
+            return IsSameHost(originUri, requestHost) ||
+                   (!string.IsNullOrEmpty(corsHostName) && IsSameHost(originUri, new HostString(corsHostName)));
+
+            // No port in a host name means the https default, which is what an identity is served on
+            static bool IsSameHost(Uri uri, HostString host) =>
+                string.Equals(uri.Host, host.Host, StringComparison.OrdinalIgnoreCase) && uri.Port == (host.Port ?? 443);
+        }
+
+        private void RefuseCookieOrigin()
+        {
+            _logger.LogWarning("V2 WS upgrade rejected (403): origin [{origin}] may not use a cookie on host {host}",
+                HttpContext.Request.Headers.Origin.ToString(), HttpContext.Request.Host);
+            HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+        }
+
+        // A browser fails a 101 naming a subprotocol it didn't offer
+        private string? RequestedNotifySubProtocol()
+        {
+            return HttpContext.WebSockets.WebSocketRequestedProtocols.Contains(NegotiatedSubProtocol)
+                ? NegotiatedSubProtocol
+                : null;
+        }
+
         private async Task HandleAsync()
         {
             if (!HttpContext.WebSockets.IsWebSocketRequest)
@@ -128,7 +315,12 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             IOdinContext? authenticatedContext;
             try
             {
-                authenticatedContext = await ResolveContextAsync(token64);
+                if (!ClientAuthenticationToken.TryParse(token64, out var clientAuthToken))
+                {
+                    throw new OdinSecurityException("Malformed token");
+                }
+
+                authenticatedContext = await ResolveContextAsync(clientAuthToken);
             }
             catch (OdinSecurityException e)
             {
@@ -146,6 +338,11 @@ namespace Odin.Hosting.UnifiedV2.Notifications
                 return;
             }
 
+            await AcceptAndRunAsync(authenticatedContext, NegotiatedSubProtocol);
+        }
+
+        private async Task AcceptAndRunAsync(IOdinContext authenticatedContext, string? subProtocol)
+        {
             using var cancellationTokenSources = CancellationTokenSource.CreateLinkedTokenSource(
                 HttpContext.RequestAborted,
                 _hostApplicationLifetime.ApplicationStopping);
@@ -155,7 +352,7 @@ namespace Odin.Hosting.UnifiedV2.Notifications
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
                 {
                     DangerousEnableCompression = true,
-                    SubProtocol = NegotiatedSubProtocol,
+                    SubProtocol = subProtocol,
                 });
 
                 await _notificationHandler.EstablishConnection(webSocket, authenticatedContext, cancellationTokenSources.Token);
@@ -172,13 +369,8 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             }
         }
 
-        private async Task<IOdinContext?> ResolveContextAsync(string token64)
+        private async Task<IOdinContext?> ResolveContextAsync(ClientAuthenticationToken clientAuthToken)
         {
-            if (!ClientAuthenticationToken.TryParse(token64, out var clientAuthToken))
-            {
-                throw new OdinSecurityException("Malformed token");
-            }
-
             IOdinContext? ctx;
             string authContextName;
 

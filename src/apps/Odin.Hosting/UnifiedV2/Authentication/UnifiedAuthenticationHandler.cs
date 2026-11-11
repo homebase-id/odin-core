@@ -8,6 +8,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +27,6 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 
@@ -35,7 +35,6 @@ namespace Odin.Hosting.UnifiedV2.Authentication
     public class UnifiedAuthenticationHandler
         : AuthenticationHandler<UnifiedAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
-        private readonly OdinConfiguration _config;
         private readonly ILogger<UnifiedAuthenticationHandler> _logger;
         private readonly ICallerLogContext _callerLogContext;
 
@@ -47,11 +46,10 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         /// <summary/>
         public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory loggerFactory,
-            UrlEncoder encoder, OdinConfiguration config, ILogger<UnifiedAuthenticationHandler> logger,
+            UrlEncoder encoder, ILogger<UnifiedAuthenticationHandler> logger,
             ICallerLogContext callerLogContext)
             : base(options, loggerFactory, encoder)
         {
-            _config = config;
             _logger = logger;
             _callerLogContext = callerLogContext;
         }
@@ -89,7 +87,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
                 if (handler == null)
                 {
-                    return AuthenticateResult.Fail("Invalid Token Type");
+                    return await FailOrAnonymous("Invalid Token Type", odinContext);
                 }
 
                 var result = await handler.HandleAsync(Context, token, odinContext);
@@ -108,13 +106,36 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
                     case AuthHandlerStatus.Fail:
                     default:
-                        return AuthenticateResult.Fail("Invalid Token");
+                        return await FailOrAnonymous("Invalid Token", odinContext);
                 }
             }
             catch (OdinSecurityException e)
             {
-                return AuthenticateResult.Fail(e.Message);
+                return await FailOrAnonymous(e.Message, odinContext);
             }
+        }
+
+        /// <summary>
+        /// A token that didn't validate. A cookie the browser still holds from an old session doesn't stop a public route:
+        /// the caller is an anonymous visitor there, as on V1, whose public routes don't read the owner's or an app's cookie.
+        /// A bearer token was sent on purpose, so it still fails, and so does anything on a route that wants a signed-in caller.
+        /// </summary>
+        private async Task<AuthenticateResult> FailOrAnonymous(string failureMessage, IOdinContext odinContext)
+        {
+            if (TryGetClientAuthTokenFromHeader(Context, out _) || !IsPublicEndpoint())
+            {
+                return AuthenticateResult.Fail(failureMessage);
+            }
+
+            _logger.LogDebug("Treating a request as anonymous on a public route; its cookie failed: {failureMessage}", failureMessage);
+            return await CreateAnonResult(Context, odinContext);
+        }
+
+        /// <summary>Whether every policy on this endpoint, its controller's and its action's, is the anonymous one.</summary>
+        private bool IsPublicEndpoint()
+        {
+            var policies = Context.GetEndpoint()?.Metadata.GetOrderedMetadata<IAuthorizeData>();
+            return policies is { Count: > 0 } && policies.All(p => p.Policy == UnifiedPolicies.Anonymous);
         }
 
         public async Task SignOutAsync(AuthenticationProperties? properties)
@@ -186,22 +207,13 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         private bool TryFindClientAuthToken(out ClientAuthenticationToken clientAuthToken)
         {
-            if (_config.Cdn.Enabled)
-            {
-                // get from auth header
-                if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
-                {
-                    return true;
-                }
-            }
-
-            if (TryGetClientAuthTokenFromCookie(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
+            // The bearer token comes first: it was sent on purpose, while a browser adds a cookie to any request to this host
+            if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
             {
                 return true;
             }
 
-            // app header preferred
-            if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
+            if (TryGetClientAuthTokenFromCookie(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
             {
                 return true;
             }
@@ -214,7 +226,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             return TryGetClientAuthTokenFromCookie(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
         }
 
-        private static bool TryGetClientAuthTokenFromHeader(HttpContext context, out ClientAuthenticationToken clientAuthToken)
+        internal static bool TryGetClientAuthTokenFromHeader(HttpContext context, out ClientAuthenticationToken clientAuthToken)
         {
             clientAuthToken = default!;
 

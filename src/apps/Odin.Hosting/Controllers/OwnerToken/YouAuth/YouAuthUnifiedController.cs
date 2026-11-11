@@ -66,7 +66,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         //
 
         [HttpGet(OwnerApiPathConstants.YouAuthV1Authorize)] // "authorize"
-        public async Task<ActionResult> Authorize([FromQuery] YouAuthAuthorizeRequest authorize)
+        public virtual async Task<ActionResult> Authorize([FromQuery] YouAuthAuthorizeRequest authorize)
         {
             //
             // YouAuth [030] Get authorization code
@@ -279,7 +279,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         //
 
         [HttpPost(OwnerApiPathConstants.YouAuthV1Authorize)] // "authorize"
-        public async Task<ActionResult> Consent(
+        public virtual async Task<ActionResult> Consent(
             [FromForm(Name = YouAuthAuthorizeConsentGiven.ReturnUrlName)]
             string returnUrl,
             [FromForm(Name = YouAuthAuthorizeConsentGiven.ConsentRequirementName)]
@@ -363,7 +363,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         [AllowAnonymous]
         [HttpPost(OwnerApiPathConstants.YouAuthV1Token)] // "token"
         [Produces("application/json")]
-        public async Task<ActionResult<YouAuthTokenResponse>> Token([FromBody] YouAuthTokenRequest tokenRequest)
+        public virtual async Task<ActionResult<YouAuthTokenResponse>> Token([FromBody] YouAuthTokenRequest tokenRequest)
         {
             tokenRequest.Validate();
 

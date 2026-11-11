@@ -44,6 +44,14 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         /// </summary>
         public DriveSharingModel? SharingModel { get; set; }
 
+        /// <summary>
+        /// The drive as a caller may see it: whole for an owner or an app, and only its address for anyone
+        /// else, with the name blank, as V1's <c>metadata/type</c> has always answered a guest.
+        /// </summary>
+        public static ClientDriveData ForCaller(StorageDrive drive, bool callerIsOwner) => callerIsOwner
+            ? From(drive)
+            : new ClientDriveData { TargetDrive = drive.TargetDriveInfo, Name = string.Empty };
+
         /// <summary>The whole drive, as the V2 answers give it to an owner or an app.</summary>
         public static ClientDriveData From(StorageDrive drive) => new()
         {

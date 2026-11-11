@@ -370,6 +370,20 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
 - Everything else (comments, reactions, receipts, introductions, connections, live relay, notification tokens, Shamir)
   keeps its own rule. Don't centralize those.
 
+### The notification socket
+
+- `V2NotificationSocketController` authenticates the upgrade itself and takes one credential per route **(V)**:
+  - an app's bearer token, in `Sec-WebSocket-Protocol` (`notify/ws-token`, `ws-token-wasm`), from any origin: a page
+    can't send a token it doesn't have;
+  - the owner cookie (`notify/ws-cookie-owner`) or the app cookie (`notify/ws-cookie-app`), set by `notify/preauth`.
+- A route reads only its own cookie, because an app served from the identity's own host also sends the owner cookie
+  **(V)**.
+- A cookie route needs an `Origin` of the identity's own host or, for an app, its registered `CorsHostName`
+  (`IsAllowedCookieOrigin`), against cross-site WebSocket hijacking. V1's sockets have no such check and rely on the
+  cookie being `SameSite=Strict`, which doesn't stop a sibling on the same site **(V)**. Both also rely on the first
+  command being encrypted with the caller's shared secret (`AppNotificationHandler`): without it, a hijacked socket is
+  hung up on **(V)**.
+
 ## 7. The file (HomebaseFile)
 
 What a client gets back for one file (`SharedSecretEncryptedFileHeader`; odin-js calls it `HomebaseFile`) **(V)**:

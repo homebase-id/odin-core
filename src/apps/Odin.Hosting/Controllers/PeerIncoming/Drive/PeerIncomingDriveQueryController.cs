@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
 using Odin.Services.Apps;
@@ -34,6 +36,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCapiAuthScheme)]
     [ApiExplorerSettings(GroupName = "peer-v1")]
     public class PeerIncomingDriveQueryController(
+        ILogger<PeerIncomingDriveQueryController> logger,
         IDriveManager driveManager,
         IMediator mediator,
         IAppRegistrationService appRegistrationService,
@@ -59,6 +62,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("querybatch")]
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
+            LogIfDriveIsNotReadable(request.QueryParams);
+
             var perimeterService = GetPerimeterService();
             var options = request.ResultOptionsRequest ?? QueryBatchResultOptionsRequest.Default;
 
@@ -197,6 +202,36 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         // Temporal (time-boxed) read perimeter. Honors DrivePermission.ConditionalTemporalRead and
         // clamps results to a recent window. The normal endpoints above reject the temporal flag.
         // =====================================================================================
+
+        /// <summary>
+        /// Who was about to be refused and which drives they can read, which the 403 and the file system's message don't
+        /// say. Compare the list with the circles on this identity that should grant the drive.
+        /// </summary>
+        private void LogIfDriveIsNotReadable(FileQueryParamsV1 queryParams)
+        {
+            if (!logger.IsEnabled(LogLevel.Debug))
+            {
+                return;
+            }
+
+            var driveId = queryParams.DriveId;
+            var permissions = WebOdinContext.PermissionsContext;
+            if (permissions.HasDrivePermission(driveId, DrivePermission.Read))
+            {
+                return;
+            }
+
+            var readableDrives = permissions.Redacted().PermissionGroups
+                .SelectMany(g => g.DriveGrants)
+                .Select(g => g.PermissionedDrive.Drive.Alias.ToString())
+                .Distinct();
+            logger.LogDebug(
+                "Peer query of a drive the caller can't read: drive {driveId} caller {caller} level {level} " +
+                "canReadConditionally {conditional} grantedDrives {grantedDrives}",
+                driveId, WebOdinContext.Caller.OdinId?.ToString(), WebOdinContext.Caller.SecurityLevel,
+                permissions.HasDrivePermission(driveId, DrivePermission.ConditionalTemporalRead),
+                string.Join(",", readableDrives));
+        }
 
         [HttpPost("temporal/verify")]
         public async Task<TemporalAccessStatus> VerifyTemporalAccess([FromBody] TargetDrive targetDrive)
