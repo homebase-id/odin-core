@@ -693,7 +693,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             // Delete the payload from disk AFTER we update the header successfully
-            await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, file.FileId, [descriptor]);
+            await longTermStorageManager.TryHardDeletePayloadsOf(drive, header.FileMetadata, [descriptor]);
 
             return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because we pass header all the way
         }
@@ -994,7 +994,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // A hard delete writes no header, so it asks here what every header write asks of a member
             await AssertMemberMayWriteAsync(drive, fileHeader, odinContext);
 
-            await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads, expectedVersionTag);
+            await longTermStorageManager.HardDeleteAsync(drive, fileHeader.FileMetadata, expectedVersionTag);
 
             if (await TryShouldRaiseDriveEventAsync(file))
             {
@@ -1080,7 +1080,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 if (!success && !ignorePayload.GetValueOrDefault())
                 {
                     // clean up the newly copied payloads since we failed to update the header 
-                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, newMetadata.Payloads);
+                    await longTermStorageManager.TryHardDeleteCopiedPayloads(drive, targetFile.FileId, newMetadata.Payloads);
                 }
             }
 
@@ -1210,7 +1210,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         //sender's original descriptor, so an incoming payload can share Key and Uid (and therefore
                         //its stored object) with the one it replaces. Deleting that would destroy live bytes.
                         var zombiePayloads = PayloadStorage.ExcludeStillLive(committedPayloads, payloads);
-                        await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
+                        await longTermStorageManager.TryHardDeletePayloadsOf(drive, existingServerHeader.FileMetadata, zombiePayloads);
                     }
                 }
                 else
@@ -1219,7 +1219,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     {
                         // The header was never replaced, so the old one still references committedPayloads. Roll back
                         // only the incoming copies that live at their own objects.
-                        await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId,
+                        await longTermStorageManager.TryHardDeleteCopiedPayloads(drive, targetFile.FileId,
                             PayloadStorage.ExcludeStillLive(payloads, committedPayloads));
                     }
                 }
@@ -1245,6 +1245,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             AssertActiveForUpdate(existingServerHeader);
             // The payloads replaced below are the ones this header lists
             AssertVersionTagMatches(existingServerHeader, expectedVersionTag);
+
+            // A file whose payloads are remote has none stored here: bytes copied in would be listed as remote, never
+            // served, and never deleted with the file
+            if (existingServerHeader.FileMetadata.PayloadsAreRemote)
+            {
+                throw new OdinClientException("Cannot add a payload to a file whose payloads are remote",
+                    OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+            }
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
@@ -1277,7 +1285,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 // The header write failed, so the committed header still references committedPayloads; only the
                 // incoming copies that landed on their own objects are safe to reclaim.
-                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId,
+                await longTermStorageManager.TryHardDeleteCopiedPayloads(drive, targetFile.FileId,
                     PayloadStorage.ExcludeStillLive(incomingPayloads, committedPayloads));
                 throw;
             }
@@ -1297,7 +1305,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             finally
             {
                 // Remove the replaced payloads (only if DB successful)
-                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
+                await longTermStorageManager.TryHardDeletePayloadsOf(drive, existingServerHeader.FileMetadata, zombiePayloads);
             }
 
             return existingServerHeader.FileMetadata.VersionTag.GetValueOrDefault();
@@ -1587,18 +1595,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
+                var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
                 if (success)
                 {
-                    // Cleanup zombied payloads only if the file got moved and 
-                    var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombies);
+                    // The payloads the update replaced or deleted
+                    await longTermStorageManager.TryHardDeletePayloadsOf(drive, existingHeader.FileMetadata, zombies);
                 }
                 else
                 {
                     // clean up the newly copied payloads since we failed to update the header; the committed header is
                     // unchanged, so anything sharing a stored object with it must be left alone
-                    var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId,
+                    await longTermStorageManager.TryHardDeleteCopiedPayloads(drive, targetFile.FileId,
                         PayloadStorage.ExcludeStillLive(copiedPayloads, committedPayloads));
                 }
             }
@@ -2186,7 +2193,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (stillPresent.Count > 0)
             {
-                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, incomingFile.FileId, stillPresent);
+                await longTermStorageManager.TryHardDeleteCopiedPayloads(drive, incomingFile.FileId, stillPresent);
             }
         }
 
@@ -2512,7 +2519,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 if (success)
                 {
-                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, file.FileId, payloadsToDelete);
+                    await longTermStorageManager.TryHardDeletePayloadsOf(drive, existingHeader.FileMetadata, payloadsToDelete);
                 }
             }
 
@@ -2947,7 +2954,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 _logger.LogWarning(
                     "[UploadTiming] Commit-to-long-term FAILED fileId:{fileId} totalMs:{totalMs}",
                     targetFile.FileId, totalSw.ElapsedMilliseconds);
-                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId,
+                await longTermStorageManager.TryHardDeleteCopiedPayloads(drive, targetFile.FileId,
                     PayloadStorage.ExcludeStillLive(descriptors, committedPayloads));
                 throw;
             }

@@ -19,7 +19,7 @@ namespace Odin.Services.Tests.Drives.DriveCore.Storage;
 // Covers the long-term primitives the folder-less inbox path relies on:
 //  - WriteStreamDirectToLongTermAsync: the peer receive path streams a payload straight to long-term under the
 //    incoming fileId, at exactly the location the canonical reader (PayloadExistsOnDiskAsync) later reads from.
-//  - TryHardDeleteListOfPayloadFiles: what CleanupAbandonedLongTermPayloads uses to reclaim those payloads when
+//  - TryHardDeleteCopiedPayloads: what CleanupAbandonedLongTermPayloads uses to reclaim those payloads when
 //    an inbox item is abandoned / fails to enqueue (otherwise they orphan, since the orphan scanner only sweeps
 //    the inbox folder).
 //  - MovePayloadWithinLongTermAsync: the overwrite path relocates payloads (and thumbnails) from the incoming
@@ -102,7 +102,7 @@ public class LongTermStorageManagerTests : PayloadReaderWriterBaseTestFixture
         Assert.That(await _sut.PayloadExistsOnDiskAsync(drive, fileId, descriptor), Is.True);
 
         // CleanupAbandonedLongTermPayloads reclaims it via this hard delete on the give-up path.
-        await _sut.TryHardDeleteListOfPayloadFiles(drive, fileId, new List<PayloadDescriptor> { descriptor });
+        await _sut.TryHardDeleteCopiedPayloads(drive, fileId, new List<PayloadDescriptor> { descriptor });
         Assert.That(await _sut.PayloadExistsOnDiskAsync(drive, fileId, descriptor), Is.False);
     }
 

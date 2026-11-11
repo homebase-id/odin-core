@@ -431,6 +431,17 @@ public abstract class V2Fixture
         await scope.Resolve<TableDriveMainIndexCached>().InvalidateAllAsync();
     }
 
+    /// <summary>Where <paramref name="owner"/>'s payload store keeps each payload and thumbnail a file lists</summary>
+    protected async Task<List<string>> StoredObjectPathsAsync(OwnerSession owner, TargetDrive drive, Guid fileId)
+    {
+        var header = (await owner.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId)).Content!;
+        var paths = TenantPaths(owner);
+        return header.FileMetadata.Payloads.SelectMany(p => p.Thumbnails
+                .Select(t => paths.GetThumbnailDirectoryAndFileName(drive.Alias, fileId, p.Key, p.Uid, t.PixelWidth, t.PixelHeight))
+                .Prepend(paths.GetPayloadDirectoryAndFileName(drive.Alias, fileId, p.Key, p.Uid)))
+            .ToList();
+    }
+
     /// <summary>
     /// No payload bytes on <paramref name="owner"/>'s drive, stored or staged: a refused payload leaves none behind.  The
     /// transfer's .metadata/.transferkeyheader staging files are written before any payload arrives and are not removed
