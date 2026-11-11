@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
@@ -144,19 +145,32 @@ public class MailActivationService(
         }
     }
 
-    /// <param name="recordsWritten">
-    /// Set when the caller has already registered the domain and published its records (the
-    /// repair button): the job then goes straight to verification. Null runs the full setup.
+    /// <param name="setupDone">
+    /// The caller has already registered the domain and published its records (the repair
+    /// button): the job then goes straight to verification. False runs the full setup.
     /// </param>
-    private async Task ScheduleRelayOnboardingAsync(string domain, bool? recordsWritten = null)
+    /// <param name="recordsWritten">Whether the caller published the records itself, or they are the owner's to add</param>
+    private async Task ScheduleRelayOnboardingAsync(string domain, bool setupDone = false, bool recordsWritten = false)
     {
         var job = jobManager.NewJob<MailRelayOnboardingJob>();
         job.Data = new MailRelayOnboardingJobData
         {
             Domain = domain,
-            SetupDone = recordsWritten.HasValue,
-            RecordsWritten = recordsWritten ?? false,
+            SetupDone = setupDone,
+            RecordsWritten = recordsWritten,
         };
+
+        // One job per domain: ScheduleJobAsync hands back a queued one unchanged, which kept its old VerifyAttempts and
+        // RecordsWritten, so a repair could give up after a few tries (#1891). A queued job takes this request instead,
+        // its verification count starting again; one already running finishes as it is
+        var queued = await jobManager.GetJobByHashAsync(MailRelayOnboardingJob.JobHashFor(domain));
+        if (queued is { state: (int)JobState.Scheduled } &&
+            await jobManager.RescheduleJobAsync(queued.id, queued.identityId, job.SerializeJobData()!,
+                DateTimeOffset.Now.AddSeconds(1), ifUnchangedFrom: queued))
+        {
+            logger.LogInformation("Relay onboarding for {domain} was already queued; it now starts over", domain);
+            return;
+        }
 
         await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
@@ -251,7 +265,7 @@ public class MailActivationService(
         // before it writes, so running it after this is safe).
         if (relayProvider.IsConfigured && relayError == null)
         {
-            await ScheduleRelayOnboardingAsync(domain.DomainName, recordsWritten: written);
+            await ScheduleRelayOnboardingAsync(domain.DomainName, setupDone: true, recordsWritten: written);
         }
 
         return new MailDnsPublishResult { DnsRecordsWritten = written, Records = records, RelayError = relayError };

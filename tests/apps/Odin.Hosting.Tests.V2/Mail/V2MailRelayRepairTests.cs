@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Odin.Core.Serialization;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Mail;
 using Odin.Services.Email.Relay;
@@ -95,6 +96,26 @@ public class V2MailRelayRepairTests : V2Fixture
         var job = await jobs.GetJobByHashAsync(MailRelayOnboardingJob.JobHashFor(PrimaryIdentity));
         Assert.That(repaired.Content.DnsRecordsWritten, Is.False, "the test host writes no DNS");
         Assert.That(job, Is.Not.Null, "repair must schedule relay verification even when it wrote no DNS");
+
+        // #1891: and it's the verify-only job, not a full setup; one that knows the records are the owner's to add
+        var data = OdinSystemSerializer.DeserializeOrThrow<MailRelayOnboardingJobData>(job!.jobData);
+        Assert.That(data.SetupDone, Is.True, "repair has registered and published already; the job only verifies");
+        Assert.That(data.RecordsWritten, Is.False, "the records are the owner's to add");
+
+        // #1891: a repair while that job is still queued starts it over, instead of leaving it as it was: here, one
+        // that had nearly used up its verify attempts
+        var spent = new MailRelayOnboardingJobData
+            { Domain = PrimaryIdentity, SetupDone = true, RecordsWritten = true, VerifyAttempts = 140 };
+        Assert.That(await jobs.RescheduleJobAsync(job.id, job.identityId, OdinSystemSerializer.Serialize(spent),
+            System.DateTimeOffset.Now.AddHours(1)), Is.True);
+
+        var again = await client.PublishDnsRecords();
+        Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"status was {again.StatusCode}");
+        var requeued = await jobs.GetJobByHashAsync(MailRelayOnboardingJob.JobHashFor(PrimaryIdentity));
+        Assert.That(requeued!.id, Is.EqualTo(job.id), "still the one job for the domain");
+        var restarted = OdinSystemSerializer.DeserializeOrThrow<MailRelayOnboardingJobData>(requeued.jobData);
+        Assert.That(restarted.VerifyAttempts, Is.Zero, "its verify attempts start again");
+        Assert.That(restarted.RecordsWritten, Is.False, "and it knows what this repair wrote");
     }
 
     /// <summary>A relay that refuses with the given words while <see cref="Refusal"/> is set.</summary>

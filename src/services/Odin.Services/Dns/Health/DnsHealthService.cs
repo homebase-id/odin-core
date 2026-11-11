@@ -325,10 +325,21 @@ public class DnsHealthService(
             return relay;
         }
 
+        // Entries past the interval decide nothing any more; without this the map kept one per domain that stayed
+        // unverified, or whose tenant was deleted or moved, until the process exited (#1891)
+        foreach (var entry in _relayReverifiedAt)
+        {
+            if (now - entry.Value >= RelayReverifyInterval)
+            {
+                _relayReverifiedAt.TryRemove(entry);
+            }
+        }
+
         try
         {
             var state = await relayProvider.VerifyDomainAsync(domain, cancellationToken);
-            logger.LogInformation("Relay: re-verified {domain} from the health check -> {verified}", domain, state.Verified);
+            // The relay provider logs the result at Information
+            logger.LogDebug("Relay: re-verified {domain} from the health check -> {verified}", domain, state.Verified);
             return MailRelayHealthResult.From(state);
         }
         catch (Exception e)

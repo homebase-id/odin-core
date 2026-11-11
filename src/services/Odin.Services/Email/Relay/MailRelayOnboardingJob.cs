@@ -94,7 +94,29 @@ public class MailRelayOnboardingJob(
             }
         }
 
-        var verified = await relayProvider.VerifyDomainAsync(domain, cancellationToken);
+        MailRelayDomainState verified;
+        try
+        {
+            verified = await relayProvider.VerifyDomainAsync(domain, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException && e is not MailRelayException { IsPermanent: true })
+        {
+            // A relay outage, not an answer (#1891): left to the JobManager, ten minutes of downtime spent its ten
+            // one-minute retries and the job ended Failed with nobody verifying again. Wait it out like propagation,
+            // counted against the same ~24 h bound
+            Data.VerifyAttempts++;
+            if (Data.VerifyAttempts >= MaxVerifyAttempts)
+            {
+                logger.LogWarning(e, "Relay: could not verify {domain} after {attempts} attempts; giving up", domain,
+                    Data.VerifyAttempts);
+                return JobExecutionResult.Success();
+            }
+
+            logger.LogInformation("Relay: could not verify {domain} right now ({error}); attempt {n}/{max}",
+                domain, e.Message, Data.VerifyAttempts, MaxVerifyAttempts);
+            return JobExecutionResult.Defer(DateTimeOffset.Now.AddMinutes(RetryMinutes));
+        }
+
         if (verified.Verified)
         {
             logger.LogInformation("Relay: {domain} verified, outbound relay is live", domain);
