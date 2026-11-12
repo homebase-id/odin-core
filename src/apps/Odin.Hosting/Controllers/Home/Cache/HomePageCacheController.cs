@@ -33,6 +33,12 @@ public class HomePageCacheController : OdinControllerBase
     [HttpPost("invalidate")]
     public async Task<IActionResult> InvalidCache()
     {
+        // The owner's, as with every other change to what the home page shows
+        if (!WebOdinContext.Caller.IsOwner)
+        {
+            return StatusCode(403);
+        }
+
         await _cachingService.InvalidateAsync();
         return Ok();
     }
