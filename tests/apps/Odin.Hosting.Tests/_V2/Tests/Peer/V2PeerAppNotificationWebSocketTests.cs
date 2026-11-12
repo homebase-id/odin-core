@@ -27,9 +27,9 @@ namespace Odin.Hosting.Tests._V2.Tests.Peer;
 /// a drive hosted by another identity over the V2 peer websocket
 /// (<c>/api/v2/peer/notify/ws-token</c>).
 ///
-/// FLAGGED: this lives in the OLD WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>),
-/// because WebSocket flows are an explicit non-goal of the fast framework — they need a real Kestrel
-/// host. The handshake/in-band-auth and assertions are ported from the battle-tested V1
+/// FLAGGED: this lives in the OLD WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>). The fast
+/// framework can open a socket within a test too (<c>Odin.Hosting.Tests.V2/ZeroKnowledge/SelectiveShareTests.PeerSocket</c>),
+/// so moving this one costs only the port. The handshake/in-band-auth and assertions are ported from the battle-tested V1
 /// <c>_Universal/Peer/PeerAppNotificationsWebSocket/PeerAppNotificationTests</c>; only the websocket
 /// URL differs (V2 route instead of <c>/api/apps/v1/notify/peer/ws</c>).
 /// </summary>
