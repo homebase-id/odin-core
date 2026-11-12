@@ -250,7 +250,7 @@ public static class BuiltinDrives
     /// Null for every other drive.
     /// </summary>
     public static bool? BlockEnumerationOf(TargetDrive drive) =>
-        ProtectedBlockEnumeration.Value.TryGetValue(drive, out var blockEnumeration) ? blockEnumeration : null;
+        drive != null && ProtectedBlockEnumeration.Value.TryGetValue(drive, out var blockEnumeration) ? blockEnumeration : null;
 
     // Built on first use: the app tree reads this class's fields, so reading it from a static initializer here could see
     // it half made

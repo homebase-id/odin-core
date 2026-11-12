@@ -151,7 +151,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<SharedSecretEncryptedFileHeader> GetSingleFileByTag(Guid driveId, Guid tag, IOdinContext odinContext)
         {
-            // GetBatch below asks whether the drive is valid, active and listable
+            await AssertDriveIsValidAndActive(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var qp = new FileQueryParamsV1()

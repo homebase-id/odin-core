@@ -332,7 +332,7 @@ public class DriveManager : IDriveManager
         if (blockEnumeration && allowSubscriptions)
         {
             throw new OdinClientException("A drive that blocks enumeration cannot allow subscriptions",
-                OdinClientErrorCode.ArgumentError);
+                OdinClientErrorCode.CannotAllowSubscriptionsOnDriveThatBlocksEnumeration);
         }
     }
 

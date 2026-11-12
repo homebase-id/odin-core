@@ -123,8 +123,15 @@ public sealed class DriveEventMessage(
 
     private async Task<bool> MayReadAsync(IOdinContext? deviceOdinContext, ServerFileHeader? file,
         IDriveAclAuthorizationService aclService) =>
-        deviceOdinContext != null && (drive?.MayBeListedBy(deviceOdinContext.Caller) ?? true) &&
-        await aclService.CallerMayReadAsync(drive, file, deviceOdinContext);
+        MayHearOf(deviceOdinContext) && await aclService.CallerMayReadAsync(drive, file, deviceOdinContext!);
+
+    /// <summary>
+    /// Whether the socket may hear of the drive's files at all: on a drive that blocks enumeration only a caller who may
+    /// list it; with no drive to ask (it is gone), only the owner, the owner's apps and the server.
+    /// </summary>
+    private bool MayHearOf(IOdinContext? deviceOdinContext) =>
+        deviceOdinContext != null &&
+        (drive?.MayBeListedBy(deviceOdinContext.Caller) ?? DriveAclAuthorizationService.PassesEveryAcl(deviceOdinContext.Caller));
 
     /// <summary>
     /// The event's headers as <paramref name="deviceOdinContext"/> gets them: on a Server Share drive a deposit its request
@@ -227,9 +234,14 @@ public sealed class DriveEventMessage(
         var headers = HeadersFor(deviceOdinContext);
         var (current, previous) = headers;
         var file = previous ?? current;
-        var shares = deviceOdinContext == null || file?.FileMetadata?.File == null
+        if (!MayHearOf(deviceOdinContext))
+        {
+            return null;
+        }
+
+        var shares = file?.FileMetadata?.File == null
             ? null
-            : await aclService.FilesSharedWithCallerAsync(drive, [file], deviceOdinContext);
+            : await aclService.FilesSharedWithCallerAsync(drive, [file], deviceOdinContext!);
         if (shares == null)
         {
             return await MayReadAsync(deviceOdinContext, file, aclService) ? JsonFor(socket, headers) : null;
