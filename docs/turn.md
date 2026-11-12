@@ -128,11 +128,12 @@ no-tcp-relay
 no-multicast-peers
 
 # Never relay to anything but the public internet.
-# No entry may start at "::": coturn then refuses every IPv4 peer ("A peer IP 8.8.8.8 denied in the
-# range: ::-::ffff:ffff"), and a bare :: or ::1 does the same. IPv6 loopback stays denied without
-# one: coturn refuses loopback peers unless allow-loopback-peers is set, and the egress filter
-# below drops ::/127 as well. An IPv4-mapped peer (::ffff:10.0.0.1) leaves the host as IPv4, so
-# the egress filter's IPv4 rules catch it.
+# No range may begin at the address :: itself, and no entry may be a bare :: or ::1: coturn then
+# refuses every IPv4 peer ("A peer IP 8.8.8.8 denied in the range: ::-::ffff:ffff"). IPv6 loopback
+# stays denied without one: coturn refuses loopback peers unless allow-loopback-peers is set, and
+# the egress filter below drops ::/127 as well. The IPv4-mapped range (::ffff:0.0.0.0-…) is a
+# different entry and stays: it refuses ::ffff:10.0.0.1 and the like, which would otherwise reach
+# private addresses. It also refuses mapped public peers, which ICE never uses.
 denied-peer-ip=0.0.0.0-0.255.255.255
 denied-peer-ip=10.0.0.0-10.255.255.255
 denied-peer-ip=100.64.0.0-100.127.255.255
@@ -147,6 +148,7 @@ denied-peer-ip=198.18.0.0-198.19.255.255
 denied-peer-ip=198.51.100.0-198.51.100.255
 denied-peer-ip=203.0.113.0-203.0.113.255
 denied-peer-ip=224.0.0.0-255.255.255.255
+denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
 denied-peer-ip=64:ff9b::-64:ff9b::ffff:ffff
 denied-peer-ip=100::-100::ffff:ffff:ffff:ffff
 denied-peer-ip=2001::-2001:0:ffff:ffff:ffff:ffff:ffff:ffff
@@ -157,8 +159,8 @@ denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 # and our own public subnets
 ```
 
-**Plus an egress filter at the network level**, dropping the same ranges, IPv6 loopback (`::/127`)
-and our own subnets for coturn's traffic only. With host networking coturn shares the host's network namespace, and a
+**Plus an egress filter at the network level**, dropping the same ranges, IPv6 loopback (`::/127`),
+the IPv4-mapped range (`::ffff:0:0/96`) and our own subnets for coturn's traffic only. With host networking coturn shares the host's network namespace, and a
 host-wide rule would cut odin-core off from its own private services, so match coturn's process
 instead: run it as its own user and filter on that (`iptables -A OUTPUT -m owner --uid-owner turnserver
 -d 10.0.0.0/8 -j DROP`, and so on), or give coturn a network namespace of its own. coturn's `denied-peer-ip` has been bypassed several
