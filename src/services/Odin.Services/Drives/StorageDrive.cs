@@ -3,6 +3,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -53,10 +54,13 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.RequirePayloadHashes = value;
     }
 
-    /// <summary>Only the owner, the owner's apps and the server may list it. See <see cref="StorageDriveDetails"/>.</summary>
+    /// <summary>
+    /// Only the owner, the owner's apps and the server may list it. See <see cref="StorageDriveDetails"/>.  A system drive
+    /// has what its built-in definition says (<see cref="BuiltinDrives.BlockEnumerationOf"/>), whatever is stored.
+    /// </summary>
     public bool BlockEnumeration
     {
-        get => Data.BlockEnumeration;
+        get => BuiltinDrives.BlockEnumerationOf(TargetDriveInfo) ?? Data.BlockEnumeration;
         set => Data.BlockEnumeration = value;
     }
 

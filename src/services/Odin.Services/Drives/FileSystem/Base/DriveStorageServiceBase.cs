@@ -2790,16 +2790,18 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// content, so the only thing they can take away is remaining lifetime - and only from a file
         /// that is already dying. A file with no Ttl is refused outright: hastening is not killing,
         /// and an anonymous visitor must never be able to destroy permanent public data.
-        /// Only on a drive that blocks enumeration (<see cref="StorageDrive.BlockEnumeration"/>): there a caller reaches a
-        /// file only by the address they were given, so "they can read it" means "they hold its link". On a drive anyone
-        /// can list, whoever lists it could expire every file on it.
+        /// For anyone but the owner, the owner's apps and the server, only on a drive that blocks enumeration
+        /// (<see cref="StorageDrive.BlockEnumeration"/>): there a caller reaches a file only by the address they were given,
+        /// so "they can read it" means "they hold its link". On a drive anyone can list, whoever lists it could expire every
+        /// file on it.
         /// </summary>
         public async Task<bool> HastenExpiryAsync(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
 
+            // The owner, the owner's apps and the server may list and delete anything anyway
             var drive = await DriveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
-            if (!drive.BlockEnumeration)
+            if (!drive.BlockEnumeration && !DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller))
             {
                 throw new OdinClientException("Only a file on a drive that can't be listed can be expired early",
                     OdinClientErrorCode.ArgumentError);

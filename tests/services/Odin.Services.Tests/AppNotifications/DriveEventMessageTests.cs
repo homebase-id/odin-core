@@ -6,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
@@ -89,6 +90,24 @@ public class DriveEventMessageTests
 
         var message = new DriveEventMessage(ClientNotificationType.FileDeleted, null, tombstone, asItWas);
         Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: false, SecurityGroupType.Authenticated), ReadRule), Is.False);
+    }
+
+    [TestCase(SecurityGroupType.Owner, true, TestName = "ADriveThatBlocksEnumerationTellsTheOwnerOfAFile")]
+    [TestCase(SecurityGroupType.Connected, false, TestName = "ADriveThatBlocksEnumerationTellsNoConnectionOfAFile")]
+    [TestCase(SecurityGroupType.Anonymous, false, TestName = "ADriveThatBlocksEnumerationTellsNoVisitorOfAFile")]
+    public async Task OnADriveThatBlocksEnumerationOnlyWhoMayListItHearsOfAFile(SecurityGroupType level, bool expected)
+    {
+        // Every new drop's header carries its address; telling a reader of it would hand out what only its link should
+        var drive = new StorageDrive(null!, new StorageDriveData
+        {
+            TargetDriveInfo = TargetDrive.NewTargetDrive(),
+            AllowAnonymousReads = true,
+            BlockEnumeration = true
+        });
+        var message = new DriveEventMessage(ClientNotificationType.FileAdded, drive,
+            Header(EncryptionType.Aes, AccessControlList.Anonymous), null);
+        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: level == SecurityGroupType.Owner, level), ReadRule),
+            Is.EqualTo(expected));
     }
 
     private static ServerFileHeader Header(EncryptionType type, AccessControlList? acl = null) => new()

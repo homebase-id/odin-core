@@ -111,7 +111,9 @@ public sealed class DriveEventMessage(
     /// (<see cref="IDriveAclAuthorizationService.CallerMayReadAsync"/>), whatever the result shape. Drive read, checked at the
     /// handshake, is not enough: a file's ACL can exclude a reader of its drive. A delete is checked against the
     /// file as it was, since the deleted header no longer says who could read it (it keeps the key header).
-    /// Unlike a query, this doesn't leave out an encrypted file the socket holds no storage key for.
+    /// Unlike a query, this doesn't leave out an encrypted file the socket holds no storage key for.  On a drive that blocks
+    /// enumeration only a caller who may list it hears of its files: an event would hand everyone else each new file's
+    /// address (a WebDrop drop's unique id) without their having been given it.
     /// </summary>
     public Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
     {
@@ -121,7 +123,8 @@ public sealed class DriveEventMessage(
 
     private async Task<bool> MayReadAsync(IOdinContext? deviceOdinContext, ServerFileHeader? file,
         IDriveAclAuthorizationService aclService) =>
-        deviceOdinContext != null && await aclService.CallerMayReadAsync(drive, file, deviceOdinContext);
+        deviceOdinContext != null && (drive?.MayBeListedBy(deviceOdinContext.Caller) ?? true) &&
+        await aclService.CallerMayReadAsync(drive, file, deviceOdinContext);
 
     /// <summary>
     /// The event's headers as <paramref name="deviceOdinContext"/> gets them: on a Server Share drive a deposit its request

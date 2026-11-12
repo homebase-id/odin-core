@@ -5,9 +5,9 @@
 | Piece | State |
 |---|---|
 | **Part 1 — generic file TTL** (`FileMetadata.Ttl`, expiry/reap jobs, peer transit, cache clamp) | **Implemented** — PR #1692 |
-| Part 2 — non-enumerable drives (built as `BlockEnumeration`) | **Implemented** — see *Capability needed* below; WebDrop's built-in drive sets it, v22 sets it on existing ones |
+| Part 2 — non-enumerable drives (built as `BlockEnumeration`) | **Implemented** — see *Capability needed* below; WebDrop's built-in drive has it, existing ones included (a system drive's option comes from its definition) |
 | `expire-now` (anonymous destroy button, server side) | **Implemented** on PR #1692 — see *Expire-now* below; works only on a drive that blocks enumeration |
-| Part 2 — `WebDropDrive` system drive + migration | **Implemented** — `BuiltinDrives.WebDropDrive` (built-in), v22 flags existing ones |
+| Part 2 — `WebDropDrive` system drive + migration | **Implemented** — `BuiltinDrives.WebDropDrive` (built-in); no migration: a system drive's `BlockEnumeration` comes from its definition |
 | Viewer web app | UX prototype only, in odin-js (`packages/apps/web-drop-app`) — no decryption, no drive; see *Viewer UX* |
 | Writer — chat-kmp WebDrop add-on (Home-tile app, no toolbar icon) | **Implemented** on chat-kmp branch `webdrop-app`: multi-file drops, owner-encrypted receipts, Waiting/Opened/Removed list, revoke. Drive bootstraps via extend-permissions `allowAnonymousRead` |
 
@@ -210,7 +210,7 @@ which is what keeps it on existing endpoints.
 the owner's apps and the server (`DriveAclAuthorizationService.PassesEveryAcl`), not only anonymous callers:
 connected and signed-in callers get `Read` on every public drive too. Blocked drives keep their public-drive
 grants, so a header read by unique id still works (the client header is built from the caller's grant on the
-drive, `DriveFileUtility`); only listing and counting are refused (`DriveQueryServiceBase.AssertMayEnumerateAsync`).
+drive, `DriveFileUtility`); only listing and counting are refused (`DriveQueryServiceBase.DriveToListAsync`), and so is hearing of new files on a socket (`DriveEventMessage.VisibleToAsync`).
 `HandleDriveAdded` no longer exists. File ids now take their random bytes from the cryptographic generator
 (`SequentialGuid`), so an id nobody was given can't be predicted from ids seen elsewhere.
 
@@ -305,8 +305,8 @@ the Email drive. Alias `6d1711af-8b93-43ef-b798-b84d51f25828`, type
 `edee430a-73d4-49ae-a9ae-2d3091957702` (chat-kmp `AppConfig.webDropLabeledDrive`); mirror them in
 `WellKnownAppDrives.cs` when server-side authorization needs to name the drive.
 
-Done: the built-in definition sets `BlockEnumeration`, and the v21 → v22 upgrade sets it on WebDrop drives made
-before it.
+Done: the built-in definition sets `BlockEnumeration`, and a system drive has what its definition says whatever is
+stored (`BuiltinDrives.BlockEnumerationOf`), so WebDrop drives made before it block enumeration too, with no migration.
 
 **Expire-now.** The viewer's *"I'm done — destroy it now"* button calls
 `POST /api/v2/drives/{driveId}/files/by-uid/{uid}/expire-now` (anonymous, no shared secret), which

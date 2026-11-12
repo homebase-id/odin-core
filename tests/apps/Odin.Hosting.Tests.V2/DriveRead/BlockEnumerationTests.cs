@@ -16,7 +16,6 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
-using Odin.Services.Configuration.VersionUpgrade.Version21tov22;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -65,8 +64,8 @@ public class BlockEnumerationTests : V2Fixture
         Assert.That((openBySam.StatusCode, openBySam.Content?.SearchResults.Any(h => h.FileId == openFile)),
             Is.EqualTo((HttpStatusCode.OK, (bool?)true)), "control: a connection lists a public drive");
         var blockedBySam = await PeerQueryAsync(sam, frodo, blocked);
-        Assert.That(blockedBySam.Content?.SearchResults.Any(h => h.FileId == blockedFile) ?? false, Is.False,
-            $"a connection, on a drive that blocks it (answered {blockedBySam.StatusCode})");
+        Assert.That((blockedBySam.StatusCode, blockedBySam.Content?.SearchResults.Any(h => h.FileId == blockedFile) ?? false),
+            Is.EqualTo((HttpStatusCode.Forbidden, false)), "a connection, on a drive that blocks it");
 
         // The owner
         var byOwner = await frodo.RefitFor<IDriveQueryHttpClientApiV2>().GetBatch(blocked.Alias, Query(blocked));
@@ -125,29 +124,49 @@ public class BlockEnumerationTests : V2Fixture
         Assert.That(await AnonymousQueryAsync(drive), Is.EqualTo(HttpStatusCode.OK), "and listable again");
 
         var webDrop = await frodo.Admin.TrySetBlockEnumeration(WellKnownAppDrives.WebDropDrive, false);
-        Assert.That(webDrop.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK), "a system drive keeps its built-in definition");
+        Assert.That(webDrop.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "a system drive keeps its built-in definition");
         Assert.That(await BlocksAsync(frodo, WellKnownAppDrives.WebDropDrive), Is.True, "WebDrop's drive, as provisioned");
     }
 
     [Test]
-    public async Task TheVersionUpgradeBlocksEnumerationOfAnExistingWebDropDrive()
+    public async Task TheOwnersAppListsIt()
+    {
+        // WebDrop's own list of drops (Waiting, Opened, Removed) is an app of the owner listing the drive
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var blocked = await CreateDriveAsync(frodo, blockEnumeration: true);
+        var (fileId, _) = await UploadAsync(frodo, blocked);
+        var app = await AppSession.SetupAsync(frodo, blocked, Odin.Services.Drives.DrivePermission.Read);
+
+        var byApp = await app.RefitFor<IDriveQueryHttpClientApiV2>().GetBatch(blocked.Alias, Query(blocked));
+        Assert.That((byApp.StatusCode, byApp.Content?.SearchResults.Any(h => h.FileId == fileId)),
+            Is.EqualTo((HttpStatusCode.OK, (bool?)true)), byApp.Error?.Content);
+    }
+
+    [Test]
+    public async Task ItCantBeCombinedWithSubscriptions()
+    {
+        // Followers would get every file pushed to them by the feed
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var create = await frodo.Admin.TryCreateDrive(TargetDrive.NewTargetDrive(), "both", allowAnonymousReads: true,
+            allowSubscriptions: true, blockEnumeration: true);
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "at creation");
+
+        var subscribed = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(subscribed, "subscribed", allowAnonymousReads: true, allowSubscriptions: true);
+        var block = await frodo.Admin.TrySetBlockEnumeration(subscribed, true);
+        Assert.That(block.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "on a drive that allows subscriptions");
+    }
+
+    [Test]
+    public async Task TheOwnerExpiresAFileOnADriveAnyoneCanList()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
-        var (scope, ctx) = await MigrationContextAsync(frodo);
-        var drives = scope.Resolve<DriveManager>();
-        var webDrop = (await drives.GetDriveAsync(WellKnownAppDrives.WebDropDrive.Alias))!;
+        var open = await CreateDriveAsync(frodo, blockEnumeration: false);
+        var (_, uid) = await UploadAsync(frodo, open, ttl: FileTtl.After(TimeSpan.FromHours(1)));
 
-        // An identity provisioned before the flag: its WebDrop drive can be listed
-        await drives.SetSystemDriveBlockEnumerationAsync(webDrop.Id, false, ctx);
-        var migration = scope.Resolve<V21ToV22VersionMigrationService>();
-        Assert.ThrowsAsync<OdinSystemException>(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None),
-            "validation must not pass while WebDrop's drive can be listed");
-
-        await migration.BlockWebDropEnumerationAsync(ctx, CancellationToken.None);
-
-        Assert.That(await BlocksAsync(frodo, WellKnownAppDrives.WebDropDrive), Is.True, "after the upgrade");
-        Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
-        Assert.DoesNotThrowAsync(() => migration.BlockWebDropEnumerationAsync(ctx, CancellationToken.None), "a second run");
+        using var http = frodo.Factory.CreateHttpClient(frodo.Identity, out _);
+        var expire = await http.PostAsync($"/api/v2/drives/{open.Alias}/files/by-uid/{uid}/expire-now", null);
+        Assert.That(expire.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the owner may list and delete it anyway");
     }
 
     // Helpers

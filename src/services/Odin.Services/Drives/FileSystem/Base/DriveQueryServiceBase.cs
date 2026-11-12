@@ -111,9 +111,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
-            await DriveToListAsync(driveId, odinContext);
+            var drive = await DriveToListAsync(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
-            return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
+            return await GetBatchInternal(drive, qp, options, odinContext, forceIncludeServerMetadata);
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(driveId);
             var modifiedAfter = TemporalReadPolicy.ResolveCutoff(odinContext, drive);
 
-            return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata, modifiedAfter);
+            return await GetBatchInternal(drive, qp, options, odinContext, forceIncludeServerMetadata, modifiedAfter);
         }
 
         public async Task<QueryBatchResult> GetSmartBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
@@ -151,7 +151,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<SharedSecretEncryptedFileHeader> GetSingleFileByTag(Guid driveId, Guid tag, IOdinContext odinContext)
         {
-            await AssertDriveIsValidAndActive(driveId, odinContext);
+            // GetBatch below asks whether the drive is valid, active and listable
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var qp = new FileQueryParamsV1()
@@ -580,12 +580,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Gets the file Id a file by its <see cref="GlobalTransitIdFileIdentifier"/>
         /// </summary>
         /// <returns>The fileId; otherwise null if the file does not exist</returns>
-        private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
+        private async Task<QueryBatchResult> GetBatchInternal(StorageDrive drive, FileQueryParams qp, QueryBatchResultOptions options,
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false,
             UnixTimeUtc? modifiedAfter = null)
         {
-            var drive = await DriveManager.GetDriveAsync(driveId);
+            var driveId = drive.Id;
             var (cursor, fileIdList, hasMoreRows) = await _driveQuery.GetBatchCoreAsync(
                 drive,
                 odinContext,

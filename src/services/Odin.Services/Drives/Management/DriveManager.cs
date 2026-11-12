@@ -107,6 +107,8 @@ public class DriveManager : IDriveManager
                 OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
+        AssertListingFits(request.BlockEnumeration, request.AllowSubscriptions);
+
         var zeroKnowledge = request.AssertSharingModel();
 
         var existingDriveByTargetDriveAsync = await _tableDrives.GetByTargetDriveAsync(request.TargetDrive.Alias, request.TargetDrive.Type);
@@ -265,6 +267,8 @@ public class DriveManager : IDriveManager
             throw new OdinSecurityException("Cannot set Owner Only drive to allow anonymous");
         }
 
+        AssertListingFits(storageDrive.BlockEnumeration, allowSubscriptions);
+
         //only change if needed
         if (storageDrive.AllowSubscriptions != allowSubscriptions)
         {
@@ -292,22 +296,9 @@ public class DriveManager : IDriveManager
     /// </summary>
     public async Task SetDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
     {
-        await SetBlockEnumerationAsync(await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext), blockEnumeration,
-            odinContext);
-    }
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext);
+        AssertListingFits(blockEnumeration, storageDrive.AllowSubscriptions);
 
-    /// <summary>
-    /// <see cref="SetDriveBlockEnumerationAsync"/> for a version upgrade bringing a system drive to its built-in
-    /// definition.
-    /// </summary>
-    internal async Task SetSystemDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
-    {
-        await SetBlockEnumerationAsync(await DriveToChangeAsync(driveId, refuseSystemDrive: false, odinContext), blockEnumeration,
-            odinContext);
-    }
-
-    private async Task SetBlockEnumerationAsync(StorageDrive storageDrive, bool blockEnumeration, IOdinContext odinContext)
-    {
         //only change if needed
         if (storageDrive.BlockEnumeration != blockEnumeration)
         {
@@ -330,6 +321,18 @@ public class DriveManager : IDriveManager
             DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowCdn: allowCdn);
             storageDrive.SetCdnEnabled(allowCdn);
             await SaveDriveChangeAsync(storageDrive, odinContext);
+        }
+    }
+
+    /// <summary>
+    /// A drive nobody but the owner may list can't let followers subscribe: the feed would push every file to them.
+    /// </summary>
+    private static void AssertListingFits(bool blockEnumeration, bool allowSubscriptions)
+    {
+        if (blockEnumeration && allowSubscriptions)
+        {
+            throw new OdinClientException("A drive that blocks enumeration cannot allow subscriptions",
+                OdinClientErrorCode.ArgumentError);
         }
     }
 
