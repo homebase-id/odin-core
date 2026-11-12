@@ -59,6 +59,7 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 | Guest / YouAuth domain | client token | its own grant (`AppGrants`) |
 | Guest / home-site visitor | client token (`BuiltInBrowserApp`, `XT32` cookie) | no grant of its own: what its connection (or follow) already allows (`HomeAuthenticatorService`) |
 | Peer (another identity) | TLS client cert + CAT | CAT → **Peer Key** → that connection's circle grants |
+| Peer's device (direct read) | the peer-notification token its own server fetched for the peer socket (`PeerNotificationSubscriber`) | no key: Read on the zero-knowledge drives that connection's circle grants reach (app circles included), nothing else, and only on the drive reads marked `[PeerDirectRead]` (header, payload, thumbnail, query) of such a drive; anywhere else the caller is anonymous (`CircleNetworkService.TryCreatePeerSubscriberReadContextAsync`, `PeerSubscriberAuthPathHandler`) **(V, tested)**. A client-locked file goes out as stored; an unencrypted one and every file's metadata as on the relay |
 | Anonymous | nothing | drives with `AllowAnonymousReads` only |
 
 - The App Key and Peer Key are hub keys: each grant beneath them is wrapped once, individually (plan doc) **(V)**.

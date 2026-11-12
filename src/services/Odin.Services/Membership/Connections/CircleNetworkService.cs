@@ -115,16 +115,9 @@ namespace Odin.Services.Membership.Connections
             logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
 
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
-            bool isValid = icr.PeerKeyStore?.IsValid() ?? false;
-            bool isConnected = icr.IsConnected();
-
-            if (icr.Status == ConnectionStatus.Blocked)
-            {
-                return null;
-            }
 
             // Only return the permissions if the identity is connected.
-            if (isValid && isConnected)
+            if (IsLiveConnection(icr))
             {
                 var (permissionContext, enabledCircles) = await CreatePermissionContextInternalAsync(
                     icr: icr,
@@ -153,24 +146,80 @@ namespace Odin.Services.Membership.Connections
                         new List<DriveGrant>() { transientTempDriveGrant }, null, null));
 
 
-                var context = new OdinContext()
-                {
-                    Caller = new CallerContext(
-                        odinId: odinId,
-                        masterKey: null,
-                        securityLevel: SecurityGroupType.Connected,
-                        circleIds: enabledCircles)
-                    {
-                        IsReviewed = icr.ReviewedAt != null
-                    }
-                };
-
+                var context = new OdinContext { Caller = ConnectedCaller(icr, enabledCircles, ClientTokenType.Other) };
                 context.SetPermissionContext(permissionContext);
                 return context;
             }
 
             return null;
         }
+
+        /// <summary>
+        /// The context a connected identity's peer-notification token reads with on this identity's own routes, straight
+        /// from their device: Read on each zero-knowledge drive their connection reaches through peer (app circles
+        /// included, as on the relay through their own server), and nothing else -- no other drive, no key, no
+        /// permission.  The server holds no key to those drives, so it hands out a client-locked file as stored, which
+        /// only the member's share key opens; a file kept there unencrypted, and every file's metadata, it reads as the
+        /// relay would.  On any other drive the server would decrypt files for the caller, so those stay behind the
+        /// relay.  Null when they aren't connected.
+        /// </summary>
+        public async Task<IOdinContext> TryCreatePeerSubscriberReadContextAsync(OdinId odinId, ClientAuthenticationToken authToken,
+            ServerHalfOfClientKey accessReg, IOdinContext odinContext)
+        {
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            if (!IsLiveConnection(icr))
+            {
+                return null;
+            }
+
+            // The token's own half of its key opens the shared secret: what proves it is the token the subscriber was given
+            var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
+            keyStoreKey?.Wipe();
+
+            var (connectionGrants, enabledCircles) = await ConnectionGrantsAsync(icr, applyAppCircleGrants: true, odinContext);
+            var readable = connectionGrants.Values
+                .SelectMany(k => k.DriveGrants ?? [])
+                .Where(g => g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read))
+                .Select(g => g.DriveId)
+                .Distinct();
+
+            var grants = new List<DriveGrant>();
+            foreach (var driveId in readable)
+            {
+                var drive = await driveManager.GetDriveAsync(driveId);
+                if (drive?.IsZeroKnowledge == true)
+                {
+                    grants.Add(new DriveGrant
+                    {
+                        DriveId = drive.Id,
+                        PermissionedDrive = new PermissionedDrive { Drive = drive.TargetDriveInfo, Permission = DrivePermission.Read },
+                        KeyStoreKeyEncryptedStorageKey = null
+                    });
+                }
+            }
+
+            var context = new OdinContext { Caller = ConnectedCaller(icr, enabledCircles, ClientTokenType.PeerNotificationSubscriber) };
+            context.SetPermissionContext(new PermissionContext(
+                new Dictionary<string, PermissionGroup>
+                {
+                    ["peer_subscriber_zero_knowledge_reads"] = new(new Permissions_PermissionSet(), grants, keyStoreKey: null, encryptedIcrKey: null)
+                },
+                sharedSecretKey: sharedSecret));
+            return context;
+        }
+
+        /// <summary>Connected, so not blocked, with peer keys still valid: a connection whose callers get its circles' grants.</summary>
+        private static bool IsLiveConnection(IdentityConnectionRegistration icr) =>
+            icr.IsConnected() && (icr.PeerKeyStore?.IsValid() ?? false);
+
+        /// <summary>A connection's caller, in its enabled circles.</summary>
+        private static CallerContext ConnectedCaller(IdentityConnectionRegistration icr, List<GuidId> enabledCircles,
+            ClientTokenType tokenType) =>
+            new(odinId: icr.OdinId, masterKey: null, securityLevel: SecurityGroupType.Connected, circleIds: enabledCircles,
+                tokenType: tokenType)
+            {
+                IsReviewed = icr.ReviewedAt != null
+            };
 
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>.
@@ -333,8 +382,9 @@ namespace Odin.Services.Membership.Connections
             // NOTE: blocking intentionally retains the AccessGrant rather than destroying it.
             // A blocked identity is already denied everywhere because every auth path gates on
             // connection status, not merely on token/grant validity: peer/transit via
-            // CreateTransitPermissionContextAsync's IsConnected() check, and guest/YouAuth via
-            // TryCreateConnectedYouAuthContextAsync (explicit Blocked short-circuit) and
+            // CreateTransitPermissionContextAsync's IsConnected() check, guest/YouAuth via
+            // TryCreateConnectedYouAuthContextAsync and a peer's device reading directly via
+            // TryCreatePeerSubscriberReadContextAsync (both IsLiveConnection), and
             // HomeAuthenticatorService's isConnected gate. Keeping the grant intact is what lets
             // UnblockAsync restore the prior connection without a fresh connection request; revoking
             // it here would force unblock to always fall through to ConnectionStatus.None.
@@ -3097,16 +3147,13 @@ namespace Odin.Services.Membership.Connections
         }
 
 
-        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternalAsync(
-            IdentityConnectionRegistration icr,
-            ClientAuthenticationToken authToken,
-            ServerHalfOfClientKey accessReg,
-            bool applyAppCircleGrants,
-            IOdinContext odinContext)
+        /// <summary>
+        /// What a connection's enabled circles grant it, as exchange grants by circle, with the circles' ids: its app circles'
+        /// too when <paramref name="applyAppCircleGrants"/>.
+        /// </summary>
+        private async Task<(Dictionary<Guid, KeyStore> grants, List<GuidId> enabledCircles)> ConnectionGrantsAsync(
+            IdentityConnectionRegistration icr, bool applyAppCircleGrants, IOdinContext odinContext)
         {
-            // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional
-
-
             var (grants, enabledCircles) = await
                 circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
                     icr.PeerKeyStore.CircleGrants.Values.ToList(), odinContext);
@@ -3165,6 +3212,19 @@ namespace Odin.Services.Membership.Connections
                 }
             }
 
+            return (grants, enabledCircles);
+        }
+
+        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternalAsync(
+            IdentityConnectionRegistration icr,
+            ClientAuthenticationToken authToken,
+            ServerHalfOfClientKey accessReg,
+            bool applyAppCircleGrants,
+            IOdinContext odinContext)
+        {
+            // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional
+
+            var (grants, enabledCircles) = await ConnectionGrantsAsync(icr, applyAppCircleGrants, odinContext);
 
             // Ambient write-only grants: no read and no storage key, so nothing here can decrypt anything.
             async Task AddAmbientWriteGrantAsync(string name, TargetDrive drive, DrivePermission permission)

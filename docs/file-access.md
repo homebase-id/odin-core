@@ -25,6 +25,7 @@ their own; outside callers are held to both.**
 | owner's apps | the drives in the app's registration, plus `Read` on public drives (`AppRegistrationService.cs:303-317`) **(V)** | skipped **(V)** |
 | connected identities (as peers) | what their enabled circles grant, plus the public-drive grants (`TenantSettings`) **(V)** | applies, at `Connected`, or `Authenticated` until reviewed |
 | YouAuth domains | what their circles grant, plus the public-drive grants (`YouAuthDomainRegistrationService.cs:505-552`) **(V)** | applies, at `Authenticated` (`Connected` when the domain is a connected identity) |
+| a connected identity's device, reading directly with its peer-notification token | `Read` on the zero-knowledge drives its circles (app circles included) grant, nothing else, and only on the drive reads marked `[PeerDirectRead]`; elsewhere anonymous (`CircleNetworkService.TryCreatePeerSubscriberReadContextAsync`, `PeerSubscriberAuthPathHandler`) **(V, tested)** | applies, at `Connected`, or `Authenticated` until reviewed |
 | signed-in identities, not connected | the public-drive grants only **(V)** | applies, at `Authenticated` |
 | anonymous visitors | `Read` on public drives only **(V)** | applies, at `Anonymous` |
 | `System` | every drive (`PermissionContext.cs:110`) **(V)** | skipped **(V)** |

@@ -7,6 +7,7 @@ using Odin.Services.Drives;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
@@ -17,6 +18,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2DriveQueryController(InboxDrainOnQuery inboxDrainOnQuery)
         : OdinControllerBase
     {
+        [PeerDirectRead]
         [HttpPost("query-batch")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
         public async Task<QueryBatchResponse> QueryBatch([FromRoute] Guid driveId, [FromBody] QueryBatchRequestV2 request)

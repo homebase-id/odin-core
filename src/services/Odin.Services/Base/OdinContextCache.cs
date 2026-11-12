@@ -51,11 +51,13 @@ public class OdinContextCache(
 
     //
 
+    /// <param name="scope">Set for a second context the same token gets on other routes, keeping it apart from the token's own</param>
     public Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
-        Func<Task<IOdinContext?>> dotYouContextFactory)
+        Func<Task<IOdinContext?>> dotYouContextFactory,
+        string? scope = null)
     {
-        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), null));
+        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), null), scope);
     }
 
     /// <summary>
@@ -65,9 +67,10 @@ public class OdinContextCache(
     /// </summary>
     public async Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
-        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory)
+        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory,
+        string? scope = null)
     {
-        var key = token.AsKey().ToString().ToLower();
+        var key = token.AsKey().ToString().ToLower() + (scope == null ? "" : $":{scope}");
 
         // SEB:NOTE deliberately not using GetOrSetAsync here to avoid dealing with exceptions thrown by the factory.
         // Two builds for the same token give the same context, except across a ResetAsync: a context built from the

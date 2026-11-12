@@ -25,6 +25,7 @@ public sealed class AppSession : IV2Caller
     public OdinId Identity { get; }
     public Guid AppId { get; }
     public InProcessApiClientFactory Factory { get; }
+    public ClientAuthenticationToken Token { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
     public V1Handles V1 { get; }
@@ -40,6 +41,7 @@ public sealed class AppSession : IV2Caller
     {
         Identity = identity;
         AppId = appId;
+        Token = token;
         Factory = new InProcessApiClientFactory(host, YouAuthConstants.AppCookieName, token,
             sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
