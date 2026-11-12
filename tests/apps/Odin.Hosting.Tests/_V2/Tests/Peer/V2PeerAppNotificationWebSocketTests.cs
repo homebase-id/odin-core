@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -220,8 +221,83 @@ public class V2PeerAppNotificationWebSocketTests
         }
     }
 
+    [Test]
+    public async Task AnAppThatMayOnlySendCannotFetchAPeerToken()
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        try
+        {
+            await PrepareScenarioWithCircle(host, member, targetDrive);
+
+            var sendOnly = await member.AppManager.RegisterAppAndClient(Guid.NewGuid(), new PermissionSetGrantRequest
+            {
+                Drives = [],
+                PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite)
+            });
+            var sendOnlyApi = _scaffold.CreateAppApiClientRedux(member.Identity.OdinId, sendOnly);
+
+            var tokenResponse = await sendOnlyApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            Assert.That(tokenResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        }
+        finally
+        {
+            await Shutdown(host, member);
+        }
+    }
+
+    [Test]
+    public async Task APeerTokenEndsWithTheConnectionItWasMintedUnder()
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var options = new EstablishConnectionOptions { Drives = [targetDrive] };
+
+        var (memberAppApi, circleId) = await PrepareScenarioWithCircle(host, member, targetDrive);
+        var listener = new PeerTestAppWebSocketListener();
+        try
+        {
+            var oldToken = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(oldToken.IsSuccessStatusCode, "failed to get remote notification token");
+
+            // Disconnect and connect again, into the same circle
+            await Shutdown(host, member);
+            await host.Connections.SendConnectionRequest(member.Identity.OdinId, [circleId]);
+            await member.Connections.AcceptConnectionRequest(host.Identity.OdinId);
+
+            Assert.ThrowsAsync<Exception>(() => listener.ConnectAsync(host.Identity.OdinId, oldToken.Content!.ToCat(),
+                options, UnifiedApiRouteConstants.PeerNotifySocket), "a token from the earlier connection was accepted");
+
+            // A token fetched under the new connection works
+            var newToken = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(newToken.IsSuccessStatusCode, "failed to get remote notification token");
+
+            var fresh = new PeerTestAppWebSocketListener();
+            await fresh.ConnectAsync(host.Identity.OdinId, newToken.Content!.ToCat(), options, UnifiedApiRouteConstants.PeerNotifySocket);
+            await fresh.DisconnectAsync();
+        }
+        finally
+        {
+            await listener.DisconnectAsync();
+            await Shutdown(host, member);
+        }
+    }
+
     private async Task<AppApiClientRedux> PrepareScenario(OwnerApiClientRedux host, OwnerApiClientRedux member,
         TargetDrive groupChannelDrive)
+    {
+        var (app, _) = await PrepareScenarioWithCircle(host, member, groupChannelDrive);
+        return app;
+    }
+
+    private async Task<(AppApiClientRedux App, Guid CircleId)> PrepareScenarioWithCircle(OwnerApiClientRedux host,
+        OwnerApiClientRedux member, TargetDrive groupChannelDrive)
     {
         Dictionary<string, string> isCollaborativeChannel =
             new() { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } };
@@ -253,7 +329,7 @@ public class V2PeerAppNotificationWebSocketTests
         };
 
         var memberAppClientAccessToken = await member.AppManager.RegisterAppAndClient(communityAppId, permissions);
-        return _scaffold.CreateAppApiClientRedux(member.Identity.OdinId, memberAppClientAccessToken);
+        return (_scaffold.CreateAppApiClientRedux(member.Identity.OdinId, memberAppClientAccessToken), memberCircleId);
     }
 
     private static async Task<TransitResult> SendChatMessage(string message, OwnerApiClientRedux sender,
