@@ -50,7 +50,7 @@ public class IdentitiesIFollowAuthenticationService(
         });
 
         // return await creator();
-        return await cache.GetOrAddContextAsync(tempToken, creator);
+        return await cache.GetOrAddContextAsync(tempToken, creator, scope: "identity-i-follow");
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
