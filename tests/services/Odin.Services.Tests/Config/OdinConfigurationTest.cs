@@ -374,6 +374,18 @@ public class OdinConfigurationTest
 
     private const string TurnSecret = "0123456789abcdef0123456789abcdef";
 
+    // TURN switched on with a valid secret, plus the keys under test
+    private static OdinConfiguration.TurnSection EnabledTurn(params (string Key, string? Value)[] extra)
+    {
+        var pairs = new Dictionary<string, string?> { ["Turn:Enabled"] = "true", ["Turn:SharedSecret"] = TurnSecret };
+        foreach (var (key, value) in extra)
+        {
+            pairs[key] = value;
+        }
+
+        return new OdinConfiguration.TurnSection(BuildConfig(pairs));
+    }
+
     [Test]
     public void TurnSection_OffByDefault_AndNotValidated()
     {
@@ -404,13 +416,7 @@ public class OdinConfigurationTest
     [TestCase("turn:192.0.2.1")]
     public void TurnSection_Urls_ValidAreKept(string url)
     {
-        var section = new OdinConfiguration.TurnSection(BuildConfig(new Dictionary<string, string?>
-        {
-            ["Turn:Enabled"] = "true",
-            ["Turn:SharedSecret"] = TurnSecret,
-            ["Turn:Urls:0"] = url,
-            ["Turn:Urls:1"] = " ",
-        }));
+        var section = EnabledTurn(("Turn:Urls:0", url), ("Turn:Urls:1", " "));
 
         Assert.That(section.Urls, Is.EqualTo(new[] { url }), "blank entries are dropped");
         Assert.That(section.ClientUrls("frodo.example"), Is.EqualTo(new[] { url }));
@@ -424,13 +430,7 @@ public class OdinConfigurationTest
     [TestCase("turn://turn1.eu.example:3479")]
     public void TurnSection_Urls_InvalidThrows(string url)
     {
-        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.TurnSection(BuildConfig(
-            new Dictionary<string, string?>
-            {
-                ["Turn:Enabled"] = "true",
-                ["Turn:SharedSecret"] = TurnSecret,
-                ["Turn:Urls:0"] = url,
-            })));
+        var ex = Assert.Throws<OdinConfigException>(() => _ = EnabledTurn(("Turn:Urls:0", url)));
 
         Assert.That(ex!.Message, Does.Contain(url));
     }
@@ -438,11 +438,7 @@ public class OdinConfigurationTest
     [Test]
     public void TurnSection_NoUrls_ClientsGetTheIdentityNameOverUdpAndTcp()
     {
-        var section = new OdinConfiguration.TurnSection(BuildConfig(new Dictionary<string, string?>
-        {
-            ["Turn:Enabled"] = "true",
-            ["Turn:SharedSecret"] = TurnSecret,
-        }));
+        var section = EnabledTurn();
 
         Assert.That(section.CredentialLifetimeSeconds, Is.EqualTo(300));
         Assert.That(section.ClientUrls("frodo.example"), Is.EqualTo(new[]
@@ -456,13 +452,7 @@ public class OdinConfigurationTest
     [TestCase("86401")]
     public void TurnSection_CredentialLifetime_OutOfRangeThrows(string seconds)
     {
-        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.TurnSection(BuildConfig(
-            new Dictionary<string, string?>
-            {
-                ["Turn:Enabled"] = "true",
-                ["Turn:SharedSecret"] = TurnSecret,
-                ["Turn:CredentialLifetimeSeconds"] = seconds,
-            })));
+        var ex = Assert.Throws<OdinConfigException>(() => _ = EnabledTurn(("Turn:CredentialLifetimeSeconds", seconds)));
 
         Assert.That(ex!.Message, Does.Contain("Turn:CredentialLifetimeSeconds"));
     }

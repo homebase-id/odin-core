@@ -8,6 +8,10 @@ namespace Odin.Services.Calling;
 /// A device asks once per call and once per ICE restart, so the limit only stops a script that
 /// keeps asking with an app token.
 /// </summary>
+/// <remarks>
+/// Not System.Threading.RateLimiting: Odin.Services does not reference it, and its limiters read the
+/// wall clock, where this one takes <c>now</c> so the window and Retry-After can be tested exactly.
+/// </remarks>
 public sealed class TurnCredentialRateLimiter
 {
     public const int PermitsPerMinute = 20;

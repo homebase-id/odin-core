@@ -25,14 +25,40 @@ public interface IV2CallingClient
 }
 
 /// <summary>
-/// POST /api/v2/calling/ice-servers on a host with a TURN server (issue #1954, docs/turn.md).
+/// POST /api/v2/calling/ice-servers (docs/turn.md). Its tests run on a host with a TURN server and on
+/// one without.
 /// </summary>
-public class IceServersTests : V2Fixture
+public abstract class IceServersFixture : V2Fixture
 {
-    private const string Secret = "ice-servers-test-secret-0123456789abcdef";
-    private const string StunUrl = "stun:stun1.dotyou.cloud:3478";
+    protected const string StunUrl = "stun:stun1.dotyou.cloud:3478";
 
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
+
+    protected static async Task<ApiResponse<IceServersResponse>> AskAsync(IV2Caller caller, string peer) =>
+        await caller.RefitFor<IV2CallingClient>().GetIceServers(new IceServersRequest { Peer = peer });
+
+    protected async Task ConnectFrodoAndSamAsync()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+    }
+
+    [Test]
+    public async Task APeerThatIsNotConnectedIsRefused()
+    {
+        var app = await SetupCaller(CallerSpec.SampleApp());
+
+        var response = await AskAsync(app, Identities.Sam);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
+    }
+}
+
+/// <summary>A host with a TURN server: STUN plus a login coturn accepts.</summary>
+public class IceServersTests : IceServersFixture
+{
+    private const string Secret = "ice-servers-test-secret-0123456789abcdef";
 
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
         new Dictionary<string, string?>
@@ -41,16 +67,6 @@ public class IceServersTests : V2Fixture
             ["Turn:Enabled"] = "true",
             ["Turn:SharedSecret"] = Secret,
         };
-
-    private static async Task<ApiResponse<IceServersResponse>> AskAsync(IV2Caller caller, string peer) =>
-        await caller.RefitFor<IV2CallingClient>().GetIceServers(new IceServersRequest { Peer = peer });
-
-    private async Task ConnectFrodoAndSamAsync()
-    {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-        await PeerFlow.ConnectAsync(frodo, sam);
-    }
 
     [Test]
     public async Task AnAppGetsStunAndATurnLoginItsTurnServerAccepts()
@@ -85,16 +101,6 @@ public class IceServersTests : V2Fixture
         var expected = Convert.ToBase64String(
             HMACSHA1.HashData(Encoding.UTF8.GetBytes(Secret), Encoding.UTF8.GetBytes(turn.Username)));
         Assert.That(turn.Credential, Is.EqualTo(expected));
-    }
-
-    [Test]
-    public async Task APeerThatIsNotConnectedIsRefused()
-    {
-        var app = await SetupCaller(CallerSpec.SampleApp());
-
-        var response = await AskAsync(app, Identities.Sam);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
     }
 
     public static IEnumerable<object[]> CallerCases()
@@ -137,13 +143,9 @@ public class IceServersTests : V2Fixture
     }
 }
 
-/// <summary>The same endpoint on a host without a TURN server: STUN only, so a client needs no other path.</summary>
-public class IceServersWithoutTurnTests : V2Fixture
+/// <summary>A host without a TURN server: STUN only, so a client needs no other path.</summary>
+public class IceServersWithoutTurnTests : IceServersFixture
 {
-    private const string StunUrl = "stun:stun1.dotyou.cloud:3478";
-
-    protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
-
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
         new Dictionary<string, string?> { ["Stun:PublicUrls:0"] = StunUrl };
 
@@ -151,24 +153,12 @@ public class IceServersWithoutTurnTests : V2Fixture
     public async Task AnAppGetsStunOnly()
     {
         var app = await SetupCaller(CallerSpec.SampleApp());
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-        await PeerFlow.ConnectAsync(frodo, sam);
+        await ConnectFrodoAndSamAsync();
 
-        var response = await app.RefitFor<IV2CallingClient>().GetIceServers(new IceServersRequest { Peer = Identities.Sam });
+        var response = await AskAsync(app, Identities.Sam);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         Assert.That(response.Content!.IceServers.Select(s => string.Join(",", s.Urls)), Is.EqualTo(new[] { StunUrl }));
         Assert.That(response.Content.ExpiresAt, Is.Null);
-    }
-
-    [Test]
-    public async Task APeerThatIsNotConnectedIsStillRefused()
-    {
-        var app = await SetupCaller(CallerSpec.SampleApp());
-
-        var response = await app.RefitFor<IV2CallingClient>().GetIceServers(new IceServersRequest { Peer = Identities.Sam });
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
     }
 }

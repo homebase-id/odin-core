@@ -55,20 +55,14 @@ public class LiveRelayService : PeerServiceBase
             PushDeliveryOptionsValidation.AssertValid(request.Push);
         }
 
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
-
-        var appId = odinContext.Caller.OdinClientContext?.AppId?.Value;
-        if (!appId.HasValue)
-        {
-            throw new OdinClientException("Live relay requires an app context");
-        }
+        var appId = AssertMayRelay(odinContext);
 
         var envelope = new LiveRelayPeerEnvelope
         {
             ChannelKey = request.ChannelKey,
             Blob = request.Blob,
-            AppId = appId.Value,
-            Push = request.Push == null ? null : LiveRelayPush.Sanitize(request.Push, appId.Value)
+            AppId = appId,
+            Push = request.Push == null ? null : LiveRelayPush.Sanitize(request.Push, appId)
         };
 
         var recipients = request.Recipients.ToOdinIdList().Distinct().ToList();
@@ -77,6 +71,23 @@ public class LiveRelayService : PeerServiceBase
         // (ICR resolution) doesn't trip the per-scope ScopedConnectionFactory parallelism guard.
         var tasks = recipients.Select(recipient => SendFireAndForgetAsync(recipient, envelope, odinContext));
         await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// Who may relay to peers, and so set up a call: an app holding <see cref="PermissionKeys.UseTransitWrite"/>.
+    /// Also the gate for a call's ICE servers (<see cref="Calling.IceServerService"/>). Returns the app's id.
+    /// </summary>
+    public static Guid AssertMayRelay(IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+
+        var appId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+        if (!appId.HasValue)
+        {
+            throw new OdinClientException("Live relay requires an app context");
+        }
+
+        return appId.Value;
     }
 
     private async Task SendFireAndForgetAsync(OdinId recipient, LiveRelayPeerEnvelope envelope, IOdinContext odinContext)

@@ -894,13 +894,7 @@ public class OdinConfiguration
 
         // RFC 7064: "stun:" or "stuns:" then host[:port], no "//", which is why System.Uri sees no
         // host in it.
-        private static bool IsStunUrl(string url)
-        {
-            var rest = url.StartsWith("stuns:", StringComparison.Ordinal) ? url[6..]
-                : url.StartsWith("stun:", StringComparison.Ordinal) ? url[5..]
-                : null;
-            return IsIceHostAndPort(rest);
-        }
+        private static bool IsStunUrl(string url) => IsIceHostAndPort(AfterIceScheme(url, "stun"));
 
         /// <summary>
         /// What a client of <paramref name="tenantDomain"/> puts into its ICE servers: the configured
@@ -926,6 +920,17 @@ public class OdinConfiguration
             }
             return IPAddress.Parse(BindAddress);
         }
+    }
+
+    // What follows "<scheme>:" or "<scheme>s:" (stun/stuns, turn/turns); null for any other scheme
+    private static string? AfterIceScheme(string url, string scheme)
+    {
+        if (url.StartsWith(scheme + "s:", StringComparison.Ordinal))
+        {
+            return url[(scheme.Length + 2)..];
+        }
+
+        return url.StartsWith(scheme + ":", StringComparison.Ordinal) ? url[(scheme.Length + 1)..] : null;
     }
 
     // The host[:port] after an ICE server URL's scheme (RFC 7064 stun:, RFC 7065 turn:). The host is a
@@ -1057,9 +1062,7 @@ public class OdinConfiguration
         // RFC 7065: "turn:" or "turns:", host[:port], optionally "?transport=udp|tcp"
         private static bool IsTurnUrl(string url)
         {
-            var rest = url.StartsWith("turns:", StringComparison.Ordinal) ? url[6..]
-                : url.StartsWith("turn:", StringComparison.Ordinal) ? url[5..]
-                : null;
+            var rest = AfterIceScheme(url, "turn");
             var query = rest?.IndexOf('?') ?? -1;
             if (query >= 0)
             {

@@ -19,10 +19,10 @@ namespace Odin.Hosting.UnifiedV2.Calling
     public class V2CallingController(IceServerService iceServerService) : OdinControllerBase
     {
         [HttpPost("ice-servers")]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         [SwaggerOperation(Tags = [SwaggerInfo.Notifications])]
         public async Task<IceServersResponse> GetIceServers([FromBody] IceServersRequest request)
         {
-            Response.Headers.CacheControl = "no-store";
             return await iceServerService.GetIceServersAsync(request, WebOdinContext);
         }
     }

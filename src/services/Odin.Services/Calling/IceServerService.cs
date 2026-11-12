@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.LiveRelay;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Util;
 
@@ -28,16 +28,11 @@ public class IceServerService(
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertIsValidOdinId(request.Peer, out var peer);
 
-        // The same gate as LiveRelay, which carries the call setup: an app that may send to peers
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
-        var appId = odinContext.Caller.OdinClientContext?.AppId?.Value;
-        if (!appId.HasValue)
-        {
-            throw new OdinClientException("ICE servers require an app context");
-        }
+        // LiveRelay carries the call setup, so whoever may relay may get the servers
+        var appId = LiveRelayService.AssertMayRelay(odinContext);
 
         // Checked with TURN off too, so a client is refused the same way on every host
-        var isConnected = (await circleNetworkService.GetIcrAsync(peer, odinContext, overrideHack: true)).IsConnected();
+        var isConnected = (await circleNetworkService.GetIcrAsync(peer, odinContext, overrideHack: true, tryUpgradeEncryption: false)).IsConnected();
         if (!isConnected)
         {
             throw new OdinSecurityException($"{peer} is not connected", OdinClientErrorCode.NotAConnectedIdentity);
@@ -64,8 +59,7 @@ public class IceServerService(
                 HttpStatusCode.TooManyRequests, retryAfter);
         }
 
-        var login = TurnCredential.Create(odinContext.Tenant, turn.SharedSecret, now,
-            TimeSpan.FromSeconds(turn.CredentialLifetimeSeconds));
+        var login = TurnCredential.Create(odinContext.Tenant, turn.SharedSecret, now, turn.CredentialLifetimeSeconds);
         iceServers.Add(new IceServer
         {
             Urls = turn.ClientUrls(tenant),
@@ -75,7 +69,7 @@ public class IceServerService(
 
         // Never the credential itself
         logger.LogInformation("TURN login for {identity} to call {peer} from app {appId}, expires {expiresAt}",
-            tenant, peer, appId.Value, login.ExpiresAt);
+            tenant, peer, appId, login.ExpiresAt);
 
         return new IceServersResponse { IceServers = iceServers, ExpiresAt = login.ExpiresAt };
     }
