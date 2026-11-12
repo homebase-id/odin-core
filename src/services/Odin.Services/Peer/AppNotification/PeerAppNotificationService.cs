@@ -169,7 +169,7 @@ public class PeerAppNotificationService : PeerServiceBase
 
     public async Task<IOdinContext> GetDotYouContext(ClientAuthenticationToken token, IOdinContext currentOdinContext)
     {
-        return await _cache.GetOrAddContextAsync(token, () => ForLiveSubscriberAsync(token, currentOdinContext,
+        return await _cache.GetOrAddContextAsync(token, () => ForLiveSubscriberAsync(token, currentOdinContext, tryUpgradeEncryption: true,
             client => CircleNetworkService.TryCreateConnectedYouAuthContextAsync(client.Identity, token, client.ServerHalfOfClientKey,
                 currentOdinContext)));
     }
@@ -181,21 +181,23 @@ public class PeerAppNotificationService : PeerServiceBase
     /// </summary>
     public async Task<IOdinContext> GetDirectReadContextAsync(ClientAuthenticationToken token, IOdinContext currentOdinContext)
     {
-        return await _cache.GetOrAddContextAsync(token, () => ForLiveSubscriberAsync(token, currentOdinContext,
+        // No upgrade of the connection's token here: it needs the ICR key, which a request this token authenticates
+        // doesn't hold yet
+        return await _cache.GetOrAddContextAsync(token, () => ForLiveSubscriberAsync(token, currentOdinContext, tryUpgradeEncryption: false,
             client => CircleNetworkService.TryCreatePeerSubscriberReadContextAsync(client.Identity, token, client.ServerHalfOfClientKey,
                 currentOdinContext)), scope: "direct-read");
     }
 
     /// <summary>What <paramref name="build"/> makes for the token's subscriber, when the token is still theirs; else null.</summary>
     private async Task<IOdinContext> ForLiveSubscriberAsync(ClientAuthenticationToken token, IOdinContext currentOdinContext,
-        Func<PeerIcrClient, Task<IOdinContext>> build)
+        bool tryUpgradeEncryption, Func<PeerIcrClient, Task<IOdinContext>> build)
     {
-        var (isValid, peerIcrClient) = await ValidateClientAuthToken(token, currentOdinContext);
+        var (isValid, peerIcrClient) = await ValidateClientAuthToken(token, currentOdinContext, tryUpgradeEncryption);
         return isValid && peerIcrClient != null ? await build(peerIcrClient) : null;
     }
 
     private async Task<(bool isValid, PeerIcrClient icrClient)> ValidateClientAuthToken(ClientAuthenticationToken authToken,
-        IOdinContext odinContext)
+        IOdinContext odinContext, bool tryUpgradeEncryption)
     {
         var peerIcrClient = await CircleNetworkService.GetPeerIcrClientAsync(authToken.Id);
         if (null == peerIcrClient)
@@ -203,7 +205,7 @@ public class PeerAppNotificationService : PeerServiceBase
             return (false, null);
         }
 
-        var icr = await CircleNetworkService.GetIcrAsync(peerIcrClient.Identity, odinContext, overrideHack: true);
+        var icr = await CircleNetworkService.GetIcrAsync(peerIcrClient.Identity, odinContext, overrideHack: true, tryUpgradeEncryption);
 
         if (!icr.IsConnected())
         {

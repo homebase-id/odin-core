@@ -198,7 +198,7 @@ namespace Odin.Services.Membership.Connections
                 }
             }
 
-            var context = new OdinContext { Caller = ConnectedCaller(icr, enabledCircles) };
+            var context = new OdinContext { Caller = ConnectedCaller(icr, enabledCircles, ClientTokenType.PeerNotificationSubscriber) };
             context.SetPermissionContext(new PermissionContext(
                 new Dictionary<string, PermissionGroup>
                 {
@@ -213,8 +213,10 @@ namespace Odin.Services.Membership.Connections
             icr.IsConnected() && (icr.PeerKeyStore?.IsValid() ?? false);
 
         /// <summary>A connection's caller, in its enabled circles.</summary>
-        private static CallerContext ConnectedCaller(IdentityConnectionRegistration icr, List<GuidId> enabledCircles) =>
-            new(odinId: icr.OdinId, masterKey: null, securityLevel: SecurityGroupType.Connected, circleIds: enabledCircles)
+        private static CallerContext ConnectedCaller(IdentityConnectionRegistration icr, List<GuidId> enabledCircles,
+            ClientTokenType tokenType = ClientTokenType.Other) =>
+            new(odinId: icr.OdinId, masterKey: null, securityLevel: SecurityGroupType.Connected, circleIds: enabledCircles,
+                tokenType: tokenType)
             {
                 IsReviewed = icr.ReviewedAt != null
             };
@@ -380,8 +382,9 @@ namespace Odin.Services.Membership.Connections
             // NOTE: blocking intentionally retains the AccessGrant rather than destroying it.
             // A blocked identity is already denied everywhere because every auth path gates on
             // connection status, not merely on token/grant validity: peer/transit via
-            // CreateTransitPermissionContextAsync's IsConnected() check, and guest/YouAuth via
-            // TryCreateConnectedYouAuthContextAsync (explicit Blocked short-circuit) and
+            // CreateTransitPermissionContextAsync's IsConnected() check, guest/YouAuth via
+            // TryCreateConnectedYouAuthContextAsync and a peer's device reading directly via
+            // TryCreatePeerSubscriberReadContextAsync (both IsLiveConnection), and
             // HomeAuthenticatorService's isConnected gate. Keeping the grant intact is what lets
             // UnblockAsync restore the prior connection without a fresh connection request; revoking
             // it here would force unblock to always fall through to ConnectionStatus.None.
