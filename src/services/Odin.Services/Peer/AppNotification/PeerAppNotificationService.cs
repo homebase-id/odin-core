@@ -189,6 +189,23 @@ public class PeerAppNotificationService : PeerServiceBase
         return result;
     }
 
+    /// <summary>
+    /// The context the same token reads with on this identity's file routes, straight from the subscriber's device
+    /// (<see cref="CircleNetworkService.TryCreatePeerSubscriberReadContextAsync"/>).  Not cached: the socket's context
+    /// above is cached under this very token, and is a wider one.  Null when the token isn't a live subscriber's.
+    /// </summary>
+    public async Task<IOdinContext> GetDirectReadContextAsync(ClientAuthenticationToken token, IOdinContext currentOdinContext)
+    {
+        var (isValid, peerIcrClient) = await ValidateClientAuthToken(token, currentOdinContext);
+        if (!isValid || null == peerIcrClient)
+        {
+            return null;
+        }
+
+        return await CircleNetworkService.TryCreatePeerSubscriberReadContextAsync(peerIcrClient.Identity, token,
+            peerIcrClient.ServerHalfOfClientKey, currentOdinContext);
+    }
+
     private async Task<(bool isValid, PeerIcrClient icrClient)> ValidateClientAuthToken(ClientAuthenticationToken authToken,
         IOdinContext odinContext)
     {

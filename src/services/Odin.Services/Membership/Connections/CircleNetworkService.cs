@@ -173,6 +173,71 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// The context a connected identity's peer-notification token reads with on this identity's own routes, straight
+        /// from their device: Read on each zero-knowledge drive their connection reaches through peer (app circles
+        /// included, as on the relay through their own server), and nothing else -- no other drive, no key, no
+        /// permission.  What it reads there is locked to keys the server never holds, so a stolen token fetches only
+        /// what it can't open; on any other drive the server would open files for it.  Null when they aren't connected.
+        /// </summary>
+        public async Task<IOdinContext> TryCreatePeerSubscriberReadContextAsync(OdinId odinId, ClientAuthenticationToken authToken,
+            ServerHalfOfClientKey accessReg, IOdinContext odinContext)
+        {
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            if (icr.Status == ConnectionStatus.Blocked || !(icr.PeerKeyStore?.IsValid() ?? false) || !icr.IsConnected())
+            {
+                return null;
+            }
+
+            var (connection, enabledCircles) = await CreatePermissionContextInternalAsync(
+                icr: icr,
+                authToken: authToken,
+                accessReg: accessReg,
+                applyAppCircleGrants: true,
+                odinContext: odinContext);
+
+            var readable = connection.PermissionGroups.Values
+                .SelectMany(g => g.DriveGrants)
+                .Where(g => g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read))
+                .Select(g => g.DriveId)
+                .Distinct();
+
+            var grants = new List<DriveGrant>();
+            foreach (var driveId in readable)
+            {
+                var drive = await driveManager.GetDriveAsync(driveId);
+                if (drive?.IsZeroKnowledge == true)
+                {
+                    grants.Add(new DriveGrant
+                    {
+                        DriveId = drive.Id,
+                        PermissionedDrive = new PermissionedDrive { Drive = drive.TargetDriveInfo, Permission = DrivePermission.Read },
+                        KeyStoreKeyEncryptedStorageKey = null
+                    });
+                }
+            }
+
+            var context = new OdinContext
+            {
+                Caller = new CallerContext(
+                    odinId: odinId,
+                    masterKey: null,
+                    securityLevel: SecurityGroupType.Connected,
+                    circleIds: enabledCircles)
+                {
+                    IsReviewed = icr.ReviewedAt != null
+                }
+            };
+
+            context.SetPermissionContext(new PermissionContext(
+                new Dictionary<string, PermissionGroup>
+                {
+                    ["peer_subscriber_zero_knowledge_reads"] = new(new Permissions_PermissionSet(), grants, keyStoreKey: null, encryptedIcrKey: null)
+                },
+                sharedSecretKey: connection.SharedSecretKey));
+            return context;
+        }
+
+        /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>.
         /// </summary>
         /// <param name="notifyRemote">
