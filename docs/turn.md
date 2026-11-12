@@ -90,19 +90,26 @@ Connected check, the short lifetime, coturn's quotas, the egress filter and the 
 
 - **3479 udp and tcp** for TURN. 3478/udp is the STUN responder's, which binds every interface, so
   coturn cannot share it. The STUN responder stays as it is, so a host without TURN still has STUN.
-- **The relay range**, 49152-65535/udp (coturn's `min-port` / `max-port`), open in the firewall.
+- **The relay range**, 61000-65535/udp (coturn's `min-port` / `max-port`), open in the firewall. It
+  starts above Linux's ephemeral range (32768-60999), so relays and the host's own outgoing
+  connections never compete for a port.
 - **TLS on 443** (`turns:`) gets through networks that allow only 443, but Kestrel holds 443. It
   needs its own IP or an SNI router in front (to build).
 
 ## coturn
 
 Upstream image, version 4.18 or later (distributions ship much older versions), host networking,
-only the features we use. A starting point, to check against the coturn version deployed and with
-Enable Security's `coturn-secure-config`:
+only the features we use. The config below runs on coturn 4.18.0; check its options against
+`turnserver --help` of the version deployed, since coturn removes options between releases, and
+with Enable Security's `coturn-secure-config`.
+
+The image's `/usr/bin/turnserver` carries a file capability, so a container with `cap_drop: ALL`
+cannot start it ("Operation not permitted"). Keep `NET_BIND_SERVICE` in the bounding set; with
+`no-new-privileges` the process still runs with no effective capabilities.
 
 ```
 listening-port=3479
-min-port=49152
+min-port=61000
 max-port=65535
 fingerprint
 realm=<cluster name>
@@ -115,14 +122,17 @@ user-quota=12
 total-quota=1200
 max-bps=375000
 
-# Features we do not use
-no-cli
+# Features we do not use. The admin console and DTLS are off unless --cli / --dtls switch them on
 no-tls
-no-dtls
 no-tcp-relay
 no-multicast-peers
 
-# Never relay to anything but the public internet
+# Never relay to anything but the public internet.
+# No entry may start at "::": coturn then refuses every IPv4 peer ("A peer IP 8.8.8.8 denied in the
+# range: ::-::ffff:ffff"), and a bare :: or ::1 does the same. IPv6 loopback stays denied without
+# one: coturn refuses loopback peers unless allow-loopback-peers is set, and the egress filter
+# below drops ::/127 as well. An IPv4-mapped peer (::ffff:10.0.0.1) leaves the host as IPv4, so
+# the egress filter's IPv4 rules catch it.
 denied-peer-ip=0.0.0.0-0.255.255.255
 denied-peer-ip=10.0.0.0-10.255.255.255
 denied-peer-ip=100.64.0.0-100.127.255.255
@@ -137,8 +147,6 @@ denied-peer-ip=198.18.0.0-198.19.255.255
 denied-peer-ip=198.51.100.0-198.51.100.255
 denied-peer-ip=203.0.113.0-203.0.113.255
 denied-peer-ip=224.0.0.0-255.255.255.255
-denied-peer-ip=::-::ffff:ffff
-denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
 denied-peer-ip=64:ff9b::-64:ff9b::ffff:ffff
 denied-peer-ip=100::-100::ffff:ffff:ffff:ffff
 denied-peer-ip=2001::-2001:0:ffff:ffff:ffff:ffff:ffff:ffff
@@ -149,8 +157,8 @@ denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 # and our own public subnets
 ```
 
-**Plus an egress filter at the network level**, dropping the same ranges and our own subnets for
-coturn's traffic only. With host networking coturn shares the host's network namespace, and a
+**Plus an egress filter at the network level**, dropping the same ranges, IPv6 loopback (`::/127`)
+and our own subnets for coturn's traffic only. With host networking coturn shares the host's network namespace, and a
 host-wide rule would cut odin-core off from its own private services, so match coturn's process
 instead: run it as its own user and filter on that (`iptables -A OUTPUT -m owner --uid-owner turnserver
 -d 10.0.0.0/8 -j DROP`, and so on), or give coturn a network namespace of its own. coturn's `denied-peer-ip` has been bypassed several
