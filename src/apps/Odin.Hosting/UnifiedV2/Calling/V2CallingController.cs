@@ -20,7 +20,7 @@ namespace Odin.Hosting.UnifiedV2.Calling
     {
         [HttpPost("ice-servers")]
         [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-        [SwaggerOperation(Tags = [SwaggerInfo.Notifications])]
+        [SwaggerOperation(Tags = [SwaggerInfo.Calling])]
         public async Task<IceServersResponse> GetIceServers([FromBody] IceServersRequest request)
         {
             return await iceServerService.GetIceServersAsync(request, WebOdinContext);

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -52,14 +51,15 @@ public class IceServerService(
             return new IceServersResponse { IceServers = iceServers };
         }
 
-        var now = UnixTimeUtc.Now();
-        if (!rateLimiter.TryAcquire(now, out var retryAfter))
+        // Over the limit the device still gets STUN: a call that cannot relay may still connect directly
+        if (!rateLimiter.TryAcquire(appId, Environment.TickCount64))
         {
-            throw new OdinRetryLaterException($"{tenant} asked for too many TURN logins",
-                HttpStatusCode.TooManyRequests, retryAfter);
+            logger.LogDebug("No TURN login for {identity} app {appId}: over {limit} a minute",
+                tenant, appId, TurnCredentialRateLimiter.PermitsPerMinute);
+            return new IceServersResponse { IceServers = iceServers };
         }
 
-        var login = TurnCredential.Create(odinContext.Tenant, turn.SharedSecret, now, turn.CredentialLifetimeSeconds);
+        var login = TurnCredential.Create(odinContext.Tenant, turn.SharedSecret, UnixTimeUtc.Now(), turn.CredentialLifetimeSeconds);
         iceServers.Add(new IceServer
         {
             Urls = turn.ClientUrls(tenant),

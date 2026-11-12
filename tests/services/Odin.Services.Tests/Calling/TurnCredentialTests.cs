@@ -36,20 +36,20 @@ public class TurnCredentialTests
     }
 
     [Test]
-    public void RateLimiter_AllowsPermitsPerMinute_ThenSaysWhenToRetry()
+    public void RateLimiter_AllowsPermitsPerMinutePerApp()
     {
         var limiter = new TurnCredentialRateLimiter();
-        var start = new UnixTimeUtc(1_760_000_000_000);
+        var chat = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        const long start = 1_000_000;
 
         for (var i = 0; i < TurnCredentialRateLimiter.PermitsPerMinute; i++)
         {
-            Assert.That(limiter.TryAcquire(start.AddMilliseconds(i), out _), Is.True, $"login {i + 1}");
+            Assert.That(limiter.TryAcquire(other, start + i), Is.True, $"login {i + 1}");
         }
 
-        var refused = limiter.TryAcquire(start.AddSeconds(15), out var retryAfter);
-        Assert.That(refused, Is.False, "one over the limit");
-        Assert.That(retryAfter, Is.EqualTo(TimeSpan.FromSeconds(45)));
-
-        Assert.That(limiter.TryAcquire(start.AddSeconds(60), out _), Is.True, "a new minute starts over");
+        Assert.That(limiter.TryAcquire(other, start + 59_999), Is.False, "one over the limit within the minute");
+        Assert.That(limiter.TryAcquire(chat, start + 59_999), Is.True, "another app has its own budget");
+        Assert.That(limiter.TryAcquire(other, start + 60_000), Is.True, "a new minute starts over");
     }
 }

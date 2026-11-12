@@ -52,6 +52,8 @@ public abstract class IceServersFixture : V2Fixture
         var response = await AskAsync(app, Identities.Sam);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
+        Assert.That(response.Error?.Content, Does.Contain("\"errorCode\":\"notAConnectedIdentity\""),
+            "refused for the connection, not for some other reason");
     }
 }
 
@@ -124,22 +126,24 @@ public class IceServersTests : IceServersFixture
     }
 
     [Test]
-    public async Task AnIdentityThatAsksTooOftenIsToldWhenToRetry()
+    public async Task AnAppThatAsksTooOftenGetsStunWithoutATurnLogin()
     {
-        // Sam, so the per-identity limiter is not shared with the other tests' Frodo
+        // Sam, so the limiter is not shared with the other tests' Frodo apps
         var app = await SetupCaller(CallerSpec.SampleApp(), Identities.Sam);
         await ConnectFrodoAndSamAsync();
 
         for (var i = 0; i < TurnCredentialRateLimiter.PermitsPerMinute; i++)
         {
             var ok = await AskAsync(app, Identities.Frodo);
-            Assert.That(ok.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"login {i + 1}: {ok.Error?.Content}");
+            Assert.That(ok.Content?.ExpiresAt, Is.Not.Null, $"login {i + 1}: {ok.StatusCode} {ok.Error?.Content}");
         }
 
-        var refused = await AskAsync(app, Identities.Frodo);
+        var over = await AskAsync(app, Identities.Frodo);
 
-        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests), refused.Error?.Content);
-        Assert.That(refused.Headers.RetryAfter, Is.Not.Null, "says when to ask again");
+        Assert.That(over.StatusCode, Is.EqualTo(HttpStatusCode.OK), over.Error?.Content);
+        Assert.That(over.Content!.IceServers.Select(s => string.Join(",", s.Urls)), Is.EqualTo(new[] { StunUrl }),
+            "STUN still, so the call can try to connect directly");
+        Assert.That(over.Content.ExpiresAt, Is.Null);
     }
 }
 

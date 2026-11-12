@@ -1,46 +1,41 @@
 using System;
-using Odin.Core.Time;
+using System.Collections.Generic;
 
 namespace Odin.Services.Calling;
 
 /// <summary>
-/// How many TURN logins one identity may get per minute, on this node. One instance per tenant.
-/// A device asks once per call and once per ICE restart, so the limit only stops a script that
-/// keeps asking with an app token.
+/// How many TURN logins each app of one identity may get per minute, on this node. One instance per
+/// tenant, one budget per app, so one app looping cannot use up the chat app's. A device asks once per
+/// call and once per ICE restart, so the limit only stops something that keeps asking.
 /// </summary>
 /// <remarks>
-/// Not System.Threading.RateLimiting: Odin.Services does not reference it, and its limiters read the
-/// wall clock, where this one takes <c>now</c> so the window and Retry-After can be tested exactly.
+/// Not System.Threading.RateLimiting: Odin.Services does not reference it. The caller passes a
+/// monotonic clock (<see cref="Environment.TickCount64"/>), so a wall-clock step cannot freeze the window.
 /// </remarks>
 public sealed class TurnCredentialRateLimiter
 {
     public const int PermitsPerMinute = 20;
     private const long WindowMs = 60_000;
 
-    private readonly object _lock = new();
-    private long _windowStartMs;
-    private int _count;
+    private readonly Dictionary<Guid, (long WindowStartMs, int Count)> _byApp = new();
 
-    /// <summary>True when a login may be issued; otherwise how long until the next one may.</summary>
-    public bool TryAcquire(UnixTimeUtc now, out TimeSpan retryAfter)
+    /// <summary>True when <paramref name="appId"/> may get another login at <paramref name="nowMs"/>.</summary>
+    public bool TryAcquire(Guid appId, long nowMs)
     {
-        lock (_lock)
+        lock (_byApp)
         {
-            if (now.milliseconds - _windowStartMs >= WindowMs)
+            if (!_byApp.TryGetValue(appId, out var window) || nowMs - window.WindowStartMs >= WindowMs)
             {
-                _windowStartMs = now.milliseconds;
-                _count = 0;
+                window = (nowMs, 0);
             }
 
-            if (_count < PermitsPerMinute)
+            if (window.Count >= PermitsPerMinute)
             {
-                _count++;
-                retryAfter = TimeSpan.Zero;
-                return true;
+                return false;
             }
 
-            retryAfter = TimeSpan.FromMilliseconds(_windowStartMs + WindowMs - now.milliseconds);
-            return false;
+            _byApp[appId] = (window.WindowStartMs, window.Count + 1);
+            return true;
         }
     }
 }

@@ -27,7 +27,8 @@ public class IceServersResponse
     public IReadOnlyList<IceServer> IceServers { get; init; }
 
     /// <summary>
-    /// When the TURN login stops opening new relays; null without one. A call already relayed
+    /// When the TURN login stops opening new relays; null without one (no TURN on this host, or this
+    /// app asked for more than <see cref="TurnCredentialRateLimiter.PermitsPerMinute"/> in a minute). A call already relayed
     /// keeps going; ask again before an ICE restart.
     /// </summary>
     public UnixTimeUtc? ExpiresAt { get; init; }

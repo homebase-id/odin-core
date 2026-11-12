@@ -42,7 +42,7 @@ Top-level `Turn` section. **Off by default.**
 
 - `Enabled`: whether devices get a TURN login. Off, they get STUN only, through the same endpoint.
 - `Urls`: the `turn:` / `turns:` URLs devices get, each optionally ending `?transport=udp` or
-  `?transport=tcp`. Empty means this host under the identity's own name:
+  `?transport=tcp`. A `turns:` URL only works once coturn has TLS on (not in the config below). Empty means this host under the identity's own name:
   `turn:<identity-domain>:3479?transport=udp` and `…?transport=tcp`. A cluster behind a load
   balancer lists its cores' own names, as `Stun:PublicUrls` does (docs/stun.md). Environment form:
   `Turn__Urls__0=turn:turn1-1.eu.example:3479?transport=udp`.
@@ -77,7 +77,7 @@ and `expiresAt` is null. The STUN URLs are the same ones the socket handshake se
 | `peer` not connected | 403, `notAConnectedIdentity` |
 | App without `UseTransitWrite`, guest | 403 |
 | Owner with no app (LiveRelay needs an app too) | 400 |
-| More than 20 logins a minute for one identity, per node | 429 with `Retry-After` |
+| An app past 20 logins a minute (per identity, per app, per node) | 200, STUN only, `expiresAt` null |
 
 The response is `Cache-Control: no-store`. odin-core logs identity, peer, app and expiry for every
 login, never the credential.
@@ -131,23 +131,29 @@ denied-peer-ip=169.254.0.0-169.254.255.255
 denied-peer-ip=172.16.0.0-172.31.255.255
 denied-peer-ip=192.0.0.0-192.0.0.255
 denied-peer-ip=192.0.2.0-192.0.2.255
+denied-peer-ip=192.88.99.0-192.88.99.255
 denied-peer-ip=192.168.0.0-192.168.255.255
 denied-peer-ip=198.18.0.0-198.19.255.255
 denied-peer-ip=198.51.100.0-198.51.100.255
 denied-peer-ip=203.0.113.0-203.0.113.255
 denied-peer-ip=224.0.0.0-255.255.255.255
-denied-peer-ip=::-::ffff
+denied-peer-ip=::-::ffff:ffff
 denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
 denied-peer-ip=64:ff9b::-64:ff9b::ffff:ffff
 denied-peer-ip=100::-100::ffff:ffff:ffff:ffff
+denied-peer-ip=2001::-2001:0:ffff:ffff:ffff:ffff:ffff:ffff
+denied-peer-ip=2002::-2002:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 denied-peer-ip=2001:db8::-2001:db8:ffff:ffff:ffff:ffff:ffff:ffff
 denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 # and our own public subnets
 ```
 
-**Plus an egress filter at the network level**, on coturn's own container or network namespace,
-dropping the same ranges and our own subnets. coturn's `denied-peer-ip` has been bypassed several
+**Plus an egress filter at the network level**, dropping the same ranges and our own subnets for
+coturn's traffic only. With host networking coturn shares the host's network namespace, and a
+host-wide rule would cut odin-core off from its own private services, so match coturn's process
+instead: run it as its own user and filter on that (`iptables -A OUTPUT -m owner --uid-owner turnserver
+-d 10.0.0.0/8 -j DROP`, and so on), or give coturn a network namespace of its own. coturn's `denied-peer-ip` has been bypassed several
 times; a second layer below it catches that whole class of bug.
 
 coturn has a steady stream of security advisories, so tracking its releases is ongoing work.
@@ -172,5 +178,7 @@ differs, the clocks disagree, or the ports are closed.
 
 odin-core signs with one secret. Change it in both odin-core and coturn and restart both. New relays
 fail until both run the new value, and logins issued before the change fail at allocate; asking
-the endpoint again gives a working one. Restarting coturn cuts relayed calls in
+the endpoint again gives a working one. If the deployed coturn accepts more than one
+`static-auth-secret` line (not checked), add the new secret to coturn first, then switch odin-core,
+then remove the old one, and no login fails. Restarting coturn cuts relayed calls in
 progress either way, so change it when needed rather than on a schedule.
