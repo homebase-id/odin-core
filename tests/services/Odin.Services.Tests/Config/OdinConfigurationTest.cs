@@ -370,6 +370,103 @@ public class OdinConfigurationTest
         Assert.That(section.Port, Is.Zero);
     }
 
+    // --- TurnSection (off by default; needs the secret it shares with its TURN server) ---
+
+    private const string TurnSecret = "0123456789abcdef0123456789abcdef";
+
+    [Test]
+    public void TurnSection_OffByDefault_AndNotValidated()
+    {
+        var section = new OdinConfiguration.TurnSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Turn:Urls:0"] = "not-a-url",
+        }));
+
+        Assert.That(section.Enabled, Is.False);
+        Assert.That(section.SharedSecret, Is.Empty);
+    }
+
+    [TestCase(null)]
+    [TestCase("too-short")]
+    public void TurnSection_Enabled_WithoutALongEnoughSecret_Throws(string? secret)
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.TurnSection(BuildConfig(
+            new Dictionary<string, string?> { ["Turn:Enabled"] = "true", ["Turn:SharedSecret"] = secret })));
+
+        Assert.That(ex!.Message, Does.Contain("Turn:SharedSecret"));
+    }
+
+    [TestCase("turn:turn1.eu.example:3479")]
+    [TestCase("turn:turn1.eu.example:3479?transport=udp")]
+    [TestCase("turn:turn1.eu.example:3479?transport=tcp")]
+    [TestCase("turns:turn1.eu.example:5349?transport=tcp")]
+    [TestCase("turn:[2001:db8::1]:3479")]
+    [TestCase("turn:192.0.2.1")]
+    public void TurnSection_Urls_ValidAreKept(string url)
+    {
+        var section = new OdinConfiguration.TurnSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Turn:Enabled"] = "true",
+            ["Turn:SharedSecret"] = TurnSecret,
+            ["Turn:Urls:0"] = url,
+            ["Turn:Urls:1"] = " ",
+        }));
+
+        Assert.That(section.Urls, Is.EqualTo(new[] { url }), "blank entries are dropped");
+        Assert.That(section.ClientUrls("frodo.example"), Is.EqualTo(new[] { url }));
+    }
+
+    [TestCase("stun:turn1.eu.example:3479")]
+    [TestCase("turn:")]
+    [TestCase("turn:turn1.eu.example:70000")]
+    [TestCase("turn:turn1.eu.example:3479?transport=sctp")]
+    [TestCase("turn:turn1.eu.example:3479?foo=bar")]
+    [TestCase("turn://turn1.eu.example:3479")]
+    public void TurnSection_Urls_InvalidThrows(string url)
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.TurnSection(BuildConfig(
+            new Dictionary<string, string?>
+            {
+                ["Turn:Enabled"] = "true",
+                ["Turn:SharedSecret"] = TurnSecret,
+                ["Turn:Urls:0"] = url,
+            })));
+
+        Assert.That(ex!.Message, Does.Contain(url));
+    }
+
+    [Test]
+    public void TurnSection_NoUrls_ClientsGetTheIdentityNameOverUdpAndTcp()
+    {
+        var section = new OdinConfiguration.TurnSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Turn:Enabled"] = "true",
+            ["Turn:SharedSecret"] = TurnSecret,
+        }));
+
+        Assert.That(section.CredentialLifetimeSeconds, Is.EqualTo(300));
+        Assert.That(section.ClientUrls("frodo.example"), Is.EqualTo(new[]
+        {
+            "turn:frodo.example:3479?transport=udp",
+            "turn:frodo.example:3479?transport=tcp",
+        }), "3479, since the STUN responder holds 3478/udp");
+    }
+
+    [TestCase("59")]
+    [TestCase("86401")]
+    public void TurnSection_CredentialLifetime_OutOfRangeThrows(string seconds)
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.TurnSection(BuildConfig(
+            new Dictionary<string, string?>
+            {
+                ["Turn:Enabled"] = "true",
+                ["Turn:SharedSecret"] = TurnSecret,
+                ["Turn:CredentialLifetimeSeconds"] = seconds,
+            })));
+
+        Assert.That(ex!.Message, Does.Contain("Turn:CredentialLifetimeSeconds"));
+    }
+
     // --- Stun:PublicUrls (what clients put into iceServers) ---
 
     [Test]

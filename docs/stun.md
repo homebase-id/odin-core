@@ -23,7 +23,7 @@ infrastructure. Issue #1838 has the full reasoning.
 - Stateless. No authentication (STUN is unauthenticated by design; a browser cannot attach a
   credential to a STUN packet), no storage, no tenant context.
 
-Deliberate omissions: no TURN (relaying), no `MESSAGE-INTEGRITY`, no `FINGERPRINT`, no
+Deliberate omissions: no TURN (relaying; a coturn next to odin-core does that, docs/turn.md), no `MESSAGE-INTEGRITY`, no `FINGERPRINT`, no
 `SOFTWARE`, no 420 error for unknown comprehension-required attributes (the request's attributes
 are not inspected), and no rate limiting. The amplification factor is 20 bytes in, 32 or 44 bytes
 out.
