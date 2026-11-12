@@ -61,6 +61,8 @@ public class OdinConfiguration
 
     public StunSection Stun { get; init; } = new();
 
+    public TurnSection Turn { get; init; } = new();
+
     public OdinConfiguration()
     {
         // Mockable support
@@ -91,6 +93,7 @@ public class OdinConfiguration
         Cdn = new CdnSection(config);
         OpenObserve = new OpenObserveSection(config);
         Stun = new StunSection(config);
+        Turn = new TurnSection(config);
     }
 
     //
@@ -890,57 +893,8 @@ public class OdinConfiguration
         }
 
         // RFC 7064: "stun:" or "stuns:" then host[:port], no "//", which is why System.Uri sees no
-        // host in it. The host is a domain name (same rule as every other domain in config) or an
-        // IP literal; the port has the same bound as Stun:Port.
-        private static bool IsStunUrl(string url)
-        {
-            var rest = url.StartsWith("stuns:", StringComparison.Ordinal) ? url[6..]
-                : url.StartsWith("stun:", StringComparison.Ordinal) ? url[5..]
-                : null;
-            if (string.IsNullOrEmpty(rest))
-            {
-                return false;
-            }
-
-            string host;
-            string? port = null;
-            if (rest.StartsWith('['))
-            {
-                var close = rest.IndexOf(']');
-                if (close < 0)
-                {
-                    return false;
-                }
-                host = rest[1..close];
-                var tail = rest[(close + 1)..];
-                if (tail.Length > 0)
-                {
-                    if (!tail.StartsWith(':'))
-                    {
-                        return false;
-                    }
-                    port = tail[1..];
-                }
-                if (!IPAddress.TryParse(host, out var v6) || v6.AddressFamily != AddressFamily.InterNetworkV6)
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                var colon = rest.IndexOf(':');
-                host = colon < 0 ? rest : rest[..colon];
-                port = colon < 0 ? null : rest[(colon + 1)..];
-                // An IPv4 literal must be written out in full ("1" parses as 0.0.0.1), or a domain.
-                var isIPv4Literal = IPAddress.TryParse(host, out var v4) && v4.ToString() == host;
-                if (!isIPv4Literal && !AsciiDomainNameValidator.TryValidateDomain(host))
-                {
-                    return false;
-                }
-            }
-
-            return port == null || (int.TryParse(port, out var p) && p is >= 1 and <= 65535);
-        }
+        // host in it.
+        private static bool IsStunUrl(string url) => IsIceHostAndPort(AfterIceScheme(url, "stun"));
 
         /// <summary>
         /// What a client of <paramref name="tenantDomain"/> puts into its ICE servers: the configured
@@ -965,6 +919,176 @@ public class OdinConfiguration
                 return Socket.OSSupportsIPv6 ? IPAddress.IPv6Any : IPAddress.Any;
             }
             return IPAddress.Parse(BindAddress);
+        }
+    }
+
+    // What follows "<scheme>:" or "<scheme>s:" (stun/stuns, turn/turns); null for any other scheme
+    private static string? AfterIceScheme(string url, string scheme)
+    {
+        if (url.StartsWith(scheme + "s:", StringComparison.Ordinal))
+        {
+            return url[(scheme.Length + 2)..];
+        }
+
+        return url.StartsWith(scheme + ":", StringComparison.Ordinal) ? url[(scheme.Length + 1)..] : null;
+    }
+
+    // The host[:port] after an ICE server URL's scheme (RFC 7064 stun:, RFC 7065 turn:). The host is a
+    // domain name (same rule as every other domain in config) or an IP literal; the port is 1-65535.
+    private static bool IsIceHostAndPort(string? rest)
+    {
+        if (string.IsNullOrEmpty(rest))
+        {
+            return false;
+        }
+
+        string host;
+        string? port = null;
+        if (rest.StartsWith('['))
+        {
+            var close = rest.IndexOf(']');
+            if (close < 0)
+            {
+                return false;
+            }
+            host = rest[1..close];
+            var tail = rest[(close + 1)..];
+            if (tail.Length > 0)
+            {
+                if (!tail.StartsWith(':'))
+                {
+                    return false;
+                }
+                port = tail[1..];
+            }
+            if (!IPAddress.TryParse(host, out var v6) || v6.AddressFamily != AddressFamily.InterNetworkV6)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            var colon = rest.IndexOf(':');
+            host = colon < 0 ? rest : rest[..colon];
+            port = colon < 0 ? null : rest[(colon + 1)..];
+            // An IPv4 literal must be written out in full ("1" parses as 0.0.0.1), or a domain.
+            var isIPv4Literal = IPAddress.TryParse(host, out var v4) && v4.ToString() == host;
+            if (!isIPv4Literal && !AsciiDomainNameValidator.TryValidateDomain(host))
+            {
+                return false;
+            }
+        }
+
+        return port == null || (int.TryParse(port, out var p) && p is >= 1 and <= 65535);
+    }
+
+    //
+
+    /// <summary>
+    /// TURN relay logins (issue #1954). odin-core runs no TURN server: a coturn next to it relays, and
+    /// odin-core hands devices short-lived logins signed with a secret only the two of them hold
+    /// (TURN REST scheme, coturn's <c>use-auth-secret</c>). Off by default: a relay costs bandwidth and
+    /// needs the secret. See docs/turn.md.
+    /// </summary>
+    public class TurnSection
+    {
+        public const int DefaultPort = 3479; // 3478/udp is the STUN responder's
+        public const int DefaultCredentialLifetimeSeconds = 300;
+        public const int MinSharedSecretLength = 32;
+
+        public bool Enabled { get; init; }
+
+        /// <summary>
+        /// The turn: URLs devices get. Empty means this host under the identity's own name on
+        /// <see cref="DefaultPort"/>, UDP and TCP; a cluster behind a load balancer lists its cores'
+        /// own names, like <see cref="StunSection.PublicUrls"/>. Environment form:
+        /// <c>Turn__Urls__0=turn:turn1-1.eu.example:3479?transport=udp</c>.
+        /// </summary>
+        public IReadOnlyList<string> Urls { get; init; } = [];
+
+        /// <summary>
+        /// The secret this host and its TURN server share, and nobody else: the same value goes into
+        /// coturn's <c>static-auth-secret</c>. Never sent to a client. Environment form:
+        /// <c>Turn__SharedSecret=…</c>.
+        /// </summary>
+        public string SharedSecret { get; init; } = "";
+
+        /// <summary>
+        /// How long a login can open a relay. The TURN server checks it only when a session starts,
+        /// so a call outlives it; it bounds what a leaked login can do.
+        /// </summary>
+        public int CredentialLifetimeSeconds { get; init; } = DefaultCredentialLifetimeSeconds;
+
+        public TurnSection()
+        {
+            // Mockable support
+        }
+
+        public TurnSection(IConfiguration config)
+        {
+            Enabled = config.GetOrDefault("Turn:Enabled", false);
+            if (!Enabled)
+            {
+                return;
+            }
+
+            Urls = config.GetOrDefault("Turn:Urls", new List<string>())
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .ToList();
+            foreach (var url in Urls)
+            {
+                if (!IsTurnUrl(url))
+                {
+                    throw new OdinConfigException(
+                        $"Turn:Urls entry '{url}' is not a turn: or turns: URL with a valid host, port and transport");
+                }
+            }
+
+            SharedSecret = config.GetOrDefault("Turn:SharedSecret", "");
+            if (SharedSecret.Length < MinSharedSecretLength)
+            {
+                throw new OdinConfigException(
+                    $"Turn:SharedSecret must be at least {MinSharedSecretLength} characters when Turn:Enabled is true");
+            }
+
+            CredentialLifetimeSeconds = config.GetOrDefault("Turn:CredentialLifetimeSeconds", DefaultCredentialLifetimeSeconds);
+            if (CredentialLifetimeSeconds is < 60 or > 86400)
+            {
+                throw new OdinConfigException(
+                    $"Turn:CredentialLifetimeSeconds '{CredentialLifetimeSeconds}' is not between 60 and 86400");
+            }
+        }
+
+        // RFC 7065: "turn:" or "turns:", host[:port], optionally "?transport=udp|tcp"
+        private static bool IsTurnUrl(string url)
+        {
+            var rest = AfterIceScheme(url, "turn");
+            var query = rest?.IndexOf('?') ?? -1;
+            if (query >= 0)
+            {
+                if (rest![query..] is not ("?transport=udp" or "?transport=tcp"))
+                {
+                    return false;
+                }
+                rest = rest[..query];
+            }
+
+            return IsIceHostAndPort(rest);
+        }
+
+        /// <summary>The turn: URLs a device of <paramref name="tenantDomain"/> gets.</summary>
+        public IReadOnlyList<string> ClientUrls(string tenantDomain)
+        {
+            if (Urls.Count > 0)
+            {
+                return Urls;
+            }
+
+            return
+            [
+                $"turn:{tenantDomain}:{DefaultPort}?transport=udp",
+                $"turn:{tenantDomain}:{DefaultPort}?transport=tcp"
+            ];
         }
     }
 
