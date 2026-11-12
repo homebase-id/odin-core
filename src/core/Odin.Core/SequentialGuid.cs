@@ -22,23 +22,15 @@ namespace Odin.Core
         /// <returns>A new Guid</returns>
         private static Guid CreateGuidFromMillisecond(UInt64 millisecondsWithCounter)
         {
+            Span<byte> byte16 = stackalloc byte[16];
+            for (var i = 0; i < 7; i++)
+            {
+                byte16[i] = (byte)(millisecondsWithCounter >> (48 - 8 * i));
+            }
+
             // From the cryptographic generator: a file id is an address, and on a drive nobody may list (a WebDrop
             // drive) an address nobody was given must not be guessable from ids seen elsewhere
-            Span<byte> random = stackalloc byte[9];
-            RandomNumberGenerator.Fill(random);
-            var (a0, a1, a2, a3, a4, a5, a6, a7, a8) =
-                (random[0], random[1], random[2], random[3], random[4], random[5], random[6], random[7], random[8]);
-
-            byte[] byte16 = new byte[16] {
-                (byte) ((millisecondsWithCounter  >> 48) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >> 40) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >> 32) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >> 24) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >> 16) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >>  8) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >>  0) & 0b_1111_1111_1111),
-                a0, a1, a2,a3, a4, a5, a6, a7, a8 };
-
+            RandomNumberGenerator.Fill(byte16[7..]);
             return new Guid(byte16);
         }
 

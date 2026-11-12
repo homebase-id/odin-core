@@ -60,6 +60,13 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.BlockEnumeration = value;
     }
 
+    /// <summary>
+    /// Whether <paramref name="caller"/> may list or count the drive's files: whoever may read it, unless it blocks
+    /// enumeration, when only the owner, the owner's apps and the server may.
+    /// </summary>
+    public bool MayBeListedBy(CallerContext caller) =>
+        !BlockEnumeration || Authorization.Acl.DriveAclAuthorizationService.PassesEveryAcl(caller);
+
     public bool IsArchived
     {
         get => Data.IsArchived;

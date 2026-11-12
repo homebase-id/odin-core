@@ -30,8 +30,7 @@ public class ExpireNowTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
+        var drive = await CreateExpireNowDriveAsync(owner);
 
         var uid = Guid.NewGuid();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
@@ -59,8 +58,7 @@ public class ExpireNowTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
+        var drive = await CreateExpireNowDriveAsync(owner);
 
         var uid = Guid.NewGuid();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
@@ -86,8 +84,7 @@ public class ExpireNowTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
+        var drive = await CreateExpireNowDriveAsync(owner);
 
         var uid = Guid.NewGuid();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
@@ -113,8 +110,7 @@ public class ExpireNowTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
+        var drive = await CreateExpireNowDriveAsync(owner);
 
         var uid = Guid.NewGuid();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.OwnerOnly);
@@ -145,14 +141,21 @@ public class ExpireNowTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
+        var drive = await CreateExpireNowDriveAsync(owner);
         var driveId = drive.Alias;
 
         using var anon = Host.CreateClient();
         var expire = await anon.PostAsync(
             $"https://{Identities.Frodo}/api/v2/drives/{driveId}/files/by-uid/{Guid.NewGuid()}/expire-now", null);
         Assert.That(expire.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    // A public drive nobody but the owner may list: where expire-now works
+    private static async Task<TargetDrive> CreateExpireNowDriveAsync(OwnerSession owner)
+    {
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
+        return drive;
     }
 
     private static async Task<CreateFileResult> UploadFile(

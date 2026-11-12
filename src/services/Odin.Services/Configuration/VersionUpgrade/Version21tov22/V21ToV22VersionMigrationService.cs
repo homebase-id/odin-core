@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -24,13 +25,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
             cancellationToken.ThrowIfCancellationRequested();
 
             var drive = await WebDropDriveAsync();
-            if (drive == null || drive.BlockEnumeration)
+            if (drive == null || drive.BlockEnumeration == BuiltinDrives.WebDropDrive.BlockEnumeration)
             {
                 return;
             }
 
-            logger.LogInformation("Blocking enumeration of the WebDrop drive {driveId}", drive.Id);
-            await driveManager.SetSystemDriveBlockEnumerationAsync(drive.Id, true, odinContext);
+            logger.LogInformation("Setting BlockEnumeration on the WebDrop drive {driveId} to its built-in definition", drive.Id);
+            await driveManager.SetSystemDriveBlockEnumerationAsync(drive.Id, BuiltinDrives.WebDropDrive.BlockEnumeration, odinContext);
         }
 
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -38,9 +39,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
             cancellationToken.ThrowIfCancellationRequested();
 
             var drive = await WebDropDriveAsync();
-            if (drive is { BlockEnumeration: false })
+            if (drive != null && drive.BlockEnumeration != BuiltinDrives.WebDropDrive.BlockEnumeration)
             {
-                throw new OdinSystemException($"The WebDrop drive {drive.Id} can still be listed");
+                throw new OdinSystemException($"The WebDrop drive {drive.Id} doesn't match its built-in BlockEnumeration");
             }
         }
 

@@ -226,6 +226,28 @@ public sealed partial class OwnerAdmin
     }
 
     /// <summary>
+    /// Toggles whether only the owner, the owner's apps and the server may list a drive.
+    /// </summary>
+    public async Task<ApiResponse<System.Net.Http.HttpContent>> SetBlockEnumeration(TargetDrive drive, bool blockEnumeration)
+    {
+        var response = await TrySetBlockEnumeration(drive, blockEnumeration);
+        EnsureSuccess(response, nameof(SetBlockEnumeration));
+        return response;
+    }
+
+    /// <summary>As <see cref="SetBlockEnumeration"/>, with the answer as it came: for a test that expects a refusal.</summary>
+    public async Task<ApiResponse<System.Net.Http.HttpContent>> TrySetBlockEnumeration(TargetDrive drive, bool blockEnumeration)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
+        return await svc.SetBlockEnumeration(new UpdateDriveBlockEnumerationRequest
+        {
+            TargetDrive = drive,
+            BlockEnumeration = blockEnumeration,
+        });
+    }
+
+    /// <summary>
     /// Archives (or un-archives) a drive. An archived drive is invisible to every caller except the
     /// owner, so tests use this to produce a drive that exists but is unreadable by an app or guest.
     /// </summary>

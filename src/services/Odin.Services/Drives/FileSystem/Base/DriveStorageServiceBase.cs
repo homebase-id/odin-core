@@ -2798,7 +2798,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
 
-            if (!(await DriveManager.GetDriveAsync(file.DriveId, failIfInvalid: true)).BlockEnumeration)
+            var drive = await DriveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
+            if (!drive.BlockEnumeration)
             {
                 throw new OdinClientException("Only a file on a drive that can't be listed can be expired early",
                     OdinClientErrorCode.ArgumentError);
@@ -2817,7 +2818,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             var nowMs = UnixTimeUtc.Now().milliseconds;
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
 
             await using (var tx = await db.BeginStackedTransactionAsync())
             {

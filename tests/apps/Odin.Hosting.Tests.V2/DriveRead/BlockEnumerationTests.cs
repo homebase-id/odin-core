@@ -4,14 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
-using Odin.Hosting.Controllers.OwnerToken.Drive;
-using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -118,20 +115,16 @@ public class BlockEnumerationTests : V2Fixture
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var drive = await CreateDriveAsync(frodo, blockEnumeration: false);
-        var management = frodo.RefitFor<IRefitDriveManagement>();
 
-        var on = await management.SetBlockEnumeration(new UpdateDriveBlockEnumerationRequest { TargetDrive = drive, BlockEnumeration = true });
-        Assert.That(on.StatusCode, Is.EqualTo(HttpStatusCode.OK), on.Error?.Content);
+        await frodo.Admin.SetBlockEnumeration(drive, true);
         Assert.That(await BlocksAsync(frodo, drive), Is.True, "on");
         Assert.That(await AnonymousQueryAsync(drive), Is.EqualTo(HttpStatusCode.Forbidden), "and enforced");
 
-        var off = await management.SetBlockEnumeration(new UpdateDriveBlockEnumerationRequest { TargetDrive = drive, BlockEnumeration = false });
-        Assert.That(off.StatusCode, Is.EqualTo(HttpStatusCode.OK), off.Error?.Content);
+        await frodo.Admin.SetBlockEnumeration(drive, false);
         Assert.That(await BlocksAsync(frodo, drive), Is.False, "off");
         Assert.That(await AnonymousQueryAsync(drive), Is.EqualTo(HttpStatusCode.OK), "and listable again");
 
-        var webDrop = await management.SetBlockEnumeration(
-            new UpdateDriveBlockEnumerationRequest { TargetDrive = WellKnownAppDrives.WebDropDrive, BlockEnumeration = false });
+        var webDrop = await frodo.Admin.TrySetBlockEnumeration(WellKnownAppDrives.WebDropDrive, false);
         Assert.That(webDrop.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK), "a system drive keeps its built-in definition");
         Assert.That(await BlocksAsync(frodo, WellKnownAppDrives.WebDropDrive), Is.True, "WebDrop's drive, as provisioned");
     }
@@ -190,16 +183,8 @@ public class BlockEnumerationTests : V2Fixture
         ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, IncludeMetadataHeader = true }
     };
 
-    private async Task<HttpStatusCode> AnonymousQueryAsync(TargetDrive drive)
-    {
-        using var anonymous = Host.CreateAnonymousClient(Identities.Frodo);
-        using var response = await anonymous.PostAsJsonAsync($"/api/v2/drives/{drive.Alias}/files/query-batch", new
-        {
-            queryParams = new { fileType = new[] { FileType } },
-            resultOptionsRequest = new { maxRecords = 100 }
-        });
-        return response.StatusCode;
-    }
+    private async Task<HttpStatusCode> AnonymousQueryAsync(TargetDrive drive) =>
+        (await Host.AnonymousRefitFor<IDriveQueryHttpClientApiV2>(Identities.Frodo).GetBatch(drive.Alias, Query(drive))).StatusCode;
 
     private static Task<Refit.ApiResponse<QueryBatchResponse>> PeerQueryAsync(OwnerSession member, OwnerSession sharer, TargetDrive drive) =>
         member.Drives.Peer.QueryBatchAsync(sharer.Identity, drive.Alias, Query(drive));

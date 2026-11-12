@@ -44,30 +44,26 @@ namespace Odin.Services.Drives.FileSystem.Base
         protected abstract FileSystemType GetFileSystemType();
 
         /// <summary>
-        /// Refuses to list or count a drive that blocks enumeration to anyone but the owner, the owner's apps and the
-        /// server: anyone else reaches a file there only by an address they were given (a WebDrop link's unique id).
+        /// The drive a query lists or counts: refused when it is archived for the caller, and when it blocks enumeration
+        /// and the caller isn't the owner, one of the owner's apps or the server -- anyone else reaches a file there only
+        /// by an address they were given (a WebDrop link's unique id).
         /// </summary>
-        private async Task AssertMayEnumerateAsync(Guid driveId, IOdinContext odinContext)
+        private async Task<StorageDrive> DriveToListAsync(Guid driveId, IOdinContext odinContext)
         {
-            if (!await MayEnumerateAsync(driveId, odinContext))
+            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
+            drive.AssertNotArchivedFor(odinContext);
+            if (!drive.MayBeListedBy(odinContext.Caller))
             {
                 throw new OdinSecurityException($"Drive {driveId} can't be listed");
             }
-        }
 
-        private async Task<bool> MayEnumerateAsync(Guid driveId, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
-            return !drive.BlockEnumeration || DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller);
+            return drive;
         }
 
         public async Task<DriveSizeInfo> GetDriveSize(Guid driveId, IOdinContext odinContext)
         {
-            await AssertDriveIsValidAndActive(driveId, odinContext);
-            await AssertMayEnumerateAsync(driveId, odinContext);
+            var drive = await DriveToListAsync(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
-
-            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
             var (fileCount, bytes) = await _driveQuery.GetDriveSizeInfoAsync(drive);
 
             return new DriveSizeInfo()
@@ -84,8 +80,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         public async Task<long> GetNewestFileModified(Guid driveId, IOdinContext odinContext)
         {
-            await AssertDriveIsValidAndActive(driveId, odinContext);
-            await AssertMayEnumerateAsync(driveId, odinContext);
+            await DriveToListAsync(driveId, odinContext);
             odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(driveId);
             return await _driveQuery.GetNewestModifiedAsync(driveId, (int)GetFileSystemType());
         }
@@ -93,13 +88,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParamsV1 qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
         {
-            await AssertDriveIsValidAndActive(driveId, odinContext);
-            await AssertMayEnumerateAsync(driveId, odinContext);
+            var drive = await DriveToListAsync(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
 
             var o = options ?? QueryModifiedResultOptions.Default();
-
-            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
             var (updatedCursor, recordList, hasMoreRows) =
                 await _driveQuery.GetModifiedCoreAsync(drive, odinContext, GetFileSystemType(), qp, o);
 
@@ -119,8 +111,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
-            await AssertDriveIsValidAndActive(driveId, odinContext);
-            await AssertMayEnumerateAsync(driveId, odinContext);
+            await DriveToListAsync(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
             return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
         }
@@ -134,11 +125,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
-            await AssertDriveIsValidAndActive(driveId, odinContext);
-            await AssertMayEnumerateAsync(driveId, odinContext);
+            var drive = await DriveToListAsync(driveId, odinContext);
             odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(driveId);
-
-            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
             var modifiedAfter = TemporalReadPolicy.ResolveCutoff(odinContext, drive);
 
             return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata, modifiedAfter);
@@ -148,10 +136,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
-            await AssertDriveIsValidAndActive(driveId, odinContext);
-            await AssertMayEnumerateAsync(driveId, odinContext);
+            var drive = await DriveToListAsync(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(driveId);
             var (cursor, fileIdList, hasMoreRows) = await _driveQuery.GetSmartBatchCoreAsync(
                 drive,
                 odinContext,
@@ -287,7 +273,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var driveId = query.QueryParams.DriveId;
                 // A drive the caller may read but not list answers as one they can't read
                 var canReadDrive = permissionContext.HasDrivePermission(driveId, DrivePermission.Read) &&
-                                   await MayEnumerateAsync(driveId, odinContext);
+                                   (await DriveManager.GetDriveAsync(driveId, failIfInvalid: true)).MayBeListedBy(odinContext.Caller);
                 if (canReadDrive)
                 {
                     var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()

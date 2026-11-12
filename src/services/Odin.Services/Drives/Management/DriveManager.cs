@@ -239,18 +239,7 @@ public class DriveManager : IDriveManager
 
     public async Task SetDriveReadModeAsync(Guid driveId, bool allowAnonymous, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
-
-        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
-        {
-            throw new OdinSecurityException("Cannot change system drive");
-        }
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext);
 
         if (storageDrive.OwnerOnly && allowAnonymous)
         {
@@ -263,32 +252,13 @@ public class DriveManager : IDriveManager
             // Asked before the drive changes: it may be the cached instance
             DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowAnonymousReads: allowAnonymous);
             storageDrive.AllowAnonymousReads = allowAnonymous;
-
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
-
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext,
-            });
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
     }
 
     public async Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
-
-        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
-        {
-            throw new OdinSecurityException("Cannot change system drive");
-        }
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext);
 
         if (storageDrive.OwnerOnly && allowSubscriptions)
         {
@@ -300,41 +270,19 @@ public class DriveManager : IDriveManager
         {
             DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowSubscriptions: allowSubscriptions);
             storageDrive.AllowSubscriptions = allowSubscriptions;
-
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
-
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext
-            });
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
     }
 
     public async Task SetDriveRequirePayloadHashesAsync(Guid driveId, bool requirePayloadHashes, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: false, odinContext);
 
         //only change if needed
         if (storageDrive.RequirePayloadHashes != requirePayloadHashes)
         {
             storageDrive.RequirePayloadHashes = requirePayloadHashes;
-
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
-
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext
-            });
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
     }
 
@@ -344,7 +292,8 @@ public class DriveManager : IDriveManager
     /// </summary>
     public async Task SetDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
     {
-        await SetDriveBlockEnumerationInternalAsync(driveId, blockEnumeration, refuseSystemDrive: true, odinContext);
+        await SetBlockEnumerationAsync(await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext), blockEnumeration,
+            odinContext);
     }
 
     /// <summary>
@@ -353,71 +302,67 @@ public class DriveManager : IDriveManager
     /// </summary>
     internal async Task SetSystemDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
     {
-        await SetDriveBlockEnumerationInternalAsync(driveId, blockEnumeration, refuseSystemDrive: false, odinContext);
+        await SetBlockEnumerationAsync(await DriveToChangeAsync(driveId, refuseSystemDrive: false, odinContext), blockEnumeration,
+            odinContext);
     }
 
-    private async Task SetDriveBlockEnumerationInternalAsync(Guid driveId, bool blockEnumeration, bool refuseSystemDrive,
-        IOdinContext odinContext)
+    private async Task SetBlockEnumerationAsync(StorageDrive storageDrive, bool blockEnumeration, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
-
-        if (refuseSystemDrive && BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
-        {
-            throw new OdinSecurityException("Cannot change system drive");
-        }
-
         //only change if needed
         if (storageDrive.BlockEnumeration != blockEnumeration)
         {
             storageDrive.BlockEnumeration = blockEnumeration;
-
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
-
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext
-            });
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
     }
 
     public async Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
-
         // Deliberately no system-drive or owner-only guard here, unlike the sibling setters. The
         // rule this flag replaced put every drive - system drives and owner-only drives included -
         // in the CDN list, so refusing either here would take away something that already works.
         // Tightening that is a separate decision, not a side effect of introducing the flag.
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: false, odinContext);
 
         //only change if needed
         if (storageDrive.IsCdnEnabled() != allowCdn)
         {
             DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowCdn: allowCdn);
             storageDrive.SetCdnEnabled(allowCdn);
-
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
-
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext
-            });
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
+    }
+
+    /// <summary>
+    /// The drive a setter changes, for a caller holding the master key: refused when it doesn't exist, and when
+    /// <paramref name="refuseSystemDrive"/> and it is a system drive.
+    /// </summary>
+    private async Task<StorageDrive> DriveToChangeAsync(Guid driveId, bool refuseSystemDrive, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId) ??
+                           throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+
+        if (refuseSystemDrive && BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinSecurityException("Cannot change system drive");
+        }
+
+        return storageDrive;
+    }
+
+    /// <summary>Stores a setter's change and tells whoever follows the drive's definition.</summary>
+    private async Task SaveDriveChangeAsync(StorageDrive storageDrive, IOdinContext odinContext)
+    {
+        await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+
+        await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+        {
+            IsNewDrive = false,
+            Drive = storageDrive,
+            OdinContext = odinContext
+        });
     }
 
     public async Task SetArchiveDriveFlagAsync(Guid driveId, bool value, IOdinContext odinContext)
