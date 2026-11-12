@@ -43,9 +43,28 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         protected abstract FileSystemType GetFileSystemType();
 
+        /// <summary>
+        /// Refuses to list or count a drive that blocks enumeration to anyone but the owner, the owner's apps and the
+        /// server: anyone else reaches a file there only by an address they were given (a WebDrop link's unique id).
+        /// </summary>
+        private async Task AssertMayEnumerateAsync(Guid driveId, IOdinContext odinContext)
+        {
+            if (!await MayEnumerateAsync(driveId, odinContext))
+            {
+                throw new OdinSecurityException($"Drive {driveId} can't be listed");
+            }
+        }
+
+        private async Task<bool> MayEnumerateAsync(Guid driveId, IOdinContext odinContext)
+        {
+            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
+            return !drive.BlockEnumeration || DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller);
+        }
+
         public async Task<DriveSizeInfo> GetDriveSize(Guid driveId, IOdinContext odinContext)
         {
             await AssertDriveIsValidAndActive(driveId, odinContext);
+            await AssertMayEnumerateAsync(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
@@ -66,6 +85,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<long> GetNewestFileModified(Guid driveId, IOdinContext odinContext)
         {
             await AssertDriveIsValidAndActive(driveId, odinContext);
+            await AssertMayEnumerateAsync(driveId, odinContext);
             odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(driveId);
             return await _driveQuery.GetNewestModifiedAsync(driveId, (int)GetFileSystemType());
         }
@@ -74,6 +94,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             await AssertDriveIsValidAndActive(driveId, odinContext);
+            await AssertMayEnumerateAsync(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
 
             var o = options ?? QueryModifiedResultOptions.Default();
@@ -99,6 +120,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool forceIncludeServerMetadata = false)
         {
             await AssertDriveIsValidAndActive(driveId, odinContext);
+            await AssertMayEnumerateAsync(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
             return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
         }
@@ -113,6 +135,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool forceIncludeServerMetadata = false)
         {
             await AssertDriveIsValidAndActive(driveId, odinContext);
+            await AssertMayEnumerateAsync(driveId, odinContext);
             odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(driveId);
 
             var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
@@ -126,6 +149,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool forceIncludeServerMetadata = false)
         {
             await AssertDriveIsValidAndActive(driveId, odinContext);
+            await AssertMayEnumerateAsync(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(driveId);
             var (cursor, fileIdList, hasMoreRows) = await _driveQuery.GetSmartBatchCoreAsync(
@@ -261,7 +285,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             foreach (var query in queries)
             {
                 var driveId = query.QueryParams.DriveId;
-                var canReadDrive = permissionContext.HasDrivePermission(driveId, DrivePermission.Read);
+                // A drive the caller may read but not list answers as one they can't read
+                var canReadDrive = permissionContext.HasDrivePermission(driveId, DrivePermission.Read) &&
+                                   await MayEnumerateAsync(driveId, odinContext);
                 if (canReadDrive)
                 {
                     var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()

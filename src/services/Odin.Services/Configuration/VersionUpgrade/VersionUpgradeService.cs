@@ -32,6 +32,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
 using Odin.Services.Configuration.VersionUpgrade.Version18tov19;
 using Odin.Services.Configuration.VersionUpgrade.Version19tov20;
 using Odin.Services.Configuration.VersionUpgrade.Version20tov21;
+using Odin.Services.Configuration.VersionUpgrade.Version21tov22;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -60,6 +61,7 @@ public class VersionUpgradeService(
     V18ToV19VersionMigrationService v19,
     V19ToV20VersionMigrationService v20,
     V20ToV21VersionMigrationService v21,
+    V21ToV22VersionMigrationService v22,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -782,6 +784,34 @@ public class VersionUpgradeService(
                 await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 await v21.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                versionTx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 21)
+            {
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await RunPhaseAsync("v21->v22 block-webdrop-enumeration", async ct =>
+                {
+                    await using var webDropTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v22.BlockWebDropEnumerationAsync(odinContext, ct);
+                    webDropTx.Commit();
+                }, cancellationToken);
+
+                await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                await v22.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 

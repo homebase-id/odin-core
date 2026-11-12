@@ -262,7 +262,9 @@ is disabled **(V)**, so a check that must see a disable asks at the time (as the
 
 - **Public drives:** the file services don't ask for drive `Read`, nor for `Comment` when writing a comment
   (`CommentFileStorageService`) **(V)**; the read rule still applies. The tenant's settings give signed-in and
-  connected callers `Read`, and by flag `Comment` and `React`, on public drives (`TenantSettings`) **(V)**.
+  connected callers `Read`, and by flag `Comment` and `React`, on public drives (`TenantSettings`) **(V)**. On a
+  drive that blocks enumeration that `Read` reaches a file only by its address: only the owner, the owner's apps and
+  the server may list it (`StorageDriveDetails.BlockEnumeration`) **(V, tested)**.
 - **Comments** are a separate file system on the same drive: reading needs drive `Read` or `Comment`, writing needs
   `Comment` (security-model.md, section 6) **(V)**. Who may comment follows the sharing model: on a Server Share
   drive the members who may read; on a Private Share drive through shares ("With Private Share"); on a Private

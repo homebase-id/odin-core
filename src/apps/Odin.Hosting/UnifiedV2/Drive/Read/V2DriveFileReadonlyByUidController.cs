@@ -107,19 +107,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// with no Ttl, so permanent data cannot be destroyed this way. (A POST on a controller named
         /// Readonly is a wart; it lives here because it shares the by-uid resolution.)
         /// </summary>
-        //
-        // ██████████████████████████████████████████████████████████████████████████████████████
-        // ██ SECURITY DEBT - MUST BE FIXED BEFORE THIS SHIPS TO REAL USERS                    ██
-        // ██                                                                                  ██
-        // ██ This endpoint must ALSO require drive.BlockAnonymousEnumeration == true (the     ██
-        // ██ flag does not exist yet). Until then, on an ENUMERABLE anonymous drive a scraper ██
-        // ██ can walk the file list and expire-now every TTL'd file on it - mass destruction  ██
-        // ██ of public-but-expiring content. The capability argument ("the caller already     ██
-        // ██ holds the link") only holds on non-enumerable drives, where you can only address ██
-        // ██ what you were given. When BlockAnonymousEnumeration lands, add the gate here     ██
-        // ██ (or in HastenExpiryAsync) and delete this banner.                                ██
-        // ██████████████████████████████████████████████████████████████████████████████████████
-        //
+        // Only on a drive that blocks enumeration (HastenExpiryAsync): there a caller reaches a file only by the
+        // unique id its link carries, so whoever can call this holds the link.
         [HttpPost("expire-now")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]

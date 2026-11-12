@@ -19,11 +19,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Ttl;
 /// The anonymous expire-now endpoint: whoever holds a capability link may bring the file's death
 /// forward, because they already hold the content - the only thing they can surrender is remaining
 /// lifetime. The two guards pinned here: a file with no Ttl can never be destroyed this way, and a
-/// file the caller cannot read cannot be destroyed either.
-///
-/// SECURITY DEBT (see the banner on the endpoint): once BlockAnonymousEnumeration exists, expire-now
-/// must additionally require it on the drive, and a test here must pin the refusal on enumerable
-/// drives.
+/// file the caller cannot read cannot be destroyed either.  It works only on a drive that blocks enumeration, where
+/// the link is the only way to a file; on one anyone can list, it is refused.
 /// </summary>
 [TestFixture]
 public class ExpireNowTests : V2Fixture
@@ -34,7 +31,7 @@ public class ExpireNowTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true);
+        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
 
         var uid = Guid.NewGuid();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
@@ -63,7 +60,7 @@ public class ExpireNowTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true);
+        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
 
         var uid = Guid.NewGuid();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
@@ -90,7 +87,7 @@ public class ExpireNowTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true);
+        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
 
         var uid = Guid.NewGuid();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
@@ -117,7 +114,7 @@ public class ExpireNowTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true);
+        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
 
         var uid = Guid.NewGuid();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.OwnerOnly);
@@ -149,7 +146,7 @@ public class ExpireNowTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true);
+        await owner.Admin.CreateDrive(drive, "expire-now drive", allowAnonymousReads: true, blockEnumeration: true);
         var driveId = drive.Alias;
 
         using var anon = Host.CreateClient();

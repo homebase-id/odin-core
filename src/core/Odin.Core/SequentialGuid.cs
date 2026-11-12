@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Security.Cryptography;
 using System.Threading;
 using Odin.Core.Time;
 
@@ -10,7 +11,6 @@ namespace Odin.Core
     /// </summary>
     public static class SequentialGuid
     {
-        private static readonly Random _rnd = new Random();
         static private Object _lock = new Object();
         static private UnixTimeUtc _lastMillisecond = new UnixTimeUtc(0);
         static private int _counter = 0;
@@ -22,20 +22,12 @@ namespace Odin.Core
         /// <returns>A new Guid</returns>
         private static Guid CreateGuidFromMillisecond(UInt64 millisecondsWithCounter)
         {
-            byte a0, a1, a2, a3, a4, a5, a6, a7, a8;
-
-            lock (_rnd)
-            {
-                a0 = (byte)_rnd.Next(0, 256);
-                a1 = (byte)_rnd.Next(0, 256);
-                a2 = (byte)_rnd.Next(0, 256);
-                a3 = (byte)_rnd.Next(0, 256);
-                a4 = (byte)_rnd.Next(0, 256);
-                a5 = (byte)_rnd.Next(0, 256);
-                a6 = (byte)_rnd.Next(0, 256);
-                a7 = (byte)_rnd.Next(0, 256);
-                a8 = (byte)_rnd.Next(0, 256);
-            }
+            // From the cryptographic generator: a file id is an address, and on a drive nobody may list (a WebDrop
+            // drive) an address nobody was given must not be guessable from ids seen elsewhere
+            Span<byte> random = stackalloc byte[9];
+            RandomNumberGenerator.Fill(random);
+            var (a0, a1, a2, a3, a4, a5, a6, a7, a8) =
+                (random[0], random[1], random[2], random[3], random[4], random[5], random[6], random[7], random[8]);
 
             byte[] byte16 = new byte[16] {
                 (byte) ((millisecondsWithCounter  >> 48) & 0b_1111_1111_1111),

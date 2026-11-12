@@ -53,6 +53,13 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.RequirePayloadHashes = value;
     }
 
+    /// <summary>Only the owner, the owner's apps and the server may list it. See <see cref="StorageDriveDetails"/>.</summary>
+    public bool BlockEnumeration
+    {
+        get => Data.BlockEnumeration;
+        set => Data.BlockEnumeration = value;
+    }
+
     public bool IsArchived
     {
         get => Data.IsArchived;
@@ -304,9 +311,10 @@ public sealed class StorageDriveData
     /// <summary>
     /// Part of the drive cache's keys, so an entry cached before a change is never read after it: raise it with any
     /// field added here.  2, entries before the NOT NULL migration (#1901) may carry a null AppId; 3, they have no
-    /// <see cref="Created"/> (#2038).
+    /// <see cref="Created"/> (#2038); 4, they have no <see cref="BlockEnumeration"/>, so a cached WebDrop drive would
+    /// read as listable.
     /// </summary>
-    public const int CacheVersion = 3;
+    public const int CacheVersion = 4;
 
     public Guid Id { get; init; }
 
@@ -391,6 +399,11 @@ public sealed class StorageDriveData
     /// Every payload written to this drive must carry client-computed hashes. See <see cref="StorageDriveDetails"/>.
     /// </summary>
     public bool RequirePayloadHashes { get; set; }
+
+    /// <summary>
+    /// Only the owner, the owner's apps and the server may list it. See <see cref="StorageDriveDetails"/>.
+    /// </summary>
+    public bool BlockEnumeration { get; set; }
 
     /// <summary>
     /// The app that owns this drive. Every drive has one (#1901); owner drives belong to the owner console.

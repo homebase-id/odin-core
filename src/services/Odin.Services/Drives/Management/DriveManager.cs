@@ -179,6 +179,7 @@ public class DriveManager : IDriveManager
             AllowSubscriptions = request.AllowSubscriptions,
             AllowCdn = request.AllowCdn,
             RequirePayloadHashes = request.RequirePayloadHashes,
+            BlockEnumeration = request.BlockEnumeration,
             OwnerOnly = request.OwnerOnly,
             Attributes = request.Attributes
         };
@@ -325,6 +326,56 @@ public class DriveManager : IDriveManager
         if (storageDrive.RequirePayloadHashes != requirePayloadHashes)
         {
             storageDrive.RequirePayloadHashes = requirePayloadHashes;
+
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext
+            });
+        }
+    }
+
+    /// <summary>
+    /// Lets only the owner, the owner's apps and the server list the drive, or lets everyone who reads it list it again.
+    /// A system drive keeps what its built-in definition says.
+    /// </summary>
+    public async Task SetDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
+    {
+        await SetDriveBlockEnumerationInternalAsync(driveId, blockEnumeration, refuseSystemDrive: true, odinContext);
+    }
+
+    /// <summary>
+    /// <see cref="SetDriveBlockEnumerationAsync"/> for a version upgrade bringing a system drive to its built-in
+    /// definition.
+    /// </summary>
+    internal async Task SetSystemDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
+    {
+        await SetDriveBlockEnumerationInternalAsync(driveId, blockEnumeration, refuseSystemDrive: false, odinContext);
+    }
+
+    private async Task SetDriveBlockEnumerationInternalAsync(Guid driveId, bool blockEnumeration, bool refuseSystemDrive,
+        IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        if (refuseSystemDrive && BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinSecurityException("Cannot change system drive");
+        }
+
+        //only change if needed
+        if (storageDrive.BlockEnumeration != blockEnumeration)
+        {
+            storageDrive.BlockEnumeration = blockEnumeration;
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
@@ -994,6 +1045,7 @@ public class DriveManager : IDriveManager
             AllowSubscriptions = storageDrive.AllowSubscriptions,
             AllowCdn = storageDrive.AllowCdn,
             RequirePayloadHashes = storageDrive.RequirePayloadHashes,
+            BlockEnumeration = storageDrive.BlockEnumeration,
             Attributes = storageDrive.Attributes,
             IsArchived = storageDrive.IsArchived
         };
@@ -1119,6 +1171,7 @@ public class DriveManager : IDriveManager
             AllowSubscriptions = driveDetails.AllowSubscriptions,
             AllowCdn = driveDetails.AllowCdn,
             RequirePayloadHashes = driveDetails.RequirePayloadHashes,
+            BlockEnumeration = driveDetails.BlockEnumeration,
             Attributes = driveDetails.Attributes,
             IsArchived = driveDetails.IsArchived,
 

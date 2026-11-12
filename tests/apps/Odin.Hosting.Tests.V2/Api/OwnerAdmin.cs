@@ -94,10 +94,11 @@ public sealed partial class OwnerAdmin
         OdinSlug driveSlug = default,
         OdinSlug driveTypeSlug = default,
         DriveSharingModel sharingModel = DriveSharingModel.Collaborative,
-        ZkConvertDriveRequest? zkKeys = null)
+        ZkConvertDriveRequest? zkKeys = null,
+        bool blockEnumeration = false)
     {
         var response = await TryCreateDrive(drive, name, allowAnonymousReads, ownerOnly, allowSubscriptions, attributes, allowCdn,
-            appId, driveSlug, driveTypeSlug, sharingModel, zkKeys);
+            appId, driveSlug, driveTypeSlug, sharingModel, zkKeys, blockEnumeration);
         EnsureSuccess(response, nameof(CreateDrive));
         return response;
     }
@@ -115,7 +116,8 @@ public sealed partial class OwnerAdmin
         OdinSlug driveSlug = default,
         OdinSlug driveTypeSlug = default,
         DriveSharingModel sharingModel = DriveSharingModel.Collaborative,
-        ZkConvertDriveRequest? zkKeys = null)
+        ZkConvertDriveRequest? zkKeys = null,
+        bool blockEnumeration = false)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
@@ -129,6 +131,7 @@ public sealed partial class OwnerAdmin
             AllowAnonymousReads = allowAnonymousReads,
             AllowSubscriptions = allowSubscriptions,
             AllowCdn = allowCdn,
+            BlockEnumeration = blockEnumeration,
             OwnerOnly = ownerOnly,
             Attributes = attributes,
 

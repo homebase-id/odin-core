@@ -200,7 +200,8 @@ public static class BuiltinDrives
     {
         Name = "WebDrop", TargetDrive = WellKnownAppDrives.WebDropDrive, Metadata = "",
         AppId = SystemAppConstants.WebdropAppId, DriveSlug = (OdinSlug)"webdrop", DriveTypeSlug = (OdinSlug)"webdrop",
-        AllowAnonymousReads = true, OwnerOnly = false
+        // Anyone reads a drop by the unique id its link carries; nobody but the owner lists them
+        AllowAnonymousReads = true, BlockEnumeration = true, OwnerOnly = false
     };
 
     /// <summary>

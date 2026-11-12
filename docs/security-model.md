@@ -146,7 +146,6 @@ Later:
 | `ConditionalTemporalRead` 16 | read only recently modified files, only via the temporal API; not part of `ReadWrite`/`All` |
 
 - **Write-only is cryptographic**: a writer never holds the storage key **(V, plan doc)**. Example: Chat.
-- **TO-DO** Allow / block enumerating files on a drive (block queryBatch) for web-drop like apps.
 
 ### Drive options (`StorageDriveDetails`) **(V)**
 
@@ -157,6 +156,7 @@ Later:
 | `AllowSubscriptions` | followers may subscribe (feed); a drive marked as a community channel needs it |
 | `AllowCdn` | the CDN may read payloads (`IsCdnEnabled`); anonymous drives are reachable anyway |
 | `RequirePayloadHashes` | every payload must carry client hashes |
+| `BlockEnumeration` | only the owner, the owner's apps and the server may list or count its files (every query, the drive size; a collection's section answers as a drive the caller can't read) (`DriveQueryServiceBase.AssertMayEnumerateAsync`); anyone else reaches a file only by an address they were given, a WebDrop link's unique id. `expire-now` works only on such a drive (`HastenExpiryAsync`). Absent = listable. WebDrop's built-in drive sets it, a system drive can't change it, and v22 sets it on existing WebDrop drives **(V, tested)** |
 | `IsReadonly` | documented "owner only, in owner auth". **No write path reads it** (grep) **(V)**, so it's not enforced |
 | `IsArchived` | non-owner callers are refused (`AssertDriveIsNotArchived`) |
 | `WriteOnlyKeyPair` | per-drive ECC-384 key: seal a deposit without being able to read; private half under the storage key. Its public half is served to any identity, with whether the asker may write (`CallerMayWrite`); a deposit still needs Write |

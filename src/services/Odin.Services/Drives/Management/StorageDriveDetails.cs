@@ -47,6 +47,13 @@ public class StorageDriveDetails
     /// </summary>
     public virtual bool RequirePayloadHashes { get; set; }
 
+    /// <summary>
+    /// When set, only the owner (and the owner's apps) and the server may list or query this drive; anyone else reaches
+    /// a file only by an address they were given, as a capability link carries a unique id (WebDrop).  Off for every
+    /// drive stored before the flag existed, so absent means listable, as before.
+    /// </summary>
+    public virtual bool BlockEnumeration { get; set; }
+
     public virtual Dictionary<string, string> Attributes { get; set; }
     
     public bool IsArchived { get; set; }

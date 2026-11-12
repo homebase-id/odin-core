@@ -27,6 +27,12 @@ public class CreateDriveRequest
     /// </summary>
     public bool RequirePayloadHashes { get; set; }
 
+    /// <summary>
+    /// Only the owner, the owner's apps and the server may list the drive: anyone else reaches a file only by an
+    /// address they were given (WebDrop's capability links)
+    /// </summary>
+    public bool BlockEnumeration { get; set; }
+
     public bool OwnerOnly { get; set; }
 
     /// <summary>
