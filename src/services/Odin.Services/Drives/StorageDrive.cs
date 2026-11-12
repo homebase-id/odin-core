@@ -3,6 +3,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -52,6 +53,23 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         get => Data.RequirePayloadHashes;
         set => Data.RequirePayloadHashes = value;
     }
+
+    /// <summary>
+    /// Only the owner, the owner's apps and the server may list it. See <see cref="StorageDriveDetails"/>.  A system drive
+    /// has what its built-in definition says (<see cref="BuiltinDrives.BlockEnumerationOf"/>), whatever is stored.
+    /// </summary>
+    public bool BlockEnumeration
+    {
+        get => BuiltinDrives.BlockEnumerationOf(TargetDriveInfo) ?? Data.BlockEnumeration;
+        set => Data.BlockEnumeration = value;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="caller"/> may list or count the drive's files: whoever may read it, unless it blocks
+    /// enumeration, when only the owner, the owner's apps and the server may.
+    /// </summary>
+    public bool MayBeListedBy(CallerContext caller) =>
+        !BlockEnumeration || Authorization.Acl.DriveAclAuthorizationService.PassesEveryAcl(caller);
 
     public bool IsArchived
     {
@@ -304,9 +322,10 @@ public sealed class StorageDriveData
     /// <summary>
     /// Part of the drive cache's keys, so an entry cached before a change is never read after it: raise it with any
     /// field added here.  2, entries before the NOT NULL migration (#1901) may carry a null AppId; 3, they have no
-    /// <see cref="Created"/> (#2038).
+    /// <see cref="Created"/> (#2038); 4, they have no <see cref="BlockEnumeration"/>, so a cached WebDrop drive would
+    /// read as listable.
     /// </summary>
-    public const int CacheVersion = 3;
+    public const int CacheVersion = 4;
 
     public Guid Id { get; init; }
 
@@ -391,6 +410,11 @@ public sealed class StorageDriveData
     /// Every payload written to this drive must carry client-computed hashes. See <see cref="StorageDriveDetails"/>.
     /// </summary>
     public bool RequirePayloadHashes { get; set; }
+
+    /// <summary>
+    /// Only the owner, the owner's apps and the server may list it. See <see cref="StorageDriveDetails"/>.
+    /// </summary>
+    public bool BlockEnumeration { get; set; }
 
     /// <summary>
     /// The app that owns this drive. Every drive has one (#1901); owner drives belong to the owner console.

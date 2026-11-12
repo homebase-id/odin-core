@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Security.Cryptography;
 using System.Threading;
 using Odin.Core.Time;
 
@@ -10,7 +11,6 @@ namespace Odin.Core
     /// </summary>
     public static class SequentialGuid
     {
-        private static readonly Random _rnd = new Random();
         static private Object _lock = new Object();
         static private UnixTimeUtc _lastMillisecond = new UnixTimeUtc(0);
         static private int _counter = 0;
@@ -22,31 +22,15 @@ namespace Odin.Core
         /// <returns>A new Guid</returns>
         private static Guid CreateGuidFromMillisecond(UInt64 millisecondsWithCounter)
         {
-            byte a0, a1, a2, a3, a4, a5, a6, a7, a8;
-
-            lock (_rnd)
+            Span<byte> byte16 = stackalloc byte[16];
+            for (var i = 0; i < 7; i++)
             {
-                a0 = (byte)_rnd.Next(0, 256);
-                a1 = (byte)_rnd.Next(0, 256);
-                a2 = (byte)_rnd.Next(0, 256);
-                a3 = (byte)_rnd.Next(0, 256);
-                a4 = (byte)_rnd.Next(0, 256);
-                a5 = (byte)_rnd.Next(0, 256);
-                a6 = (byte)_rnd.Next(0, 256);
-                a7 = (byte)_rnd.Next(0, 256);
-                a8 = (byte)_rnd.Next(0, 256);
+                byte16[i] = (byte)(millisecondsWithCounter >> (48 - 8 * i));
             }
 
-            byte[] byte16 = new byte[16] {
-                (byte) ((millisecondsWithCounter  >> 48) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >> 40) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >> 32) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >> 24) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >> 16) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >>  8) & 0b_1111_1111_1111),
-                (byte) ((millisecondsWithCounter  >>  0) & 0b_1111_1111_1111),
-                a0, a1, a2,a3, a4, a5, a6, a7, a8 };
-
+            // From the cryptographic generator: a file id is an address, and on a drive nobody may list (a WebDrop
+            // drive) an address nobody was given must not be guessable from ids seen elsewhere
+            RandomNumberGenerator.Fill(byte16[7..]);
             return new Guid(byte16);
         }
 

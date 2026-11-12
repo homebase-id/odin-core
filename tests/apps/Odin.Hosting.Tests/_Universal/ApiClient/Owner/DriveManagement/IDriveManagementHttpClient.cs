@@ -53,6 +53,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement
         [Post(RootEndpoint + "/set-require-payload-hashes")]
         Task<ApiResponse<HttpContent>> SetRequirePayloadHashes([Body] UpdateDriveRequirePayloadHashesRequest request);
 
+        [Post(RootEndpoint + "/set-block-enumeration")]
+        Task<ApiResponse<HttpContent>> SetBlockEnumeration([Body] UpdateDriveBlockEnumerationRequest request);
+
         [Post(RootEndpoint + "/set-owner")]
         Task<ApiResponse<HttpContent>> SetDriveOwningApp([Body] SetDriveOwningAppRequest request);
 

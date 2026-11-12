@@ -72,6 +72,9 @@ public enum OdinClientErrorCode
     /// </summary>
     DriveStillBeingDeleted = 4008,
 
+    /// <summary>A drive nobody but the owner may list can't let followers subscribe: the feed would push them every file.</summary>
+    CannotAllowSubscriptionsOnDriveThatBlocksEnumeration = 4009,
+
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,
     CannotUploadEncryptedFileForAnonymous = 4102,

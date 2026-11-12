@@ -5,9 +5,9 @@
 | Piece | State |
 |---|---|
 | **Part 1 — generic file TTL** (`FileMetadata.Ttl`, expiry/reap jobs, peer transit, cache clamp) | **Implemented** — PR #1692 |
-| Part 2 — `BlockAnonymousEnumeration` (non-enumerable drives) | **Not implemented** |
-| `expire-now` (anonymous destroy button, server side) | **Implemented** on PR #1692 — see *Expire-now* below; carries a security-debt banner until `BlockAnonymousEnumeration` exists |
-| Part 2 — `WebDropDrive` system drive + migration | **Not implemented** |
+| Part 2 — non-enumerable drives (built as `BlockEnumeration`) | **Implemented** — see *Capability needed* below; WebDrop's built-in drive has it, existing ones included (a system drive's option comes from its definition) |
+| `expire-now` (anonymous destroy button, server side) | **Implemented** on PR #1692 — see *Expire-now* below; works only on a drive that blocks enumeration |
+| Part 2 — `WebDropDrive` system drive + migration | **Implemented** — `BuiltinDrives.WebDropDrive` (built-in); no migration: a system drive's `BlockEnumeration` comes from its definition |
 | Viewer web app | UX prototype only, in odin-js (`packages/apps/web-drop-app`) — no decryption, no drive; see *Viewer UX* |
 | Writer — chat-kmp WebDrop add-on (Home-tile app, no toolbar icon) | **Implemented** on chat-kmp branch `webdrop-app`: multi-file drops, owner-encrypted receipts, Waiting/Opened/Removed list, revoke. Drive bootstraps via extend-permissions `allowAnonymousRead` |
 
@@ -204,7 +204,15 @@ hardcodes, exactly as every app hardcodes its `TargetDrive`.
 **No client write either** — the `< 0` TTL resolves server-side. The reader is strictly read-only,
 which is what keeps it on existing endpoints.
 
-## Capability needed: drives that are readable but not enumerable *(not yet implemented)*
+## Capability needed: drives that are readable but not enumerable *(implemented as `BlockEnumeration`)*
+
+**As built (differs from the plan below):** the option is `BlockEnumeration`, and it stops everyone but the owner,
+the owner's apps and the server (`DriveAclAuthorizationService.PassesEveryAcl`), not only anonymous callers:
+connected and signed-in callers get `Read` on every public drive too. Blocked drives keep their public-drive
+grants, so a header read by unique id still works (the client header is built from the caller's grant on the
+drive, `DriveFileUtility`); only listing and counting are refused (`DriveQueryServiceBase.DriveToListAsync`), and so is hearing of new files on a socket (`DriveEventMessage.VisibleToAsync`).
+`HandleDriveAdded` no longer exists. File ids now take their random bytes from the cryptographic generator
+(`SequentialGuid`), so an id nobody was given can't be predicted from ids seen elsewhere.
 
 Today `AllowAnonymousReads = true` means three things at once: a stranger may **list** the drive,
 **query** its files, and **read** a file. Capability-URL sharing wants only the third.
@@ -289,16 +297,16 @@ Constraints, all verified:
 
 ## Drive definition
 
-**Decided: not a system drive.** The chat-kmp app requests the drive through the extend-permissions
+**Since then a built-in drive:** `BuiltinDrives.WebDropDrive` (`WellKnownAppDrives.WebDropDrive`), seeded with
+`BlockEnumeration = true`; the original decision follows. The chat-kmp app requests the drive through the extend-permissions
 flow with `allowAnonymousRead = true` (the YouAuth drive-request `r` param — WebDrop is its first
 user), and the owner console creates it on consent, exactly as `WellKnownAppDrives.cs` documents for
 the Email drive. Alias `6d1711af-8b93-43ef-b798-b84d51f25828`, type
 `edee430a-73d4-49ae-a9ae-2d3091957702` (chat-kmp `AppConfig.webDropLabeledDrive`); mirror them in
 `WellKnownAppDrives.cs` when server-side authorization needs to name the drive.
 
-Still owed here *(not yet implemented)*: `BlockAnonymousEnumeration = true` on this drive — until
-that capability exists, drops are enumerable by anyone ("boring bit last"). When it lands, the
-extend-permissions drive request needs to carry it too.
+Done: the built-in definition sets `BlockEnumeration`, and a system drive has what its definition says whatever is
+stored (`BuiltinDrives.BlockEnumerationOf`), so WebDrop drives made before it block enumeration too, with no migration.
 
 **Expire-now.** The viewer's *"I'm done — destroy it now"* button calls
 `POST /api/v2/drives/{driveId}/files/by-uid/{uid}/expire-now` (anonymous, no shared secret), which
@@ -310,11 +318,9 @@ re-read that sets `Ttl = now` and queues eager tombstoning. Gates, in order:
    read path already makes it so.
 2. **`Ttl != 0`** — a file with no Ttl is refused with 400. Hastening is not killing: an anonymous
    visitor must never destroy permanent public data.
-3. **`drive.BlockAnonymousEnumeration == true` — NOT YET ENFORCED.** This is the agreed rule and
-   the endpoint carries a fat security-debt banner for it: on an enumerable anonymous drive a
-   scraper can walk the file list and expire-now everything TTL'd on it. The capability argument
-   ("the caller already holds the link, so all they can surrender is remaining lifetime") only
-   holds on non-enumerable drives. Ship-blocker for real users, same as enumeration itself.
+3. **The drive blocks enumeration** (`StorageDrive.BlockEnumeration`), else 400. On a drive anyone can list,
+   whoever lists it could expire everything TTL'd on it; the capability argument ("the caller already holds the
+   link, so all they can surrender is remaining lifetime") holds only where the link is the only way in.
 
 Shorten-only by construction: `now` is earlier than any live absolute Ttl, and a pending negative
 Ttl resolves to at-least-now — the call can never extend or resurrect. An unopened burn file can be

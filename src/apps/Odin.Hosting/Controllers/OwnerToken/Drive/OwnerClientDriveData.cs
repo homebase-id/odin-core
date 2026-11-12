@@ -31,6 +31,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         public bool RequirePayloadHashes { get; set; }
 
+        /// <summary>
+        /// Only the owner, the owner's apps and the server may list the drive. Backs the owner-console checkbox.
+        /// </summary>
+        public bool BlockEnumeration { get; set; }
+
         public bool OwnerOnly { get; set; }
         public bool IsArchived { get; set; }
 
@@ -94,6 +99,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 AllowSubscriptions = drive.AllowSubscriptions,
                 AllowCdn = drive.IsCdnEnabled(),
                 RequirePayloadHashes = drive.RequirePayloadHashes,
+                BlockEnumeration = drive.BlockEnumeration,
                 OwnerOnly = drive.OwnerOnly,
                 Attributes = drive.Attributes,
                 IsArchived = drive.IsArchived,

@@ -107,6 +107,8 @@ public class DriveManager : IDriveManager
                 OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
+        AssertListingFits(request.BlockEnumeration, request.AllowSubscriptions);
+
         var zeroKnowledge = request.AssertSharingModel();
 
         var existingDriveByTargetDriveAsync = await _tableDrives.GetByTargetDriveAsync(request.TargetDrive.Alias, request.TargetDrive.Type);
@@ -179,6 +181,7 @@ public class DriveManager : IDriveManager
             AllowSubscriptions = request.AllowSubscriptions,
             AllowCdn = request.AllowCdn,
             RequirePayloadHashes = request.RequirePayloadHashes,
+            BlockEnumeration = request.BlockEnumeration,
             OwnerOnly = request.OwnerOnly,
             Attributes = request.Attributes
         };
@@ -238,18 +241,7 @@ public class DriveManager : IDriveManager
 
     public async Task SetDriveReadModeAsync(Guid driveId, bool allowAnonymous, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
-
-        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
-        {
-            throw new OdinSecurityException("Cannot change system drive");
-        }
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext);
 
         if (storageDrive.OwnerOnly && allowAnonymous)
         {
@@ -262,111 +254,118 @@ public class DriveManager : IDriveManager
             // Asked before the drive changes: it may be the cached instance
             DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowAnonymousReads: allowAnonymous);
             storageDrive.AllowAnonymousReads = allowAnonymous;
-
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
-
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext,
-            });
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
     }
 
     public async Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
-
-        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
-        {
-            throw new OdinSecurityException("Cannot change system drive");
-        }
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext);
 
         if (storageDrive.OwnerOnly && allowSubscriptions)
         {
             throw new OdinSecurityException("Cannot set Owner Only drive to allow anonymous");
         }
 
+        AssertListingFits(storageDrive.BlockEnumeration, allowSubscriptions);
+
         //only change if needed
         if (storageDrive.AllowSubscriptions != allowSubscriptions)
         {
             DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowSubscriptions: allowSubscriptions);
             storageDrive.AllowSubscriptions = allowSubscriptions;
-
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
-
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext
-            });
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
     }
 
     public async Task SetDriveRequirePayloadHashesAsync(Guid driveId, bool requirePayloadHashes, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: false, odinContext);
 
         //only change if needed
         if (storageDrive.RequirePayloadHashes != requirePayloadHashes)
         {
             storageDrive.RequirePayloadHashes = requirePayloadHashes;
+            await SaveDriveChangeAsync(storageDrive, odinContext);
+        }
+    }
 
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+    /// <summary>
+    /// Lets only the owner, the owner's apps and the server list the drive, or lets everyone who reads it list it again.
+    /// A system drive keeps what its built-in definition says.
+    /// </summary>
+    public async Task SetDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
+    {
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext);
+        AssertListingFits(blockEnumeration, storageDrive.AllowSubscriptions);
 
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext
-            });
+        //only change if needed
+        if (storageDrive.BlockEnumeration != blockEnumeration)
+        {
+            storageDrive.BlockEnumeration = blockEnumeration;
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
     }
 
     public async Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var storageDrive = await GetDriveAsync(driveId);
-        if (storageDrive == null)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
-
         // Deliberately no system-drive or owner-only guard here, unlike the sibling setters. The
         // rule this flag replaced put every drive - system drives and owner-only drives included -
         // in the CDN list, so refusing either here would take away something that already works.
         // Tightening that is a separate decision, not a side effect of introducing the flag.
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: false, odinContext);
 
         //only change if needed
         if (storageDrive.IsCdnEnabled() != allowCdn)
         {
             DriveSettings.AssertChangeFits(storageDrive.SharingModel, allowCdn: allowCdn);
             storageDrive.SetCdnEnabled(allowCdn);
-
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
-
-            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext
-            });
+            await SaveDriveChangeAsync(storageDrive, odinContext);
         }
+    }
+
+    /// <summary>
+    /// A drive nobody but the owner may list can't let followers subscribe: the feed would push every file to them.
+    /// </summary>
+    private static void AssertListingFits(bool blockEnumeration, bool allowSubscriptions)
+    {
+        if (blockEnumeration && allowSubscriptions)
+        {
+            throw new OdinClientException("A drive that blocks enumeration cannot allow subscriptions",
+                OdinClientErrorCode.CannotAllowSubscriptionsOnDriveThatBlocksEnumeration);
+        }
+    }
+
+    /// <summary>
+    /// The drive a setter changes, for a caller holding the master key: refused when it doesn't exist, and when
+    /// <paramref name="refuseSystemDrive"/> and it is a system drive.
+    /// </summary>
+    private async Task<StorageDrive> DriveToChangeAsync(Guid driveId, bool refuseSystemDrive, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId) ??
+                           throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+
+        if (refuseSystemDrive && BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinSecurityException("Cannot change system drive");
+        }
+
+        return storageDrive;
+    }
+
+    /// <summary>Stores a setter's change and tells whoever follows the drive's definition.</summary>
+    private async Task SaveDriveChangeAsync(StorageDrive storageDrive, IOdinContext odinContext)
+    {
+        await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+
+        await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+        {
+            IsNewDrive = false,
+            Drive = storageDrive,
+            OdinContext = odinContext
+        });
     }
 
     public async Task SetArchiveDriveFlagAsync(Guid driveId, bool value, IOdinContext odinContext)
@@ -994,6 +993,7 @@ public class DriveManager : IDriveManager
             AllowSubscriptions = storageDrive.AllowSubscriptions,
             AllowCdn = storageDrive.AllowCdn,
             RequirePayloadHashes = storageDrive.RequirePayloadHashes,
+            BlockEnumeration = storageDrive.BlockEnumeration,
             Attributes = storageDrive.Attributes,
             IsArchived = storageDrive.IsArchived
         };
@@ -1119,6 +1119,7 @@ public class DriveManager : IDriveManager
             AllowSubscriptions = driveDetails.AllowSubscriptions,
             AllowCdn = driveDetails.AllowCdn,
             RequirePayloadHashes = driveDetails.RequirePayloadHashes,
+            BlockEnumeration = driveDetails.BlockEnumeration,
             Attributes = driveDetails.Attributes,
             IsArchived = driveDetails.IsArchived,
 
