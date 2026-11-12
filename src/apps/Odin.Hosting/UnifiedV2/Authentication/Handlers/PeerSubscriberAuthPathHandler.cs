@@ -2,6 +2,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -16,22 +17,34 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 /// (<see cref="PeerAppNotificationService.GetDirectReadContextAsync"/>).  It lets a device download what is shared with
 /// it from the sharer's server, as it hears of the changes there, without the relay through its own server.
 /// </summary>
+/// <remarks>
+/// The token counts only on an action marked <see cref="PeerDirectReadAttribute"/>, for a drive it reads; anywhere else
+/// its caller is anonymous, so it gains nothing there.  On a public drive the file reads skip the drive's grant, which is
+/// why the drive is asked here.  A token that is no live subscriber's fails: 401 means only that.
+/// </remarks>
 public class PeerSubscriberAuthPathHandler : IAuthPathHandler
 {
+    // The caller as if it brought no token (AuthHandlerResult.Fallback fails the request instead)
+    private static readonly AuthHandlerResult Anonymous = new() { Status = AuthHandlerStatus.AnonymousFallback };
+
     public async Task<AuthHandlerResult> HandleAsync(HttpContext context, ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
     {
-        if (!TryGetDriveRead(context.Request, out var driveId))
+        if (context.GetEndpoint()?.Metadata.GetMetadata<PeerDirectReadAttribute>() == null ||
+            !Guid.TryParse(context.GetRouteValue("driveId")?.ToString(), out var driveId))
         {
-            return AuthHandlerResult.Fail();
+            return Anonymous;
         }
 
         var service = context.RequestServices.GetRequiredService<PeerAppNotificationService>();
         var ctx = await service.GetDirectReadContextAsync(clientAuthToken, odinContext);
-
-        // The drive must be one the token reads: on a public drive the file reads skip the drive's grant
-        if (null == ctx || !ctx.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read))
+        if (null == ctx)
         {
             return AuthHandlerResult.Fail();
+        }
+
+        if (!ctx.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read))
+        {
+            return Anonymous;
         }
 
         odinContext.Caller = ctx.Caller;
@@ -42,31 +55,5 @@ public class PeerSubscriberAuthPathHandler : IAuthPathHandler
     public Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
     {
         return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// A read of one drive: a GET under <c>/api/v2/drives/{driveId}/</c>, or that drive's query-batch.  Any other route
-    /// a policy lets every caller reach is refused, as is any other POST under the drive: one may write
-    /// (<c>expire-now</c>).
-    /// </summary>
-    private static bool TryGetDriveRead(HttpRequest request, out Guid driveId)
-    {
-        driveId = Guid.Empty;
-        var path = request.Path.Value ?? "";
-        var prefix = UnifiedApiRouteConstants.DrivesRoot + "/";
-        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var rest = path[prefix.Length..];
-        var end = rest.IndexOf('/');
-        if (end < 0 || !Guid.TryParse(rest[..end], out driveId))
-        {
-            return false;
-        }
-
-        return HttpMethods.IsGet(request.Method) ||
-               (HttpMethods.IsPost(request.Method) && path.EndsWith("/files/query-batch", StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -146,7 +146,7 @@ namespace Odin.Services.Membership.Connections
                         new List<DriveGrant>() { transientTempDriveGrant }, null, null));
 
 
-                var context = new OdinContext { Caller = ConnectedCaller(icr, enabledCircles) };
+                var context = new OdinContext { Caller = ConnectedCaller(icr, enabledCircles, ClientTokenType.Other) };
                 context.SetPermissionContext(permissionContext);
                 return context;
             }
@@ -214,7 +214,7 @@ namespace Odin.Services.Membership.Connections
 
         /// <summary>A connection's caller, in its enabled circles.</summary>
         private static CallerContext ConnectedCaller(IdentityConnectionRegistration icr, List<GuidId> enabledCircles,
-            ClientTokenType tokenType = ClientTokenType.Other) =>
+            ClientTokenType tokenType) =>
             new(odinId: icr.OdinId, masterKey: null, securityLevel: SecurityGroupType.Connected, circleIds: enabledCircles,
                 tokenType: tokenType)
             {

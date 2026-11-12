@@ -12,6 +12,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
@@ -20,6 +21,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     /// </summary>
     [ApiController]
     [Route(UnifiedApiRouteConstants.ByFileId)]
+    [PeerDirectRead]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveFileReadonlyController(

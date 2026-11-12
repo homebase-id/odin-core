@@ -19,6 +19,7 @@ using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.AppNotification;
@@ -63,12 +64,21 @@ public partial class SelectiveShareTests
         Assert.That(bytes, Is.Not.Empty);
         Assert.That(bytes, Is.EqualTo(relayed), "the same encrypted bytes the relay brings");
 
+        var http = direct.Factory.CreateHttpClient(s.Frodo.Identity, out var sharedSecret);
+        var query = await RefitCreator.RestServiceFor<IDriveQueryHttpClientApiV2>(http, sharedSecret).GetBatch(s.Drive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = s.Drive },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, IncludeMetadataHeader = true }
+        });
+        Assert.That(query.StatusCode, Is.EqualTo(HttpStatusCode.OK), query.Error?.Content);
+        Assert.That(query.Content!.SearchResults.Select(h => h.FileId), Is.EqualTo(new[] { fileId }), "his query: the shared file alone");
+
         var other = await direct.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, notShared);
         Assert.That(other.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "a file not shared with Sam");
 
-        // Not a read: the token isn't let in, whatever the route's policy; its context holds no Write either
+        // Not a read: the token counts for nothing there; its context holds no Write either
         var delete = await direct.Drives.Writer.SoftDeleteFile(s.Drive.Alias, fileId);
-        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "a write route");
+        Assert.That(delete.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK), "a write route");
         Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Active), "the file after the refused delete");
 
         Assert.That((await s.Shares.WithdrawShare(s.Drive.Alias, fileId, s.CircleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -95,8 +105,8 @@ public partial class SelectiveShareTests
         Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK), revoke.Error?.Content);
 
         // His cached context held the circle's grant on the drive; leaving it must reach the next read
-        var after = await direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key);
-        Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "out of the circle that grants him the drive");
+        await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
+            $"{UnifiedApiRouteConstants.DrivesRoot}/{s.Drive.Alias}/files/{fileId}/payload/{payload.Key}", "out of the circle that grants him the drive");
     }
 
     [Test]
@@ -112,15 +122,14 @@ public partial class SelectiveShareTests
         Assert.That(write.StatusCode, Is.EqualTo(HttpStatusCode.OK), write.Error?.Content);
         var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
         await PayloadBytesAsync(direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key), "precondition: it reads the file");
-        var http = direct.Factory.CreateHttpClient(s.Frodo.Identity, out _);
 
         // A POST under the drive that writes, though every caller's policy reaches it
-        var expire = await http.PostAsync($"{UnifiedApiRouteConstants.DrivesRoot}/{s.Drive.Alias}/files/by-uid/{Guid.NewGuid()}/expire-now", null);
-        Assert.That(expire.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "expire-now");
+        await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Post,
+            $"{UnifiedApiRouteConstants.DrivesRoot}/{s.Drive.Alias}/files/by-uid/{Guid.NewGuid()}/expire-now", "expire-now");
 
         // A route outside the drives, which every caller's policy reaches too
-        var capi = await http.GetAsync($"{UnifiedApiRouteConstants.Capi}/validate/{s.Sam.Identity}");
-        Assert.That(capi.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "a route outside the drives");
+        await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
+            $"{UnifiedApiRouteConstants.Capi}/validate/{s.Sam.Identity}", "a route outside the drives", refused: false);
 
         // A public drive: its file reads skip the drive's grant, so the token must not reach it at all
         var publicDrive = TargetDrive.NewTargetDrive();
@@ -130,8 +139,9 @@ public partial class SelectiveShareTests
             SampleMetadataData.CreateWithContent(fileType: 100, "for connections", new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Connected }),
             new UploadManifest { PayloadDescriptors = new List<TestPayloadDefinition> { plain }.ToPayloadDescriptorList().ToList() }, [plain]);
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
-        var onPublic = await direct.Drives.Reader.GetPayloadAsync(publicDrive.Alias, upload.Content!.File.FileId, plain.Key);
-        Assert.That(onPublic.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "a Connected file on a public drive");
+        await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
+            $"{UnifiedApiRouteConstants.DrivesRoot}/{publicDrive.Alias}/files/{upload.Content!.File.FileId}/payload/{plain.Key}",
+            "a Connected file on a public drive");
 
         // Another kind of token given this token's type is no peer client's
         var app = s.App.Token;
@@ -140,7 +150,7 @@ public partial class SelectiveShareTests
             Id = app.Id, AccessTokenHalfKey = app.AccessTokenHalfKey, ClientTokenType = ClientTokenType.PeerNotificationSubscriber
         };
         var asApp = await PeerTokenCaller.With(s.Frodo, retyped).Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key);
-        Assert.That(asApp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "the app's token as a peer client's");
+        Assert.That(asApp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "the app's token as a peer client's: no live subscriber's");
     }
 
     [Test]
@@ -176,10 +186,27 @@ public partial class SelectiveShareTests
 
         var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
 
-        var header = await direct.Drives.Reader.GetFileHeaderAsync(MeshDrive.Alias, fileId);
-        Assert.That(header.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "the header of a file the server would open for him");
-        var read = await direct.Drives.Reader.GetPayloadAsync(MeshDrive.Alias, fileId, payload.Key);
-        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "its payload");
+        await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
+            $"{UnifiedApiRouteConstants.DrivesRoot}/{MeshDrive.Alias}/files/{fileId}/header", "the header of a file the server would open for him");
+        await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
+            $"{UnifiedApiRouteConstants.DrivesRoot}/{MeshDrive.Alias}/files/{fileId}/payload/{payload.Key}", "its payload");
+    }
+
+    /// <summary>
+    /// The token counts for nothing on <paramref name="path"/>: the answer is the one a caller with no token gets, a
+    /// refusal unless <paramref name="refused"/> is false.
+    /// </summary>
+    private async Task AssertTokenGainsNothingAsync(PeerTokenCaller direct, OdinId sharer, HttpMethod method, string path, string what,
+        bool refused = true)
+    {
+        var withToken = await direct.Factory.CreateHttpClient(sharer, out _).SendAsync(new HttpRequestMessage(method, path));
+        var withNone = await Host.CreateAnonymousClient(sharer).SendAsync(new HttpRequestMessage(method, path));
+        Assert.That(withToken.StatusCode, Is.EqualTo(withNone.StatusCode), $"{what}: as with no token");
+        if (refused)
+        {
+            Assert.That(withToken.StatusCode, Is.AnyOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden, HttpStatusCode.NotFound),
+                $"{what}: refused");
+        }
     }
 
     private static async Task<byte[]> PayloadBytesAsync(Task<ApiResponse<HttpContent>> read, string how)

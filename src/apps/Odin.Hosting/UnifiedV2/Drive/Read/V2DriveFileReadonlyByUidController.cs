@@ -11,6 +11,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
@@ -28,6 +29,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     {
         public const string ByUniqueId = "by-uid/{uid:guid}";
 
+        [PeerDirectRead]
         [HttpGet("header")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetFileHeaderByUid(
@@ -43,6 +45,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return new JsonResult(result);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -55,6 +58,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await this.GetPayloadByUniqueIdInternal(driveId, uid, payloadKey);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -71,6 +75,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetPayloadByUniqueIdInternal(driveId, uid, payloadKey, chunk);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb")]
         [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]

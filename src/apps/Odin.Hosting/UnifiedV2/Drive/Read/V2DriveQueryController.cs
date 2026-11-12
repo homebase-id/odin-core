@@ -7,11 +7,13 @@ using Odin.Services.Drives;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
     [ApiController]
     [Route(UnifiedApiRouteConstants.FilesRoot)]
+    [PeerDirectRead]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveQueryController(InboxDrainOnQuery inboxDrainOnQuery)
