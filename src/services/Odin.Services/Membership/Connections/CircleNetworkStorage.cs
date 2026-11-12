@@ -203,9 +203,11 @@ public class CircleNetworkStorage
         await _clientRegistrationStorage.SaveAsync(client);
     }
 
+    /// <summary>The peer client registered under <paramref name="accessRegId"/>; null when none is, or the row is another kind of client's.</summary>
     public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
     {
-        return await _clientRegistrationStorage.GetAsync<PeerIcrClient>(accessRegId);
+        var (client, row) = await _clientRegistrationStorage.GetWithRowAsync<PeerIcrClient>(accessRegId);
+        return row?.catType == client?.Type ? client : null;
     }
     
     private async Task<IdentityConnectionRegistration> MapFromStorageAsync(ConnectionsRecord record)

@@ -158,8 +158,10 @@ namespace Odin.Services.Membership.Connections
         /// The context a connected identity's peer-notification token reads with on this identity's own routes, straight
         /// from their device: Read on each zero-knowledge drive their connection reaches through peer (app circles
         /// included, as on the relay through their own server), and nothing else -- no other drive, no key, no
-        /// permission.  What it reads there is locked to keys the server never holds, so a stolen token fetches only
-        /// what it can't open; on any other drive the server would open files for it.  Null when they aren't connected.
+        /// permission.  The server holds no key to those drives, so it hands out a client-locked file as stored, which
+        /// only the member's share key opens; a file kept there unencrypted, and every file's metadata, it reads as the
+        /// relay would.  On any other drive the server would decrypt files for the caller, so those stay behind the
+        /// relay.  Null when they aren't connected.
         /// </summary>
         public async Task<IOdinContext> TryCreatePeerSubscriberReadContextAsync(OdinId odinId, ClientAuthenticationToken authToken,
             ServerHalfOfClientKey accessReg, IOdinContext odinContext)

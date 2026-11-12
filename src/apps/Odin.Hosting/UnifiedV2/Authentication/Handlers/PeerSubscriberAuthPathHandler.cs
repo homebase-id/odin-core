@@ -19,6 +19,12 @@ public class PeerSubscriberAuthPathHandler : IAuthPathHandler
 {
     public async Task<AuthHandlerResult> HandleAsync(HttpContext context, ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
     {
+        // The drive routes only, whatever other route a policy lets any caller reach
+        if (!(context.Request.Path.Value ?? "").StartsWith(UnifiedApiRouteConstants.DrivesRoot + "/", StringComparison.OrdinalIgnoreCase))
+        {
+            return AuthHandlerResult.Fail();
+        }
+
         var service = context.RequestServices.GetRequiredService<PeerAppNotificationService>();
         var ctx = await service.GetDirectReadContextAsync(clientAuthToken, odinContext);
         if (null == ctx)

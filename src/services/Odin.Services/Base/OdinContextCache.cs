@@ -51,23 +51,13 @@ public class OdinContextCache(
 
     //
 
+    /// <param name="scope">Set for a second context the same token gets on other routes, keeping it apart from the token's own</param>
     public Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
-        Func<Task<IOdinContext?>> dotYouContextFactory)
+        Func<Task<IOdinContext?>> dotYouContextFactory,
+        string? scope = null)
     {
-        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), null));
-    }
-
-    /// <summary>
-    /// As above, for a second context the same token gets on other routes: <paramref name="scope"/> keeps it apart from
-    /// the token's own.
-    /// </summary>
-    public Task<IOdinContext?> GetOrAddContextAsync(
-        ClientAuthenticationToken token,
-        string scope,
-        Func<Task<IOdinContext?>> dotYouContextFactory)
-    {
-        return GetOrAddInternalAsync(token, scope, async () => (await dotYouContextFactory(), null));
+        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), null), scope);
     }
 
     /// <summary>
@@ -75,17 +65,10 @@ public class OdinContextCache(
     /// it only learns the end of while building it: a cached context must not outlive the token it
     /// was built for. Null means the default; a longer value is capped at the default.
     /// </summary>
-    public Task<IOdinContext?> GetOrAddContextAsync(
+    public async Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
-        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory)
-    {
-        return GetOrAddInternalAsync(token, scope: null, dotYouContextFactory);
-    }
-
-    private async Task<IOdinContext?> GetOrAddInternalAsync(
-        ClientAuthenticationToken token,
-        string? scope,
-        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory)
+        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory,
+        string? scope = null)
     {
         var key = token.AsKey().ToString().ToLower() + (scope == null ? "" : $":{scope}");
 

@@ -181,9 +181,9 @@ public class PeerAppNotificationService : PeerServiceBase
     /// </summary>
     public async Task<IOdinContext> GetDirectReadContextAsync(ClientAuthenticationToken token, IOdinContext currentOdinContext)
     {
-        return await _cache.GetOrAddContextAsync(token, "direct-read", () => ForLiveSubscriberAsync(token, currentOdinContext,
+        return await _cache.GetOrAddContextAsync(token, () => ForLiveSubscriberAsync(token, currentOdinContext,
             client => CircleNetworkService.TryCreatePeerSubscriberReadContextAsync(client.Identity, token, client.ServerHalfOfClientKey,
-                currentOdinContext)));
+                currentOdinContext)), scope: "direct-read");
     }
 
     /// <summary>What <paramref name="build"/> makes for the token's subscriber, when the token is still theirs; else null.</summary>

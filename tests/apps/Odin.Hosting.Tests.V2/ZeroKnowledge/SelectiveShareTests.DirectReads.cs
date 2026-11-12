@@ -65,13 +65,37 @@ public partial class SelectiveShareTests
         var other = await direct.Drives.Reader.GetFileHeaderAsync(s.Drive.Alias, notShared);
         Assert.That(other.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "a file not shared with Sam");
 
+        // Refused by the route's policy, which no write route opens to this token; its context holds no Write either
         var delete = await direct.Drives.Writer.SoftDeleteFile(s.Drive.Alias, fileId);
-        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "the token only reads");
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "a write route");
         Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Active), "the file after the refused delete");
 
         Assert.That((await s.Shares.WithdrawShare(s.Drive.Alias, fileId, s.CircleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var withdrawn = await direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key);
         Assert.That(withdrawn.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "the payload once the share is withdrawn");
+    }
+
+    [Test]
+    public async Task AMembersPeerTokenStopsReadingOnceHeLeavesTheCircle()
+    {
+        var s = await ArrangeAsync();
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var (fileId, _, _) = await s.UploadClientLockedAsync(payload);
+        var write = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read, lockedFileKey: LockedFileKey())]
+        });
+        Assert.That(write.StatusCode, Is.EqualTo(HttpStatusCode.OK), write.Error?.Content);
+
+        var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
+        await PayloadBytesAsync(direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key), "before: his context built and cached");
+
+        var revoke = await s.Frodo.Connections.RevokeCircle(s.CircleId, s.Sam.Identity);
+        Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK), revoke.Error?.Content);
+
+        // His cached context named the circle the share is for; leaving it must reach the next read
+        var after = await direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key);
+        Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "out of the circle the file is shared with");
     }
 
     [Test]
