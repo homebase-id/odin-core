@@ -169,41 +169,29 @@ public class PeerAppNotificationService : PeerServiceBase
 
     public async Task<IOdinContext> GetDotYouContext(ClientAuthenticationToken token, IOdinContext currentOdinContext)
     {
-        async Task<IOdinContext> Creator()
-        {
-            var (isValid, peerIcrClient) = await ValidateClientAuthToken(token, currentOdinContext);
-
-            if (!isValid || null == peerIcrClient)
-            {
-                return null;
-            }
-
-            var accessReg = peerIcrClient.ServerHalfOfClientKey;
-            var odinContext =
-                await CircleNetworkService.TryCreateConnectedYouAuthContextAsync(peerIcrClient.Identity, token, accessReg,
-                    currentOdinContext);
-            return odinContext;
-        }
-
-        var result = await _cache.GetOrAddContextAsync(token, Creator);
-        return result;
+        return await _cache.GetOrAddContextAsync(token, () => ForLiveSubscriberAsync(token, currentOdinContext,
+            client => CircleNetworkService.TryCreateConnectedYouAuthContextAsync(client.Identity, token, client.ServerHalfOfClientKey,
+                currentOdinContext)));
     }
 
     /// <summary>
     /// The context the same token reads with on this identity's file routes, straight from the subscriber's device
-    /// (<see cref="CircleNetworkService.TryCreatePeerSubscriberReadContextAsync"/>).  Not cached: the socket's context
-    /// above is cached under this very token, and is a wider one.  Null when the token isn't a live subscriber's.
+    /// (<see cref="CircleNetworkService.TryCreatePeerSubscriberReadContextAsync"/>): cached apart from the socket's, a
+    /// wider one.  Null when the token isn't a live subscriber's.
     /// </summary>
     public async Task<IOdinContext> GetDirectReadContextAsync(ClientAuthenticationToken token, IOdinContext currentOdinContext)
     {
-        var (isValid, peerIcrClient) = await ValidateClientAuthToken(token, currentOdinContext);
-        if (!isValid || null == peerIcrClient)
-        {
-            return null;
-        }
+        return await _cache.GetOrAddContextAsync(token, "direct-read", () => ForLiveSubscriberAsync(token, currentOdinContext,
+            client => CircleNetworkService.TryCreatePeerSubscriberReadContextAsync(client.Identity, token, client.ServerHalfOfClientKey,
+                currentOdinContext)));
+    }
 
-        return await CircleNetworkService.TryCreatePeerSubscriberReadContextAsync(peerIcrClient.Identity, token,
-            peerIcrClient.ServerHalfOfClientKey, currentOdinContext);
+    /// <summary>What <paramref name="build"/> makes for the token's subscriber, when the token is still theirs; else null.</summary>
+    private async Task<IOdinContext> ForLiveSubscriberAsync(ClientAuthenticationToken token, IOdinContext currentOdinContext,
+        Func<PeerIcrClient, Task<IOdinContext>> build)
+    {
+        var (isValid, peerIcrClient) = await ValidateClientAuthToken(token, currentOdinContext);
+        return isValid && peerIcrClient != null ? await build(peerIcrClient) : null;
     }
 
     private async Task<(bool isValid, PeerIcrClient icrClient)> ValidateClientAuthToken(ClientAuthenticationToken authToken,

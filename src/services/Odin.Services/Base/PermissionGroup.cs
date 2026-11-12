@@ -43,9 +43,6 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
 
     internal int DriveGrantCount => this._driveGrants?.Count() ?? 0;
 
-    /// <summary>Every drive grant, whatever <see cref="Redacted"/> would show of them.</summary>
-    internal IEnumerable<DriveGrant> DriveGrants => this._driveGrants ?? [];
-
     public PermissionGroup Clone()
     {
         return new PermissionGroup(this);

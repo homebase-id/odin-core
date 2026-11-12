@@ -115,16 +115,9 @@ namespace Odin.Services.Membership.Connections
             logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
 
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
-            bool isValid = icr.PeerKeyStore?.IsValid() ?? false;
-            bool isConnected = icr.IsConnected();
-
-            if (icr.Status == ConnectionStatus.Blocked)
-            {
-                return null;
-            }
 
             // Only return the permissions if the identity is connected.
-            if (isValid && isConnected)
+            if (IsLiveConnection(icr))
             {
                 var (permissionContext, enabledCircles) = await CreatePermissionContextInternalAsync(
                     icr: icr,
@@ -153,18 +146,7 @@ namespace Odin.Services.Membership.Connections
                         new List<DriveGrant>() { transientTempDriveGrant }, null, null));
 
 
-                var context = new OdinContext()
-                {
-                    Caller = new CallerContext(
-                        odinId: odinId,
-                        masterKey: null,
-                        securityLevel: SecurityGroupType.Connected,
-                        circleIds: enabledCircles)
-                    {
-                        IsReviewed = icr.ReviewedAt != null
-                    }
-                };
-
+                var context = new OdinContext { Caller = ConnectedCaller(icr, enabledCircles) };
                 context.SetPermissionContext(permissionContext);
                 return context;
             }
@@ -183,20 +165,18 @@ namespace Odin.Services.Membership.Connections
             ServerHalfOfClientKey accessReg, IOdinContext odinContext)
         {
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
-            if (icr.Status == ConnectionStatus.Blocked || !(icr.PeerKeyStore?.IsValid() ?? false) || !icr.IsConnected())
+            if (!IsLiveConnection(icr))
             {
                 return null;
             }
 
-            var (connection, enabledCircles) = await CreatePermissionContextInternalAsync(
-                icr: icr,
-                authToken: authToken,
-                accessReg: accessReg,
-                applyAppCircleGrants: true,
-                odinContext: odinContext);
+            // The token's own half of its key opens the shared secret: what proves it is the token the subscriber was given
+            var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
+            keyStoreKey?.Wipe();
 
-            var readable = connection.PermissionGroups.Values
-                .SelectMany(g => g.DriveGrants)
+            var (connectionGrants, enabledCircles) = await ConnectionGrantsAsync(icr, applyAppCircleGrants: true, odinContext);
+            var readable = connectionGrants.Values
+                .SelectMany(k => k.DriveGrants ?? [])
                 .Where(g => g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read))
                 .Select(g => g.DriveId)
                 .Distinct();
@@ -216,26 +196,26 @@ namespace Odin.Services.Membership.Connections
                 }
             }
 
-            var context = new OdinContext
-            {
-                Caller = new CallerContext(
-                    odinId: odinId,
-                    masterKey: null,
-                    securityLevel: SecurityGroupType.Connected,
-                    circleIds: enabledCircles)
-                {
-                    IsReviewed = icr.ReviewedAt != null
-                }
-            };
-
+            var context = new OdinContext { Caller = ConnectedCaller(icr, enabledCircles) };
             context.SetPermissionContext(new PermissionContext(
                 new Dictionary<string, PermissionGroup>
                 {
                     ["peer_subscriber_zero_knowledge_reads"] = new(new Permissions_PermissionSet(), grants, keyStoreKey: null, encryptedIcrKey: null)
                 },
-                sharedSecretKey: connection.SharedSecretKey));
+                sharedSecretKey: sharedSecret));
             return context;
         }
+
+        /// <summary>Connected, so not blocked, with peer keys still valid: a connection whose callers get its circles' grants.</summary>
+        private static bool IsLiveConnection(IdentityConnectionRegistration icr) =>
+            icr.IsConnected() && (icr.PeerKeyStore?.IsValid() ?? false);
+
+        /// <summary>A connection's caller, in its enabled circles.</summary>
+        private static CallerContext ConnectedCaller(IdentityConnectionRegistration icr, List<GuidId> enabledCircles) =>
+            new(odinId: icr.OdinId, masterKey: null, securityLevel: SecurityGroupType.Connected, circleIds: enabledCircles)
+            {
+                IsReviewed = icr.ReviewedAt != null
+            };
 
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>.
@@ -3162,16 +3142,13 @@ namespace Odin.Services.Membership.Connections
         }
 
 
-        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternalAsync(
-            IdentityConnectionRegistration icr,
-            ClientAuthenticationToken authToken,
-            ServerHalfOfClientKey accessReg,
-            bool applyAppCircleGrants,
-            IOdinContext odinContext)
+        /// <summary>
+        /// What a connection's enabled circles grant it, as exchange grants by circle, with the circles' ids: its app circles'
+        /// too when <paramref name="applyAppCircleGrants"/>.
+        /// </summary>
+        private async Task<(Dictionary<Guid, KeyStore> grants, List<GuidId> enabledCircles)> ConnectionGrantsAsync(
+            IdentityConnectionRegistration icr, bool applyAppCircleGrants, IOdinContext odinContext)
         {
-            // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional
-
-
             var (grants, enabledCircles) = await
                 circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
                     icr.PeerKeyStore.CircleGrants.Values.ToList(), odinContext);
@@ -3230,6 +3207,19 @@ namespace Odin.Services.Membership.Connections
                 }
             }
 
+            return (grants, enabledCircles);
+        }
+
+        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternalAsync(
+            IdentityConnectionRegistration icr,
+            ClientAuthenticationToken authToken,
+            ServerHalfOfClientKey accessReg,
+            bool applyAppCircleGrants,
+            IOdinContext odinContext)
+        {
+            // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional
+
+            var (grants, enabledCircles) = await ConnectionGrantsAsync(icr, applyAppCircleGrants, odinContext);
 
             // Ambient write-only grants: no read and no storage key, so nothing here can decrypt anything.
             async Task AddAmbientWriteGrantAsync(string name, TargetDrive drive, DrivePermission permission)

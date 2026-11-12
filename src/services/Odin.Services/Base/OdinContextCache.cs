@@ -59,15 +59,35 @@ public class OdinContextCache(
     }
 
     /// <summary>
+    /// As above, for a second context the same token gets on other routes: <paramref name="scope"/> keeps it apart from
+    /// the token's own.
+    /// </summary>
+    public Task<IOdinContext?> GetOrAddContextAsync(
+        ClientAuthenticationToken token,
+        string scope,
+        Func<Task<IOdinContext?>> dotYouContextFactory)
+    {
+        return GetOrAddInternalAsync(token, scope, async () => (await dotYouContextFactory(), null));
+    }
+
+    /// <summary>
     /// As above, but the factory says how long its result may be cached, for a context whose credential
     /// it only learns the end of while building it: a cached context must not outlive the token it
     /// was built for. Null means the default; a longer value is capped at the default.
     /// </summary>
-    public async Task<IOdinContext?> GetOrAddContextAsync(
+    public Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
         Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory)
     {
-        var key = token.AsKey().ToString().ToLower();
+        return GetOrAddInternalAsync(token, scope: null, dotYouContextFactory);
+    }
+
+    private async Task<IOdinContext?> GetOrAddInternalAsync(
+        ClientAuthenticationToken token,
+        string? scope,
+        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory)
+    {
+        var key = token.AsKey().ToString().ToLower() + (scope == null ? "" : $":{scope}");
 
         // SEB:NOTE deliberately not using GetOrSetAsync here to avoid dealing with exceptions thrown by the factory.
         // Two builds for the same token give the same context, except across a ResetAsync: a context built from the
