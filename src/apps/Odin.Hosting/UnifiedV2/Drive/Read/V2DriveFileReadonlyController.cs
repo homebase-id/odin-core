@@ -21,7 +21,6 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     /// </summary>
     [ApiController]
     [Route(UnifiedApiRouteConstants.ByFileId)]
-    [PeerDirectRead]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveFileReadonlyController(
@@ -29,6 +28,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
+        [PeerDirectRead]
         [HttpGet("header")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetFileHeader(
@@ -60,6 +60,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         }
 
         // Full payload (optional query range)
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -78,6 +79,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         }
 
         // Ranged payload (route-based)
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -98,6 +100,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 chunk);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -121,6 +124,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetThumbnailInternal(file, width, height, payloadKey, directMatchOnly);
         }
         
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb")]
         [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]

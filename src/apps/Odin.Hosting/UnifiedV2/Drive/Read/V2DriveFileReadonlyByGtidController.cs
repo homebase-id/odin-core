@@ -30,7 +30,6 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     /// </remarks>
     [ApiController]
     [Route(UnifiedApiRouteConstants.ByGtid)]
-    [PeerDirectRead]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveFileReadonlyByGtidController(
@@ -38,6 +37,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -50,6 +50,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await this.GetPayloadByGtidInternal(driveId, gtid, payloadKey);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -66,6 +67,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetPayloadByGtidInternal(driveId, gtid, payloadKey, chunk);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb")]
         [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]

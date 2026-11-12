@@ -64,7 +64,7 @@ public partial class SelectiveShareTests
         Assert.That(bytes, Is.Not.Empty);
         Assert.That(bytes, Is.EqualTo(relayed), "the same encrypted bytes the relay brings");
 
-        var http = direct.Factory.CreateHttpClient(s.Frodo.Identity, out var sharedSecret);
+        using var http = direct.Factory.CreateHttpClient(s.Frodo.Identity, out var sharedSecret);
         var query = await RefitCreator.RestServiceFor<IDriveQueryHttpClientApiV2>(http, sharedSecret).GetBatch(s.Drive.Alias, new QueryBatchRequest
         {
             QueryParams = new FileQueryParamsV1 { TargetDrive = s.Drive },
@@ -78,7 +78,7 @@ public partial class SelectiveShareTests
 
         // Not a read: the token counts for nothing there; its context holds no Write either
         var delete = await direct.Drives.Writer.SoftDeleteFile(s.Drive.Alias, fileId);
-        Assert.That(delete.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK), "a write route");
+        Assert.That(delete.StatusCode, Is.AnyOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden), "a write route");
         Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Active), "the file after the refused delete");
 
         Assert.That((await s.Shares.WithdrawShare(s.Drive.Alias, fileId, s.CircleId)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -122,6 +122,15 @@ public partial class SelectiveShareTests
         Assert.That(write.StatusCode, Is.EqualTo(HttpStatusCode.OK), write.Error?.Content);
         var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
         await PayloadBytesAsync(direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key), "precondition: it reads the file");
+
+        // By its global transit id too
+        var byGtid = await PayloadBytesAsync(direct.Drives.Reader.GetPayloadByGtidAsync((await s.GtidOfAsync(fileId)).GlobalTransitId, s.Drive.Alias, payload.Key),
+            "by global transit id");
+        Assert.That(byGtid, Is.Not.Empty);
+
+        // A GET of the same drive's file that isn't a member's read: the owner's transfer history
+        await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
+            $"{UnifiedApiRouteConstants.DrivesRoot}/{s.Drive.Alias}/files/{fileId}/transfer-history", "transfer-history");
 
         // A POST under the drive that writes, though every caller's policy reaches it
         await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Post,
@@ -199,8 +208,10 @@ public partial class SelectiveShareTests
     private async Task AssertTokenGainsNothingAsync(PeerTokenCaller direct, OdinId sharer, HttpMethod method, string path, string what,
         bool refused = true)
     {
-        var withToken = await direct.Factory.CreateHttpClient(sharer, out _).SendAsync(new HttpRequestMessage(method, path));
-        var withNone = await Host.CreateAnonymousClient(sharer).SendAsync(new HttpRequestMessage(method, path));
+        using var tokenClient = direct.Factory.CreateHttpClient(sharer, out _);
+        using var noneClient = Host.CreateAnonymousClient(sharer);
+        using var withToken = await tokenClient.SendAsync(new HttpRequestMessage(method, path));
+        using var withNone = await noneClient.SendAsync(new HttpRequestMessage(method, path));
         Assert.That(withToken.StatusCode, Is.EqualTo(withNone.StatusCode), $"{what}: as with no token");
         if (refused)
         {

@@ -13,12 +13,12 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
     [ApiController]
     [Route(UnifiedApiRouteConstants.FilesRoot)]
-    [PeerDirectRead]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveQueryController(InboxDrainOnQuery inboxDrainOnQuery)
         : OdinControllerBase
     {
+        [PeerDirectRead]
         [HttpPost("query-batch")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
         public async Task<QueryBatchResponse> QueryBatch([FromRoute] Guid driveId, [FromBody] QueryBatchRequestV2 request)

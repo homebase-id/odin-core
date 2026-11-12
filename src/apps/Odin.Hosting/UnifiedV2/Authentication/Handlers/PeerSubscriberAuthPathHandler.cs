@@ -18,9 +18,9 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 /// it from the sharer's server, as it hears of the changes there, without the relay through its own server.
 /// </summary>
 /// <remarks>
-/// The token counts only on an action marked <see cref="PeerDirectReadAttribute"/>, for a drive it reads; anywhere else
-/// its caller is anonymous, so it gains nothing there.  On a public drive the file reads skip the drive's grant, which is
-/// why the drive is asked here.  A token that is no live subscriber's fails: 401 means only that.
+/// A token that is no live subscriber's fails, on any route: 401 means only that.  A live one counts only on an action
+/// marked <see cref="PeerDirectReadAttribute"/>, for a drive it reads; anywhere else its caller is anonymous, so it gains
+/// nothing there.  On a public drive the file reads skip the drive's grant, which is why the drive is asked here.
 /// </remarks>
 public class PeerSubscriberAuthPathHandler : IAuthPathHandler
 {
@@ -29,12 +29,6 @@ public class PeerSubscriberAuthPathHandler : IAuthPathHandler
 
     public async Task<AuthHandlerResult> HandleAsync(HttpContext context, ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
     {
-        if (context.GetEndpoint()?.Metadata.GetMetadata<PeerDirectReadAttribute>() == null ||
-            !Guid.TryParse(context.GetRouteValue("driveId")?.ToString(), out var driveId))
-        {
-            return Anonymous;
-        }
-
         var service = context.RequestServices.GetRequiredService<PeerAppNotificationService>();
         var ctx = await service.GetDirectReadContextAsync(clientAuthToken, odinContext);
         if (null == ctx)
@@ -42,7 +36,9 @@ public class PeerSubscriberAuthPathHandler : IAuthPathHandler
             return AuthHandlerResult.Fail();
         }
 
-        if (!ctx.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read))
+        if (context.GetEndpoint()?.Metadata.GetMetadata<PeerDirectReadAttribute>() == null ||
+            !Guid.TryParse(context.GetRouteValue("driveId")?.ToString(), out var driveId) ||
+            !ctx.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read))
         {
             return Anonymous;
         }
