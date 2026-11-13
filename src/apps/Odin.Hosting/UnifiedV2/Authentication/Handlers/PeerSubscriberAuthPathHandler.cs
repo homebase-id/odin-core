@@ -24,9 +24,6 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 /// </remarks>
 public class PeerSubscriberAuthPathHandler : IAuthPathHandler
 {
-    // The caller as if it brought no token (AuthHandlerResult.Fallback fails the request instead)
-    private static readonly AuthHandlerResult Anonymous = new() { Status = AuthHandlerStatus.AnonymousFallback };
-
     public async Task<AuthHandlerResult> HandleAsync(HttpContext context, ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
     {
         var service = context.RequestServices.GetRequiredService<PeerAppNotificationService>();
@@ -40,7 +37,7 @@ public class PeerSubscriberAuthPathHandler : IAuthPathHandler
             !Guid.TryParse(context.GetRouteValue("driveId")?.ToString(), out var driveId) ||
             !ctx.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read))
         {
-            return Anonymous;
+            return AuthHandlerResult.Anonymous();
         }
 
         odinContext.Caller = ctx.Caller;
