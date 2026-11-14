@@ -31,6 +31,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     {
         try
         {
+            AssertHasRemainingAttempts();
             logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> Sending request for file: {file} to {recipient} (marker:{marker})",
                 _fileItem.File, _fileItem.Recipient, _fileItem.Marker);
 

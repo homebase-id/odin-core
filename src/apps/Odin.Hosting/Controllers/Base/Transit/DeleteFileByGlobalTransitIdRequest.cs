@@ -21,7 +21,7 @@ public class DeleteFileByGlobalTransitIdRequest
 
     /// <summary>
     /// Optional: the version of the recipient's file the delete is meant for, refused once the file has changed, with the
-    /// outcome told as a <c>PeerSendResult</c> (see the V2 <c>senddeleterequest</c> route)
+    /// outcome told as a <c>PeerSendResult</c>.  For one recipient only (docs/file-access.md, "A delete follows it too")
     /// </summary>
     public Guid? ExpectedVersionTag { get; set; }
 }

@@ -152,8 +152,9 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   below), and not otherwise **(V, tested)**. It names:
   - the recipient, the drive id and the global transit id the send named; a file sent again that the recipient
     matched by its unique id keeps its own (I, from the code);
-  - the version tag the client's upload or update gave back, or the one its delete named, which tells two sends of one
-    file apart **(V, tested)**;
+  - the version tag the client's upload or update gave back, or the one its delete named, which with whether it was an
+    update or a delete tells two sends of one file apart **(V, tested)**; `send-status` has no kind to name, so an update
+    and a delete naming the version it gave the file answer as one, whichever is due first (I, from the code);
   - whether it was an update or a delete (`isUpdate`, `isDelete`), the transfer status (delivered, or why not) and
     whether the outbox tries again **(V, tested)**;
   - on delivery, the version tag of the recipient's copy, for the next change to name: for a file sent, the one the
@@ -207,11 +208,12 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   tag, so a file stored before that record was kept is refused too; on a drive still marked as a community channel
   only the original sender deletes **(V)**. The delete is of the version judged (`expectedVersionTag`): a write that
   lands in between is judged again, once, rather than lost (`PeerDriveIncomingTransferService.DeleteAtOnceAsync`)
-  **(V)**. A delete may also name the version it is meant for (`expectedVersionTag` on `senddeleterequest`): it is
-  refused (`VersionTagMismatch`) once the file has changed since, so a member's delete can't discard a co-editor's newer
-  version unseen, and is not judged again **(V, tested)**. The same holds for a comment and for a community channel's
-  post; a drive with an inbox refuses a delete naming a version, as the inbox writes it later and checks nothing
-  **(V, tested)**. So on a Private Share drive a member's own new file with no share is theirs to delete as its sender
+  **(V)**. A delete may also name the version it is meant for (`expectedVersionTag` on `senddeleterequest`, one
+  recipient only): it is refused (`VersionTagMismatch`) once the file has changed since, so a member's delete can't
+  discard a co-editor's newer version unseen, and is not judged again **(V, tested)**. One sent again after it landed is
+  done, not refused by its own tombstone's version (I, from the code). The same holds for a comment **(V, tested)** and
+  for a community channel's post **(V)**; a drive with an inbox refuses a delete naming a version, as the inbox writes
+  it later and checks nothing **(V, tested)**. So on a Private Share drive a member's own new file with no share is theirs to delete as its sender
   **(V, tested)**. A delete of a file already deleted does nothing **(V)**. On a Server Share drive a peer's delete goes
   as before: through the inbox, or on a drive marked as a community channel the original sender's alone, at once
   (below).

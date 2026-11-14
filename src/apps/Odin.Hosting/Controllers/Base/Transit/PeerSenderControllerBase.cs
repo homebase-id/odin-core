@@ -78,6 +78,12 @@ namespace Odin.Hosting.Controllers.Base.Transit
             OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.TargetDrive.IsValid(), "Target Drive is invalid");
             OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.GlobalTransitId != Guid.Empty,
                 "GlobalTransitId is empty (cannot be Guid.Empty)");
+            if (request.ExpectedVersionTag is { } expected)
+            {
+                // Each recipient's copy has a version of its own, so a delete naming one is for one recipient
+                OdinValidationUtils.AssertNotEmptyGuid(expected, nameof(request.ExpectedVersionTag));
+                OdinValidationUtils.AssertIsTrue(request.Recipients?.Count == 1, "A delete naming a version is for one recipient");
+            }
 
             //send the deleted file
             var map = await peerOutgoingTransferService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,

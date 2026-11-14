@@ -13,7 +13,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write;
 
 /// <summary>
 /// Whether the caller's own send to a peer, from the transient drive, is still waiting in this identity's outbox: a new
-/// file or an update of a peer's file, which leaves no copy here to hold a transfer history.  For a client that missed its
+/// file or an update of a peer's file, which leaves no copy here to hold a transfer history, or a delete of one naming the
+/// version it is meant for.  For a client that missed its
 /// result event (<c>peerSendResult</c>): not pending, and the peer's copy shows whether it landed.
 /// </summary>
 [ApiController]
@@ -24,7 +25,8 @@ public class V2DrivePeerSendStatusController(PeerOutbox peerOutbox) : OdinContro
     /// <summary>
     /// The send to <paramref name="odinId"/>'s drive <paramref name="driveId"/> of the file with global transit id
     /// <paramref name="gtid"/>, which the upload or update answered with <paramref name="sentVersionTag"/>
-    /// (its <c>newVersionTag</c>); without one, any of the caller's sends of the file, for a client that lost that answer.
+    /// (its <c>newVersionTag</c>), or a delete named as its <c>expectedVersionTag</c>; an update and a delete naming the
+    /// version it gave the file share the tag, and whichever is due first answers; without one, any of the caller's sends of the file, for a client that lost that answer.
     /// Only the caller's own: an app's sends, or the owner's own client's; it asks <c>UseTransitWrite</c>, as the send did.
     /// A client polling need not ask again before <c>nextAttempt</c>, when the outbox next takes it up, nor while
     /// <c>sending</c>: the result event comes then.

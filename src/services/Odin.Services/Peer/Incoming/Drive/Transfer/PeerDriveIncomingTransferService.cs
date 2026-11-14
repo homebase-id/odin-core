@@ -275,12 +275,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
 
-                await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-                    {
-                        FileId = header.FileId,
-                        DriveId = driveId
-                    },
-                    odinContext, null, expectedVersionTag);
+                // Its tombstone has a version of its own, so a delete naming one that already landed (sent again) is done
+                if (expectedVersionTag != null && header.FileState == FileState.Deleted)
+                {
+                    return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
+                }
+
+                // A tombstone that failed to write answers a server error, so the sender's outbox tries again
+                _ = await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+                        {
+                            FileId = header.FileId,
+                            DriveId = driveId
+                        },
+                        odinContext, null, expectedVersionTag) ??
+                    throw new OdinSystemException($"File {header.FileId} could not be deleted");
 
                 logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> direct soft-delete complete for fileId:{fileId} gtid:{gtid}",
                     header.FileId, globalTransitId);

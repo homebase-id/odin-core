@@ -245,6 +245,15 @@ public partial class SelectiveShareTests
         Assert.That(sockets.App.Results.Where(r => r.IsDelete), Is.Empty, "no result for a delete naming no version");
     }
 
+    [Test]
+    public async Task ADeleteNamingAnEmptyVersionIsRefusedBeforeItIsQueued()
+    {
+        var s = await ArrangeAsync();
+        var (_, gtid, _) = await FrodosFileSharedForWritingAsync(s);
+        var delete = await s.Sam.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, gtid, Guid.Empty);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), delete.Error?.Content);
+    }
+
     /// <summary>A file of Frodo's, client-locked and shared with Sam's circle for reading and writing</summary>
     private static async Task<(Guid FileId, Guid Gtid, KeyHeader FileKey)> FrodosFileSharedForWritingAsync(Arranged s)
     {

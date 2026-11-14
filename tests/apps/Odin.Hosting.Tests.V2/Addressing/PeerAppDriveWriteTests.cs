@@ -321,5 +321,17 @@ public class PeerAppDriveWriteTests : V2Fixture
         await frodo.Sync.DrainOutboxAsync();
         await sam.Sync.ProcessInboxAsync(drive);
         Assert.That((await QueryByGtidAsync(sam, drive, gtid)).FileState, Is.EqualTo(FileState.Active), "refused, even of the version there");
+
+        // The same delete naming no version lands, so the refusal above was the version's
+        var plain = await SlugClient(frodo).SendDeleteRequest(sam.Identity, AppSlug, DriveSlug, new DeleteFileByGlobalTransitIdRequest
+        {
+            GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier { GlobalTransitId = gtid, TargetDrive = drive },
+            Recipients = [],
+            FileSystemType = FileSystemType.Standard
+        });
+        Assert.That(plain.IsSuccessStatusCode, Is.True, $"queueing the delete: {plain.StatusCode} :: {plain.Error?.Content}");
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(drive);
+        Assert.That((await QueryByGtidAsync(sam, drive, gtid)).FileState, Is.EqualTo(FileState.Deleted), "naming no version: deleted");
     }
 }
