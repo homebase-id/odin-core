@@ -89,7 +89,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// Gets an EncryptedKeyHeader for a given payload using the payload's IV
+        /// Gets an EncryptedKeyHeader for a given payload using the payload's IV.  A deleted file's payload is answered as
+        /// such (<see cref="AssertNotDeletedForPayloads"/>); every caller is a read a request asked for.
         /// </summary>
         public async Task<(ServerFileHeader header, PayloadDescriptor payloadDescriptor, EncryptedKeyHeader encryptedKeyHeader, bool
                 fileExists)>
@@ -105,6 +106,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var payloadDescriptor = serverFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey);
             if (null == payloadDescriptor)
             {
+                AssertNotDeletedForPayloads(serverFileHeader);
                 return (null, null, null, false);
             }
 
@@ -2351,6 +2353,19 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 _logger.LogError(e, "Publish Error occured");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// For a reader that found no payload or thumbnail: a deleted file's tombstone keeps none (<see cref="TombstoneOf"/>),
+        /// which it is told (<see cref="OdinFileDeletedException"/>, a 404 with its own code) rather than that the file isn't
+        /// there.
+        /// </summary>
+        private static void AssertNotDeletedForPayloads(ServerFileHeader header)
+        {
+            if (header?.FileMetadata.FileState == FileState.Deleted)
+            {
+                throw new OdinFileDeletedException($"File {header.FileMetadata.File.FileId} is deleted; its payloads went with it");
             }
         }
 

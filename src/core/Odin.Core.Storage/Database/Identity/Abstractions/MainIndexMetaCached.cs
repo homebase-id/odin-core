@@ -81,7 +81,7 @@ public class MainIndexMetaCached : AbstractTableCaching
         {
             foreach (var file in files)
             {
-                if (!await _meta.WriteSharesAsync(driveId, file.FileId, file.Rows, file.CheckFile))
+                if (!await _meta.WriteSharesAsync(driveId, file.FileId, file.Rows, file.CheckFile, file.MovesModified))
                 {
                     return file.FileId;
                 }
@@ -115,10 +115,11 @@ public class MainIndexMetaCached : AbstractTableCaching
 }
 
 /// <summary>
-/// A file's share rows to write, with the check of its row, read locked, that may refuse it or lift its group
-/// (<see cref="MainIndexMeta.WriteSharesAsync"/>).
+/// A file's share rows to write, with the check of its row, read locked, that may refuse it or lift its group, and
+/// whether the write moves the file's modified (always, when not given) (<see cref="MainIndexMeta.WriteSharesAsync"/>).
 /// </summary>
 public sealed record FileShares(
     Guid FileId,
     IReadOnlyCollection<DriveAclIndexRecord> Rows,
-    Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> CheckFile);
+    Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> CheckFile,
+    Func<DriveMainIndexRecord, bool>? MovesModified = null);

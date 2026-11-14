@@ -52,6 +52,15 @@ Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → 
 | 4 | the read rule, part 1: a client-locked file only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) | 403, or no file when the path asks for that (`aclDeniedAsMissing`) | `System`; files on the transient drive; on a Server Share drive, a sealed file for a caller holding its storage key, which the server opens for them; a tombstone's sealed key header goes out empty |
 | 5 | the read rule, part 2: the file's ACL (`CallerPassesAcl`) | as 4 | owner callers; `System` |
 
+**A deleted file's payload or thumbnail** is a 404 with `errorCode: fileDeleted` once the caller passes these checks:
+its tombstone keeps none (`DriveStorageServiceBase.AssertNotDeletedForPayloads`). Tested for the owner's V2 routes by
+file id and global transit id, a member's peer token, and a member's own server, which passes the code on **(V, tested)**;
+the V1, app and guest routes go through the same lookup **(V)**. A file that isn't there is a 404 without it; one the
+caller may not read stays a 403 (steps 2 and 5). Asked for by unique id a deleted file is the plain 404: a tombstone
+keeps no unique id **(V, tested)**. Its header still reads, with `fileState: deleted` **(V, tested)**. A 410
+(`payloadGone`) is something else: a payload the header names whose bytes are missing. A file deleted between the
+lookup and the read of its bytes is a plain 404 (I, from the code). Temporal-drive reads don't answer it yet.
+
 **The ACL check (step 5)**, in order (`DriveAclAuthorizationService.Allows`, `:101-123`) **(V)**:
 1. A missing ACL refuses.
 2. A required group of `System` refuses: it is a caller level, never a file's.
@@ -354,7 +363,7 @@ the index rows aren't a copy of the ACL but the record.
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member with drive `Write` whose live row has `Write`. The author of a deposit edits it through the row for their individual circle it carries |
 | Sending a file again | the original sender's send again updates it while no one else has written it since; anyone else's (on a drive marked as a community channel, a member who may read it) names the file's version tag: "Changing a file you sent" **(V, tested)** | the same, as its original sender: a file with no share by that rule alone, one with a share through a live row with `Write` too ("Changing a file you sent") **(V, tested)**. It keeps its rows and its required group: shares come only with a new file, and a send again carrying any is refused. The same delivery again, the outbox retrying one that already landed, is taken as done (`PeerFileWriter.StoreNormalFileLongTermAsync`) **(V, tested)** |
 | Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member with drive `React` or `Comment` whose live row has the same bit. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it |
-| Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't |
+| Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't, so a client judges a change of content by the version tag, never by `updated`. Withdrawing a share of a deleted file still withdraws it, but its tombstone keeps its `modified` **(V, tested)** |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" |
 
 ### A share row narrows its circle's grant

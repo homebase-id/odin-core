@@ -197,6 +197,26 @@ public class ExceptionHandlingMiddlewareTest
             "the code is what tells a client to re-read the header rather than retry the same url");
     }
 
+    [Test]
+    public async Task FileDeletedExceptionIsNotFound()
+    {
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await Task.CompletedTask;
+            throw new OdinFileDeletedException("the file is deleted");
+        });
+        var client = server.CreateClient();
+
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), content);
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(Enum.Parse<OdinClientErrorCode>(problems.Extensions["errorCode"].ToString()!, true),
+            Is.EqualTo(OdinClientErrorCode.FileDeleted), "the code tells a deleted file from one that isn't there");
+    }
+
     /// <summary>
     /// A payload nothing will bring is a 410 that no cache keeps (#1913). Pinned like the 404 above: its
     /// catch is ordered ahead of <c>OdinClientException</c>'s, or it would be a 400.
