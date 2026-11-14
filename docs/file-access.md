@@ -205,7 +205,8 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   (`PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync`, `SentFileChanges.ContextForDeleteAsync`,
   `SentFileChanges.ContextForChangeAsync`) **(V, tested)**. A sender deleting their own file is refused unless the
   file's record of their last write (`ServerMetadata.SendersWrite`) names them and still matches the file's version
-  tag, so a file stored before that record was kept is refused too; on a drive still marked as a community channel
+  tag, so a file stored before that record was kept is refused too, or the delete names the version the file has now,
+  as their update naming it is taken **(V, tested)**; on a drive still marked as a community channel
   only the original sender deletes **(V)**. The delete is of the version judged (`expectedVersionTag`): a write that
   lands in between is judged again, once, rather than lost (`PeerDriveIncomingTransferService.DeleteAtOnceAsync`)
   **(V)**. A delete may also name the version it is meant for (`expectedVersionTag` on `senddeleterequest`, one

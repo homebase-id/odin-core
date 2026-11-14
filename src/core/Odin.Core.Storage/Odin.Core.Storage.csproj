@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutoMapper" Version="16.1.1" />
+    <PackageReference Include="AutoMapper" Version="16.3.0" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.17" />
     <!-- Direct reference to override the vulnerable transitive 3.0.308 from FusionCache (GHSA-hv8m-jj95-wg3x);
          3.1.9 is the first release past GHSA-qhrr-8q5h-9q3h (3.0.0 to 3.1.8) -->

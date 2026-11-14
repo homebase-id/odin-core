@@ -582,7 +582,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 var stored = await GetHeaderForPeerWriteAsync(fileSystem, file, odinContext);
                 var writeContext = await SentFileChanges.ContextForDeleteAsync(fileSystem, drive, stored,
-                    odinContext.GetCallerOdinIdOrFail(), odinContext);
+                    odinContext.GetCallerOdinIdOrFail(), expectedVersionTag, odinContext);
                 if (writeContext == null)
                 {
                     return;

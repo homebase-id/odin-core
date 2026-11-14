@@ -85,6 +85,31 @@ public class PrivateDrivePeerWritesTests : V2Fixture
     }
 
     [Test]
+    public async Task ASendersDeleteNamingTheVersionTheOwnerGaveTheDepositLands()
+    {
+        // A sender who names the version the file has now has seen the owner's change: as their update naming it
+        var (frodo, sam, drive, keys) = await ArrangeAsync();
+        var uniqueId = Guid.NewGuid();
+        var (fileKey, _) = await SendDepositAsync(sam, sam, frodo, keys.WriteOnlyPublicKeyJwk, uniqueId, "Sam's", remoteDrive: drive);
+        var received = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
+        var newKey = WithNewIv(fileKey);
+        var takeOver = await UpdateAsync(frodo, received.FileId, uniqueId, newKey, ZkBrowser.LockFileKey(newKey, keys.DriveKey),
+            received.FileMetadata.VersionTag, drive: drive);
+        Assert.That(takeOver.StatusCode, Is.EqualTo(HttpStatusCode.OK), takeOver.Error?.Content);
+        var gtid = received.FileMetadata.GlobalTransitId!.Value;
+
+        await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, received.FileMetadata.VersionTag);
+        await sam.Sync.DrainOutboxAsync();
+        var changed = await frodo.Drives.Reader.GetFileHeaderAsync(drive.Alias, received.FileId);
+        Assert.That(changed.Content?.FileState, Is.EqualTo(FileState.Active), "naming the version before Frodo's change: refused");
+
+        await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, changed.Content!.FileMetadata.VersionTag);
+        await sam.Sync.DrainOutboxAsync();
+        Assert.That((await frodo.Drives.Reader.GetFileHeaderAsync(drive.Alias, received.FileId)).Content?.FileState,
+            Is.EqualTo(FileState.Deleted), "naming the version Frodo's change gave it: deleted");
+    }
+
+    [Test]
     public async Task APeersReactionOnADepositLandsAtOnce()
     {
         // The direct peer reaction route (PeerIncomingReactionService), which never had an inbox; the group route is

@@ -97,10 +97,12 @@ internal static class SentFileChanges
     /// null when the file is deleted already, which is done.  Who may: as for any change (<see cref="ContextForChangeAsync"/>),
     /// except that a post on a drive marked as a community channel is deleted only by its sender, as everywhere; and its
     /// sender, marked to change it unread, only while no one else has changed the file since their last write, as their
-    /// change naming no tag.  A file with no record of their last write (one stored before it was kept) is refused too.
+    /// change naming no tag, or when the delete names the version tag the file has (<paramref name="namedVersionTag"/>), as
+    /// their change naming it.  A file with no record of their last write (one stored before it was kept) is refused unless
+    /// the delete names its version.
     /// </summary>
     public static async Task<IOdinContext> ContextForDeleteAsync(IDriveFileSystem fs, StorageDrive drive, ServerFileHeader stored,
-        OdinId sender, IOdinContext odinContext)
+        OdinId sender, Guid? namedVersionTag, IOdinContext odinContext)
     {
         if (stored.FileMetadata.FileState == FileState.Deleted)
         {
@@ -113,7 +115,8 @@ internal static class SentFileChanges
             throw new OdinSecurityException("Only its original sender deletes a post on a community channel");
         }
 
-        if (writeContext.SendersOwnFile != null && !SendersWrite.UnchangedSinceLastWriteBy(sender, stored))
+        if (writeContext.SendersOwnFile != null && namedVersionTag != stored.FileMetadata.VersionTag &&
+            !SendersWrite.UnchangedSinceLastWriteBy(sender, stored))
         {
             throw new OdinClientException($"File {stored.FileMetadata.File.FileId} was changed since its sender's last write",
                 OdinClientErrorCode.VersionTagMismatch);

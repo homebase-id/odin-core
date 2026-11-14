@@ -254,6 +254,20 @@ public partial class SelectiveShareTests
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), delete.Error?.Content);
     }
 
+    [Test]
+    public async Task AnAppThatOnlyReadsFromPeersCannotAskOneToDeleteAFile()
+    {
+        var s = await ArrangeAsync();
+        var (fileId, gtid, _) = await FrodosFileSharedForWritingAsync(s);
+        var readingApp = await AppSession.SetupAsync(s.Sam, SystemDriveConstants.TransientTempDrive, DrivePermission.ReadWrite,
+            [PermissionKeys.UseTransitRead]);
+
+        var delete = await readingApp.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, gtid);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), delete.Error?.Content);
+        await s.Sam.Sync.DrainOutboxAsync();
+        Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Active), "nothing was sent");
+    }
+
     /// <summary>A file of Frodo's, client-locked and shared with Sam's circle for reading and writing</summary>
     private static async Task<(Guid FileId, Guid Gtid, KeyHeader FileKey)> FrodosFileSharedForWritingAsync(Arranged s)
     {
