@@ -228,8 +228,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             throw new OdinSystemException("Unhandled Routing");
         }
 
+        /// <summary>
+        /// A peer's delete of the file with <paramref name="globalTransitId"/>.  With <paramref name="expectedVersionTag"/>,
+        /// only of that version: refused (<see cref="OdinClientErrorCode.VersionTagMismatch"/>) when the file has changed since,
+        /// and on a drive with an inbox, where the delete is written later, refused outright, as nothing checks it there.
+        /// </summary>
         public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequestAsync(TargetDrive targetDrive, Guid globalTransitId,
             FileSystemType fileSystemType,
+            Guid? expectedVersionTag,
             IOdinContext odinContext)
         {
             var driveId = targetDrive.Alias;
@@ -248,7 +254,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (!drive.HasInbox && fileSystemType == FileSystemType.Standard)
             {
                 await DeleteAtOnceAsync(drive, new GlobalTransitIdFileIdentifier { TargetDrive = targetDrive, GlobalTransitId = globalTransitId },
-                    odinContext);
+                    expectedVersionTag, odinContext);
                 return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
             }
 
@@ -268,13 +274,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
 
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
+                AssertIsExpectedVersion(header.FileId, header.FileMetadata.VersionTag, expectedVersionTag);
 
                 await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
                         FileId = header.FileId,
                         DriveId = driveId
                     },
-                    odinContext, null);
+                    odinContext, null, expectedVersionTag);
 
                 logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> direct soft-delete complete for fileId:{fileId} gtid:{gtid}",
                     header.FileId, globalTransitId);
@@ -283,6 +290,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     Code = PeerResponseCode.AcceptedDirectWrite
                 };
+            }
+
+            if (expectedVersionTag != null)
+            {
+                throw new OdinClientException("A delete naming the version it is meant for is taken only on a drive it is " +
+                                              "written to at once", OdinClientErrorCode.InvalidTargetDrive);
             }
 
             var item = new TransferInboxItem()
@@ -555,7 +568,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// A peer's delete on a drive with no inbox, of the version they were judged on: a write that lands in between is
         /// judged again, once, rather than lost (a refused delete isn't retried by the sender's outbox).
         /// </summary>
-        private async Task DeleteAtOnceAsync(StorageDrive drive, GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
+        private async Task DeleteAtOnceAsync(StorageDrive drive, GlobalTransitIdFileIdentifier file, Guid? expectedVersionTag,
+            IOdinContext odinContext)
         {
             for (var attempt = 1; ; attempt++)
             {
@@ -566,6 +580,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     return;
                 }
+
+                // Named by the sender: a write that lands in between is refused on the next attempt, not judged again
+                AssertIsExpectedVersion(stored.FileMetadata.File.FileId, stored.FileMetadata.VersionTag, expectedVersionTag);
 
                 try
                 {
@@ -579,6 +596,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     // Changed since it was read: judge the delete again on what is there now
                 }
+            }
+        }
+
+        private static void AssertIsExpectedVersion(Guid fileId, Guid? versionTag, Guid? expectedVersionTag)
+        {
+            if (expectedVersionTag != null && versionTag != expectedVersionTag)
+            {
+                throw new OdinClientException($"File {fileId} has changed since the version the delete names",
+                    OdinClientErrorCode.VersionTagMismatch);
             }
         }
 

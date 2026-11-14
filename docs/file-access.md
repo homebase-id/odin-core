@@ -147,15 +147,18 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   (`UpdateLocale.Peer`, or an upload sent from the transient drive) leaves no transfer history it could read: the
   transient copy is deleted once sent. So each outcome goes to the sockets of the app that sent it, or the owner's own
   client's when no app did, never another app's or a guest's (the server's own sends from the transient drive, such as
-  Shamir shards, tell no one): a `PeerSendResult` event (`PeerSendResultNotification`) **(V, tested)**. It names:
+  Shamir shards, tell no one): a `PeerSendResult` event (`PeerSendResultNotification`) **(V, tested)**. A delete
+  sent by global transit id is told the same way when it names the version it is meant for (`expectedVersionTag`,
+  below), and not otherwise **(V, tested)**. It names:
   - the recipient, the drive id and the global transit id the send named; a file sent again that the recipient
     matched by its unique id keeps its own (I, from the code);
-  - the version tag the client's upload or update gave back, which tells two sends of one file apart **(V, tested)**;
-  - whether it was an update, the transfer status (delivered, or why not) and whether the outbox tries again
+  - the version tag the client's upload or update gave back, or the one its delete named, which tells two sends of one
+    file apart **(V, tested)**;
+  - whether it was an update or a delete (`isUpdate`, `isDelete`), the transfer status (delivered, or why not) and whether the outbox tries again
     **(V, tested)**;
   - on delivery, the version tag of the recipient's copy, for the next change to name: for a file sent, the one the
     recipient's server returns when it writes the file at once (`PeerTransferResponse.VersionTag`); for an update, the
-    new version tag the update gave it **(V, tested)**.
+    new version tag the update gave it; none for a delete **(V, tested)**.
 
   It is told before the outbox records the outcome, so a failure recording it can repeat it: the latest counts (I,
   from the code). On a drive with an inbox, a change the recipient queued there is told as delivered with no version
@@ -204,7 +207,11 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   tag, so a file stored before that record was kept is refused too; on a drive still marked as a community channel
   only the original sender deletes **(V)**. The delete is of the version judged (`expectedVersionTag`): a write that
   lands in between is judged again, once, rather than lost (`PeerDriveIncomingTransferService.DeleteAtOnceAsync`)
-  **(V)**. So on a Private Share drive a member's own new file with no share is theirs to delete as its sender
+  **(V)**. A delete may also name the version it is meant for (`expectedVersionTag` on `senddeleterequest`): it is
+  refused (`VersionTagMismatch`) once the file has changed since, so a member's delete can't discard a co-editor's newer
+  version unseen, and is not judged again **(V, tested)**. The same holds for a comment and for a community channel's
+  post; a drive with an inbox refuses a delete naming a version, as the inbox writes it later and checks nothing
+  **(V, tested)**. So on a Private Share drive a member's own new file with no share is theirs to delete as its sender
   **(V, tested)**. A delete of a file already deleted does nothing **(V)**. On a Server Share drive a peer's delete goes
   as before: through the inbox, or on a drive marked as a community channel the original sender's alone, at once
   (below).

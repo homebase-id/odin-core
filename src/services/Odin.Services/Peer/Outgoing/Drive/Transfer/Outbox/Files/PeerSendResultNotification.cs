@@ -15,7 +15,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 /// <summary>
 /// How a file or an update sent from the transient drive went at the recipient: the sender keeps no copy of it, so no
 /// transfer history tells its client (the copy is deleted once sent).  A member's new file in, or change to, a file on
-/// another identity's drive is sent this way.  Heard on the sockets of the app that sent it, or the owner's own client's
+/// another identity's drive is sent this way, and so is their delete of one when it names the version it is meant for.  Heard on the sockets of the app that sent it, or the owner's own client's
 /// (<see cref="IAppTargetedClientNotification"/>), matched to the send by the recipient, drive, global transit id and the
 /// version tag the client got back.  Told before the outcome is recorded, so one may come again; the latest counts.
 /// Nothing is kept for a client not connected at the time: it asks whether its send is still in the outbox
@@ -39,13 +39,16 @@ public class PeerSendResultNotification : MediatorNotificationBase, IAppTargeted
     public Guid GlobalTransitId { get; init; }
 
     /// <summary>
-    /// The version tag the client's upload or update gave back (<c>newVersionTag</c>): which send of the file this is,
-    /// when it sent more than one
+    /// The version tag the client's upload or update gave back (<c>newVersionTag</c>), or the one its delete named
+    /// (<c>expectedVersionTag</c>): which send of the file this is, when it sent more than one
     /// </summary>
     public Guid SentVersionTag { get; init; }
 
     /// <summary>An update of the recipient's file, not a new file</summary>
     public bool IsUpdate { get; init; }
+
+    /// <summary>A delete of the recipient's file, not a new file</summary>
+    public bool IsDelete { get; init; }
 
     /// <summary><see cref="LatestTransferStatus.Delivered"/>, or why not</summary>
     public LatestTransferStatus Status { get; init; }
@@ -54,7 +57,7 @@ public class PeerSendResultNotification : MediatorNotificationBase, IAppTargeted
     public bool WillRetry { get; init; }
 
     /// <summary>On delivery, the version tag of the recipient's copy, for the next change to name; null when the recipient's
-    /// server didn't say</summary>
+    /// server didn't say, and for a delete</summary>
     public Guid? VersionTag { get; init; }
 
     public string GetClientData()
@@ -66,6 +69,7 @@ public class PeerSendResultNotification : MediatorNotificationBase, IAppTargeted
             GlobalTransitId,
             SentVersionTag,
             IsUpdate,
+            IsDelete,
             Status,
             WillRetry,
             VersionTag
@@ -94,6 +98,7 @@ public class PeerSendResultNotification : MediatorNotificationBase, IAppTargeted
                 GlobalTransitId = to.GlobalTransitId,
                 SentVersionTag = to.SentVersionTag,
                 IsUpdate = item.Type == OutboxItemType.RemoteFileUpdate,
+                IsDelete = item.Type == OutboxItemType.DeleteRemoteFile,
                 Status = status,
                 WillRetry = willRetry,
                 VersionTag = versionTag
@@ -118,7 +123,7 @@ public class PeerSendResultTarget
     /// <summary>The global transit id the send named for the recipient's copy</summary>
     public Guid GlobalTransitId { get; set; }
 
-    /// <summary>The version tag the client's upload or update gave back</summary>
+    /// <summary>The version tag the client's upload or update gave back, or the one its delete named</summary>
     public Guid SentVersionTag { get; set; }
 
     public static PeerSendResultTarget Of(IOdinContext odinContext, Guid driveId, Guid? globalTransitId, Guid? sentVersionTag) => new()

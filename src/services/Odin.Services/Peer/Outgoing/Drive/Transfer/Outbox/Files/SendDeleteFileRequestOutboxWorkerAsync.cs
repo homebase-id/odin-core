@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -20,8 +21,9 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     OutboxFileItem fileItem,
     ILogger<SendDeleteFileRequestOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
-    IOdinHttpClientFactory odinHttpClientFactory
-) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
+    IOdinHttpClientFactory odinHttpClientFactory,
+    IMediator mediator
+) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration, mediator)
 {
     private readonly OutboxFileItem _fileItem = fileItem;
 
@@ -41,6 +43,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
                 _fileItem.Recipient,
                 _fileItem.Marker);
 
+            await TellSendersClientAsync(LatestTransferStatus.Delivered, willRetry: false);
             return OutboxProcessingResult.Complete();
         }
         catch (OdinOutboxProcessingException e)

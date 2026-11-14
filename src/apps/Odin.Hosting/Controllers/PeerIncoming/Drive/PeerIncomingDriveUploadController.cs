@@ -219,6 +219,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 request.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                 request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 request.FileSystemType,
+                request.ExpectedVersionTag,
                 WebOdinContext);
 
             _logger.LogDebug("[DeleteFlow] PeerIncoming.DeleteLinkedFile -> response code:{code} for gtid:{gtid}",

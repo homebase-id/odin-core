@@ -194,6 +194,77 @@ public partial class SelectiveShareTests
         Assert.That((await s.HeaderAsync(frodosId)).FileMetadata.VersionTag, Is.EqualTo(edit), "and it landed");
     }
 
+    [Test]
+    public async Task AMembersDeleteNamingAVersionIsRefusedOnceTheFileHasMovedOnAndItsAppHearsHow()
+    {
+        // A member's delete naming the version they saw can't discard a newer one unseen, and their app hears how it went
+        var s = await ArrangeAsync();
+        var samsApp = await SamsSendingAppAsync(s);
+        await using var sockets = await SenderSockets.OpenAsync(s, samsApp.AppId);
+        var (fileId, gtid, fileKey) = await FrodosFileSharedForWritingAsync(s);
+        var seen = (await s.HeaderAsync(fileId)).FileMetadata.VersionTag;
+
+        // An edit lands after the app read the file: a co-editor's, or as here another of Sam's sends
+        await MemberEditsAsync(s, gtid, seen, fileKey, "edited since", [], [], KeepFileKey, editor: samsApp);
+        var current = (await s.HeaderAsync(fileId)).FileMetadata.VersionTag;
+
+        await DeleteAsync(samsApp, s, gtid, seen);
+        await s.Sam.Sync.DrainOutboxAsync();
+        await sockets.App.WaitForAsync("a delete of an old version", r => r.Matches(s, gtid, isUpdate: false, isDelete: true) &&
+                                                                        r.SentVersionTag == seen &&
+                                                                        r.Status == LatestTransferStatus.RecipientIdentityReturnedVersionTagMismatch &&
+                                                                        !r.WillRetry && r.VersionTag == null);
+        var kept = await s.HeaderAsync(fileId);
+        Assert.That((kept.FileState, kept.FileMetadata.VersionTag), Is.EqualTo((FileState.Active, current)), "the newer version is kept");
+
+        // Naming the version there now: pending while in the outbox, then delivered, and the file is deleted
+        await DeleteAsync(samsApp, s, gtid, current);
+        Assert.That((await SendStatusAsync(samsApp, s, gtid, current)).Pending, Is.True, "the delete, waiting");
+        await s.Sam.Sync.DrainOutboxAsync();
+        Assert.That((await SendStatusAsync(samsApp, s, gtid, current)).Pending, Is.False, "the delete, done with");
+        await sockets.App.WaitForAsync("a delete of the current version", r => r.Matches(s, gtid, isUpdate: false, isDelete: true) &&
+                                                                            r.SentVersionTag == current &&
+                                                                            r.Status == LatestTransferStatus.Delivered &&
+                                                                            !r.WillRetry && r.VersionTag == null);
+        Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Deleted), "deleted");
+        await sockets.AssertOnlyHeardOnAsync(sockets.App);
+    }
+
+    [Test]
+    public async Task AMembersDeleteNamingNoVersionDeletesAsBeforeAndTellsNoOne()
+    {
+        var s = await ArrangeAsync();
+        var samsApp = await SamsSendingAppAsync(s);
+        await using var sockets = await SenderSockets.OpenAsync(s, samsApp.AppId);
+        var (fileId, gtid, fileKey) = await FrodosFileSharedForWritingAsync(s);
+        await MemberEditsAsync(s, gtid, (await s.HeaderAsync(fileId)).FileMetadata.VersionTag, fileKey, "edited since", [], [], KeepFileKey,
+            editor: samsApp);
+
+        await DeleteAsync(samsApp, s, gtid, expectedVersionTag: null);
+        await s.Sam.Sync.DrainOutboxAsync();
+
+        Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Deleted), "deleted, whatever its version");
+        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        Assert.That(sockets.App.Results.Where(r => r.IsDelete), Is.Empty, "no result for a delete naming no version");
+    }
+
+    /// <summary>A file of Frodo's, client-locked and shared with Sam's circle for reading and writing</summary>
+    private static async Task<(Guid FileId, Guid Gtid, KeyHeader FileKey)> FrodosFileSharedForWritingAsync(Arranged s)
+    {
+        var fileKey = KeyHeader.NewRandom16();
+        var gtid = Guid.NewGuid();
+        var (fileId, _, _) = await s.UploadClientLockedAsync(fileKey: fileKey, globalTransitId: gtid,
+            shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write, lockedFileKey: LockFileKey(s, CircleKey(), fileKey, gtid))]);
+        return (fileId, gtid, fileKey);
+    }
+
+    /// <summary>Sam's <paramref name="caller"/> asks Frodo's server, through his own, to delete the file with <paramref name="gtid"/></summary>
+    private static async Task DeleteAsync(IV2Caller caller, Arranged s, Guid gtid, Guid? expectedVersionTag)
+    {
+        var delete = await caller.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, gtid, expectedVersionTag);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
+    }
+
     /// <summary>A deposit from <paramref name="sender"/>'s transient drive, left in Sam's outbox; returns the version tag it gave back</summary>
     private static async Task<Guid> QueueDepositAsync(IV2Caller sender, Arranged s, Guid gtid, Guid uniqueId)
     {
@@ -313,7 +384,7 @@ public partial class SelectiveShareTests
         {
             await Poll.UntilAsync(() => Task.FromResult(Results.Any(match)), TimeSpan.FromSeconds(10),
                 () => $"{what}: no send result matched; seen: " +
-                      string.Join(", ", Results.Select(r => $"{r.Status} update:{r.IsUpdate} retry:{r.WillRetry} to:{r.Recipient} drive:{r.DriveId} " +
+                      string.Join(", ", Results.Select(r => $"{r.Status} update:{r.IsUpdate} delete:{r.IsDelete} retry:{r.WillRetry} to:{r.Recipient} drive:{r.DriveId} " +
                                                          $"gtid:{r.GlobalTransitId} version:{r.VersionTag}")));
         }
 
@@ -334,12 +405,14 @@ public partial class SelectiveShareTests
         public Guid GlobalTransitId { get; set; }
         public Guid SentVersionTag { get; set; }
         public bool IsUpdate { get; set; }
+        public bool IsDelete { get; set; }
         public LatestTransferStatus Status { get; set; }
         public bool WillRetry { get; set; }
         public Guid? VersionTag { get; set; }
 
         /// <summary>Of Sam's send to Frodo's folder, of the file with <paramref name="gtid"/></summary>
-        public bool Matches(Arranged s, Guid gtid, bool isUpdate) =>
-            Recipient == s.Frodo.Identity.DomainName && DriveId == s.Drive.Alias.Value && GlobalTransitId == gtid && IsUpdate == isUpdate;
+        public bool Matches(Arranged s, Guid gtid, bool isUpdate, bool isDelete = false) =>
+            Recipient == s.Frodo.Identity.DomainName && DriveId == s.Drive.Alias.Value && GlobalTransitId == gtid && IsUpdate == isUpdate &&
+            IsDelete == isDelete;
     }
 }

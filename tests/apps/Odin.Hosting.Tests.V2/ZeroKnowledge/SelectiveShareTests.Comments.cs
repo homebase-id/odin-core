@@ -100,6 +100,40 @@ public partial class SelectiveShareTests
     }
 
     [Test]
+    public async Task AMembersDeleteOfTheirCommentNamingAnOldVersionIsRefused()
+    {
+        var s = await ArrangeAsync();
+        var (fileId, _, fileKey) = await s.UploadClientLockedAsync();
+        var share = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read | DrivePermission.Comment, lockedFileKey: LockedFileKey())]
+        });
+        Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
+        var file = await s.GtidOfAsync(fileId);
+        await SendCommentAsync(s, s.Sam, file, fileKey, "Sam's comment");
+        var comment = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Single();
+        await EditCommentAsync(s, s.Sam, file, comment, fileKey, "Sam's edit");
+        var edited = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Single();
+        var gtid = comment.FileMetadata.GlobalTransitId!.Value;
+
+        await DeleteCommentAsync(s, gtid, comment.FileMetadata.VersionTag);
+        var kept = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Where(c => c.FileState == FileState.Active).ToList();
+        Assert.That(kept.Select(c => c.FileMetadata.VersionTag), Is.EqualTo(new[] { edited.FileMetadata.VersionTag }),
+            "naming the version before his edit: refused");
+
+        await DeleteCommentAsync(s, gtid, edited.FileMetadata.VersionTag);
+        Assert.That((await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Where(c => c.FileState == FileState.Active), Is.Empty,
+            "naming the version there: deleted");
+    }
+
+    private static async Task DeleteCommentAsync(Arranged s, Guid commentGtid, Guid expectedVersionTag)
+    {
+        var delete = await CommentWriter(s.Sam).SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, commentGtid, expectedVersionTag);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
+        await s.Sam.Sync.DrainOutboxAsync();
+    }
+
+    [Test]
     public async Task AMemberReactsToACommentByTheFilesShare()
     {
         var s = await ArrangeAsync();

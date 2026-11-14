@@ -309,7 +309,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     return await SendUnencryptedFeedItem(childScope, fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.DeleteRemoteFile:
-                    return await SendDeleteFileRequest(fileItem, odinContext, cancellationToken);
+                    return await SendDeleteFileRequest(childScope, fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.ReadReceipt:
                     return await SendReadReceipt(fileItem, odinContext, cancellationToken);
@@ -478,7 +478,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await worker.Send(odinContext, cancellationToken);
         }
 
-        private async Task<OutboxProcessingResult> SendDeleteFileRequest(OutboxFileItem fileItem,
+        private async Task<OutboxProcessingResult> SendDeleteFileRequest(ILifetimeScope childScope, OutboxFileItem fileItem,
             IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
@@ -486,7 +486,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 fileItem.Recipient, fileItem.File, fileItem.Marker, fileItem.AttemptCount);
 
             var workLogger = loggerFactory.CreateLogger<SendDeleteFileRequestOutboxWorkerAsync>();
-            var worker = new SendDeleteFileRequestOutboxWorkerAsync(fileItem, workLogger, odinConfiguration, odinHttpClientFactory);
+            var worker = new SendDeleteFileRequestOutboxWorkerAsync(fileItem, workLogger, odinConfiguration, odinHttpClientFactory,
+                childScope.Resolve<IMediator>());
             var result = await worker.Send(odinContext, cancellationToken);
 
             logger.LogDebug("[DeleteFlow] OutboxProcessor -> SendDeleteFileRequestOutboxWorker returned shouldMarkComplete:{complete} nextRun:{nextRun} for recipient:{recipient} fileId:{fileId}",

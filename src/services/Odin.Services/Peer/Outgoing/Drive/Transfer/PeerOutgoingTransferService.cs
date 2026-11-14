@@ -176,11 +176,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return outboxStatus;
         }
 
+        /// <summary>
+        /// Asks <paramref name="recipients"/> to delete the file they hold under <paramref name="remoteGlobalTransitIdFileIdentifier"/>.
+        /// With <paramref name="expectedVersionTag"/>, only while their file is still that version, and the outcome is told to
+        /// the caller's client (<see cref="PeerSendResultNotification"/>), as for a member's update.
+        /// </summary>
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            Guid? expectedVersionTag = null)
         {
             var fileId = new InternalDriveFileId()
             {
@@ -188,8 +194,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 DriveId = SystemDriveConstants.TransientTempDrive.Alias
             };
 
+            var sendResultTo = expectedVersionTag == null
+                ? null
+                : PeerSendResultTarget.Of(odinContext, remoteGlobalTransitIdFileIdentifier.TargetDrive.Alias,
+                    remoteGlobalTransitIdFileIdentifier.GlobalTransitId, expectedVersionTag);
+
             var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions,
-                recipients.ToOdinIdList(), async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes());
+                recipients.ToOdinIdList(), async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes(),
+                expectedVersionTag, sendResultTo);
 
             return result;
         }
@@ -586,7 +598,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
             IEnumerable<OdinId> recipients,
-            Func<OdinId, Task<byte[]>> tokenFor)
+            Func<OdinId, Task<byte[]>> tokenFor,
+            Guid? expectedVersionTag = null,
+            PeerSendResultTarget sendResultTo = null)
         {
             var results = new Dictionary<string, DeleteLinkedFileStatus>();
 
@@ -616,8 +630,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         Data = OdinSystemSerializer.Serialize(new DeleteRemoteFileRequest()
                         {
                             RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdFileIdentifier,
-                            FileSystemType = fileTransferOptions.FileSystemType
-                        }).ToUtf8ByteArray()
+                            FileSystemType = fileTransferOptions.FileSystemType,
+                            ExpectedVersionTag = expectedVersionTag
+                        }).ToUtf8ByteArray(),
+                        SendResultTo = sendResultTo
                     }
                 };
 

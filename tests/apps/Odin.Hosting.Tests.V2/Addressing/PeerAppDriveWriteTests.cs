@@ -294,4 +294,32 @@ public class PeerAppDriveWriteTests : V2Fixture
         Assert.That(afterDelete.FileState, Is.EqualTo(FileState.Deleted),
             "the delete must reach the drive the slug named, not the one in the body");
     }
+
+    [Test]
+    public async Task ADeleteNamingAVersionIsRefusedByADriveWithAnInbox()
+    {
+        // The inbox writes a delete later, where nothing checks the version it names, so the drive refuses it outright
+        var (frodo, sam, drive) = await SetupAsync();
+        const int fileType = 7207;
+
+        var send = await SlugClient(frodo).SendFile(sam.Identity, AppSlug, DriveSlug, BuildSendParts(frodo, drive, [sam.Identity], fileType));
+        Assert.That(send.IsSuccessStatusCode, Is.True, $"send failed: {send.StatusCode}");
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(drive);
+        var landed = (await QueryOnSamAsync(sam, drive, fileType)).Single();
+        var gtid = landed.FileMetadata.GlobalTransitId!.Value;
+
+        var delete = await SlugClient(frodo).SendDeleteRequest(sam.Identity, AppSlug, DriveSlug, new DeleteFileByGlobalTransitIdRequest
+        {
+            GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier { GlobalTransitId = gtid, TargetDrive = drive },
+            Recipients = [],
+            FileSystemType = FileSystemType.Standard,
+            ExpectedVersionTag = landed.FileMetadata.VersionTag
+        });
+        Assert.That(delete.IsSuccessStatusCode, Is.True, $"queueing the delete: {delete.StatusCode} :: {delete.Error?.Content}");
+
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(drive);
+        Assert.That((await QueryByGtidAsync(sam, drive, gtid)).FileState, Is.EqualTo(FileState.Active), "refused, even of the version there");
+    }
 }
