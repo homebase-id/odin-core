@@ -5,10 +5,9 @@ using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Hosting.UnifiedV2.Drive.Shares;
-using Odin.Services.Util;
-using Refit;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
@@ -26,8 +25,8 @@ public partial class SelectiveShareTests
         var fileId = await SharedFileTheOwnerDeletedAsync(s, payload);
 
         var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
-        AssertDeleted(await direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key), "straight from Frodo's server");
-        AssertDeleted(await s.Sam.Drives.Peer.GetPayloadAsync(s.Frodo.Identity, s.Drive.Alias, fileId, payload.Key),
+        DriveAsserts.AssertFileDeleted(await direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key), "straight from Frodo's server");
+        DriveAsserts.AssertFileDeleted(await s.Sam.Drives.Peer.GetPayloadAsync(s.Frodo.Identity, s.Drive.Alias, fileId, payload.Key),
             "through Sam's own server");
     }
 
@@ -60,8 +59,4 @@ public partial class SelectiveShareTests
         Assert.That(delete.IsSuccessStatusCode, Is.True, $"delete: {delete.StatusCode} {delete.Error?.Content}");
         return fileId;
     }
-
-    private static void AssertDeleted(IApiResponse response, string what) =>
-        Assert.That((response.StatusCode, response.ErrorCode()), Is.EqualTo((HttpStatusCode.NotFound, OdinClientErrorCode.FileDeleted)),
-            $"{what}: {response.Error?.Content}");
 }

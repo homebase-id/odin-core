@@ -89,9 +89,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// Gets an EncryptedKeyHeader for a given payload using the payload's IV.  When the payload isn't there,
-        /// <c>fileExists</c> is false and the header is the file's when there is one, so a reader can tell a deleted file
-        /// (<see cref="AssertNotDeletedForPayloads"/>).
+        /// Gets an EncryptedKeyHeader for a given payload using the payload's IV.  A deleted file's payload is answered as
+        /// such (<see cref="AssertNotDeletedForPayloads"/>); every caller is a read a request asked for.
         /// </summary>
         public async Task<(ServerFileHeader header, PayloadDescriptor payloadDescriptor, EncryptedKeyHeader encryptedKeyHeader, bool
                 fileExists)>
@@ -107,7 +106,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             var payloadDescriptor = serverFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey);
             if (null == payloadDescriptor)
             {
-                return (serverFileHeader, null, null, false);
+                AssertNotDeletedForPayloads(serverFileHeader);
+                return (null, null, null, false);
             }
 
             EncryptedKeyHeader payloadEncryptedKeyHeader = odinContext.Caller.ClientTokenType == ClientTokenType.Cdn
@@ -2361,7 +2361,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// which it is told (<see cref="OdinFileDeletedException"/>, a 404 with its own code) rather than that the file isn't
         /// there.
         /// </summary>
-        public static void AssertNotDeletedForPayloads(ServerFileHeader header)
+        private static void AssertNotDeletedForPayloads(ServerFileHeader header)
         {
             if (header?.FileMetadata.FileState == FileState.Deleted)
             {

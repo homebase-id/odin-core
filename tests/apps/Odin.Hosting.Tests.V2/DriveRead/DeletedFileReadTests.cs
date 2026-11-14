@@ -13,8 +13,6 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Util;
-using Refit;
 
 namespace Odin.Hosting.Tests.V2.DriveRead;
 
@@ -52,17 +50,16 @@ public class DeletedFileReadTests : V2Fixture
         var delete = await owner.Drives.Writer.SoftDeleteFile(driveId, fileId);
         Assert.That(delete.IsSuccessStatusCode, Is.True, $"delete: {delete.StatusCode} {delete.Error?.Content}");
 
-        AssertDeleted(await reader.GetPayloadAsync(driveId, fileId, payload.Key), "payload by file id");
-        AssertDeleted(await reader.GetThumbnailAsync(driveId, fileId, payload.Key, thumb.PixelWidth, thumb.PixelHeight),
+        DriveAsserts.AssertFileDeleted(await reader.GetPayloadAsync(driveId, fileId, payload.Key), "payload by file id");
+        DriveAsserts.AssertFileDeleted(await reader.GetThumbnailAsync(driveId, fileId, payload.Key, thumb.PixelWidth, thumb.PixelHeight),
             "thumbnail by file id");
-        AssertDeleted(await reader.GetPayloadByGtidAsync(gtid, driveId, payload.Key), "payload by global transit id");
-        AssertDeleted(await reader.GetThumbnailByGtidAsync(gtid, driveId, thumb.PixelWidth, thumb.PixelHeight, payload.Key),
+        DriveAsserts.AssertFileDeleted(await reader.GetPayloadByGtidAsync(gtid, driveId, payload.Key), "payload by global transit id");
+        DriveAsserts.AssertFileDeleted(await reader.GetThumbnailByGtidAsync(gtid, driveId, thumb.PixelWidth, thumb.PixelHeight, payload.Key),
             "thumbnail by global transit id");
 
         // A tombstone keeps no unique id (it may be used again), so nothing answers to it any more: a plain 404
-        var byUniqueId = await reader.GetPayloadByUniqueIdAsync(uniqueId, driveId, payload.Key);
-        Assert.That((byUniqueId.StatusCode, byUniqueId.ErrorCode()), Is.EqualTo((HttpStatusCode.NotFound, OdinClientErrorCode.NoErrorCode)),
-            $"payload by unique id: {byUniqueId.Error?.Content}");
+        DriveAsserts.AssertNotFound(await reader.GetPayloadByUniqueIdAsync(uniqueId, driveId, payload.Key), OdinClientErrorCode.NoErrorCode,
+            "payload by unique id");
 
         var header = await reader.GetFileHeaderAsync(driveId, fileId);
         Assert.That((header.StatusCode, header.Content?.FileState), Is.EqualTo((HttpStatusCode.OK, (FileState?)FileState.Deleted)),
@@ -75,12 +72,7 @@ public class DeletedFileReadTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Secured());
         var (_, owner) = await SetupCallerWithOwner(spec);
 
-        var response = await owner.Drives.Reader.GetPayloadAsync(spec.TargetDrive.Alias, Guid.NewGuid(), "test_key_1");
-        Assert.That((response.StatusCode, response.ErrorCode()), Is.EqualTo((HttpStatusCode.NotFound, OdinClientErrorCode.NoErrorCode)),
-            response.Error?.Content);
+        DriveAsserts.AssertNotFound(await owner.Drives.Reader.GetPayloadAsync(spec.TargetDrive.Alias, Guid.NewGuid(), "test_key_1"),
+            OdinClientErrorCode.NoErrorCode, "a file that isn't there");
     }
-
-    private static void AssertDeleted(IApiResponse response, string what) =>
-        Assert.That((response.StatusCode, response.ErrorCode()), Is.EqualTo((HttpStatusCode.NotFound, OdinClientErrorCode.FileDeleted)),
-            $"{what}: {response.Error?.Content}");
 }

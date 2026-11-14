@@ -950,7 +950,6 @@ public class PeerDriveQueryService(
     {
         if (response.ErrorCode() == OdinClientErrorCode.FileDeleted)
         {
-            response.Dispose();
             throw new OdinFileDeletedException($"The file is deleted at [{odinId}]");
         }
     }
