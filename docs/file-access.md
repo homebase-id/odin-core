@@ -154,8 +154,8 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
     matched by its unique id keeps its own (I, from the code);
   - the version tag the client's upload or update gave back, or the one its delete named, which tells two sends of one
     file apart **(V, tested)**;
-  - whether it was an update or a delete (`isUpdate`, `isDelete`), the transfer status (delivered, or why not) and whether the outbox tries again
-    **(V, tested)**;
+  - whether it was an update or a delete (`isUpdate`, `isDelete`), the transfer status (delivered, or why not) and
+    whether the outbox tries again **(V, tested)**;
   - on delivery, the version tag of the recipient's copy, for the next change to name: for a file sent, the one the
     recipient's server returns when it writes the file at once (`PeerTransferResponse.VersionTag`); for an update, the
     new version tag the update gave it; none for a delete **(V, tested)**.

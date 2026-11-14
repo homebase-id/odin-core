@@ -8,6 +8,7 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.Acl;
@@ -180,11 +181,7 @@ public partial class SelectiveShareTests
         Assert.That((await SendStatusAsync(samsApp, s, gtid, sent)).Pending, Is.False, "not an app's");
         await s.Sam.Sync.DrainOutboxAsync();
 
-        var circleKey = CircleKey();
-        var fileKey = KeyHeader.NewRandom16();
-        var frodosGtid = Guid.NewGuid();
-        var (frodosId, _, _) = await s.UploadClientLockedAsync(fileKey: fileKey, globalTransitId: frodosGtid,
-            shares: [s.Share(Guid.Empty, DrivePermission.Read | DrivePermission.Write, lockedFileKey: LockFileKey(s, circleKey, fileKey, frodosGtid))]);
+        var (frodosId, frodosGtid, fileKey) = await FrodosFileSharedForWritingAsync(s);
         var (_, edit) = await QueueMemberEditAsync(s, frodosGtid, (await s.HeaderAsync(frodosId)).FileMetadata.VersionTag, fileKey,
             "edited by Sam", [], [], KeepFileKey, editor: samsApp);
         Assert.That((await SendStatusAsync(samsApp, s, frodosGtid, edit)).Pending, Is.True, "the edit, waiting");
@@ -208,7 +205,7 @@ public partial class SelectiveShareTests
         await MemberEditsAsync(s, gtid, seen, fileKey, "edited since", [], [], KeepFileKey, editor: samsApp);
         var current = (await s.HeaderAsync(fileId)).FileMetadata.VersionTag;
 
-        await DeleteAsync(samsApp, s, gtid, seen);
+        await DeleteAsync(samsApp.Drives.PeerWriter, s, gtid, seen);
         await s.Sam.Sync.DrainOutboxAsync();
         await sockets.App.WaitForAsync("a delete of an old version", r => r.Matches(s, gtid, isUpdate: false, isDelete: true) &&
                                                                         r.SentVersionTag == seen &&
@@ -218,7 +215,7 @@ public partial class SelectiveShareTests
         Assert.That((kept.FileState, kept.FileMetadata.VersionTag), Is.EqualTo((FileState.Active, current)), "the newer version is kept");
 
         // Naming the version there now: pending while in the outbox, then delivered, and the file is deleted
-        await DeleteAsync(samsApp, s, gtid, current);
+        await DeleteAsync(samsApp.Drives.PeerWriter, s, gtid, current);
         Assert.That((await SendStatusAsync(samsApp, s, gtid, current)).Pending, Is.True, "the delete, waiting");
         await s.Sam.Sync.DrainOutboxAsync();
         Assert.That((await SendStatusAsync(samsApp, s, gtid, current)).Pending, Is.False, "the delete, done with");
@@ -240,7 +237,7 @@ public partial class SelectiveShareTests
         await MemberEditsAsync(s, gtid, (await s.HeaderAsync(fileId)).FileMetadata.VersionTag, fileKey, "edited since", [], [], KeepFileKey,
             editor: samsApp);
 
-        await DeleteAsync(samsApp, s, gtid, expectedVersionTag: null);
+        await DeleteAsync(samsApp.Drives.PeerWriter, s, gtid, expectedVersionTag: null);
         await s.Sam.Sync.DrainOutboxAsync();
 
         Assert.That((await s.HeaderAsync(fileId)).FileState, Is.EqualTo(FileState.Deleted), "deleted, whatever its version");
@@ -258,10 +255,10 @@ public partial class SelectiveShareTests
         return (fileId, gtid, fileKey);
     }
 
-    /// <summary>Sam's <paramref name="caller"/> asks Frodo's server, through his own, to delete the file with <paramref name="gtid"/></summary>
-    private static async Task DeleteAsync(IV2Caller caller, Arranged s, Guid gtid, Guid? expectedVersionTag)
+    /// <summary>Sam asks Frodo's server, through his own, to delete the file with <paramref name="gtid"/>; left in his outbox</summary>
+    private static async Task DeleteAsync(DrivePeerWriterV2Client writer, Arranged s, Guid gtid, Guid? expectedVersionTag)
     {
-        var delete = await caller.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, gtid, expectedVersionTag);
+        var delete = await writer.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, gtid, expectedVersionTag);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
     }
 

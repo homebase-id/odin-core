@@ -15,11 +15,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 /// <summary>
 /// How a file or an update sent from the transient drive went at the recipient: the sender keeps no copy of it, so no
 /// transfer history tells its client (the copy is deleted once sent).  A member's new file in, or change to, a file on
-/// another identity's drive is sent this way, and so is their delete of one when it names the version it is meant for.  Heard on the sockets of the app that sent it, or the owner's own client's
-/// (<see cref="IAppTargetedClientNotification"/>), matched to the send by the recipient, drive, global transit id and the
-/// version tag the client got back.  Told before the outcome is recorded, so one may come again; the latest counts.
-/// Nothing is kept for a client not connected at the time: it asks whether its send is still in the outbox
-/// (<see cref="PeerOutbox.GetTransientSendStatusAsync"/>), and once not, reads the recipient's copy.
+/// another identity's drive is sent this way, and so is their delete of one when it names the version it is meant for.
+/// Heard on the sockets of the app that sent it, or the owner's own client's (<see cref="IAppTargetedClientNotification"/>),
+/// matched to the send by the recipient, drive, global transit id and the version tag the client got back.  Told before
+/// the outcome is recorded, so one may come again; the latest counts.  Nothing is kept for a client not connected at
+/// the time: it asks whether its send is still in the outbox (<see cref="PeerOutbox.GetTransientSendStatusAsync"/>), and
+/// once not, reads the recipient's copy.
 /// </summary>
 public class PeerSendResultNotification : MediatorNotificationBase, IAppTargetedClientNotification
 {

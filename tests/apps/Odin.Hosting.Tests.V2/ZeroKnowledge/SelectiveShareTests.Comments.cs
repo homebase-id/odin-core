@@ -116,21 +116,16 @@ public partial class SelectiveShareTests
         var edited = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Single();
         var gtid = comment.FileMetadata.GlobalTransitId!.Value;
 
-        await DeleteCommentAsync(s, gtid, comment.FileMetadata.VersionTag);
+        await DeleteAsync(CommentWriter(s.Sam), s, gtid, comment.FileMetadata.VersionTag);
+        await s.Sam.Sync.DrainOutboxAsync();
         var kept = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Where(c => c.FileState == FileState.Active).ToList();
         Assert.That(kept.Select(c => c.FileMetadata.VersionTag), Is.EqualTo(new[] { edited.FileMetadata.VersionTag }),
             "naming the version before his edit: refused");
 
-        await DeleteCommentAsync(s, gtid, edited.FileMetadata.VersionTag);
+        await DeleteAsync(CommentWriter(s.Sam), s, gtid, edited.FileMetadata.VersionTag);
+        await s.Sam.Sync.DrainOutboxAsync();
         Assert.That((await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Where(c => c.FileState == FileState.Active), Is.Empty,
             "naming the version there: deleted");
-    }
-
-    private static async Task DeleteCommentAsync(Arranged s, Guid commentGtid, Guid expectedVersionTag)
-    {
-        var delete = await CommentWriter(s.Sam).SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, commentGtid, expectedVersionTag);
-        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
-        await s.Sam.Sync.DrainOutboxAsync();
     }
 
     [Test]

@@ -201,7 +201,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions,
                 recipients.ToOdinIdList(), async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes(),
-                expectedVersionTag, sendResultTo);
+                sendResultTo);
 
             return result;
         }
@@ -599,7 +599,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             FileTransferOptions fileTransferOptions,
             IEnumerable<OdinId> recipients,
             Func<OdinId, Task<byte[]>> tokenFor,
-            Guid? expectedVersionTag = null,
             PeerSendResultTarget sendResultTo = null)
         {
             var results = new Dictionary<string, DeleteLinkedFileStatus>();
@@ -631,7 +630,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         {
                             RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdFileIdentifier,
                             FileSystemType = fileTransferOptions.FileSystemType,
-                            ExpectedVersionTag = expectedVersionTag
+                            // A delete naming a version is the one whose sender is told how it went
+                            ExpectedVersionTag = sendResultTo?.SentVersionTag
                         }).ToUtf8ByteArray(),
                         SendResultTo = sendResultTo
                     }

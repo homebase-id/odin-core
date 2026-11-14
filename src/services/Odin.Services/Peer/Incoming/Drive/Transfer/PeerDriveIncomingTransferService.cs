@@ -274,7 +274,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
 
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-                AssertIsExpectedVersion(header.FileId, header.FileMetadata.VersionTag, expectedVersionTag);
 
                 await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
@@ -581,30 +580,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     return;
                 }
 
-                // Named by the sender: a write that lands in between is refused on the next attempt, not judged again
-                AssertIsExpectedVersion(stored.FileMetadata.File.FileId, stored.FileMetadata.VersionTag, expectedVersionTag);
-
                 try
                 {
                     // A tombstone that failed to write answers a server error, so the sender's outbox tries again
                     _ = await fileSystem.Storage.SoftDeleteLongTermFile(stored.FileMetadata.File, writeContext, null,
-                            expectedVersionTag: stored.FileMetadata.VersionTag) ??
+                            expectedVersionTag: expectedVersionTag ?? stored.FileMetadata.VersionTag) ??
                         throw new OdinSystemException($"File {stored.FileMetadata.File.FileId} could not be deleted");
                     return;
                 }
-                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1)
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1 &&
+                                                    expectedVersionTag == null)
                 {
-                    // Changed since it was read: judge the delete again on what is there now
+                    // Changed since it was read: judge the delete again on what is there now.  A version the sender
+                    // named is theirs to judge: refused
                 }
-            }
-        }
-
-        private static void AssertIsExpectedVersion(Guid fileId, Guid? versionTag, Guid? expectedVersionTag)
-        {
-            if (expectedVersionTag != null && versionTag != expectedVersionTag)
-            {
-                throw new OdinClientException($"File {fileId} has changed since the version the delete names",
-                    OdinClientErrorCode.VersionTagMismatch);
             }
         }
 
