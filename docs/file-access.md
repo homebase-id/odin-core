@@ -214,10 +214,10 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   discard a co-editor's newer version unseen, and is not judged again **(V, tested)**. One sent again after it landed is
   done, not refused by its own tombstone's version (I, from the code). The same holds for a comment **(V, tested)** and
   for a community channel's post **(V)**; a drive with an inbox refuses a delete naming a version, as the inbox writes
-  it later and checks nothing **(V, tested)**. So on a Private Share drive a member's own new file with no share is theirs to delete as its sender
-  **(V, tested)**. A delete of a file already deleted does nothing **(V)**. On a Server Share drive a peer's delete goes
-  as before: through the inbox, or on a drive marked as a community channel the original sender's alone, at once
-  (below).
+  it later and checks nothing **(V, tested)**. So on a Private Share drive a member's own new file with no share is
+  theirs to delete as its sender **(V, tested)**. A delete of a file already deleted does nothing **(V)**. On a Server
+  Share drive a peer's delete goes as before: through the inbox, or on a drive marked as a community channel the
+  original sender's alone, at once (below).
 - **A deleted file stays deleted:** its change is refused ("File is deleted") **(V)**.
 - **A file received before this rule has no record of its sender's write,** so a sender who can only write it can't
   change it. There is no fallback: chat edits are short-lived, and clients update.

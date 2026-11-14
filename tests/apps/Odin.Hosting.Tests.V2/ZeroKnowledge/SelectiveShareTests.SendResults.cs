@@ -248,9 +248,9 @@ public partial class SelectiveShareTests
     [Test]
     public async Task ADeleteNamingAnEmptyVersionIsRefusedBeforeItIsQueued()
     {
+        // Refused by the request's own checks, before any file is looked for
         var s = await ArrangeAsync();
-        var (_, gtid, _) = await FrodosFileSharedForWritingAsync(s);
-        var delete = await s.Sam.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, gtid, Guid.Empty);
+        var delete = await s.Sam.Drives.PeerWriter.SendDeleteRequestOverPeer(s.Frodo.Identity, s.Drive, Guid.NewGuid(), Guid.Empty);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), delete.Error?.Content);
     }
 

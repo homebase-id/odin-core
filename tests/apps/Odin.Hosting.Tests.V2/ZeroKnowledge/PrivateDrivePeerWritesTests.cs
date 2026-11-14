@@ -60,13 +60,7 @@ public class PrivateDrivePeerWritesTests : V2Fixture
     {
         // As a change naming no tag (docs/file-access.md, "Changing a file you sent"): Frodo took the deposit over
         var (frodo, sam, drive, keys) = await ArrangeAsync();
-        var uniqueId = Guid.NewGuid();
-        var (fileKey, _) = await SendDepositAsync(sam, sam, frodo, keys.WriteOnlyPublicKeyJwk, uniqueId, "Sam's", remoteDrive: drive);
-        var received = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
-        var newKey = WithNewIv(fileKey);
-        var takeOver = await UpdateAsync(frodo, received.FileId, uniqueId, newKey, ZkBrowser.LockFileKey(newKey, keys.DriveKey),
-            received.FileMetadata.VersionTag, drive: drive);
-        Assert.That(takeOver.StatusCode, Is.EqualTo(HttpStatusCode.OK), takeOver.Error?.Content);
+        var (received, _) = await DepositFrodoTookOverAsync(frodo, sam, drive, keys);
 
         await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, received.FileMetadata.GlobalTransitId!.Value);
         await sam.Sync.DrainOutboxAsync();
@@ -89,21 +83,15 @@ public class PrivateDrivePeerWritesTests : V2Fixture
     {
         // A sender who names the version the file has now has seen the owner's change: as their update naming it
         var (frodo, sam, drive, keys) = await ArrangeAsync();
-        var uniqueId = Guid.NewGuid();
-        var (fileKey, _) = await SendDepositAsync(sam, sam, frodo, keys.WriteOnlyPublicKeyJwk, uniqueId, "Sam's", remoteDrive: drive);
-        var received = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
-        var newKey = WithNewIv(fileKey);
-        var takeOver = await UpdateAsync(frodo, received.FileId, uniqueId, newKey, ZkBrowser.LockFileKey(newKey, keys.DriveKey),
-            received.FileMetadata.VersionTag, drive: drive);
-        Assert.That(takeOver.StatusCode, Is.EqualTo(HttpStatusCode.OK), takeOver.Error?.Content);
+        var (received, takenOver) = await DepositFrodoTookOverAsync(frodo, sam, drive, keys);
         var gtid = received.FileMetadata.GlobalTransitId!.Value;
 
         await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, received.FileMetadata.VersionTag);
         await sam.Sync.DrainOutboxAsync();
-        var changed = await frodo.Drives.Reader.GetFileHeaderAsync(drive.Alias, received.FileId);
-        Assert.That(changed.Content?.FileState, Is.EqualTo(FileState.Active), "naming the version before Frodo's change: refused");
+        Assert.That((await frodo.Drives.Reader.GetFileHeaderAsync(drive.Alias, received.FileId)).Content?.FileState,
+            Is.EqualTo(FileState.Active), "naming the version before Frodo's change: refused");
 
-        await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, changed.Content!.FileMetadata.VersionTag);
+        await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, takenOver);
         await sam.Sync.DrainOutboxAsync();
         Assert.That((await frodo.Drives.Reader.GetFileHeaderAsync(drive.Alias, received.FileId)).Content?.FileState,
             Is.EqualTo(FileState.Deleted), "naming the version Frodo's change gave it: deleted");
@@ -210,6 +198,20 @@ public class PrivateDrivePeerWritesTests : V2Fixture
     }
 
     /// <summary>Frodo's Private drive, on which Sam holds <paramref name="samsPermission"/> (write, react and comment by default), and its keys.</summary>
+    /// <summary>Sam's deposit, which Frodo then took over with an update of his own: its header as received, and the version his update gave it</summary>
+    private static async Task<(SharedSecretEncryptedFileHeader Received, Guid TakenOverVersion)> DepositFrodoTookOverAsync(OwnerSession frodo,
+        OwnerSession sam, TargetDrive drive, ZkBrowser.DriveKeys keys)
+    {
+        var uniqueId = Guid.NewGuid();
+        var (fileKey, _) = await SendDepositAsync(sam, sam, frodo, keys.WriteOnlyPublicKeyJwk, uniqueId, "Sam's", remoteDrive: drive);
+        var received = await HeaderByUniqueIdAsync(frodo, uniqueId, drive);
+        var newKey = WithNewIv(fileKey);
+        var takeOver = await UpdateAsync(frodo, received.FileId, uniqueId, newKey, ZkBrowser.LockFileKey(newKey, keys.DriveKey),
+            received.FileMetadata.VersionTag, drive: drive);
+        Assert.That(takeOver.StatusCode, Is.EqualTo(HttpStatusCode.OK), takeOver.Error?.Content);
+        return (received, (await HeaderByUniqueIdAsync(frodo, uniqueId, drive)).FileMetadata.VersionTag);
+    }
+
     private async Task<(OwnerSession Frodo, OwnerSession Sam, TargetDrive Drive, ZkBrowser.DriveKeys Keys)> ArrangeAsync(
         DrivePermission samsPermission = DrivePermission.Write | DrivePermission.React | DrivePermission.Comment)
     {

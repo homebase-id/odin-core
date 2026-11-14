@@ -177,9 +177,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         /// <summary>
-        /// Asks <paramref name="recipients"/> to delete the file they hold under <paramref name="remoteGlobalTransitIdFileIdentifier"/>.
-        /// With <paramref name="expectedVersionTag"/>, only while their file is still that version, and the outcome is told to
-        /// the caller's client (<see cref="PeerSendResultNotification"/>), as for a member's update.
+        /// Asks <paramref name="recipients"/> to delete the file they hold under <paramref name="remoteGlobalTransitIdFileIdentifier"/>,
+        /// as <see cref="AssertCanTellRecipientsToDelete"/> allows.  With <paramref name="expectedVersionTag"/>, for one recipient,
+        /// only while their file is still that version, and the outcome is told to the caller's client
+        /// (<see cref="PeerSendResultNotification"/>), as for a member's update.
         /// </summary>
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
@@ -187,6 +188,42 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IEnumerable<string> recipients,
             IOdinContext odinContext,
             Guid? expectedVersionTag = null)
+        {
+            var recipientList = recipients.ToOdinIdList();
+            if (recipientList.Count > 0)
+            {
+                AssertCanTellRecipientsToDelete(fileTransferOptions.FileSystemType, odinContext);
+            }
+
+            if (expectedVersionTag is { } expected)
+            {
+                // Each recipient's copy has a version of its own, so a delete naming one is for one recipient
+                OdinValidationUtils.AssertNotEmptyGuid(expected, nameof(expectedVersionTag));
+                OdinValidationUtils.AssertIsTrue(recipientList.Count == 1, "A delete naming a version is for one recipient");
+            }
+
+            return await EnqueueDeletesByGlobalTransitIdAsync(remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipientList,
+                odinContext, expectedVersionTag);
+        }
+
+        /// <summary>
+        /// A feed channel's delete of a post, reaching its followers' copies: written by the channel's own distribution,
+        /// which asks no more of the caller than the delete it follows did.
+        /// </summary>
+        public Task<Dictionary<string, DeleteLinkedFileStatus>> SendFeedDeleteFileRequest(
+            GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
+            FileTransferOptions fileTransferOptions,
+            IEnumerable<OdinId> recipients,
+            IOdinContext odinContext) =>
+            EnqueueDeletesByGlobalTransitIdAsync(remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext,
+                expectedVersionTag: null);
+
+        private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletesByGlobalTransitIdAsync(
+            GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
+            FileTransferOptions fileTransferOptions,
+            IEnumerable<OdinId> recipients,
+            IOdinContext odinContext,
+            Guid? expectedVersionTag)
         {
             var fileId = new InternalDriveFileId()
             {
@@ -199,11 +236,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 : PeerSendResultTarget.Of(odinContext, remoteGlobalTransitIdFileIdentifier.TargetDrive.Alias,
                     remoteGlobalTransitIdFileIdentifier.GlobalTransitId, expectedVersionTag);
 
-            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions,
-                recipients.ToOdinIdList(), async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes(),
+            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients,
+                async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes(),
                 expectedVersionTag, sendResultTo);
-
-            return result;
         }
 
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
@@ -237,7 +272,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         /// <summary>
-        /// What telling recipients to delete a file (by file id) needs: UseTransitWrite, as any file delete on a peer
+        /// What telling recipients to delete a file needs: UseTransitWrite, as any file delete on a peer
         /// does, except in the comment file system, which keeps its long-standing rule (either transit key). Batches
         /// call it before their first file, so a refusal touches nothing.
         /// </summary>

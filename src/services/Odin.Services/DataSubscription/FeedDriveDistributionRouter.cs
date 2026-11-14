@@ -364,7 +364,7 @@ namespace Odin.Services.DataSubscription
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
                 //send the deleted file
-                var map = await _peerOutgoingTransferService.SendDeleteFileRequest(
+                var map = await _peerOutgoingTransferService.SendFeedDeleteFileRequest(
                     new GlobalTransitIdFileIdentifier()
                     {
                         GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
@@ -375,7 +375,7 @@ namespace Odin.Services.DataSubscription
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal,
                     },
-                    recipients.Select(r => r.DomainName).ToList(),
+                    recipients,
                     odinContext);
 
                 foreach (var (recipient, status) in map)

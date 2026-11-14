@@ -281,14 +281,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
                 }
 
-                // A tombstone that failed to write answers a server error, so the sender's outbox tries again
-                _ = await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-                        {
-                            FileId = header.FileId,
-                            DriveId = driveId
-                        },
-                        odinContext, null, expectedVersionTag) ??
-                    throw new OdinSystemException($"File {header.FileId} could not be deleted");
+                await SoftDeleteOrFailAsync(new InternalDriveFileId { FileId = header.FileId, DriveId = driveId }, odinContext,
+                    expectedVersionTag);
 
                 logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> direct soft-delete complete for fileId:{fileId} gtid:{gtid}",
                     header.FileId, globalTransitId);
@@ -590,10 +584,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 try
                 {
-                    // A tombstone that failed to write answers a server error, so the sender's outbox tries again
-                    _ = await fileSystem.Storage.SoftDeleteLongTermFile(stored.FileMetadata.File, writeContext, null,
-                            expectedVersionTag: expectedVersionTag ?? stored.FileMetadata.VersionTag) ??
-                        throw new OdinSystemException($"File {stored.FileMetadata.File.FileId} could not be deleted");
+                    await SoftDeleteOrFailAsync(stored.FileMetadata.File, writeContext,
+                        expectedVersionTag ?? stored.FileMetadata.VersionTag);
                     return;
                 }
                 catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1 &&
@@ -603,6 +595,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     // named is theirs to judge: refused
                 }
             }
+        }
+
+        /// <summary>A peer's soft delete; a tombstone that failed to write answers a server error, so their outbox tries again</summary>
+        private async Task SoftDeleteOrFailAsync(InternalDriveFileId file, IOdinContext writeContext, Guid? expectedVersionTag)
+        {
+            _ = await fileSystem.Storage.SoftDeleteLongTermFile(file, writeContext, null, expectedVersionTag) ??
+                throw new OdinSystemException($"File {file.FileId} could not be deleted");
         }
 
         private static bool IsDeposit(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>

@@ -83,7 +83,7 @@ internal static class SentFileChanges
             return true;
         }
 
-        if (namedVersionTag == stored.FileMetadata.VersionTag || (sentIt && SendersWrite.UnchangedSinceLastWriteBy(sender, stored)))
+        if (sentIt ? MayChangeAsSender(stored, sender, namedVersionTag) : namedVersionTag == stored.FileMetadata.VersionTag)
         {
             return false;
         }
@@ -115,8 +115,7 @@ internal static class SentFileChanges
             throw new OdinSecurityException("Only its original sender deletes a post on a community channel");
         }
 
-        if (writeContext.SendersOwnFile != null && namedVersionTag != stored.FileMetadata.VersionTag &&
-            !SendersWrite.UnchangedSinceLastWriteBy(sender, stored))
+        if (writeContext.SendersOwnFile != null && !MayChangeAsSender(stored, sender, namedVersionTag))
         {
             throw new OdinClientException($"File {stored.FileMetadata.File.FileId} was changed since its sender's last write",
                 OdinClientErrorCode.VersionTagMismatch);
@@ -124,6 +123,13 @@ internal static class SentFileChanges
 
         return writeContext;
     }
+
+    /// <summary>
+    /// Whether its sender changes or deletes <paramref name="stored"/>: naming the version tag it has, as anyone who read it
+    /// does, or while no one else has changed it since their last write
+    /// </summary>
+    private static bool MayChangeAsSender(ServerFileHeader stored, OdinId sender, Guid? namedVersionTag) =>
+        namedVersionTag == stored.FileMetadata.VersionTag || SendersWrite.UnchangedSinceLastWriteBy(sender, stored);
 
     /// <summary>
     /// The record of <paramref name="sender"/>'s write, whose own copy has <paramref name="sendersVersionTag"/>, giving the

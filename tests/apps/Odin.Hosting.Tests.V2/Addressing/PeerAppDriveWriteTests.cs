@@ -309,29 +309,28 @@ public class PeerAppDriveWriteTests : V2Fixture
         var landed = (await QueryOnSamAsync(sam, drive, fileType)).Single();
         var gtid = landed.FileMetadata.GlobalTransitId!.Value;
 
+        Assert.That(await SlugDeleteAsync(frodo, sam, drive, gtid, landed.FileMetadata.VersionTag), Is.EqualTo(FileState.Active),
+            "refused, even of the version there");
+
+        // The same delete naming no version lands, so the refusal above was the version's
+        Assert.That(await SlugDeleteAsync(frodo, sam, drive, gtid, expectedVersionTag: null), Is.EqualTo(FileState.Deleted),
+            "naming no version: deleted");
+    }
+
+    /// <summary>Frodo asks Sam's server, by slug, to delete the file with <paramref name="gtid"/>; returns its state once Sam's inbox ran</summary>
+    private static async Task<FileState> SlugDeleteAsync(OwnerSession frodo, OwnerSession sam, TargetDrive drive, Guid gtid,
+        Guid? expectedVersionTag)
+    {
         var delete = await SlugClient(frodo).SendDeleteRequest(sam.Identity, AppSlug, DriveSlug, new DeleteFileByGlobalTransitIdRequest
         {
             GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier { GlobalTransitId = gtid, TargetDrive = drive },
             Recipients = [],
             FileSystemType = FileSystemType.Standard,
-            ExpectedVersionTag = landed.FileMetadata.VersionTag
+            ExpectedVersionTag = expectedVersionTag
         });
         Assert.That(delete.IsSuccessStatusCode, Is.True, $"queueing the delete: {delete.StatusCode} :: {delete.Error?.Content}");
-
         await frodo.Sync.DrainOutboxAsync();
         await sam.Sync.ProcessInboxAsync(drive);
-        Assert.That((await QueryByGtidAsync(sam, drive, gtid)).FileState, Is.EqualTo(FileState.Active), "refused, even of the version there");
-
-        // The same delete naming no version lands, so the refusal above was the version's
-        var plain = await SlugClient(frodo).SendDeleteRequest(sam.Identity, AppSlug, DriveSlug, new DeleteFileByGlobalTransitIdRequest
-        {
-            GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier { GlobalTransitId = gtid, TargetDrive = drive },
-            Recipients = [],
-            FileSystemType = FileSystemType.Standard
-        });
-        Assert.That(plain.IsSuccessStatusCode, Is.True, $"queueing the delete: {plain.StatusCode} :: {plain.Error?.Content}");
-        await frodo.Sync.DrainOutboxAsync();
-        await sam.Sync.ProcessInboxAsync(drive);
-        Assert.That((await QueryByGtidAsync(sam, drive, gtid)).FileState, Is.EqualTo(FileState.Deleted), "naming no version: deleted");
+        return (await QueryByGtidAsync(sam, drive, gtid)).FileState;
     }
 }
