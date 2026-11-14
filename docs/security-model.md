@@ -341,7 +341,9 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
   - **on a drive with `AllowAnonymousReads` both checks are skipped** **(V)**. Whether the tenant "can comment" flags are
     still enforced elsewhere: **not checked** **(?)**;
   - telling recipients to delete a comment accepts either transit key; other file deletes need `UseTransitWrite`
-    (`AssertCanTellRecipientsToDelete`, #1978) **(V)**. Why comments are looser: **(?)**;
+    (`AssertCanTellRecipientsToDelete`, #1978), by file id and by global transit id (`senddeleterequest`)
+    **(V, tested)**. A channel's deleted post reaching its followers' feed drives asks nothing more of the caller than the
+    delete it follows (`SendFeedDeleteFileRequest`) **(V)**. Why comments are looser: **(?)**;
   - **who may comment follows the sharing model:** on a Server Share drive the members who may read, by the checks
     above; on a Private Share drive through shares (below); on a Private drive only owner callers (and the server's own jobs, a
     comment's TTL): any other caller's comment, new, an update or a delete, is refused, a local upload (a guest or YouAuth caller) as well as a peer's

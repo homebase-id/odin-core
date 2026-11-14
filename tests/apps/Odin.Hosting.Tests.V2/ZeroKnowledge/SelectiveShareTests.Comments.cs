@@ -100,6 +100,35 @@ public partial class SelectiveShareTests
     }
 
     [Test]
+    public async Task AMembersDeleteOfTheirCommentNamingAnOldVersionIsRefused()
+    {
+        var s = await ArrangeAsync();
+        var (fileId, _, fileKey) = await s.UploadClientLockedAsync();
+        var share = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read | DrivePermission.Comment, lockedFileKey: LockedFileKey())]
+        });
+        Assert.That(share.StatusCode, Is.EqualTo(HttpStatusCode.OK), share.Error?.Content);
+        var file = await s.GtidOfAsync(fileId);
+        await SendCommentAsync(s, s.Sam, file, fileKey, "Sam's comment");
+        var comment = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Single();
+        await EditCommentAsync(s, s.Sam, file, comment, fileKey, "Sam's edit");
+        var edited = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Single();
+        var gtid = comment.FileMetadata.GlobalTransitId!.Value;
+
+        await DeleteAsync(CommentWriter(s.Sam), s, gtid, comment.FileMetadata.VersionTag);
+        await s.Sam.Sync.DrainOutboxAsync();
+        var kept = (await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Where(c => c.FileState == FileState.Active).ToList();
+        Assert.That(kept.Select(c => c.FileMetadata.VersionTag), Is.EqualTo(new[] { edited.FileMetadata.VersionTag }),
+            "naming the version before his edit: refused");
+
+        await DeleteAsync(CommentWriter(s.Sam), s, gtid, edited.FileMetadata.VersionTag);
+        await s.Sam.Sync.DrainOutboxAsync();
+        Assert.That((await CommentsAsync(s.Frodo.Drives.Reader, s, file)).Where(c => c.FileState == FileState.Active), Is.Empty,
+            "naming the version there: deleted");
+    }
+
+    [Test]
     public async Task AMemberReactsToACommentByTheFilesShare()
     {
         var s = await ArrangeAsync();

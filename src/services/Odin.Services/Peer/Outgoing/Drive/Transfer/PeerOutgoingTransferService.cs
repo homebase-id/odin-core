@@ -176,11 +176,58 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return outboxStatus;
         }
 
+        /// <summary>
+        /// Asks <paramref name="recipients"/> to delete the file they hold under <paramref name="remoteGlobalTransitIdFileIdentifier"/>,
+        /// as <see cref="AssertCanTellRecipientsToDelete"/> allows.  With <paramref name="expectedVersionTag"/>, for one recipient,
+        /// only while their file is still that version, and the outcome is told to the caller's client
+        /// (<see cref="PeerSendResultNotification"/>), as for a member's update.
+        /// </summary>
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            Guid? expectedVersionTag = null)
+        {
+            var recipientList = recipients.ToOdinIdList().Distinct().ToList();
+            if (recipientList.Count > 0)
+            {
+                AssertCanTellRecipientsToDelete(fileTransferOptions.FileSystemType, odinContext);
+            }
+
+            if (expectedVersionTag is { } expected)
+            {
+                // Each recipient's copy has a version of its own, so a delete naming one is for one recipient
+                OdinValidationUtils.AssertNotEmptyGuid(expected, nameof(expectedVersionTag));
+                OdinValidationUtils.AssertIsTrue(recipientList.Count == 1, "A delete naming a version is for one recipient");
+            }
+
+            return await EnqueueDeletesByGlobalTransitIdAsync(remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipientList,
+                odinContext, expectedVersionTag);
+        }
+
+        /// <summary>
+        /// A channel's deleted post (<paramref name="header"/>, sent with a global transit id), reaching its followers' copies
+        /// on their feed drives: the channel's own distribution, which asks no more of the caller than the delete it follows
+        /// did.  Only ever a feed drive's copy, so it is no way around <see cref="AssertCanTellRecipientsToDelete"/>.
+        /// </summary>
+        public Task<Dictionary<string, DeleteLinkedFileStatus>> SendFeedDeleteFileRequest(ServerFileHeader header,
+            IEnumerable<OdinId> recipients, IOdinContext odinContext) =>
+            EnqueueDeletesByGlobalTransitIdAsync(
+                new GlobalTransitIdFileIdentifier
+                {
+                    GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    TargetDrive = WellKnownAppDrives.FeedDrive
+                },
+                new FileTransferOptions { FileSystemType = header.ServerMetadata.FileSystemType, TransferFileType = TransferFileType.Normal },
+                recipients, odinContext, expectedVersionTag: null);
+
+        private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletesByGlobalTransitIdAsync(
+            GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
+            FileTransferOptions fileTransferOptions,
+            IEnumerable<OdinId> recipients,
+            IOdinContext odinContext,
+            Guid? expectedVersionTag)
         {
             var fileId = new InternalDriveFileId()
             {
@@ -188,10 +235,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 DriveId = SystemDriveConstants.TransientTempDrive.Alias
             };
 
-            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions,
-                recipients.ToOdinIdList(), async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes());
+            var sendResultTo = expectedVersionTag == null
+                ? null
+                : PeerSendResultTarget.Of(odinContext, remoteGlobalTransitIdFileIdentifier.TargetDrive.Alias,
+                    remoteGlobalTransitIdFileIdentifier.GlobalTransitId, expectedVersionTag);
 
-            return result;
+            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients,
+                async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes(),
+                expectedVersionTag, sendResultTo);
         }
 
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
@@ -225,7 +276,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         /// <summary>
-        /// What telling recipients to delete a file (by file id) needs: UseTransitWrite, as any file delete on a peer
+        /// What telling recipients to delete a file needs: UseTransitWrite, as any file delete on a peer
         /// does, except in the comment file system, which keeps its long-standing rule (either transit key). Batches
         /// call it before their first file, so a refusal touches nothing.
         /// </summary>
@@ -586,7 +637,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
             IEnumerable<OdinId> recipients,
-            Func<OdinId, Task<byte[]>> tokenFor)
+            Func<OdinId, Task<byte[]>> tokenFor,
+            Guid? expectedVersionTag = null,
+            PeerSendResultTarget sendResultTo = null)
         {
             var results = new Dictionary<string, DeleteLinkedFileStatus>();
 
@@ -616,8 +669,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         Data = OdinSystemSerializer.Serialize(new DeleteRemoteFileRequest()
                         {
                             RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdFileIdentifier,
-                            FileSystemType = fileTransferOptions.FileSystemType
-                        }).ToUtf8ByteArray()
+                            FileSystemType = fileTransferOptions.FileSystemType,
+                            ExpectedVersionTag = expectedVersionTag
+                        }).ToUtf8ByteArray(),
+                        SendResultTo = sendResultTo
                     }
                 };
 
