@@ -111,6 +111,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             if (!fileExists)
             {
+                DriveStorageServiceBase.AssertNotDeletedForPayloads(header);
                 return NotFound();
             }
 
@@ -173,6 +174,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             if (!fileExists)
             {
+                DriveStorageServiceBase.AssertNotDeletedForPayloads(header);
                 return NotFound();
             }
 

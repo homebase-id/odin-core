@@ -185,7 +185,8 @@ public class DriveShareService(
 
     /// <summary>
     /// Withdraws a share: its row stays with no bits and no locked file key, so a member's sync sees it go, as a
-    /// tombstone is a deleted file's (decision E); the file's <c>modified</c> moves.  The file's group stays.
+    /// tombstone is a deleted file's (decision E); the file's <c>modified</c> moves.  The file's group stays.  On a
+    /// deleted file it does nothing.
     /// </summary>
     public async Task WithdrawShareAsync(Guid driveId, Guid fileId, Guid circleId, IOdinContext odinContext)
     {
@@ -200,6 +201,13 @@ public class DriveShareService(
         }
 
         if (row.permissions == 0)
+        {
+            return;
+        }
+
+        // A deleted file's shares only carry its tombstone to members, so withdrawing one changes nothing they see.  The
+        // tombstone keeps its modified: its place in the feed, and the age clients purge it by
+        if ((await db.DriveMainIndexCached.GetAsync(drive.Id, fileId))?.fileState == (int)FileState.Deleted)
         {
             return;
         }

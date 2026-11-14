@@ -945,6 +945,16 @@ public class PeerDriveQueryService(
         }
     }
 
+    // The peer's file is deleted: passed on as the same 404 with its code, not as a file that isn't there
+    private static void AssertNotDeletedAt(OdinId odinId, ApiResponse<HttpContent> response)
+    {
+        if (response.ErrorCode() == OdinClientErrorCode.FileDeleted)
+        {
+            response.Dispose();
+            throw new OdinFileDeletedException($"The file is deleted at [{odinId}]");
+        }
+    }
+
     private async Task HandleInvalidResponseAsync<T>(OdinId odinId, ApiResponse<T> response, IOdinContext odinContext)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -1022,6 +1032,7 @@ public class PeerDriveQueryService(
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
+            AssertNotDeletedAt(odinId, response);
             response.Dispose();
             return (null, default, null, null, Stream.Null);
         }
@@ -1068,6 +1079,7 @@ public class PeerDriveQueryService(
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
+            AssertNotDeletedAt(odinId, response);
             response.Dispose();
             return (null, default, null);
         }

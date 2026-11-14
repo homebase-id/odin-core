@@ -78,6 +78,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
             if (!fileExists)
             {
+                DriveStorageServiceBase.AssertNotDeletedForPayloads(header);
                 return (null, default, null, null);
             }
 
@@ -108,6 +109,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
             if (!fileExists)
             {
+                DriveStorageServiceBase.AssertNotDeletedForPayloads(header);
                 return (null, default, null, null, default, null);
             }
 

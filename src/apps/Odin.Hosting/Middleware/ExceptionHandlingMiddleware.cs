@@ -48,6 +48,12 @@ namespace Odin.Hosting.Middleware
                 // the file header gets the caller the current one.
                 await HandleExceptionAsync(context, new NotFoundException(e.Message, e.ErrorCode, e));
             }
+            catch (OdinFileDeletedException e) // => HTTP 404
+            {
+                // Caught ahead of OdinClientException, which it derives from: what is asked for is gone with its file,
+                // which its error code tells apart from a file that isn't there
+                await HandleExceptionAsync(context, new NotFoundException(e.Message, e.ErrorCode, e));
+            }
             catch (OdinPayloadGoneException e) // => HTTP 410
             {
                 // Caught ahead of OdinClientException, which it derives from: a payload the header names but
