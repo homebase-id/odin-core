@@ -1,5 +1,3 @@
-using System;
-
 namespace Odin.Core.Exceptions;
 
 /// <summary>
@@ -7,11 +5,4 @@ namespace Odin.Core.Exceptions;
 /// with <see cref="OdinClientErrorCode.FileDeleted"/>, so a client tells it apart from a file that isn't there, which is
 /// a 404 with no such code.
 /// </summary>
-public class OdinFileDeletedException : OdinClientException
-{
-    public OdinFileDeletedException(string message, Exception innerException = null)
-        : base(message, innerException)
-    {
-        ErrorCode = OdinClientErrorCode.FileDeleted;
-    }
-}
+public class OdinFileDeletedException(string message) : OdinClientException(message, OdinClientErrorCode.FileDeleted);
