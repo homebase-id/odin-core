@@ -93,6 +93,12 @@ public class V2PeerAppDriveWriteController(
     /// <c>fileSystemType</c>.</para>
     ///
     /// <para>400 when nothing on that identity answers to the address.</para>
+    ///
+    /// <para>With <c>expectedVersionTag</c>, the recipient deletes its file only while it is still that version, and the
+    /// outcome comes on the sending app's sockets as a <c>PeerSendResult</c> with <c>isDelete</c>
+    /// (<c>RecipientIdentityReturnedVersionTagMismatch</c> when the file has changed since), as for an update.  Taken only by a
+    /// drive the delete is written to at once (a zero-knowledge drive, comments, a community channel); a drive with an inbox
+    /// refuses it.</para>
     /// </remarks>
     /// <param name="request">The file to delete.  Its <c>targetDrive</c> and <c>recipients</c> are
     /// overwritten from the route.</param>

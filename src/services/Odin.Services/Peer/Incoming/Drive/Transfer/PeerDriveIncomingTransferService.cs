@@ -228,8 +228,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             throw new OdinSystemException("Unhandled Routing");
         }
 
+        /// <summary>
+        /// A peer's delete of the file with <paramref name="globalTransitId"/>.  With <paramref name="expectedVersionTag"/>,
+        /// only of that version: refused (<see cref="OdinClientErrorCode.VersionTagMismatch"/>) when the file has changed since,
+        /// and on a drive with an inbox, where the delete is written later, refused outright, as nothing checks it there.
+        /// </summary>
         public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequestAsync(TargetDrive targetDrive, Guid globalTransitId,
             FileSystemType fileSystemType,
+            Guid? expectedVersionTag,
             IOdinContext odinContext)
         {
             var driveId = targetDrive.Alias;
@@ -248,7 +254,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (!drive.HasInbox && fileSystemType == FileSystemType.Standard)
             {
                 await DeleteAtOnceAsync(drive, new GlobalTransitIdFileIdentifier { TargetDrive = targetDrive, GlobalTransitId = globalTransitId },
-                    odinContext);
+                    expectedVersionTag, odinContext);
                 return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
             }
 
@@ -269,12 +275,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
 
-                await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-                    {
-                        FileId = header.FileId,
-                        DriveId = driveId
-                    },
-                    odinContext, null);
+                // Its tombstone has a version of its own, so a delete naming one that already landed (sent again) is done
+                if (expectedVersionTag != null && header.FileState == FileState.Deleted)
+                {
+                    return new PeerTransferResponse { Code = PeerResponseCode.AcceptedDirectWrite };
+                }
+
+                await SoftDeleteOrFailAsync(new InternalDriveFileId { FileId = header.FileId, DriveId = driveId }, odinContext,
+                    expectedVersionTag);
 
                 logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> direct soft-delete complete for fileId:{fileId} gtid:{gtid}",
                     header.FileId, globalTransitId);
@@ -283,6 +291,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     Code = PeerResponseCode.AcceptedDirectWrite
                 };
+            }
+
+            if (expectedVersionTag != null)
+            {
+                throw new OdinClientException("A delete naming the version it is meant for is taken only on a drive it is " +
+                                              "written to at once", OdinClientErrorCode.InvalidTargetDrive);
             }
 
             var item = new TransferInboxItem()
@@ -555,13 +569,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// A peer's delete on a drive with no inbox, of the version they were judged on: a write that lands in between is
         /// judged again, once, rather than lost (a refused delete isn't retried by the sender's outbox).
         /// </summary>
-        private async Task DeleteAtOnceAsync(StorageDrive drive, GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
+        private async Task DeleteAtOnceAsync(StorageDrive drive, GlobalTransitIdFileIdentifier file, Guid? expectedVersionTag,
+            IOdinContext odinContext)
         {
             for (var attempt = 1; ; attempt++)
             {
                 var stored = await GetHeaderForPeerWriteAsync(fileSystem, file, odinContext);
                 var writeContext = await SentFileChanges.ContextForDeleteAsync(fileSystem, drive, stored,
-                    odinContext.GetCallerOdinIdOrFail(), odinContext);
+                    odinContext.GetCallerOdinIdOrFail(), expectedVersionTag, odinContext);
                 if (writeContext == null)
                 {
                     return;
@@ -569,17 +584,24 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 try
                 {
-                    // A tombstone that failed to write answers a server error, so the sender's outbox tries again
-                    _ = await fileSystem.Storage.SoftDeleteLongTermFile(stored.FileMetadata.File, writeContext, null,
-                            expectedVersionTag: stored.FileMetadata.VersionTag) ??
-                        throw new OdinSystemException($"File {stored.FileMetadata.File.FileId} could not be deleted");
+                    await SoftDeleteOrFailAsync(stored.FileMetadata.File, writeContext,
+                        expectedVersionTag ?? stored.FileMetadata.VersionTag);
                     return;
                 }
-                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1)
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1 &&
+                                                    expectedVersionTag == null)
                 {
-                    // Changed since it was read: judge the delete again on what is there now
+                    // Changed since it was read: judge the delete again on what is there now.  A version the sender
+                    // named is theirs to judge: refused
                 }
             }
+        }
+
+        /// <summary>A peer's soft delete; a tombstone that failed to write answers a server error, so their outbox tries again</summary>
+        private async Task SoftDeleteOrFailAsync(InternalDriveFileId file, IOdinContext writeContext, Guid? expectedVersionTag)
+        {
+            _ = await fileSystem.Storage.SoftDeleteLongTermFile(file, writeContext, null, expectedVersionTag) ??
+                throw new OdinSystemException($"File {file.FileId} could not be deleted");
         }
 
         private static bool IsDeposit(FileMetadata metadata, EncryptedRecipientTransferInstructionSet instructionSet) =>

@@ -162,13 +162,14 @@ public class DrivePeerWriterV2Client(OdinId identity, IApiClientFactory factory,
     }
 
     public async Task<ApiResponse<Dictionary<string, DeleteLinkedFileStatus>>> SendDeleteRequestOverPeer(
-        OdinId recipient, TargetDrive remoteTargetDrive, Guid globalTransitId)
+        OdinId recipient, TargetDrive remoteTargetDrive, Guid globalTransitId, Guid? expectedVersionTag = null)
     {
         var client = factory.CreateHttpClient(identity, out _, fileSystemType);
 
         var request = new DeleteFileByGlobalTransitIdRequest
         {
             FileSystemType = fileSystemType,
+            ExpectedVersionTag = expectedVersionTag,
             GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier
             {
                 GlobalTransitId = globalTransitId,
