@@ -212,7 +212,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 request?.RemoteGlobalTransitIdFileIdentifier?.TargetDrive,
                 request?.FileSystemType);
 
-            var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
+            // The file system the delete is written in and the one that picks its rules are one and the same
+            var resolver = GetHttpFileSystemResolver();
+            OdinValidationUtils.AssertIsTrue(request.FileSystemType == resolver.GetFileSystemType(),
+                "The request's file system type differs from the one it was sent to");
+            var fileSystem = resolver.ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
 
             var response = await perimeterService.AcceptDeleteLinkedFileRequestAsync(

@@ -211,8 +211,9 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   lands in between is judged again, once, rather than lost (`PeerDriveIncomingTransferService.DeleteAtOnceAsync`)
   **(V)**. A delete may also name the version it is meant for (`expectedVersionTag` on `senddeleterequest`, one
   recipient only): it is refused (`VersionTagMismatch`) once the file has changed since, so a member's delete can't
-  discard a co-editor's newer version unseen, and is not judged again **(V, tested)**. One sent again after it landed is
-  done, not refused by its own tombstone's version (I, from the code). The same holds for a comment **(V, tested)** and
+  discard a co-editor's newer version unseen, and is not judged again **(V, tested)**. One reaching a file already
+  deleted is done, whoever deleted it, so a delete sent again after it landed isn't refused by its own tombstone's
+  version (I, from the code). The same holds for a comment **(V, tested)** and
   for a community channel's post **(V)**; a drive with an inbox refuses a delete naming a version, as the inbox writes
   it later and checks nothing **(V, tested)**. So on a Private Share drive a member's own new file with no share is
   theirs to delete as its sender **(V, tested)**. A delete of a file already deleted does nothing **(V)**. On a Server

@@ -86,12 +86,14 @@ public class PrivateDrivePeerWritesTests : V2Fixture
         var (received, takenOver) = await DepositFrodoTookOverAsync(frodo, sam, drive, keys);
         var gtid = received.FileMetadata.GlobalTransitId!.Value;
 
-        await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, received.FileMetadata.VersionTag);
+        var stale = await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, received.FileMetadata.VersionTag);
+        Assert.That(stale.StatusCode, Is.EqualTo(HttpStatusCode.OK), stale.Error?.Content);
         await sam.Sync.DrainOutboxAsync();
         Assert.That((await frodo.Drives.Reader.GetFileHeaderAsync(drive.Alias, received.FileId)).Content?.FileState,
             Is.EqualTo(FileState.Active), "naming the version before Frodo's change: refused");
 
-        await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, takenOver);
+        var current = await sam.Drives.PeerWriter.SendDeleteRequestOverPeer(frodo.Identity, drive, gtid, takenOver);
+        Assert.That(current.StatusCode, Is.EqualTo(HttpStatusCode.OK), current.Error?.Content);
         await sam.Sync.DrainOutboxAsync();
         Assert.That((await frodo.Drives.Reader.GetFileHeaderAsync(drive.Alias, received.FileId)).Content?.FileState,
             Is.EqualTo(FileState.Deleted), "naming the version Frodo's change gave it: deleted");
@@ -197,7 +199,6 @@ public class PrivateDrivePeerWritesTests : V2Fixture
             model == DriveSharingModel.Private ? "refused" : "landed");
     }
 
-    /// <summary>Frodo's Private drive, on which Sam holds <paramref name="samsPermission"/> (write, react and comment by default), and its keys.</summary>
     /// <summary>Sam's deposit, which Frodo then took over with an update of his own: its header as received, and the version his update gave it</summary>
     private static async Task<(SharedSecretEncryptedFileHeader Received, Guid TakenOverVersion)> DepositFrodoTookOverAsync(OwnerSession frodo,
         OwnerSession sam, TargetDrive drive, ZkBrowser.DriveKeys keys)
@@ -212,6 +213,7 @@ public class PrivateDrivePeerWritesTests : V2Fixture
         return (received, (await HeaderByUniqueIdAsync(frodo, uniqueId, drive)).FileMetadata.VersionTag);
     }
 
+    /// <summary>Frodo's Private drive, on which Sam holds <paramref name="samsPermission"/> (write, react and comment by default), and its keys.</summary>
     private async Task<(OwnerSession Frodo, OwnerSession Sam, TargetDrive Drive, ZkBrowser.DriveKeys Keys)> ArrangeAsync(
         DrivePermission samsPermission = DrivePermission.Write | DrivePermission.React | DrivePermission.Comment)
     {

@@ -189,7 +189,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IOdinContext odinContext,
             Guid? expectedVersionTag = null)
         {
-            var recipientList = recipients.ToOdinIdList();
+            var recipientList = recipients.ToOdinIdList().Distinct().ToList();
             if (recipientList.Count > 0)
             {
                 AssertCanTellRecipientsToDelete(fileTransferOptions.FileSystemType, odinContext);
@@ -207,16 +207,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         /// <summary>
-        /// A feed channel's delete of a post, reaching its followers' copies: written by the channel's own distribution,
-        /// which asks no more of the caller than the delete it follows did.
+        /// A channel's deleted post (<paramref name="header"/>, sent with a global transit id), reaching its followers' copies
+        /// on their feed drives: the channel's own distribution, which asks no more of the caller than the delete it follows
+        /// did.  Only ever a feed drive's copy, so it is no way around <see cref="AssertCanTellRecipientsToDelete"/>.
         /// </summary>
-        public Task<Dictionary<string, DeleteLinkedFileStatus>> SendFeedDeleteFileRequest(
-            GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
-            FileTransferOptions fileTransferOptions,
-            IEnumerable<OdinId> recipients,
-            IOdinContext odinContext) =>
-            EnqueueDeletesByGlobalTransitIdAsync(remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext,
-                expectedVersionTag: null);
+        public Task<Dictionary<string, DeleteLinkedFileStatus>> SendFeedDeleteFileRequest(ServerFileHeader header,
+            IEnumerable<OdinId> recipients, IOdinContext odinContext) =>
+            EnqueueDeletesByGlobalTransitIdAsync(
+                new GlobalTransitIdFileIdentifier
+                {
+                    GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    TargetDrive = WellKnownAppDrives.FeedDrive
+                },
+                new FileTransferOptions { FileSystemType = header.ServerMetadata.FileSystemType, TransferFileType = TransferFileType.Normal },
+                recipients, odinContext, expectedVersionTag: null);
 
         private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletesByGlobalTransitIdAsync(
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
