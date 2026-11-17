@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Odin.Services.PublicPage.Posts;
 
@@ -10,13 +11,16 @@ public class PlateRichTextParserTests
     private static string Fixture(string name) =>
         File.ReadAllText(Path.Combine(TestContext.CurrentContext.TestDirectory, "PublicPage", "Fixtures", name));
 
+    private static string? Render(string json, PayloadUrlResolver? url = null) =>
+        PlateRichTextParser.Parse(JsonNode.Parse(json), url);
+
     private static string? Url(string key, string? fileId) =>
         fileId == null ? $"https://x.test/payload?key={key}" : $"https://x.test/payload?fileId={fileId}&key={key}";
 
     [Test]
     public void EditorArticle_RendersAllKnownNodes()
     {
-        var html = PlateRichTextParser.Parse(Fixture("editor-article.json"), Url)!;
+        var html = Render(Fixture("editor-article.json"), Url)!;
 
         Assert.That(html, Does.Contain("<h1>Trip notes</h1>"));
         Assert.That(html, Does.Contain("<h2>Packing</h2>"));
@@ -41,7 +45,7 @@ public class PlateRichTextParserTests
     [Test]
     public void ImporterArticle_DoesNotThrowAndKeepsText()
     {
-        var html = PlateRichTextParser.Parse(Fixture("importer-article.json"), Url)!;
+        var html = Render(Fixture("importer-article.json"), Url)!;
 
         Assert.That(html, Does.Contain("<a href=\"https://blog.example.com/post\">https://blog.example.com/post</a>"));
         Assert.That(html, Does.Contain("<a href=\"https://sam.dotyou.cloud\">@sam.dotyou.cloud</a>"));
@@ -57,16 +61,16 @@ public class PlateRichTextParserTests
     }
 
     [Test]
-    public void LocalImage_WithoutPayloadUrl_RendersEmptyFigure()
+    public void LocalImage_WithoutPayloadUrl_RendersNothing()
     {
-        var html = PlateRichTextParser.Parse("""[{"type":"local_image","fileKey":"k","children":[{"text":""}]}]""");
-        Assert.That(html, Is.EqualTo("<figure></figure>\n"));
+        var html = Render("""[{"type":"local_image","fileKey":"k","children":[{"text":""}]}]""");
+        Assert.That(html, Is.EqualTo(""));
     }
 
     [Test]
     public void LocalImage_WithFileId_PassesItToThePayloadUrl()
     {
-        var html = PlateRichTextParser.Parse(
+        var html = Render(
             """[{"type":"local_image","fileKey":"k","fileId":"f1","children":[{"text":""}]}]""", Url);
         Assert.That(html, Is.EqualTo("<img src=\"https://x.test/payload?fileId=f1&amp;key=k\" alt=\"\" />\n"));
     }
@@ -74,23 +78,31 @@ public class PlateRichTextParserTests
     [Test]
     public void ObjectBody_DoesNotThrow()
     {
-        Assert.DoesNotThrow(() => PlateRichTextParser.Parse("""{"type":"p","children":[{"text":"hi"}]}"""));
-        Assert.That(PlateRichTextParser.Parse("""{"foo":1}"""), Is.EqualTo(""));
-        Assert.That(PlateRichTextParser.Parse("""[null, 5, "s", {"type":5}]"""), Is.EqualTo(""));
-        Assert.That(PlateRichTextParser.Parse("not json"), Is.Null);
+        Assert.DoesNotThrow(() => Render("""{"type":"p","children":[{"text":"hi"}]}"""));
+        Assert.That(Render("""{"foo":1}"""), Is.EqualTo(""));
+        Assert.That(Render("""[null, 5, "s", {"type":5}]"""), Is.EqualTo(""));
+        Assert.That(PlateRichTextParser.Parse(null), Is.Null);
+    }
+
+    [Test]
+    public void LoneSurrogate_DropsOnlyThatString_AndDuplicateKeysNeverThrow()
+    {
+        Assert.That(Render("""[{"type":"p","children":[{"text":"cut \ud83d"}]},{"type":"p","children":[{"text":"kept"}]}]"""),
+            Is.EqualTo("<p></p>\n<p>kept</p>\n"));
+        Assert.That(Render("""[{"type":"p","type":"h1","children":[{"text":"x"}]}]"""), Is.Null);
     }
 
     [Test]
     public void UnknownNode_RendersChildren()
     {
-        var html = PlateRichTextParser.Parse("""[{"type":"mystery","children":[{"text":"inner","bold":true}]}]""");
+        var html = Render("""[{"type":"mystery","children":[{"text":"inner","bold":true}]}]""");
         Assert.That(html, Is.EqualTo("<strong>inner</strong>"));
     }
 
     [Test]
     public void TextIsEncodedAndHrefsRestricted()
     {
-        var html = PlateRichTextParser.Parse("""
+        var html = Render("""
             [{"type":"p","children":[
               {"text":"<script>alert(1)</script>"},
               {"type":"a","url":"javascript:alert(1)","children":[{"text":"bad"}]},

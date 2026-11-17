@@ -157,7 +157,7 @@ public class HomebaseSsrService(
             {
                 if (!string.IsNullOrEmpty(bio))
                 {
-                    var bodyHtml = PlateRichTextParser.Parse(bio);
+                    var bodyHtml = PlateRichTextParser.Parse(HtmlSafe.ParseJson(bio));
                     contentBuilder.AppendLine($"<div>");
                     contentBuilder.Append(bodyHtml);
                     contentBuilder.AppendLine($"</div>");
@@ -204,7 +204,7 @@ public class HomebaseSsrService(
             contentBuilder.AppendLine($"<h3>{exp.Title}</h3>");
             if (!string.IsNullOrEmpty(exp.Description))
             {
-                var bodyHtml = PlateRichTextParser.Parse(exp.Description);
+                var bodyHtml = PlateRichTextParser.Parse(HtmlSafe.ParseJson(exp.Description));
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
                 contentBuilder.AppendLine($"</div>");
@@ -331,7 +331,7 @@ public class HomebaseSsrService(
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
-        WritePostArticle(channelKey, post, contentBuilder, logger);
+        WritePostArticle(channelKey, post, contentBuilder);
 
         var (otherPosts, _) = await channelContentService.GetChannelPosts(
             channelKey,
@@ -365,7 +365,7 @@ public class HomebaseSsrService(
     /// <summary>
     /// The post itself: caption, image, abstract, date, body and comment preview. Every value from the post is encoded.
     /// </summary>
-    internal static void WritePostArticle(string channelKey, ChannelPost post, StringBuilder contentBuilder, ILogger logger)
+    internal void WritePostArticle(string channelKey, ChannelPost post, StringBuilder contentBuilder)
     {
         static string E(string s) => HttpUtility.HtmlEncode(s ?? "");
 
@@ -388,7 +388,7 @@ public class HomebaseSsrService(
             }
             else
             {
-                var bodyHtml = PlateRichTextParser.Parse(bodyJson, post.PayloadUrl);
+                var bodyHtml = PlateRichTextParser.Parse(HtmlSafe.ParseJson(bodyJson), post.PayloadUrl);
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
 
@@ -402,7 +402,6 @@ public class HomebaseSsrService(
                         contentBuilder.AppendLine("<ul>");
                         foreach (var comment in post.ReactionSummary.Comments ?? [])
                         {
-                            if (comment == null) continue;
                             contentBuilder.AppendLine("<li>");
                             var href = $"<a href='{E($"https://{comment.OdinId}")}'>{E(comment.OdinId)}</a>";
                             contentBuilder.AppendLine($"{href} : {E(comment.Content)} ({comment.Updated.ToDateTime()})");
@@ -410,7 +409,6 @@ public class HomebaseSsrService(
                             contentBuilder.AppendLine("<span>");
                             foreach (var reaction in comment.Reactions ?? [])
                             {
-                                if (reaction == null) continue;
                                 contentBuilder.AppendLine($"{E(reaction.ReactionContent)} ({reaction.Count})");
                             }
 

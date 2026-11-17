@@ -17,7 +17,8 @@ public class HomebaseSsrServiceTests
     private static string Article(ChannelPost post)
     {
         var sb = new StringBuilder();
-        HomebaseSsrService.WritePostArticle("public", post, sb, NullLogger.Instance);
+        new HomebaseSsrService(null!, null!, null!, null!, NullLogger<HomebaseSsrService>.Instance)
+            .WritePostArticle("public", post, sb);
         return sb.ToString();
     }
 
@@ -70,35 +71,13 @@ public class HomebaseSsrServiceTests
     }
 
     [Test]
-    public void LocalImage_ResolvesAgainstItsOwnFileId()
+    public void PayloadUrl_EscapesTheKey_UsesAGuidFileId_AndNeedsABase()
     {
         var other = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        var post = new ChannelPost
-        {
-            FileId = PostFileId,
-            PayloadUrlBase = PayloadBase,
-            Content = new PostContent
-            {
-                Body = $$"""
-                         [{"type":"local_image","fileKey":"own","children":[{"text":""}]},
-                          {"type":"local_image","fileKey":"copied","fileId":"{{other}}","children":[{"text":""}]},
-                          {"type":"local_image","fileKey":"junk","fileId":"not-a-guid","children":[{"text":""}]}]
-                         """
-            }
-        };
-
-        var html = Article(post);
-
-        Assert.That(html, Does.Contain($"src=\"{PayloadBase.Replace("&", "&amp;")}&amp;fileId={PostFileId}&amp;key=own\""));
-        Assert.That(html, Does.Contain($"src=\"{PayloadBase.Replace("&", "&amp;")}&amp;fileId={other}&amp;key=copied\""));
-        Assert.That(html, Does.Contain($"src=\"{PayloadBase.Replace("&", "&amp;")}&amp;fileId={PostFileId}&amp;key=junk\""));
-    }
-
-    [Test]
-    public void PayloadUrl_EscapesTheKey_AndNeedsABase()
-    {
         var post = new ChannelPost { FileId = PostFileId, PayloadUrlBase = PayloadBase };
         Assert.That(post.PayloadUrl("a b&c"), Is.EqualTo($"{PayloadBase}&fileId={PostFileId}&key=a%20b%26c"));
+        Assert.That(post.PayloadUrl("k", other.ToString()), Is.EqualTo($"{PayloadBase}&fileId={other}&key=k"));
+        Assert.That(post.PayloadUrl("k", "not-a-guid"), Is.EqualTo($"{PayloadBase}&fileId={PostFileId}&key=k"));
         Assert.That(new ChannelPost { FileId = PostFileId }.PayloadUrl("k"), Is.Null);
     }
 }
