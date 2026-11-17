@@ -909,8 +909,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <param name="expectedVersionTag">When set, the delete only goes ahead if the file is still at this
         /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
         /// conditional on the tag read here, which closes the gap between this check and the write.</param>
-        /// <returns>The tombstone's modified time, as the change feed shows it; null when the delete failed</returns>
-        public async Task<UnixTimeUtc?> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
+        /// <returns>The tombstone's times; null when the delete failed</returns>
+        public async Task<WriteTimes> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -921,7 +921,18 @@ namespace Odin.Services.Drives.FileSystem.Base
             AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
             var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
-            return tombstone == null ? null : UpdatedAfterOwnWrites(file, tombstone.FileMetadata.Updated, odinContext);
+            return tombstone == null
+                ? null
+                : WriteTimes.Of(file, tombstone.FileMetadata, odinContext);
+        }
+
+        /// <summary>A file's times after a write</summary>
+        /// <param name="Updated">Its modified time after the request's own changes, as the change feed shows it</param>
+        /// <param name="VersionUpdated">When it got its version tag (<see cref="DriveFileUtility.VersionUpdatedOf"/>)</param>
+        public record WriteTimes(UnixTimeUtc Updated, UnixTimeUtc? VersionUpdated)
+        {
+            public static WriteTimes Of(InternalDriveFileId file, FileMetadata written, IOdinContext odinContext) =>
+                new(UpdatedAfterOwnWrites(file, written.Updated, odinContext), DriveFileUtility.VersionUpdatedOf(written));
         }
 
         /// <summary>
@@ -1781,7 +1792,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// version tag and modified time afterwards. A file the caller may not see answers 4106, as a query would
         /// leave it out.
         /// </summary>
-        public async Task<(Guid VersionTag, UnixTimeUtc Updated)> UpdateArchivalStatus(InternalDriveFileId file,
+        public async Task<(Guid VersionTag, WriteTimes Times)> UpdateArchivalStatus(InternalDriveFileId file,
             Guid expectedVersionTag, int archivalStatus, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
@@ -1790,7 +1801,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (header.FileMetadata.AppData.ArchivalStatus == archivalStatus)
             {
                 // Nothing to change: no new version tag, and modified (a client's "removed at") stays put
-                return (header.FileMetadata.VersionTag.GetValueOrDefault(), header.FileMetadata.Updated);
+                return (header.FileMetadata.VersionTag.GetValueOrDefault(),
+                    new WriteTimes(header.FileMetadata.Updated, DriveFileUtility.VersionUpdatedOf(header.FileMetadata)));
             }
 
             header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
@@ -1807,7 +1819,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
 
-            return (header.FileMetadata.VersionTag.GetValueOrDefault(), UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
+            return (header.FileMetadata.VersionTag.GetValueOrDefault(), WriteTimes.Of(file, header.FileMetadata, odinContext));
         }
 
         /// <summary>

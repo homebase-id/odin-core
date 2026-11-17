@@ -26,4 +26,10 @@ public class DeleteFileResultV2
     /// the local file was not deleted
     /// </summary>
     public UnixTimeUtc? Updated { get; set; }
+
+    /// <summary>
+    /// When the tombstone got its version tag: the time of the delete, which writes that keep the tag don't move; null
+    /// when the local file was not deleted
+    /// </summary>
+    public UnixTimeUtc? VersionUpdated { get; set; }
 }

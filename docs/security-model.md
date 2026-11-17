@@ -395,6 +395,13 @@ serverMetadata
 - **`versionTag`** is the file's optimistic-concurrency token. Every header write gives it a new one, and a write that names
   a stale tag fails with `VersionTagMismatch` (`AssertVersionTagMatches`) **(V)**. Compare `updated` too, not only the
   tag (#1967).
+- **`versionUpdated`** (V2 only) is when the file got its `versionTag`: the `updated` of the write that gave it, set by
+  the same SQL statement from the same expression (`TableDriveMainIndex.UpsertAllButReactionsAndTransferAsync`, column
+  `versionTagModified`) **(V, tested)**. The three parts below move `updated` and leave it. Files from before the
+  column took their `updated` then. It's in the header, the minimal shape, and the answers to a create, an update, an
+  archival-status batch and a soft delete (single and batch); V1 answers leave it out, and so does a minimal socket that
+  isn't V2 (`DriveFileUtility.AnswersVersionUpdated`) **(V, tested)**. A member's server relays the sharer's to its own V2
+  callers only **(V, tested for V2)**. A payload upload or delete answers only its new tag **(V)**.
 - **Three parts don't follow that rule.** They have their own update paths, which write their own column and advance
   `modified` (`updated`), but leave `versionTag` alone (`TableDriveMainIndex`) **(V)**:
   - **`localAppData`** has **its own `versionTag`**, checked by compare-and-set on `hdrLocalVersionTag`. It's for

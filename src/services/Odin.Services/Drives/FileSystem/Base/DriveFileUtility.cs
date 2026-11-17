@@ -125,7 +125,7 @@ public static class DriveFileUtility
             FileState = header.FileMetadata.FileState,
             FileSystemType = header.ServerMetadata.FileSystemType,
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
-            FileMetadata = RedactFileMetadata(header.FileMetadata),
+            FileMetadata = RedactFileMetadata(header.FileMetadata, AnswersVersionUpdated(odinContext)),
             Priority = priority,
             FileByteCount = header.ServerMetadata.FileByteCount,
         };
@@ -188,12 +188,29 @@ public static class DriveFileUtility
         return EncryptedKeyHeader.Empty();
     }
 
-    private static ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata)
+    /// <summary>
+    /// Whether <paramref name="odinContext"/>'s caller is answered a file's <see cref="ClientFileMetadata.VersionUpdated"/>:
+    /// a V2 request, or another identity's server, which relays it to its own V2 callers only
+    /// (<see cref="Peer.Outgoing.Drive.Query.PeerDriveQueryService"/>)
+    /// </summary>
+    public static bool AnswersVersionUpdated(IOdinContext odinContext) =>
+        odinContext.ApiVersion == 2 || odinContext.AuthContext == PeerAuthContexts.TransitCapi;
+
+    /// <summary>When <paramref name="fileMetadata"/>'s file got its version tag; null for a header built with none</summary>
+    public static UnixTimeUtc? VersionUpdatedOf(FileMetadata fileMetadata) =>
+        fileMetadata.VersionTagModified == UnixTimeUtc.ZeroTime ? null : fileMetadata.VersionTagModified;
+
+    /// <summary><see cref="VersionUpdatedOf"/>, for a caller it answers (<see cref="AnswersVersionUpdated"/>); null for others</summary>
+    public static UnixTimeUtc? VersionUpdatedIfAnswered(FileMetadata fileMetadata, IOdinContext odinContext) =>
+        AnswersVersionUpdated(odinContext) ? VersionUpdatedOf(fileMetadata) : null;
+
+    private static ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata, bool withVersionUpdated)
     {
         var clientFile = new ClientFileMetadata
         {
             Created = fileMetadata.Created,
             Updated = fileMetadata.Updated,
+            VersionUpdated = withVersionUpdated ? VersionUpdatedOf(fileMetadata) : null,
 
             TransitCreated = fileMetadata.TransitCreated,
             TransitUpdated = fileMetadata.TransitUpdated,

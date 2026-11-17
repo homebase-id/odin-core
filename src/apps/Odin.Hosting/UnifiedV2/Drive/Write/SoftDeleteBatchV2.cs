@@ -87,6 +87,12 @@ public class SoftDeleteResultV2
     public UnixTimeUtc? Updated { get; init; }
 
     /// <summary>
+    /// When the tombstone got its version tag: the time of the delete, which writes that keep the tag don't move; null when
+    /// the file was not deleted
+    /// </summary>
+    public UnixTimeUtc? VersionUpdated { get; init; }
+
+    /// <summary>
     /// Per recipient, keyed by its lower-cased domain: "enqueued", or "enqueueFailed" for one the caller is no longer
     /// connected to, or when the file was never sent to anyone (it has no global transit id). Recipients are told before
     /// the local delete, so if that delete then fails (an edit landing in between) this still shows who was told.
