@@ -6,6 +6,7 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
@@ -43,8 +44,8 @@ public class VersionUpdatedTests : V2Fixture
             new UpdateLocalMetadataTagsRequestV2 { LocalVersionTag = Guid.Empty, Tags = [Guid.NewGuid()] });
         Assert.That(tags.StatusCode, Is.EqualTo(HttpStatusCode.OK), tags.Error?.Content);
         var touched = await AppFileUploads.HeaderAsync(owner, drive, created.FileId);
-        Assert.That((touched.FileMetadata.VersionUpdated, touched.FileMetadata.Updated.milliseconds > afterCreate.milliseconds),
-            Is.EqualTo(((UnixTimeUtc?)afterCreate, true)), "after local tags: (versionUpdated, updated moved)");
+        Assert.That(touched.FileMetadata.VersionUpdated, Is.EqualTo((UnixTimeUtc?)afterCreate), "after local tags, versionUpdated");
+        Assert.That(touched.FileMetadata.Updated.milliseconds, Is.GreaterThan(afterCreate.milliseconds), "after local tags, updated moved");
         Assert.That((await AppFileUploads.FeedAsync(owner, drive))[created.FileId].VersionUpdated, Is.EqualTo(afterCreate),
             "after local tags, the minimal shape");
 
@@ -59,8 +60,8 @@ public class VersionUpdatedTests : V2Fixture
         }, metadata, []);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
         var afterUpdate = await AssertVersionUpdatedIsUpdatedAsync(owner, drive, created.FileId, "an update");
-        Assert.That((update.Content!.VersionUpdated, afterUpdate.milliseconds > touched.FileMetadata.Updated.milliseconds),
-            Is.EqualTo(((UnixTimeUtc?)afterUpdate, true)), "the update's answer, past the touch");
+        Assert.That(update.Content!.VersionUpdated, Is.EqualTo((UnixTimeUtc?)afterUpdate), "the update's answer");
+        Assert.That(afterUpdate.milliseconds, Is.GreaterThan(touched.FileMetadata.Updated.milliseconds), "the update, past the touch");
 
         // Archival status gives a new tag
         var archive = await owner.Drives.Writer.UpdateArchivalStatusBatch(drive.Alias, new UpdateArchivalStatusBatchRequestV2
@@ -100,8 +101,21 @@ public class VersionUpdatedTests : V2Fixture
         var delete = await owner.Drives.Writer.SoftDeleteFile(spec.TargetDrive.Alias, file.FileId);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
         var tombstone = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, file.FileId);
-        Assert.That((delete.Content!.VersionUpdated, tombstone.FileMetadata.VersionUpdated.HasValue),
-            Is.EqualTo((tombstone.FileMetadata.VersionUpdated, true)), "(the delete's answer, the tombstone has one)");
+        Assert.That(tombstone.FileMetadata.VersionUpdated, Is.Not.Null, "the tombstone's versionUpdated");
+        Assert.That(delete.Content!.VersionUpdated, Is.EqualTo(tombstone.FileMetadata.VersionUpdated), "the delete's answer");
+    }
+
+    [Test]
+    public async Task AnAnonymousV2ReadIsAnsweredVersionUpdated()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "public");
+
+        var anonymous = Host.AnonymousRefitFor<Odin.Hosting.Tests._V2.ApiClient.IDriveReaderHttpClientApiV2>(owner.Identity.DomainName);
+        var read = await anonymous.GetFileHeader(spec.TargetDrive.Alias, file.FileId, FileSystemType.Standard);
+        Assert.That(read.StatusCode, Is.EqualTo(HttpStatusCode.OK), read.Error?.Content);
+        Assert.That(read.Content!.FileMetadata.VersionUpdated, Is.EqualTo(file.VersionUpdated), "with no token, as with one");
     }
 
     [Test]

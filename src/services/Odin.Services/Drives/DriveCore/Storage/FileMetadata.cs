@@ -78,7 +78,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// When the file got its <see cref="VersionTag"/>: the <see cref="Updated"/> of the write that gave it the tag.
         /// Writes that keep the tag (reactions, transfer history, local app data, shares) move <see cref="Updated"/> alone.
-        /// Kept by this server only, never taken from a peer: the database sets it.
+        /// The database sets it when the header is saved, whatever a peer's copy of this object carried.
         /// </summary>
         public UnixTimeUtc VersionTagModified
         {

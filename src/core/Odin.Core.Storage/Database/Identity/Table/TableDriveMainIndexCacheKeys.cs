@@ -1,12 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core.Storage.Database.Identity.Migrations;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 internal class TableDriveMainIndexCacheKeys(TransactionalCache cache)
 {
     internal const string RootInvalidationTag = "DriveMainIndex";
+
+    /// <summary>
+    /// The prefix of a cache that holds DriveMainIndex records.  It carries the table's version: a record cached by a
+    /// server before a migration lacks the columns the migration added, and would read back without them.
+    /// </summary>
+    internal static string KeyPrefix(object owner) => $"{owner.GetType().Name}:{TableVersion}";
+
+    private static readonly long TableVersion = new TableDriveMainIndexMigrationList().GetLatestVersion().MigrationVersion;
 
     //
 

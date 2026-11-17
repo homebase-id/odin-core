@@ -262,6 +262,16 @@ public class PeerDriveQueryService(
             await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
 
             var batch = queryBatchResponse.Content;
+            foreach (var section in batch?.Results ?? [])
+            {
+                foreach (var header in section.SearchResults ?? [])
+                {
+                    WithoutVersionUpdatedUnlessV2(header, odinContext);
+                }
+
+                WithoutVersionUpdatedUnlessV2(section.FileRefs, odinContext);
+            }
+
             return batch;
         }
         catch (TryRetryException t)
@@ -859,6 +869,17 @@ public class PeerDriveQueryService(
     /// The peer's file refs, without the version times it answers this server when this server's own caller isn't
     /// answered them (<see cref="DriveFileUtility.AnswersVersionUpdated"/>)
     /// </summary>
+    /// <summary>
+    /// The peer's header, without the version time it answers this server when this server's own caller isn't answered it
+    /// </summary>
+    private static void WithoutVersionUpdatedUnlessV2(SharedSecretEncryptedFileHeader header, IOdinContext odinContext)
+    {
+        if (header?.FileMetadata != null && !DriveFileUtility.AnswersVersionUpdated(odinContext))
+        {
+            header.FileMetadata.VersionUpdated = null;
+        }
+    }
+
     private static IEnumerable<FileRef> WithoutVersionUpdatedUnlessV2(IEnumerable<FileRef> fileRefs, IOdinContext odinContext)
     {
         if (fileRefs != null && !DriveFileUtility.AnswersVersionUpdated(odinContext))
@@ -890,11 +911,7 @@ public class PeerDriveQueryService(
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
         IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
-        if (!DriveFileUtility.AnswersVersionUpdated(odinContext) && sharedSecretEncryptedFileHeader.FileMetadata != null)
-        {
-            sharedSecretEncryptedFileHeader.FileMetadata.VersionUpdated = null;
-        }
-
+        WithoutVersionUpdatedUnlessV2(sharedSecretEncryptedFileHeader, odinContext);
         if (odinContext.AuthContext == "youauth-token")
         {
             sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();

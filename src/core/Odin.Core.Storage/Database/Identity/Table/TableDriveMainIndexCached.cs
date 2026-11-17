@@ -14,7 +14,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public TableDriveMainIndexCached(TableDriveMainIndex table, IIdentityTransactionalCacheFactory cacheFactory) :
-        base(cacheFactory, table.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
+        base(cacheFactory, TableDriveMainIndexCacheKeys.KeyPrefix(table), TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
         _table = table;
         _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);

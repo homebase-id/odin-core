@@ -189,24 +189,19 @@ public static class DriveFileUtility
     }
 
     /// <summary>
-    /// The auth context of another identity's server calling this one (Hosting's <c>PeerAuthConstants.TransitCapiAuthScheme</c>)
-    /// </summary>
-    public const string PeerServerAuthContext = "TransitCapiAuthScheme";
-
-    /// <summary>
     /// Whether <paramref name="odinContext"/>'s caller is answered a file's <see cref="ClientFileMetadata.VersionUpdated"/>:
     /// a V2 request, or another identity's server, which relays it to its own V2 callers only
     /// (<see cref="Peer.Outgoing.Drive.Query.PeerDriveQueryService"/>)
     /// </summary>
     public static bool AnswersVersionUpdated(IOdinContext odinContext) =>
-        odinContext.ApiVersion == 2 || odinContext.AuthContext == PeerServerAuthContext;
+        odinContext.ApiVersion == 2 || odinContext.AuthContext == PeerAuthContexts.TransitCapi;
 
     /// <summary>When <paramref name="fileMetadata"/>'s file got its version tag; null for a header built with none</summary>
     public static UnixTimeUtc? VersionUpdatedOf(FileMetadata fileMetadata) =>
         fileMetadata.VersionTagModified == UnixTimeUtc.ZeroTime ? null : fileMetadata.VersionTagModified;
 
     /// <summary><see cref="VersionUpdatedOf"/>, for a caller it answers (<see cref="AnswersVersionUpdated"/>); null for others</summary>
-    public static UnixTimeUtc? VersionUpdatedFor(FileMetadata fileMetadata, IOdinContext odinContext) =>
+    public static UnixTimeUtc? VersionUpdatedIfAnswered(FileMetadata fileMetadata, IOdinContext odinContext) =>
         AnswersVersionUpdated(odinContext) ? VersionUpdatedOf(fileMetadata) : null;
 
     private static ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata, bool withVersionUpdated)

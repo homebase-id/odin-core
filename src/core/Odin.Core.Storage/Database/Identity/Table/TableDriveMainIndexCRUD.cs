@@ -147,7 +147,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"hdrFileMetaData TEXT NOT NULL, "
                    +"hdrTmpDriveAlias BYTEA NOT NULL, "
                    +"hdrTmpDriveType BYTEA NOT NULL, "
-                   +"versionTagModified BIGINT NOT NULL, "
+                   +"versionTagModified BIGINT NOT NULL DEFAULT 0, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId)"
