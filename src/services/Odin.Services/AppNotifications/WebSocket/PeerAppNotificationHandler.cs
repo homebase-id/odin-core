@@ -51,10 +51,13 @@ namespace Odin.Services.AppNotifications.WebSocket
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
+        /// <param name="apiVersion">The API version of the route the socket came in on: its events answer what a request on
+        /// it does (<see cref="Drives.FileSystem.Base.DriveFileUtility.AnswersVersionUpdated"/>)</param>
         public async Task EstablishConnection(
             System.Net.WebSockets.WebSocket webSocket,
             IOdinContext odinContext,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            int apiVersion = 1)
         {
             var webSocketKey = Guid.NewGuid();
             try
@@ -67,7 +70,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 _dispatcher.AddSocket(deviceSocket);
 
                 await _dispatcher.SubscribeAsync(cancellationToken);
-                await AwaitCommands(deviceSocket, odinContext, cancellationToken);
+                await AwaitCommands(deviceSocket, odinContext, apiVersion, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -95,6 +98,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         private async Task AwaitCommands(
             DeviceSocket deviceSocket,
             IOdinContext currentOdinContext,
+            int apiVersion,
             CancellationToken cancellationToken = default)
         {
             var webSocket = deviceSocket.Socket;
@@ -129,7 +133,15 @@ namespace Odin.Services.AppNotifications.WebSocket
                                 nameof(authenticationPackage.SharedSecretEncryptedOptions));
 
                             var clientAuthToken64 = authenticationPackage.ClientAuthToken64;
-                            deviceSocket.DeviceOdinContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
+                            var subscriberContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
+                            if (subscriberContext.ApiVersion != apiVersion)
+                            {
+                                // A copy: the context is the token's cached one, which every socket on the token shares
+                                subscriberContext = subscriberContext.Clone();
+                                subscriberContext.SetApiVersion(apiVersion);
+                            }
+
+                            deviceSocket.DeviceOdinContext = subscriberContext;
                             decryptedBytes =
                                 authenticationPackage.SharedSecretEncryptedOptions!.Decrypt(deviceSocket.DeviceOdinContext
                                     .PermissionsContext.SharedSecretKey);

@@ -26,6 +26,12 @@ public class CreateFileResult
     public UnixTimeUtc? Updated { get; init; }
 
     /// <summary>
+    /// When the file got <see cref="NewVersionTag"/>: the change feed's time of the write that gave it, which later writes
+    /// that keep the tag (reactions, transfer history, local app data, shares) don't move
+    /// </summary>
+    public UnixTimeUtc? VersionUpdated { get; init; }
+
+    /// <summary>
     /// One entry per payload uploaded in this request; values match the stored file header
     /// </summary>
     public List<PayloadUploadReceipt> Payloads { get; init; } = new();

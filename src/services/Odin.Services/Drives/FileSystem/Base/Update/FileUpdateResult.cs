@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Peer;
 
@@ -35,6 +36,13 @@ public class FileUpdateResult
     /// (see <see cref="Odin.Services.Base.RequestOwnWrites"/>); null for a peer-only update, which has no local file
     /// </summary>
     public UnixTimeUtc? Updated { get; init; }
+
+    /// <summary>
+    /// When the file got the version tag it has after this request (<see cref="DriveFileUtility.VersionUpdatedOf"/>); for V2
+    /// callers only (<see cref="DriveFileUtility.AnswersVersionUpdated"/>)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public UnixTimeUtc? VersionUpdated { get; init; }
 
     /// <summary>
     /// One entry per payload uploaded in this request (append/overwrite operations); values match the stored file header

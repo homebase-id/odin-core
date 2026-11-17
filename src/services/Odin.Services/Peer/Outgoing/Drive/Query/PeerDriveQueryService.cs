@@ -848,11 +848,27 @@ public class PeerDriveQueryService(
         {
             QueryTime = batch.QueryTime,
             SearchResults = batch.SearchResults == null ? null : TransformSharedSecret(batch.SearchResults, icr, odinContext),
-            FileRefs = batch.FileRefs,
+            FileRefs = WithoutVersionUpdatedUnlessV2(batch.FileRefs, odinContext),
             Cursor = new QueryBatchCursor(batch.CursorState),
             IncludeMetadataHeader = batch.IncludeMetadataHeader,
             HasMoreRows = batch.HasMoreRows
         };
+    }
+
+    /// <summary>
+    /// The peer's file refs, without the version times it answers this server when this server's own caller isn't
+    /// answered them (<see cref="DriveFileUtility.AnswersVersionUpdated"/>)
+    /// </summary>
+    private static IEnumerable<FileRef> WithoutVersionUpdatedUnlessV2(IEnumerable<FileRef> fileRefs, IOdinContext odinContext)
+    {
+        if (fileRefs == null || DriveFileUtility.AnswersVersionUpdated(odinContext))
+        {
+            return fileRefs;
+        }
+
+        var refs = fileRefs.ToList();
+        refs.ForEach(f => f.VersionUpdated = null);
+        return refs;
     }
 
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,
@@ -873,6 +889,11 @@ public class PeerDriveQueryService(
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
         IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
+        if (!DriveFileUtility.AnswersVersionUpdated(odinContext) && sharedSecretEncryptedFileHeader.FileMetadata != null)
+        {
+            sharedSecretEncryptedFileHeader.FileMetadata.VersionUpdated = null;
+        }
+
         if (odinContext.AuthContext == "youauth-token")
         {
             sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();

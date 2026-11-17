@@ -73,6 +73,19 @@ namespace Odin.Services.Drives.DriveCore.Storage
             init => _updated = value;
         }
 
+        private UnixTimeUtc _versionTagModified;
+
+        /// <summary>
+        /// When the file got its <see cref="VersionTag"/>: the <see cref="Updated"/> of the write that gave it the tag.
+        /// Writes that keep the tag (reactions, transfer history, local app data, shares) move <see cref="Updated"/> alone.
+        /// Kept by this server only, never taken from a peer: the database sets it.
+        /// </summary>
+        public UnixTimeUtc VersionTagModified
+        {
+            get => _versionTagModified;
+            init => _versionTagModified = value;
+        }
+
         public UnixTimeUtc TransitCreated { get; set; }
 
         public UnixTimeUtc TransitUpdated { get; set; }
@@ -129,6 +142,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 _updated = UnixTimeUtc.ZeroTime;
         }
 
+        public void SetVersionTagModifiedWithDatabaseValue(UnixTimeUtc databaseVersionTagModified)
+        {
+            _versionTagModified = databaseVersionTagModified;
+        }
+
         // The record is needed to fill in specific colums from the record that are not in the Dto,
         // i.e. the columns that are commented out above
         public FileMetadata(FileMetadataDto fileMetadataDto, DriveMainIndexRecord record)
@@ -168,6 +186,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             FileState = (FileState)record.fileState;
             Created = record.created;
             Updated = record.modified;
+            VersionTagModified = record.versionTagModified;
 
             ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
                 ? null

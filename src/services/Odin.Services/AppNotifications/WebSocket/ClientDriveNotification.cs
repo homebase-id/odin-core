@@ -56,8 +56,9 @@ public class ClientDriveNotification
 
         if (shape == FileResultShape.Minimal)
         {
-            notification.FileRef = header == null ? null : FileRef.FromHeader(header);
-            notification.PreviousFileRef = previousHeader == null ? null : FileRef.FromHeader(previousHeader);
+            var withVersionUpdated = DriveFileUtility.AnswersVersionUpdated(deviceOdinContext);
+            notification.FileRef = header == null ? null : FileRef.FromHeader(header, withVersionUpdated);
+            notification.PreviousFileRef = previousHeader == null ? null : FileRef.FromHeader(previousHeader, withVersionUpdated);
             return notification;
         }
 

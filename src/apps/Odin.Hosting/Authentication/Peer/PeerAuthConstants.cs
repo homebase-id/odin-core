@@ -6,7 +6,7 @@
         /// <summary>
         /// Scheme for authenticating external Digital Identity hosts when using Transit. 
         /// </summary>
-        public const string TransitCapiAuthScheme = "TransitCapiAuthScheme";
+        public const string TransitCapiAuthScheme = Odin.Services.Drives.FileSystem.Base.DriveFileUtility.PeerServerAuthContext;
         
         /// <summary>
         /// Requests from identities for Connection Requests, Follower subscriptions, etc.  Anything that requires anonymous access to establish

@@ -124,24 +124,38 @@ public class DatabaseMigrationTests : IocTestBase
         sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
         ClassicAssert.IsTrue(sqlVersion == previous.MigrationVersion);
 
-        // Fill in some random data
+        // Rows in the previous shape, by raw SQL: the generated CRUD and the upsert write the new column set
         var metaIndex = scope.Resolve<MainIndexMeta>();
         var driveId = Guid.NewGuid();
+        foreach (var modified in new long[] { 1000, 42, 2000 })
+        {
+            await using var insert = cn.CreateCommand();
+            insert.CommandText = DriveMainIndexPreviousVersionSeedSql;
+            BindDriveMainIndexSeed(insert, driveId, modified);
+            Assert.That(await insert.ExecuteNonQueryAsync(), Is.EqualTo(1));
+        }
 
-        var f1 = SequentialGuid.CreateGuid(); // Oldest
-        var s1 = SequentialGuid.CreateGuid().ToString();
-        var t1 = SequentialGuid.CreateGuid();
-        var f2 = SequentialGuid.CreateGuid();
-        var f3 = SequentialGuid.CreateGuid(); // Newest
-
-        // This API does not match the table version, but since they are the same, no worries
-        await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-        await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-        await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
-
-        await latest.UpAsync(cn);   // Increase from version 0 to 20250719
+        await latest.UpAsync(cn);
         sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
         ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
+
+        // Each row took its own modified as when it got its version tag, its last write being all it recorded
+        await using (var verify = cn.CreateCommand())
+        {
+            verify.CommandText = "SELECT modified, versionTagModified FROM DriveMainIndex ORDER BY modified";
+            await using var rdr = await verify.ExecuteReaderAsync();
+            var migrated = new global::System.Collections.Generic.List<(long, long)>();
+            while (await rdr.ReadAsync())
+            {
+                migrated.Add((Convert.ToInt64(rdr[0]), Convert.ToInt64(rdr[1])));
+            }
+
+            Assert.That(migrated, Is.EqualTo(new[] { (42L, 42L), (1000L, 1000L), (2000L, 2000L) }),
+                "(modified, versionTagModified) of each migrated row");
+        }
+
+        var s1 = SequentialGuid.CreateGuid().ToString();
+        var t1 = SequentialGuid.CreateGuid();
 
         // A row written after the migration must get a free rowId. CopyDataAsync carries rows across
         // with their existing rowId values, which on Postgres does not advance the new table's
@@ -236,6 +250,24 @@ public class DatabaseMigrationTests : IocTestBase
         "MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,AppId,DriveSlug," +
         "DriveTypeSlug,created,modified) VALUES (@identityId,@driveId,@storageKeyCheckValue,@driveType," +
         "'seed drive','{}','iv','value','{}',@appId,@driveSlug,@driveTypeSlug,1,1)";
+
+    /// <summary>A DriveMainIndex row in the shape before versionTagModified; its modified is the parameter</summary>
+    private const string DriveMainIndexPreviousVersionSeedSql =
+        "INSERT INTO DriveMainIndex (identityId,driveId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate," +
+        "fileType,dataType,archivalStatus,historyStatus,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData," +
+        "hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) VALUES (@identityId,@driveId," +
+        "@fileId,0,1,1,0,1,1,0,0,42,'{}',@versionTag,'{}','{}','{}',@tmpDriveAlias,@tmpDriveType,1,@modified)";
+
+    private void BindDriveMainIndexSeed(ICommandWrapper cmd, Guid driveId, long modified)
+    {
+        cmd.AddParameter("@identityId", DbType.Binary, IdentityId.ToByteArray());
+        cmd.AddParameter("@driveId", DbType.Binary, driveId.ToByteArray());
+        cmd.AddParameter("@fileId", DbType.Binary, Guid.NewGuid().ToByteArray());
+        cmd.AddParameter("@versionTag", DbType.Binary, Guid.NewGuid().ToByteArray());
+        cmd.AddParameter("@tmpDriveAlias", DbType.Binary, Guid.NewGuid().ToByteArray());
+        cmd.AddParameter("@tmpDriveType", DbType.Binary, Guid.NewGuid().ToByteArray());
+        cmd.AddParameter("@modified", DbType.Int64, modified);
+    }
 
     private void BindDrivesSeed(ICommandWrapper cmd, Guid? appId, string driveSlug, string driveTypeSlug)
     {
