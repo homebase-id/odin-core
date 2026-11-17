@@ -91,7 +91,15 @@ internal static class HtmlSafe
     internal static string PlainText(JsonNode? node, string childrenKey)
     {
         if (node is not JsonObject obj) return "";
-        if (Str(obj["type"]) == "hardBreak") return "\n";
+        switch (Str(obj["type"]))
+        {
+            case "hardBreak":
+                return "\n";
+            case "noteLink":
+                // as the JS viewer, which turns it into its label, so heading ids match
+                return Str((obj["attrs"] as JsonObject)?["label"]) ?? "";
+        }
+
         if (Str(obj["text"]) is { } text) return text;
         if (obj[childrenKey] is not JsonArray children) return "";
         var sb = new StringBuilder();

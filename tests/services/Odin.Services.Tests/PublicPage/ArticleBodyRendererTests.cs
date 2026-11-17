@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using NUnit.Framework;
@@ -46,5 +47,26 @@ public class ArticleBodyRendererTests
         Assert.That(content.Caption, Is.EqualTo("Trip"));
         var html = ArticleBodyRenderer.Render(Convert.ToString(content.Body)!, content.BodyDoc);
         Assert.That(html, Is.EqualTo($"<p>{expected}</p>\n"));
+    }
+
+    [Test]
+    public void Description_PrefersTheAbstractThenAMatchingBodyDoc()
+    {
+        PostContent WithAbstract(string? text, string bodyDoc)
+        {
+            var content = Content(bodyDoc);
+            content.Abstract = text;
+            return content;
+        }
+
+        const string matching = """{"format":"tiptap-v1","slateHash":"HASH","doc":DOC}""";
+        Assert.That(ArticleBodyRenderer.Description(WithAbstract("The abstract", matching)), Is.EqualTo("The abstract"));
+        // the abstract stays whole: RSS and JSON-LD carry all of it
+        var longAbstract = string.Join(' ', Enumerable.Repeat("word", 80));
+        Assert.That(ArticleBodyRenderer.Description(WithAbstract(longAbstract, matching)), Is.EqualTo(longAbstract));
+        Assert.That(ArticleBodyRenderer.Description(WithAbstract(null, matching)), Is.EqualTo("tiptap text"));
+        Assert.That(ArticleBodyRenderer.Description(WithAbstract(" ", matching)), Is.EqualTo("tiptap text"));
+        Assert.That(ArticleBodyRenderer.Description(WithAbstract(null, matching.Replace("HASH", "stale"))), Is.Null);
+        Assert.That(ArticleBodyRenderer.Description(null), Is.Null);
     }
 }
