@@ -44,7 +44,7 @@ public class HomebaseSitemapController(HomebaseSsrService ssrService, TenantCont
 
         Response.ContentType = "application/rss+xml; charset=utf-8";
         Response.Headers.TryAdd("Cache-Control", $"max-age={TimeSpan.FromHours(1).TotalSeconds}");
-        await Response.WriteAsync(await ssrService.BuildFeed(WebOdinContext));
+        await Response.WriteAsync(await ssrService.BuildFeed(WebOdinContext, HttpContext.RequestAborted));
     }
 
     [HttpGet("robots.txt")]

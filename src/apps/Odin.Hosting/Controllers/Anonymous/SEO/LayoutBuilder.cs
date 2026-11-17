@@ -106,11 +106,10 @@ public static class LayoutBuilder
     private static string GetHumanReadableVersion(HttpContext httpContext)
     {
         var request = httpContext.Request;
-        var path = request.Path.HasValue ? request.Path.Value : "";
+        // the page itself, without its query
         return new UriBuilder(request.Scheme, request.Host.Host)
         {
-            Path = path.Replace($"/{LinkPreviewDefaults.SsrPath}", "", StringComparison.OrdinalIgnoreCase),
-            Query = request.QueryString.Value ?? ""
+            Path = SsrUrlHelper.FromSsrPath(request.Path.Value)
         }.ToString();
     }
 

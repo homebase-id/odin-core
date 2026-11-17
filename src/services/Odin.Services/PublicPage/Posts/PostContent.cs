@@ -47,24 +47,17 @@ public class PostContent
 
     /// <summary>readingTimeStats.words as a positive whole number, or null when it is missing or not a usable number</summary>
     [JsonIgnore]
-    public int? WordCount
-    {
-        get
-        {
-            if (ReadingTimeStats is not { ValueKind: JsonValueKind.Object } stats ||
-                !stats.TryGetProperty("words", out var words) ||
-                words.ValueKind != JsonValueKind.Number ||
-                !words.TryGetDouble(out var count) ||
-                double.IsNaN(count) || count < 1 || count > int.MaxValue)
-            {
-                return null;
-            }
-
-            return (int)count;
-        }
-    }
+    public int? WordCount =>
+        ReadingTimeStats is { ValueKind: JsonValueKind.Object } stats &&
+        stats.TryGetProperty("words", out var words) && words.ValueKind == JsonValueKind.Number &&
+        words.TryGetDouble(out var count) && count is >= 1 and <= int.MaxValue
+            ? (int)count
+            : null;
 
     [JsonIgnore]
     public UnixTimeUtc? UserDate { get; set; }
+
+    [JsonIgnore]
+    public bool IsArticle => string.Equals(Type, "Article", System.StringComparison.OrdinalIgnoreCase);
     
 }

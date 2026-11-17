@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -138,8 +137,7 @@ public class HomebaseSsrController(
 
         // We need the post title in the tab title xxx
         string suffix = string.IsNullOrEmpty(post.Content.Caption) ? "Posts" : post.Content.Caption;
-        var isArticle = string.Equals(post.Content.Type, "Article", StringComparison.OrdinalIgnoreCase);
-        var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website", post: isArticle ? post : null);
+        var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website", post: post.Content.IsArticle ? post : null);
 
         var contentBuilder = new StringBuilder();
         await ssrService.WritePostBodyContent(channelKey, post, contentBuilder, WebOdinContext, HttpContext.RequestAborted);
@@ -168,7 +166,7 @@ public class HomebaseSsrController(
             {
                 Headline = post.Content.Caption,
                 Description = DataOrNull(post.Content.Abstract),
-                Published = post.Created.ToDateTimeOffset(),
+                Published = post.PublishedDate.ToDateTimeOffset(),
                 Modified = post.Modified.ToDateTimeOffset(),
                 AuthorName = person?.Name ?? WebOdinContext.Tenant.DomainName,
                 AuthorUrl = authorUrl,

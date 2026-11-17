@@ -1,5 +1,6 @@
 using System;
-using System.Globalization;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Web;
@@ -66,30 +67,23 @@ public static class PageSeo
 
     public static string BuildBlogPostingJson(ArticleSeo a, string pageUrl, string imageUrl)
     {
-        using var stream = new System.IO.MemoryStream();
-        using (var w = new Utf8JsonWriter(stream))
+        var json = new Dictionary<string, object>
         {
-            w.WriteStartObject();
-            w.WriteString("@context", "https://schema.org");
-            w.WriteString("@type", "BlogPosting");
-            w.WriteString("headline", a.Headline ?? "");
-            if (!string.IsNullOrEmpty(a.Description)) w.WriteString("description", a.Description);
-            w.WriteString("datePublished", Iso(a.Published));
-            w.WriteString("dateModified", Iso(a.Modified));
-            w.WriteStartObject("author");
-            w.WriteString("@type", "Person");
-            w.WriteString("name", a.AuthorName ?? "");
-            w.WriteString("url", a.AuthorUrl ?? "");
-            w.WriteEndObject();
-            if (!string.IsNullOrEmpty(imageUrl)) w.WriteString("image", imageUrl);
-            if (a.WordCount is > 0) w.WriteNumber("wordCount", a.WordCount.Value);
-            w.WriteString("mainEntityOfPage", pageUrl);
-            w.WriteEndObject();
-        }
+            ["@context"] = "https://schema.org",
+            ["@type"] = "BlogPosting",
+            ["headline"] = a.Headline ?? "",
+            ["description"] = string.IsNullOrEmpty(a.Description) ? null : a.Description,
+            ["datePublished"] = Iso(a.Published),
+            ["dateModified"] = Iso(a.Modified),
+            ["author"] = new Dictionary<string, string> { ["@type"] = "Person", ["name"] = a.AuthorName ?? "", ["url"] = a.AuthorUrl ?? "" },
+            ["image"] = string.IsNullOrEmpty(imageUrl) ? null : imageUrl,
+            ["wordCount"] = a.WordCount is > 0 ? a.WordCount : null,
+            ["mainEntityOfPage"] = pageUrl
+        };
 
         // The default encoder escapes < > & ' as \uXXXX, so the text can never contain </script>.
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return JsonSerializer.Serialize(json.Where(p => p.Value != null).ToDictionary());
     }
 
-    public static string Iso(DateTimeOffset d) => d.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+    private static string Iso(DateTimeOffset d) => $"{d.UtcDateTime:s}Z";
 }
