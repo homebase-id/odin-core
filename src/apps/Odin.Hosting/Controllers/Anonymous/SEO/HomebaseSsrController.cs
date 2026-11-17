@@ -136,7 +136,8 @@ public class HomebaseSsrController(
         }
 
         // We need the post title in the tab title xxx
-        string suffix = string.IsNullOrEmpty(post.Content.Caption) ? "Posts" : post.Content.Caption;
+        var caption = MarkdownText.ToPlain(post.Content.Caption, singleLine: true);
+        string suffix = string.IsNullOrEmpty(caption) ? "Posts" : caption;
         var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website", post: post.Content.IsArticle ? post : null);
 
         var contentBuilder = new StringBuilder();
@@ -165,7 +166,7 @@ public class HomebaseSsrController(
             var authorUrl = $"https://{WebOdinContext.Tenant.DomainName}";
             article = new ArticleSeo
             {
-                Headline = post.Content.Caption,
+                Headline = MarkdownText.ToPlain(post.Content.Caption, singleLine: true),
                 Description = articleDescription,
                 Published = post.PublishedDate.ToDateTimeOffset(),
                 Modified = post.Modified.ToDateTimeOffset(),

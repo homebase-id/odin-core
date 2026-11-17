@@ -255,7 +255,7 @@ public class HomebaseSsrService(
                 {
                     var slug = post.Content.Slug?.Trim();
                     var id = string.IsNullOrEmpty(slug) || Guid.TryParse(slug, out _) ? post.FileId.ToString() : slug;
-                    items.Add(new RssItem(post.Content.Caption, RssFeed.PostUrl(tenant, channel.Slug, id),
+                    items.Add(new RssItem(MarkdownText.ToPlain(post.Content.Caption, singleLine: true), RssFeed.PostUrl(tenant, channel.Slug, id),
                         post.FileId.ToString(), ArticleBodyRenderer.Description(post.Content), post.PublishedDate.ToDateTimeOffset()));
                 }
             }
@@ -350,7 +350,7 @@ public class HomebaseSsrService(
             // Title with link
             if (!string.IsNullOrWhiteSpace(content.Caption))
             {
-                contentBuilder.AppendLine($"  <h3><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
+                contentBuilder.AppendLine($"  <h3><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(MarkdownText.ToPlain(content.Caption, singleLine: true))}</a></h3>");
             }
 
             // Abstract
@@ -364,7 +364,7 @@ public class HomebaseSsrService(
             {
                 contentBuilder.AppendLine($"<a href=\"{HttpUtility.HtmlEncode(link)}\">");
                 contentBuilder.AppendLine(
-                    $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(content.Caption)}\" />");
+                    $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(MarkdownText.ToPlain(content.Caption, singleLine: true))}\" />");
                 contentBuilder.AppendLine("</a>");
             }
 
@@ -402,7 +402,7 @@ public class HomebaseSsrService(
             {
                 var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{anovahPost.Content.Slug}");
                 contentBuilder.AppendLine(
-                    $"<li><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
+                    $"<li><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(MarkdownText.ToPlain(anovahPost.Content.Caption, singleLine: true))}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
             }
         }
 
@@ -418,7 +418,7 @@ public class HomebaseSsrService(
     {
         static string E(string s) => HttpUtility.HtmlEncode(s ?? "");
 
-        contentBuilder.AppendLine($"<h1>{E(post.Content.Caption)}</h1>");
+        contentBuilder.AppendLine($"<h1>{E(MarkdownText.ToPlain(post.Content.Caption)).Replace("\n", "<br/>")}</h1>");
         if (!string.IsNullOrWhiteSpace(post.ImageUrl))
         {
             contentBuilder.AppendLine($"<img src='{E(post.ImageUrl)}' width='600'/>");
