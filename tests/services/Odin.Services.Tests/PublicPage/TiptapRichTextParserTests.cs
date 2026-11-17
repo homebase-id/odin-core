@@ -1,7 +1,4 @@
-using System;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
 using Odin.Services.PublicPage.Posts;
@@ -16,13 +13,13 @@ public class TiptapRichTextParserTests
     private static string? Url(string key, string? fileId) =>
         fileId == null ? $"https://x.test/payload?key={key}" : $"https://x.test/payload?fileId={fileId}&key={key}";
 
-    private static string Hash(string s) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(s))).ToLowerInvariant();
+    private static string? Render(string json, PayloadUrlResolver? url = null) =>
+        TiptapRichTextParser.Parse(JsonDocument.Parse(json).RootElement, url);
 
     [Test]
     public void AllBlocks_RenderSemanticHtml()
     {
-        var html = TiptapRichTextParser.Parse(Fixture("tiptap-all-blocks.json"), Url)!;
+        var html = Render(Fixture("tiptap-all-blocks.json"), Url)!;
 
         Assert.That(html, Does.Contain("<h1 id=\"every-block\">Every block</h1>"));
         Assert.That(html, Does.Contain("<h3 id=\"a-third-level-heading\">A third-level heading</h3>"));
@@ -34,7 +31,7 @@ public class TiptapRichTextParserTests
         Assert.That(html, Does.Contain("<sub>2</sub>"));
         Assert.That(html, Does.Contain("<a href=\"https://example.com\">a link</a>"));
         Assert.That(html, Does.Contain("<a href=\"https://frodo.dotyou.cloud\">@frodo.dotyou.cloud</a>"));
-        Assert.That(html, Does.Contain("<sup><a href=\"#fn-fn1\" id=\"fnref-fn1\">[1]</a></sup>"));
+        Assert.That(html, Does.Contain("<sup><a href=\"#fn_fn1\" id=\"fnref_fn1\">[1]</a></sup>"));
         Assert.That(html, Does.Contain("<code>E = mc^2</code>"));
         Assert.That(html, Does.Contain("<pre>\\int_0^1 x\\,dx</pre>"));
         Assert.That(html, Does.Contain("<blockquote><p>A quote</p>"));
@@ -52,7 +49,7 @@ public class TiptapRichTextParserTests
         Assert.That(html, Does.Contain("key=pst_rtei2"));
         Assert.That(html, Does.Contain("<a href=\"https://example.com/post\">Example post</a><p>A description</p>"));
         Assert.That(html, Does.Contain("<hr/>"));
-        Assert.That(html, Does.Contain("<li id=\"fn-fn1\"><p>The note</p>"));
+        Assert.That(html, Does.Contain("<li id=\"fn_fn1\"><p>The note</p>"));
         Assert.That(html, Does.Not.Contain("<p><figure"));
     }
 
@@ -63,13 +60,16 @@ public class TiptapRichTextParserTests
                    {"type":"doc","content":[
                      {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Hello, World!"}]},
                      {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Hello World"}]},
+                     {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"hello world 3"}]},
                      {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"hello  world"}]}]}
                    """;
-        var html = TiptapRichTextParser.Parse(json)!;
+        var html = Render(json)!;
 
         Assert.That(html, Does.Contain("<h2 id=\"hello-world\">"));
         Assert.That(html, Does.Contain("<h2 id=\"hello-world-2\">"));
         Assert.That(html, Does.Contain("<h2 id=\"hello-world-3\">"));
+        // the literal hello-world-3 is taken, so the next repeat skips it
+        Assert.That(html, Does.Contain("<h2 id=\"hello-world-4\">"));
     }
 
     [Test]
@@ -80,105 +80,36 @@ public class TiptapRichTextParserTests
                      {"type":"paragraph","content":[
                        {"type":"text","text":"<script>alert(1)</script>"},
                        {"type":"text","text":"bad","marks":[{"type":"link","attrs":{"href":"javascript:alert(1)"}}]},
-                       {"type":"text","text":"mail","marks":[{"type":"link","attrs":{"href":"mailto:a@b.co"}}]}]},
+                       {"type":"text","text":"mail","marks":[{"type":"link","attrs":{"href":"mailto:a@b.co"}}]},
+                       {"type":"text","text":"anchor","marks":[{"type":"link","attrs":{"href":"#notes"}}]},
+                       {"type":"text","text":"path","marks":[{"type":"link","attrs":{"href":"/posts/blog/a?x=1"}}]},
+                       {"type":"text","text":"rel","marks":[{"type":"link","attrs":{"href":"../a.html"}}]},
+                       {"type":"text","text":"x1","marks":[{"type":"link","attrs":{"href":"//evil.test/a"}}]},
+                       {"type":"text","text":"x2","marks":[{"type":"link","attrs":{"href":"/\\evil.test"}}]},
+                       {"type":"text","text":"x3","marks":[{"type":"link","attrs":{"href":"data:text/html,<b>"}}]},
+                       {"type":"text","text":"x4","marks":[{"type":"link","attrs":{"href":"vbscript:msgbox"}}]},
+                       {"type":"text","text":"x5","marks":[{"type":"link","attrs":{"href":"file:///etc/passwd"}}]},
+                       {"type":"text","text":"x6","marks":[{"type":"link","attrs":{"href":"java\tscript:alert(1)"}}]}]},
                      {"type":"mystery","content":[{"type":"paragraph","content":[{"type":"text","text":"kept"}]}]}]}
                    """;
-        var html = TiptapRichTextParser.Parse(json)!;
+        var html = Render(json)!;
 
         Assert.That(html, Does.Not.Contain("<script>"));
         Assert.That(html, Does.Contain("&lt;script&gt;"));
         Assert.That(html, Does.Not.Contain("javascript:"));
         Assert.That(html, Does.Contain("<a href=\"mailto:a@b.co\">mail</a>"));
+        Assert.That(html, Does.Contain("<a href=\"#notes\">anchor</a>"));
+        Assert.That(html, Does.Contain("<a href=\"/posts/blog/a?x=1\">path</a>"));
+        Assert.That(html, Does.Contain("<a href=\"../a.html\">rel</a>"));
+        Assert.That(html, Does.Contain("x1x2x3x4x5x6"));
         Assert.That(html, Does.Contain("<p>kept</p>"));
     }
 
-    private const string Body = """[{"type":"p","children":[{"text":"slate text"}]}]""";
-
-    private const string TiptapDoc = """{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"tiptap text"}]}]}""";
-
-    private static JsonElement Doc(string hash, string format = "tiptap-v1") =>
-        JsonDocument.Parse($$"""{"format":"{{format}}","slateHash":"{{hash}}","doc":{{TiptapDoc}}}""").RootElement;
-
-    [Test]
-    public void ArticleBody_HashMatch_RendersTiptapDoc()
-    {
-        var html = ArticleBodyRenderer.Render(Body, Doc(Hash(Body)))!;
-        Assert.That(html, Does.Contain("tiptap text"));
-        Assert.That(html, Does.Not.Contain("slate text"));
-    }
-
-    [Test]
-    public void ArticleBody_HashMismatch_FallsBackToSlate()
-    {
-        var html = ArticleBodyRenderer.Render(Body, Doc(Hash("something else")))!;
-        Assert.That(html, Does.Contain("slate text"));
-        Assert.That(html, Does.Not.Contain("tiptap text"));
-    }
-
-    [Test]
-    public void ArticleBody_UnknownFormatOrNoDoc_FallsBackToSlate()
-    {
-        Assert.That(ArticleBodyRenderer.Render(Body, Doc(Hash(Body), "tiptap-v2")), Does.Contain("slate text"));
-        Assert.That(ArticleBodyRenderer.Render(Body, null), Does.Contain("slate text"));
-    }
-
-    [Test]
-    public void PostContent_BodyDocDeserializesAndHashesRawBodyText()
-    {
-        var hash = Hash(Body);
-        var json = "{\"type\":\"Article\",\"body\":" + Body + ",\"bodyDoc\":{\"format\":\"tiptap-v1\",\"slateHash\":\"" + hash +
-                   "\",\"doc\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"tiptap text\"}]}]}}}";
-        var content = Odin.Core.Serialization.OdinSystemSerializer.Deserialize<PostContent>(json)!;
-
-        var html = ArticleBodyRenderer.Render(Convert.ToString(content.Body)!, content.BodyDoc);
-        Assert.That(html, Does.Contain("tiptap text"));
-    }
-
-    [TestCase("\"x\"")]
-    [TestCase("[]")]
-    [TestCase("5")]
-    [TestCase("null")]
-    [TestCase("""{"format":1}""")]
-    [TestCase("""{"slateHash":5}""")]
-    [TestCase("""{"format":"tiptap-v1","slateHash":5,"doc":{"type":"doc"}}""")]
-    [TestCase("""{"format":"tiptap-v1","slateHash":"HASH","doc":"not an object"}""")]
-    [TestCase("""{"format":"tiptap-v1","slateHash":"HASH","doc":[]}""")]
-    [TestCase("""{"format":["tiptap-v1"],"slateHash":"HASH","doc":{"type":"doc"}}""")]
-    public void PostContent_BodyDocInAnOddShape_StillDeserializesAndRendersSlate(string bodyDoc)
-    {
-        bodyDoc = bodyDoc.Replace("HASH", Hash(Body));
-        var json = "{\"caption\":\"Trip\",\"type\":\"Article\",\"body\":" + Body + ",\"bodyDoc\":" + bodyDoc + "}";
-
-        var content = Odin.Core.Serialization.OdinSystemSerializer.Deserialize<PostContent>(json)!;
-
-        Assert.That(content.Caption, Is.EqualTo("Trip"));
-        var html = ArticleBodyRenderer.Render(Convert.ToString(content.Body)!, content.BodyDoc);
-        Assert.That(html, Is.EqualTo("<p>slate text</p>\n"));
-    }
-
-    [Test]
-    public void HeadingIds_FollowTheViewerSlugRule()
-    {
-        var json = """
-                   {"type":"doc","content":[
-                     {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Héllo wörld — 日本語"}]},
-                     {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"日本語の見出し"}]},
-                     {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Привет, мир! №1"}]},
-                     {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"ﬁle ①"}]},
-                     {"type":"heading","attrs":{"level":2}},
-                     {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":" — !! "}]}]}
-                   """;
-        var html = TiptapRichTextParser.Parse(json)!;
-
-        Assert.That(html, Does.Contain("<h2 id=\"hello-world-日本語\">"));
-        Assert.That(html, Does.Contain("<h2 id=\"日本語の見出し\">"));
-        Assert.That(html, Does.Contain("<h2 id=\"привет-мир-no1\">"));
-        Assert.That(html, Does.Contain("<h2 id=\"file-1\">"));
-        Assert.That(html, Does.Contain("<h2 id=\"section\">"));
-        Assert.That(html, Does.Contain("<h2 id=\"section-2\">"));
-    }
-
     [TestCase("Héllo wörld — 日本語", "hello-world-日本語")]
+    [TestCase("日本語の見出し", "日本語の見出し")]
+    [TestCase("Привет, мир! №1", "привет-мир-no1")]
+    [TestCase("ﬁle ①", "file-1")]
+    [TestCase(" — !! ", "section")]
     [TestCase("  --Already-Slugged--  ", "already-slugged")]
     [TestCase("", "section")]
     [TestCase("\uD800 lone", "lone")]
@@ -195,7 +126,7 @@ public class TiptapRichTextParserTests
                      {"type":"image","attrs":{"fileKey":"own","fileId":null}},
                      {"type":"image","attrs":{"fileKey":"copied","fileId":"f2"}}]}]}
                    """;
-        var html = TiptapRichTextParser.Parse(json, Url)!;
+        var html = Render(json, Url)!;
 
         Assert.That(html, Does.Contain("src=\"https://x.test/payload?key=own\""));
         Assert.That(html, Does.Contain("src=\"https://x.test/payload?fileId=f2&amp;key=copied\""));
@@ -213,10 +144,36 @@ public class TiptapRichTextParserTests
                        {"type":"bulletList","content":[]}]},
                      {"type":"taskItem","attrs":{"checked":false}}]}]}
                    """;
-        var html = TiptapRichTextParser.Parse(json)!;
+        var html = Render(json)!;
 
         Assert.That(html, Does.Contain("<li><p>&#9745; first</p>\n<p>second</p>\n</li>"));
         Assert.That(html, Does.Contain("<li>&#9744; <ul></ul>\n</li>"));
         Assert.That(html, Does.Contain("<li>&#9744; </li>"));
+    }
+
+    [Test]
+    public void Footnotes_NeverShareAnAnchorWithAHeadingOrEachOther()
+    {
+        var json = """
+                   {"type":"doc","content":[
+                     {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"fn 1"}]},
+                     {"type":"paragraph","content":[
+                       {"type":"footnoteReference","attrs":{"id":"1"}},
+                       {"type":"footnoteReference","attrs":{}},
+                       {"type":"footnoteReference"}]},
+                     {"type":"footnotes","content":[
+                       {"type":"footnote","attrs":{"id":"1"}},
+                       {"type":"footnote"},
+                       {"type":"footnote","attrs":{"id":""}}]}]}
+                   """;
+        var html = Render(json)!;
+
+        Assert.That(html, Does.Contain("<h2 id=\"fn-1\">"));
+        Assert.That(html, Does.Contain("<li id=\"fn_1\">"));
+        Assert.That(html, Does.Contain("[1]"));
+        Assert.That(html, Does.Contain("[2]"));
+        Assert.That(html, Does.Contain("[3]"));
+        Assert.That(System.Text.RegularExpressions.Regex.Matches(html, "id=\"fn_noid\\.\\d\"").Count, Is.EqualTo(2));
+        Assert.That(System.Text.RegularExpressions.Regex.Matches(html, "id=\"fnref_noid\\.\\d\"").Count, Is.EqualTo(2));
     }
 }

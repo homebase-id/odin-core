@@ -2,45 +2,48 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
+using static Odin.Services.PublicPage.Posts.HtmlSafe;
 
 namespace Odin.Services.PublicPage.Posts;
 
 /// <summary>
 /// Renders a Tiptap JSON document (the shared rich-text schema) to semantic HTML for server-side rendered pages.
-/// Never throws on unexpected shapes: unknown nodes render their children. Math is emitted as plain text (no KaTeX here).
+/// Never throws: unknown nodes render their children, and a document it can't read renders as null.
+/// Math is emitted as plain text (no KaTeX here).
 /// </summary>
 public static class TiptapRichTextParser
 {
-    private static readonly Regex DomainRegex = new(
-        @"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
-    /// <param name="json">The Tiptap doc JSON</param>
-    /// <param name="payloadUrl">Maps an image fileKey to a URL for the post's payload, or null when unknown</param>
-    public static string? Parse(string json, Func<string, string?, string?>? payloadUrl = null)
+    /// <summary>Nodes that are their children in one tag; block tags end the line</summary>
+    private static readonly Dictionary<string, (string Tag, bool Block)> SimpleTags = new()
     {
-        JsonNode? root;
+        ["blockquote"] = ("blockquote", true), ["bulletList"] = ("ul", true), ["listItem"] = ("li", true),
+        ["taskList"] = ("ul", true), ["tableRow"] = ("tr", true),
+        ["tableHeader"] = ("th", false), ["tableCell"] = ("td", false)
+    };
+
+    /// <param name="doc">The Tiptap doc</param>
+    /// <param name="payloadUrl">Resolves an image's fileKey and fileId to a URL</param>
+    /// <returns>The HTML, or null when the JSON is not a document this can read</returns>
+    public static string? Parse(JsonElement doc, PayloadUrlResolver? payloadUrl = null)
+    {
         try
         {
-            root = JsonNode.Parse(json);
+            return new Renderer(payloadUrl).Render(JsonObject.Create(doc));
         }
-        catch (JsonException)
+        catch (Exception e) when (e is InvalidOperationException or ArgumentException or FormatException)
         {
-            return null;
+            return null; // not an object, or a node with duplicate keys, which JsonObject only finds out when it is read
         }
-
-        return root is JsonObject ? new Renderer(payloadUrl).Render(root) : null;
     }
 
-    private sealed class Renderer(Func<string, string?, string?>? payloadUrl)
+    private sealed class Renderer(PayloadUrlResolver? payloadUrl)
     {
         private readonly HashSet<string> _usedSlugs = [];
         private readonly Dictionary<string, int> _footnoteNumbers = [];
+        private readonly Dictionary<JsonObject, string> _unnamedFootnotes = new(ReferenceEqualityComparer.Instance);
 
         public string Render(JsonNode? node) => node is JsonObject obj ? RenderNode(obj) : "";
 
@@ -55,7 +58,13 @@ public static class TiptapRichTextParser
         private string RenderNode(JsonObject obj)
         {
             var attrs = obj["attrs"] as JsonObject;
-            switch (Str(obj["type"]))
+            var type = Str(obj["type"]);
+            if (type != null && SimpleTags.TryGetValue(type, out var simple))
+            {
+                return $"<{simple.Tag}>{Kids(obj)}</{simple.Tag}>{(simple.Block ? "\n" : "")}";
+            }
+
+            switch (type)
             {
                 case "doc":
                     return Kids(obj);
@@ -68,29 +77,21 @@ public static class TiptapRichTextParser
                 {
                     var level = Math.Clamp(Int(attrs?["level"]) ?? 1, 1, 6);
                     var inner = Kids(obj);
-                    var id = Slug(PlainText(obj));
+                    var id = Slug(PlainText(obj, "content"));
                     return $"<h{level} id=\"{Enc(id)}\">{inner}</h{level}>\n";
                 }
-                case "blockquote":
-                    return $"<blockquote>{Kids(obj)}</blockquote>\n";
                 case "codeBlock":
                 {
                     var lang = Str(attrs?["language"]);
                     var cls = string.IsNullOrWhiteSpace(lang) ? "" : $" class=\"language-{Enc(lang)}\"";
-                    return $"<pre><code{cls}>{Enc(PlainText(obj))}</code></pre>\n";
+                    return $"<pre><code{cls}>{Enc(PlainText(obj, "content"))}</code></pre>\n";
                 }
-                case "bulletList":
-                    return $"<ul>{Kids(obj)}</ul>\n";
                 case "orderedList":
                 {
                     var start = Int(attrs?["start"]);
                     var startAttr = start is null or 1 ? "" : $" start=\"{start}\"";
                     return $"<ol{startAttr}>{Kids(obj)}</ol>\n";
                 }
-                case "listItem":
-                    return $"<li>{Kids(obj)}</li>\n";
-                case "taskList":
-                    return $"<ul>{Kids(obj)}</ul>\n";
                 case "taskItem":
                 {
                     var box = Bool(attrs?["checked"]) ? "&#9745; " : "&#9744; ";
@@ -98,12 +99,6 @@ public static class TiptapRichTextParser
                 }
                 case "table":
                     return $"<table><tbody>{Kids(obj)}</tbody></table>\n";
-                case "tableRow":
-                    return $"<tr>{Kids(obj)}</tr>\n";
-                case "tableHeader":
-                    return $"<th>{Kids(obj)}</th>";
-                case "tableCell":
-                    return $"<td>{Kids(obj)}</td>";
                 case "horizontalRule":
                     return "<hr/>\n";
                 case "hardBreak":
@@ -129,16 +124,13 @@ public static class TiptapRichTextParser
                 }
                 case "footnoteReference":
                 {
-                    var id = Str(attrs?["id"]) ?? "";
-                    return $"<sup><a href=\"#fn-{Enc(id)}\" id=\"fnref-{Enc(id)}\">[{FootnoteNumber(id)}]</a></sup>";
+                    var id = FootnoteId(obj);
+                    return $"<sup><a href=\"#fn_{Enc(id)}\" id=\"fnref_{Enc(id)}\">[{FootnoteNumber(id)}]</a></sup>";
                 }
                 case "footnotes":
                     return $"<hr/>\n<ol class=\"footnotes\">{Kids(obj)}</ol>\n";
                 case "footnote":
-                {
-                    var id = Str(attrs?["id"]) ?? "";
-                    return $"<li id=\"fn-{Enc(id)}\">{Kids(obj)}</li>\n";
-                }
+                    return $"<li id=\"fn_{Enc(FootnoteId(obj))}\">{Kids(obj)}</li>\n";
                 case "inlineMath":
                     return $"<code>{Enc(Str(attrs?["latex"]))}</code>";
                 case "blockMath":
@@ -155,24 +147,16 @@ public static class TiptapRichTextParser
             var html = Enc(Str(node["text"])).Replace("\n", "<br/>");
             if (node["marks"] is not JsonArray marks) return html;
 
-            // fixed nesting order so the tags always nest correctly, whatever order the marks are stored in
             var types = new Dictionary<string, JsonObject>();
             foreach (var m in marks)
             {
                 if (m is JsonObject mo && Str(mo["type"]) is { } t) types[t] = mo;
             }
 
-            if (types.ContainsKey("kbd")) html = $"<kbd>{html}</kbd>";
-            if (types.ContainsKey("code")) html = $"<code>{html}</code>";
-            if (types.ContainsKey("subscript")) html = $"<sub>{html}</sub>";
-            if (types.ContainsKey("superscript")) html = $"<sup>{html}</sup>";
-            if (types.ContainsKey("bold")) html = $"<strong>{html}</strong>";
-            if (types.ContainsKey("italic")) html = $"<em>{html}</em>";
-            if (types.ContainsKey("underline")) html = $"<u>{html}</u>";
-            if (types.ContainsKey("strike")) html = $"<s>{html}</s>";
+            html = WrapMarks(html, types.ContainsKey);
             if (types.TryGetValue("link", out var link))
             {
-                var href = SafeUrl(Str((link["attrs"] as JsonObject)?["href"]), allowMailto: true);
+                var href = SafeUrl(Str((link["attrs"] as JsonObject)?["href"]), allowMailto: true, allowRelative: true);
                 if (href != null) html = $"<a href=\"{Enc(href)}\">{html}</a>";
             }
 
@@ -230,6 +214,22 @@ public static class TiptapRichTextParser
             var candidate = slug;
             for (var n = 2; !_usedSlugs.Add(candidate); n++) candidate = $"{slug}-{n}";
             return candidate;
+        }
+
+        /// <summary>
+        /// The footnote's id; one without an id gets its own, so no two share an anchor. Anchors are fn_ and fnref_
+        /// plus the id: a heading id is only letters, numbers and '-', so it never takes a footnote's anchor.
+        /// </summary>
+        private string FootnoteId(JsonObject node)
+        {
+            if (Str((node["attrs"] as JsonObject)?["id"]) is { Length: > 0 } id) return id;
+            if (!_unnamedFootnotes.TryGetValue(node, out var own))
+            {
+                own = $"noid.{_unnamedFootnotes.Count + 1}";
+                _unnamedFootnotes[node] = own;
+            }
+
+            return own;
         }
 
         private int FootnoteNumber(string id)
@@ -299,42 +299,6 @@ public static class TiptapRichTextParser
         return false;
     }
 
-    private static string PlainText(JsonNode? node)
-    {
-        if (node is not JsonObject obj) return "";
-        if (Str(obj["type"]) == "hardBreak") return "\n";
-        if (Str(obj["text"]) is { } text) return text;
-        if (obj["content"] is not JsonArray children) return "";
-        var sb = new StringBuilder();
-        foreach (var child in children) sb.Append(PlainText(child));
-        return sb.ToString();
-    }
-
-    private static string Mention(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return "";
-        value = value.Trim();
-        return DomainRegex.IsMatch(value)
-            ? $"<a href=\"https://{Enc(value)}\">@{Enc(value)}</a>"
-            : $"@{Enc(value)}";
-    }
-
-    private static string? SafeUrl(string? url, bool allowMailto = false)
-    {
-        if (string.IsNullOrWhiteSpace(url)) return null;
-        url = url.Trim();
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return null;
-        if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) return url;
-        return allowMailto && uri.Scheme == Uri.UriSchemeMailto ? url : null;
-    }
-
-    private static bool Bool(JsonNode? node) => node is JsonValue v && v.TryGetValue<bool>(out var b) && b;
-
     private static int? Int(JsonNode? node) =>
         node is JsonValue v && v.TryGetValue<double>(out var d) ? (int)d : null;
-
-    private static string? Str(JsonNode? node) =>
-        node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
-
-    private static string Enc(string? text) => WebUtility.HtmlEncode(text ?? "");
 }
