@@ -282,7 +282,7 @@ public class HomebasePublicPageService(
 
         PostContent content = post.Content;
         string imageUrl = post.ImageUrl;
-        return (true, MarkdownText.ToPlain(content.Caption, singleLine: true), imageUrl, ArticleBodyRenderer.Description(content), post);
+        return (true, MarkdownText.ToTitle(content.Caption), imageUrl, ArticleBodyRenderer.Description(content), post);
     }
 
     private async Task WriteGenericPreview(string indexFilePath, IOdinContext odinContext)
