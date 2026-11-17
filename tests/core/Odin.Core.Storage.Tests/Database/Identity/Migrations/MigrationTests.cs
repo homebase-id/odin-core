@@ -7,6 +7,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using System;
+using System.Collections.Generic;
 using System.Data;
 
 using System.Text.Json;
@@ -144,7 +145,7 @@ public class DatabaseMigrationTests : IocTestBase
         {
             verify.CommandText = "SELECT modified, versionTagModified FROM DriveMainIndex ORDER BY modified";
             await using var rdr = await verify.ExecuteReaderAsync();
-            var migrated = new global::System.Collections.Generic.List<(long, long)>();
+            var migrated = new List<(long, long)>();
             while (await rdr.ReadAsync())
             {
                 migrated.Add((Convert.ToInt64(rdr[0]), Convert.ToInt64(rdr[1])));

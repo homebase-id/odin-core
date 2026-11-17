@@ -132,9 +132,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public long Ttl { get; set; }
 
-        public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
+        /// <param name="databaseVersionTagModified">When the row got its version tag, from a write that gave it one</param>
+        public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified,
+            UnixTimeUtc? databaseVersionTagModified = null)
         {
             _created = databaseCreated;
+            if (databaseVersionTagModified != null)
+                _versionTagModified = databaseVersionTagModified.Value;
 
             if (databaseModified != null)
                 _updated = databaseModified.Value;
@@ -142,10 +146,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 _updated = UnixTimeUtc.ZeroTime;
         }
 
-        public void SetVersionTagModifiedWithDatabaseValue(UnixTimeUtc databaseVersionTagModified)
-        {
-            _versionTagModified = databaseVersionTagModified;
-        }
 
         // The record is needed to fill in specific colums from the record that are not in the Dto,
         // i.e. the columns that are commented out above

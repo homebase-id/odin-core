@@ -133,15 +133,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                                 nameof(authenticationPackage.SharedSecretEncryptedOptions));
 
                             var clientAuthToken64 = authenticationPackage.ClientAuthToken64;
-                            var subscriberContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
-                            if (subscriberContext.ApiVersion != apiVersion)
-                            {
-                                // A copy: the context is the token's cached one, which every socket on the token shares
-                                subscriberContext = subscriberContext.Clone();
-                                subscriberContext.SetApiVersion(apiVersion);
-                            }
-
-                            deviceSocket.DeviceOdinContext = subscriberContext;
+                            deviceSocket.DeviceOdinContext = await HandleAuthentication(clientAuthToken64, currentOdinContext, apiVersion);
                             decryptedBytes =
                                 authenticationPackage.SharedSecretEncryptedOptions!.Decrypt(deviceSocket.DeviceOdinContext
                                     .PermissionsContext.SharedSecretKey);
@@ -311,7 +303,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             }
         }
 
-        private async Task<IOdinContext> HandleAuthentication(string clientAuthToken64, IOdinContext currentOdinContext)
+        private async Task<IOdinContext> HandleAuthentication(string clientAuthToken64, IOdinContext currentOdinContext, int apiVersion)
         {
             if (ClientAuthenticationToken.TryParse(clientAuthToken64, out var clientAuthToken))
             {
@@ -329,6 +321,13 @@ namespace Odin.Services.AppNotifications.WebSocket
                 }
 
                 ctx.SetAuthContext("websocket-peer-app-subscriber-token");
+                if (ctx.ApiVersion != apiVersion)
+                {
+                    // A copy: the context is the token's cached one, which every socket on the token shares
+                    ctx = ctx.Clone();
+                    ctx.SetApiVersion(apiVersion);
+                }
+
                 return ctx;
             }
 

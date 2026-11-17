@@ -46,7 +46,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         public UnixTimeUtc? Updated { get; set; }
 
         /// <summary>
-        /// When the file got the version tag it has after this request (<see cref="DriveFileUtility.VersionUpdatedOf"/>); for V2
+        /// When the file got the version tag it has after this request (<see cref="DriveFileUtility.VersionUpdatedFor"/>); for V2
         /// callers only (<see cref="DriveFileUtility.AnswersVersionUpdated"/>)
         /// </summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

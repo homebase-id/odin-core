@@ -861,14 +861,15 @@ public class PeerDriveQueryService(
     /// </summary>
     private static IEnumerable<FileRef> WithoutVersionUpdatedUnlessV2(IEnumerable<FileRef> fileRefs, IOdinContext odinContext)
     {
-        if (fileRefs == null || DriveFileUtility.AnswersVersionUpdated(odinContext))
+        if (fileRefs != null && !DriveFileUtility.AnswersVersionUpdated(odinContext))
         {
-            return fileRefs;
+            foreach (var fileRef in fileRefs)
+            {
+                fileRef.VersionUpdated = null;
+            }
         }
 
-        var refs = fileRefs.ToList();
-        refs.ForEach(f => f.VersionUpdated = null);
-        return refs;
+        return fileRefs;
     }
 
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,

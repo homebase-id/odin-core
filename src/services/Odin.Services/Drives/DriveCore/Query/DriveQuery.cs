@@ -292,8 +292,8 @@ public class DriveQuery(
             if (n != 1)
                 throw new OdinClientException($"SaveFileHeaderAsync() didn't write database record, n is {n}");
 
-            header.FileMetadata.SetCreatedModifiedWithDatabaseValue(driveMainIndexRecord.created, driveMainIndexRecord.modified);
-            header.FileMetadata.SetVersionTagModifiedWithDatabaseValue(driveMainIndexRecord.versionTagModified);
+            header.FileMetadata.SetCreatedModifiedWithDatabaseValue(driveMainIndexRecord.created, driveMainIndexRecord.modified,
+                driveMainIndexRecord.versionTagModified);
             header.FileMetadata.VersionTag = driveMainIndexRecord.hdrVersionTag;
         }
         catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)

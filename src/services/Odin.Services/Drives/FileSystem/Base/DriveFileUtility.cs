@@ -205,6 +205,10 @@ public static class DriveFileUtility
     public static UnixTimeUtc? VersionUpdatedOf(FileMetadata fileMetadata) =>
         fileMetadata.VersionTagModified == UnixTimeUtc.ZeroTime ? null : fileMetadata.VersionTagModified;
 
+    /// <summary><see cref="VersionUpdatedOf"/>, for a caller it answers (<see cref="AnswersVersionUpdated"/>); null for others</summary>
+    public static UnixTimeUtc? VersionUpdatedFor(FileMetadata fileMetadata, IOdinContext odinContext) =>
+        AnswersVersionUpdated(odinContext) ? VersionUpdatedOf(fileMetadata) : null;
+
     private static ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata, bool withVersionUpdated)
     {
         var clientFile = new ClientFileMetadata

@@ -3,6 +3,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -44,6 +45,6 @@ internal static class PeerDirectWrites
     }
 
     internal static bool IsPeerToken(IOdinContext odinContext) =>
-        string.Equals(odinContext.AuthContext, "TransitCapiAuthScheme", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(odinContext.AuthContext, DriveFileUtility.PeerServerAuthContext, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(odinContext.AuthContext, "AutomatedIdentityAuthScheme", StringComparison.OrdinalIgnoreCase);
 }

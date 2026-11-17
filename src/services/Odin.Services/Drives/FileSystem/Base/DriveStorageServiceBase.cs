@@ -910,7 +910,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
         /// conditional on the tag read here, which closes the gap between this check and the write.</param>
         /// <returns>The tombstone's times; null when the delete failed</returns>
-        public async Task<SoftDeleted> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
+        public async Task<WriteTimes> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -923,14 +923,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
             return tombstone == null
                 ? null
-                : new SoftDeleted(UpdatedAfterOwnWrites(file, tombstone.FileMetadata.Updated, odinContext),
-                    DriveFileUtility.VersionUpdatedOf(tombstone.FileMetadata));
+                : WriteTimes.Of(file, tombstone.FileMetadata, odinContext);
         }
 
-        /// <summary>A soft delete's tombstone</summary>
+        /// <summary>A file's times after a write</summary>
         /// <param name="Updated">Its modified time after the request's own changes, as the change feed shows it</param>
-        /// <param name="VersionUpdated">When it got its version tag: the time of the delete</param>
-        public record SoftDeleted(UnixTimeUtc Updated, UnixTimeUtc? VersionUpdated);
+        /// <param name="VersionUpdated">When it got its version tag (<see cref="DriveFileUtility.VersionUpdatedOf"/>)</param>
+        public record WriteTimes(UnixTimeUtc Updated, UnixTimeUtc? VersionUpdated)
+        {
+            public static WriteTimes Of(InternalDriveFileId file, FileMetadata written, IOdinContext odinContext) =>
+                new(UpdatedAfterOwnWrites(file, written.Updated, odinContext), DriveFileUtility.VersionUpdatedOf(written));
+        }
 
         /// <summary>
         /// The header-update paths' answer for an existing header they cannot change: 4106 when it does not exist,
@@ -1789,7 +1792,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// version tag and modified time afterwards. A file the caller may not see answers 4106, as a query would
         /// leave it out.
         /// </summary>
-        public async Task<(Guid VersionTag, UnixTimeUtc Updated, UnixTimeUtc? VersionUpdated)> UpdateArchivalStatus(InternalDriveFileId file,
+        public async Task<(Guid VersionTag, WriteTimes Times)> UpdateArchivalStatus(InternalDriveFileId file,
             Guid expectedVersionTag, int archivalStatus, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
@@ -1798,8 +1801,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (header.FileMetadata.AppData.ArchivalStatus == archivalStatus)
             {
                 // Nothing to change: no new version tag, and modified (a client's "removed at") stays put
-                return (header.FileMetadata.VersionTag.GetValueOrDefault(), header.FileMetadata.Updated,
-                    DriveFileUtility.VersionUpdatedOf(header.FileMetadata));
+                return (header.FileMetadata.VersionTag.GetValueOrDefault(),
+                    new WriteTimes(header.FileMetadata.Updated, DriveFileUtility.VersionUpdatedOf(header.FileMetadata)));
             }
 
             header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
@@ -1816,8 +1819,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
 
-            return (header.FileMetadata.VersionTag.GetValueOrDefault(), UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext),
-                DriveFileUtility.VersionUpdatedOf(header.FileMetadata));
+            return (header.FileMetadata.VersionTag.GetValueOrDefault(), WriteTimes.Of(file, header.FileMetadata, odinContext));
         }
 
         /// <summary>

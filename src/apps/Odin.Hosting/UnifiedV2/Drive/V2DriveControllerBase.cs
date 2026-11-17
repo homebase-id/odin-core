@@ -166,28 +166,28 @@ namespace Odin.Hosting.UnifiedV2.Drive
             var recipientStatus = recipients.Count == 0 ? []
                 : await peerOutgoingTransferService.SendDeleteFileRequest(header, recipients, recipientTokens, WebOdinContext);
 
-            UnixTimeUtc? updated = header.FileMetadata.Updated;
-            var versionUpdated = DriveFileUtility.VersionUpdatedOf(header.FileMetadata);
+            // An already deleted file answers its tombstone's times
+            DriveStorageServiceBase.WriteTimes times =
+                new(header.FileMetadata.Updated, DriveFileUtility.VersionUpdatedOf(header.FileMetadata));
             OdinClientErrorCode? errorCode = null;
             if (!alreadyDeleted)
             {
                 try
                 {
                     // Null is a failure the tombstone write logged and swallowed; like hard delete, it fails the request
-                    var deleted = await storage.SoftDeleteLongTermFile(file, WebOdinContext, null, versionTag)
-                                  ?? throw new OdinSystemException($"Soft delete of {file} failed");
-                    (updated, versionUpdated) = (deleted.Updated, deleted.VersionUpdated);
+                    times = await storage.SoftDeleteLongTermFile(file, WebOdinContext, null, versionTag)
+                            ?? throw new OdinSystemException($"Soft delete of {file} failed");
                 }
                 catch (OdinClientException e)
                 {
                     // An edit since the check above; the recipients were told already, and the result says so
-                    (updated, versionUpdated, errorCode) = (null, null, e.ErrorCode);
+                    (times, errorCode) = (null, e.ErrorCode);
                 }
             }
 
             return new SoftDeleteResultV2
             {
-                FileId = file.FileId, Updated = updated, VersionUpdated = versionUpdated, ErrorCode = errorCode,
+                FileId = file.FileId, Updated = times?.Updated, VersionUpdated = times?.VersionUpdated, ErrorCode = errorCode,
                 RecipientStatus = recipientStatus
             };
         }

@@ -42,7 +42,7 @@ public class VersionUpdatedTests : V2Fixture
         var tags = await owner.Drives.Writer.UpdateLocalAppMetadataTags(drive.Alias, created.FileId,
             new UpdateLocalMetadataTagsRequestV2 { LocalVersionTag = Guid.Empty, Tags = [Guid.NewGuid()] });
         Assert.That(tags.StatusCode, Is.EqualTo(HttpStatusCode.OK), tags.Error?.Content);
-        var touched = await HeaderAsync(owner, drive, created.FileId);
+        var touched = await AppFileUploads.HeaderAsync(owner, drive, created.FileId);
         Assert.That((touched.FileMetadata.VersionUpdated, touched.FileMetadata.Updated.milliseconds > afterCreate.milliseconds),
             Is.EqualTo(((UnixTimeUtc?)afterCreate, true)), "after local tags: (versionUpdated, updated moved)");
         Assert.That((await AppFileUploads.FeedAsync(owner, drive))[created.FileId].VersionUpdated, Is.EqualTo(afterCreate),
@@ -80,7 +80,7 @@ public class VersionUpdatedTests : V2Fixture
             new SoftDeleteBatchRequestV2 { Files = [new SoftDeleteFileV2 { FileId = created.FileId }] });
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
         var deleted = delete.Content!.Results.Single();
-        var tombstone = await HeaderAsync(owner, drive, created.FileId);
+        var tombstone = await AppFileUploads.HeaderAsync(owner, drive, created.FileId);
         Assert.That((deleted.ErrorCode, deleted.VersionUpdated), Is.EqualTo(((Odin.Core.Exceptions.OdinClientErrorCode?)null,
             tombstone.FileMetadata.VersionUpdated)), "the soft delete batch's row, as the tombstone has it");
         Assert.That(tombstone.FileMetadata.VersionUpdated!.Value.milliseconds,
@@ -99,7 +99,7 @@ public class VersionUpdatedTests : V2Fixture
 
         var delete = await owner.Drives.Writer.SoftDeleteFile(spec.TargetDrive.Alias, file.FileId);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
-        var tombstone = await HeaderAsync(owner, spec.TargetDrive, file.FileId);
+        var tombstone = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, file.FileId);
         Assert.That((delete.Content!.VersionUpdated, tombstone.FileMetadata.VersionUpdated.HasValue),
             Is.EqualTo((tombstone.FileMetadata.VersionUpdated, true)), "(the delete's answer, the tombstone has one)");
     }
@@ -113,7 +113,7 @@ public class VersionUpdatedTests : V2Fixture
 
         var v1 = await owner.V1.Drive.GetFileHeader(new ExternalFileIdentifier { FileId = file.FileId, TargetDrive = spec.TargetDrive });
         Assert.That(v1.StatusCode, Is.EqualTo(HttpStatusCode.OK), v1.Error?.Content);
-        Assert.That((v1.Content!.FileMetadata.VersionUpdated, (await HeaderAsync(owner, spec.TargetDrive, file.FileId)).FileMetadata.VersionUpdated),
+        Assert.That((v1.Content!.FileMetadata.VersionUpdated, (await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, file.FileId)).FileMetadata.VersionUpdated),
             Is.EqualTo(((UnixTimeUtc?)null, file.VersionUpdated)), "(V1's header, V2's header)");
     }
 
@@ -121,18 +121,11 @@ public class VersionUpdatedTests : V2Fixture
     private static async Task<UnixTimeUtc> AssertVersionUpdatedIsUpdatedAsync(OwnerSession owner, TargetDrive drive, Guid fileId,
         string after)
     {
-        var header = await HeaderAsync(owner, drive, fileId);
+        var header = await AppFileUploads.HeaderAsync(owner, drive, fileId);
         var minimal = (await AppFileUploads.FeedAsync(owner, drive))[fileId];
         Assert.That((header.FileMetadata.VersionUpdated, minimal.VersionUpdated, minimal.Updated),
             Is.EqualTo(((UnixTimeUtc?)header.FileMetadata.Updated, (UnixTimeUtc?)header.FileMetadata.Updated, header.FileMetadata.Updated)),
             $"after {after}: (header versionUpdated, minimal versionUpdated, minimal updated) all the header's updated");
         return header.FileMetadata.Updated;
-    }
-
-    private static async Task<SharedSecretEncryptedFileHeader> HeaderAsync(OwnerSession owner, TargetDrive drive, Guid fileId)
-    {
-        var response = await owner.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
-        return response.Content!;
     }
 }
