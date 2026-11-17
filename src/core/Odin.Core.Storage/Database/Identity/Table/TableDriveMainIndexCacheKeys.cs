@@ -13,7 +13,7 @@ internal class TableDriveMainIndexCacheKeys(TransactionalCache cache)
     /// The prefix of a cache that holds DriveMainIndex records.  It carries the table's version: a record cached by a
     /// server before a migration lacks the columns the migration added, and would read back without them.
     /// </summary>
-    internal static string KeyPrefix(object owner) => $"{owner.GetType().Name}:{TableVersion}";
+    internal static string KeyPrefix(string cacheName) => $"{cacheName}:{TableVersion}";
 
     private static readonly long TableVersion = new TableDriveMainIndexMigrationList().GetLatestVersion().MigrationVersion;
 

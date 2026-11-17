@@ -13,7 +13,7 @@ public class MainIndexMetaCached : AbstractTableCaching
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public MainIndexMetaCached(MainIndexMeta meta, IIdentityTransactionalCacheFactory cacheFactory)
-        : base(cacheFactory, TableDriveMainIndexCacheKeys.KeyPrefix(meta), TableDriveMainIndexCacheKeys.RootInvalidationTag)
+        : base(cacheFactory, TableDriveMainIndexCacheKeys.KeyPrefix(meta.GetType().Name), TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
         _meta = meta;
         _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);
