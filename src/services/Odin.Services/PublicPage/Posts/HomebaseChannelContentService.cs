@@ -36,6 +36,9 @@ public class HomebaseChannelContentService(
 {
     private const string DefaultPayloadKey = "dflt_key";
     private const int PostFileType = 101;
+
+    /// <summary>The appData.dataType the post editor gives an article</summary>
+    public const int ArticleDataType = 300;
     private const int ChannelDefinitionFileType = 103;
     private const string PostFullTextPayloadKey = "pst_text";
 
@@ -74,13 +77,16 @@ public class HomebaseChannelContentService(
             var file = await QueryBatchFirstFile(targetDrive, odinContext, fileType: ChannelDefinitionFileType);
             if (null != file)
             {
-                results.Add(OdinSystemSerializer.Deserialize<ChannelDefinition>(file.FileMetadata.AppData.Content));
+                var definition = OdinSystemSerializer.Deserialize<ChannelDefinition>(file.FileMetadata.AppData.Content);
+                definition.DriveAlias = targetDrive.Alias;
+                results.Add(definition);
             }
         }
 
         return results;
     }
 
+    /// <param name="dataType">Only posts with this appData.dataType, e.g. <see cref="ArticleDataType"/>; null for all</param>
     /// <param name="includePayloadBody">
     /// When true, each post's full-text body is loaded from its payload (an extra storage read per post).
     /// List/preview callers that only render header fields (caption, slug, abstract, date) should pass false.
@@ -91,7 +97,8 @@ public class HomebaseChannelContentService(
         UnixTimeUtc? fromTimestamp = null,
         int maxPosts = 10,
         bool includePayloadBody = true,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? dataType = null)
     {
         var targetDrive = await GetChannelDrive(channelKey, odinContext);
 
@@ -99,6 +106,7 @@ public class HomebaseChannelContentService(
         {
             TargetDrive = targetDrive,
             FileType = [PostFileType],
+            DataType = dataType == null ? null : [dataType.Value],
             // a soft-deleted post leaves a tombstone (empty content, null payloads) that still matches the file type
             FileState = [FileState.Active]
         };
@@ -464,6 +472,7 @@ public class HomebaseChannelContentService(
             PayloadUrlBase = payloadUrlBase,
             Content = content,
             ImageUrl = imageUrl,
+            Created = postFile.FileMetadata.Created,
             Modified = postFile.FileMetadata.Updated,
             ReactionSummary = postFile.FileMetadata.ReactionPreview
         };

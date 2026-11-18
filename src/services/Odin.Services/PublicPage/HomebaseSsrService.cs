@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -14,6 +15,7 @@ using Odin.Services.DataSubscription.Follower;
 using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
 using Odin.Services.PublicPage.Posts;
 using Odin.Services.PublicPage.Profile;
+using Odin.Services.PublicPage.Seo;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.PublicPage;
@@ -219,20 +221,67 @@ public class HomebaseSsrService(
         return true;
     }
 
+    private const int MaxFeedItems = 20;
+
+    /// <summary>RSS 2.0 feed of the latest public articles across all channels</summary>
+    public async Task<string> BuildFeed(IOdinContext odinContext, CancellationToken cancellationToken)
+    {
+        var tenant = odinContext.Tenant.DomainName;
+        var person = await profileContentService.LoadPersonSchema();
+        var items = new List<RssItem>();
+
+        // as the sitemap: a failure leaves a partial (cached) feed, not an error
+        List<ChannelDefinition> channels = [];
+        try
+        {
+            channels = await channelContentService.GetChannels(odinContext);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogError(e, "Failed loading the channels for the feed");
+        }
+
+        foreach (var channel in channels)
+        {
+            // one bad channel must not take the others with it
+            try
+            {
+                // by drive alias, as a slug would scan every channel drive again
+                var (posts, _) = await channelContentService.GetChannelPosts(
+                    channel.DriveAlias.ToString(), odinContext, maxPosts: MaxFeedItems, includePayloadBody: false,
+                    cancellationToken: cancellationToken, dataType: HomebaseChannelContentService.ArticleDataType);
+
+                foreach (var post in posts.Where(p => p.Content.IsArticle))
+                {
+                    var slug = post.Content.Slug?.Trim();
+                    var id = string.IsNullOrEmpty(slug) || Guid.TryParse(slug, out _) ? post.FileId.ToString() : slug;
+                    items.Add(new RssItem(post.Content.Caption, RssFeed.PostUrl(tenant, channel.Slug, id),
+                        post.FileId.ToString(), post.Content.Abstract, post.PublishedDate.ToDateTimeOffset()));
+                }
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                logger.LogError(e, "Failed rendering posts of channel {slug} in feed", channel.Slug);
+            }
+        }
+
+        return RssFeed.Build(
+            person?.Name ?? tenant,
+            $"https://{tenant}/",
+            person?.BioSummary ?? LinkPreviewDefaults.DefaultDescription,
+            $"https://{tenant}/feed.xml",
+            items.OrderByDescending(i => i.Published).Take(MaxFeedItems));
+    }
+
     public async Task WriteSitemap(StringBuilder contentBuilder, IOdinContext odinContext)
     {
-        string Template(string path, DateTime lastModified, string freq = "weekly")
-        {
-            var root = new UriBuilder()
-            {
-                Scheme = "https",
-                Host = odinContext.Tenant,
-                Path = path,
-            }.Uri;
+        string Page(string path) => new UriBuilder { Scheme = "https", Host = odinContext.Tenant, Path = path }.Uri.ToString();
 
+        string Template(string loc, DateTime lastModified, string freq = "weekly")
+        {
             var s = $@"
             <url>
-                <loc>{root.ToString()}</loc>
+                <loc>{loc}</loc>
                 <lastmod>{lastModified:yyyy-MM-dd}</lastmod>
                 <changefreq>{freq}</changefreq>
                 <priority>1.0</priority>
@@ -244,11 +293,11 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine("<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>");
 
         var lastModified = DateTime.UtcNow;
-        contentBuilder.AppendLine(Template("/", lastModified));
-        contentBuilder.AppendLine(Template("/connections", lastModified));
-        contentBuilder.AppendLine(Template("/links", lastModified));
-        contentBuilder.AppendLine(Template("/about", lastModified));
-        contentBuilder.AppendLine(Template("/posts", lastModified));
+        contentBuilder.AppendLine(Template(Page("/"), lastModified));
+        contentBuilder.AppendLine(Template(Page("/connections"), lastModified));
+        contentBuilder.AppendLine(Template(Page("/links"), lastModified));
+        contentBuilder.AppendLine(Template(Page("/about"), lastModified));
+        contentBuilder.AppendLine(Template(Page("/posts"), lastModified));
 
         try
         {
@@ -257,14 +306,14 @@ public class HomebaseSsrService(
             foreach (var channel in channels)
             {
                 var channelKey = channel.Slug;
-                contentBuilder.AppendLine(Template($"/posts/{channelKey}", lastModified));
+                contentBuilder.AppendLine(Template(Page($"/posts/{channelKey}"), lastModified));
                 var (idList, _) = await channelContentService.GetChannelPostIds(channelKey, odinContext, 1000);
 
                 foreach (var (id, modified) in idList)
                 {
                     // logger.LogDebug("Content: {id}|{slug}|{caption}", content.Id, content.Slug, content.Caption);
                     contentBuilder.AppendLine(Template(
-                        path: $"/posts/{channelKey}/{id}",
+                        loc: RssFeed.PostUrl(odinContext.Tenant, channelKey, id),
                         lastModified: modified.ToDateTime(),
                         freq: "monthly"));
                 }
@@ -376,7 +425,9 @@ public class HomebaseSsrService(
         }
 
         contentBuilder.AppendLine($"<p>{E(post.Content.Abstract)}</p>");
-        contentBuilder.AppendLine($"<p>{post.Content.UserDate.GetValueOrDefault().ToDateTime()}</p>");
+        var published = post.PublishedDate.ToDateTimeOffset().UtcDateTime;
+        contentBuilder.AppendLine(
+            $"<p><time datetime='{published:s}Z'>{published.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}</time></p>");
         contentBuilder.AppendLine($"<hr/>");
         try
         {

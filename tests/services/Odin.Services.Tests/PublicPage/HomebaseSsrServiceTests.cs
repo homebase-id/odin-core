@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using Odin.Core.Time;
 using Odin.Services.Drives;
 using Odin.Services.PublicPage;
 using Odin.Services.PublicPage.Posts;
@@ -68,6 +69,14 @@ public class HomebaseSsrServiceTests
     {
         var html = Article(new ChannelPost { Content = new PostContent { Caption = "c" } });
         Assert.That(html, Does.Not.Contain("<img"));
+    }
+
+    [Test]
+    public void Date_IsInvariantIso_AndFallsBackToCreated()
+    {
+        var created = new UnixTimeUtc(new DateTimeOffset(2026, 3, 1, 10, 0, 0, TimeSpan.Zero));
+        var html = Article(new ChannelPost { Created = created, Content = new PostContent { Caption = "c" } });
+        Assert.That(html, Does.Contain("<p><time datetime='2026-03-01T10:00:00Z'>2026-03-01</time></p>"));
     }
 
     [Test]
