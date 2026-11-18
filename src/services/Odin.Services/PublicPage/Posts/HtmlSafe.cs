@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -22,7 +23,7 @@ internal static class HtmlSafe
     private static readonly (string Mark, string Tag)[] MarkTags =
     [
         ("kbd", "kbd"), ("code", "code"), ("subscript", "sub"), ("superscript", "sup"),
-        ("bold", "strong"), ("italic", "em"), ("underline", "u"), ("strikethrough", "s")
+        ("bold", "strong"), ("italic", "em"), ("underline", "u"), ("strikethrough", "s"), ("strike", "s")
     ];
 
     internal static string WrapMarks(string html, Func<string, bool> hasMark)
@@ -50,13 +51,31 @@ internal static class HtmlSafe
 
     internal static string Enc(string? text) => WebUtility.HtmlEncode(text ?? "");
 
-    internal static string? SafeUrl(string? url, bool allowMailto = false)
+    /// <param name="url">The URL as written</param>
+    /// <param name="allowMailto">Whether mailto: is allowed besides http and https</param>
+    /// <param name="allowRelative">Whether an in-page #anchor or a path on this site is allowed</param>
+    internal static string? SafeUrl(string? url, bool allowMailto = false, bool allowRelative = false)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
         url = url.Trim();
+        if (allowRelative && IsRelative(url)) return url;
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return null;
         if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) return url;
         return allowMailto && uri.Scheme == Uri.UriSchemeMailto ? url : null;
+    }
+
+    /// <summary>
+    /// No scheme before the first '/', '?' or '#', and not //host or \\host, which browsers read as another site;
+    /// a control character could hide either, so none is allowed
+    /// </summary>
+    private static bool IsRelative(string url)
+    {
+        if (url.Any(char.IsControl)) return false;
+        var u = url.Replace('\\', '/');
+        if (u.StartsWith("//", StringComparison.Ordinal)) return false;
+        var colon = u.IndexOf(':');
+        var end = u.IndexOfAny(['/', '?', '#']);
+        return colon < 0 || (end >= 0 && end < colon);
     }
 
     internal static string Mention(string? value)
@@ -72,6 +91,7 @@ internal static class HtmlSafe
     internal static string PlainText(JsonNode? node, string childrenKey)
     {
         if (node is not JsonObject obj) return "";
+        if (Str(obj["type"]) == "hardBreak") return "\n";
         if (Str(obj["text"]) is { } text) return text;
         if (obj[childrenKey] is not JsonArray children) return "";
         var sb = new StringBuilder();
