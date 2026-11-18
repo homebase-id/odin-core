@@ -65,6 +65,15 @@ public class HomebaseSsrServiceTests
     }
 
     [Test]
+    public void MarkdownCaption_ShowsAsEncodedPlainTextWithLineBreaks()
+    {
+        var html = Article(new ChannelPost { Content = new PostContent { Caption = "# **Hi** <script>x</script>\n- two" } });
+
+        Assert.That(html, Does.Contain("<h1>Hi &lt;script&gt;x&lt;/script&gt;<br/>two</h1>"));
+        Assert.That(html, Does.Not.Contain("<script>"));
+    }
+
+    [Test]
     public void NoImageUrl_RendersNoImage()
     {
         var html = Article(new ChannelPost { Content = new PostContent { Caption = "c" } });
