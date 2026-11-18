@@ -24,6 +24,23 @@ public static class ArticleBodyRenderer
         return PlateRichTextParser.Parse(HtmlSafe.ParseJson(bodyJson), payloadUrl);
     }
 
+    /// <summary>
+    /// The post's description for meta tags, JSON-LD and RSS: its abstract, or when that is blank, an excerpt of the
+    /// prose of a bodyDoc that still matches the body (code and live blocks left out), cut at a word boundary to the
+    /// description length. The abstract stays whole: RSS and JSON-LD carry all of it, and meta tags cut their own.
+    /// Null when neither has text.
+    /// </summary>
+    public static string? Description(PostContent? content)
+    {
+        if (content == null) return null;
+        if (!string.IsNullOrWhiteSpace(content.Abstract)) return content.Abstract;
+
+        var bodyJson = Convert.ToString(content.Body) ?? string.Empty;
+        return TiptapDoc(content.BodyDoc, bodyJson) is { } doc
+            ? TiptapRichTextParser.Excerpt(doc, LinkPreviewDefaults.MaxDescriptionLength)
+            : null;
+    }
+
     private static JsonElement? TiptapDoc(JsonElement? bodyDoc, string bodyJson)
     {
         try
