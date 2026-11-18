@@ -55,7 +55,7 @@ public class HomebaseChannelContentService(
             return null;
         }
 
-        return await ParsePostFile(postFile, targetDrive, odinContext, cancellationToken);
+        return await ParsePostFile(postFile, targetDrive, PayloadUrlBase(targetDrive), odinContext, cancellationToken);
     }
 
     /// <summary>
@@ -117,13 +117,14 @@ public class HomebaseChannelContentService(
 
         var batch = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
 
+        var payloadUrlBase = PayloadUrlBase(targetDrive);
         var channelPosts = new List<ChannelPost>();
         foreach (var sr in batch.SearchResults)
         {
             // logger.LogDebug("The DSR content: [{c}]", sr.FileMetadata.AppData.Content);
             try
             {
-                channelPosts.Add(await ParsePostFile(sr, targetDrive, odinContext, cancellationToken, includePayloadBody));
+                channelPosts.Add(await ParsePostFile(sr, targetDrive, payloadUrlBase, odinContext, cancellationToken, includePayloadBody));
             }
             catch (OdinPayloadTooLargeException)
             {
@@ -306,9 +307,21 @@ public class HomebaseChannelContentService(
         return permissibleChannels;
     }
 
+    /// <summary>Guest payload URL on the channel drive, without the fileId and payload key; null outside a request</summary>
+    private string PayloadUrlBase(TargetDrive channelDrive)
+    {
+        var request = httpContextAccessor.HttpContext?.Request;
+        // Host with its port, so the URL also works off the default port
+        return request == null
+            ? null
+            : $"{request.Scheme}://{request.Host.ToUriComponent()}/api/guest/v1/drive/files/payload" +
+              $"?alias={channelDrive.Alias}&type={channelDrive.Type}";
+    }
+
     private async Task<ChannelPost> ParsePostFile(
         SharedSecretEncryptedFileHeader postFile,
         TargetDrive channelDrive,
+        string payloadUrlBase,
         IOdinContext odinContext,
         CancellationToken cancellationToken,
         bool includePayloadBody = true)
@@ -448,6 +461,7 @@ public class HomebaseChannelContentService(
         var post = new ChannelPost()
         {
             FileId = fileId.FileId,
+            PayloadUrlBase = payloadUrlBase,
             Content = content,
             ImageUrl = imageUrl,
             Modified = postFile.FileMetadata.Updated,
