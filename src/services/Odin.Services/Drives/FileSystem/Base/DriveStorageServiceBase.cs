@@ -1118,7 +1118,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             ZkDriveFiles.AssertMayReplace(existingServerHeader, keyHeader, odinContext);
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
-            newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
+            KeepTransitUpdated(existingServerHeader.FileMetadata, newMetadata);
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
             newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created,
@@ -2625,6 +2625,18 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// True when this file's <see cref="FileMetadata.Ttl"/> has come due. A pending
         /// (expire-after-first-read) TTL counts as expired once its unread backstop has passed.
         /// </summary>
+        /// <summary>
+        /// When its sender last changed a received file.  Only a sender's change sets one (<c>PeerFileWriter</c>,
+        /// <c>PeerFileUpdateWriter</c>, both with the time it arrived); any other write keeps the stored one (#2065).
+        /// </summary>
+        private static void KeepTransitUpdated(FileMetadata existing, FileMetadata incoming)
+        {
+            if (incoming.TransitUpdated.milliseconds < existing.TransitUpdated.milliseconds)
+            {
+                incoming.TransitUpdated = existing.TransitUpdated;
+            }
+        }
+
         public static bool IsExpired(ServerFileHeader header)
         {
             var metadata = header.FileMetadata;
@@ -2842,6 +2854,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             }
+
+            KeepTransitUpdated(existingServerHeader.FileMetadata, newMetadata);
 
             ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 
