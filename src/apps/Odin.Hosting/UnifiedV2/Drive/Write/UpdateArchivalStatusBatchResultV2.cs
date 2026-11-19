@@ -30,6 +30,12 @@ public class UpdateArchivalStatusResultV2
     public UnixTimeUtc? Updated { get; init; }
 
     /// <summary>
+    /// When the file got <see cref="NewVersionTag"/>: the change feed's time of the write that gave it, which writes that
+    /// keep the tag don't move; null when <see cref="ErrorCode"/> is set.
+    /// </summary>
+    public UnixTimeUtc? VersionUpdated { get; init; }
+
+    /// <summary>
     /// Null on success. Otherwise why this file was not updated, serialized as a camelCase string like every
     /// OdinClientErrorCode: "versionTagMismatch" (stale tag), "fileNotFound" (missing, or hidden from the caller by
     /// its ACL, as a query would leave it out), "cannotUpdateNonActiveFile" (deleted), or any other client error the

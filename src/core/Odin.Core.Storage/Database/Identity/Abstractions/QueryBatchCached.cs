@@ -31,7 +31,7 @@ public class QueryBatchCached : AbstractTableCaching
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public QueryBatchCached(QueryBatch meta, IIdentityTransactionalCacheFactory cacheFactory)
-        : base(cacheFactory, meta.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
+        : base(cacheFactory, TableDriveMainIndexCacheKeys.KeyPrefix(meta.GetType().Name), TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
         _meta = meta;
         _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);

@@ -56,8 +56,9 @@ public class ClientDriveNotification
 
         if (shape == FileResultShape.Minimal)
         {
-            notification.FileRef = header == null ? null : FileRef.FromHeader(header);
-            notification.PreviousFileRef = previousHeader == null ? null : FileRef.FromHeader(previousHeader);
+            var withVersionUpdated = DriveFileUtility.AnswersVersionUpdated(deviceOdinContext);
+            notification.FileRef = header == null ? null : FileRef.FromHeader(header, withVersionUpdated);
+            notification.PreviousFileRef = previousHeader == null ? null : FileRef.FromHeader(previousHeader, withVersionUpdated);
             return notification;
         }
 
@@ -104,7 +105,7 @@ public sealed class DriveEventMessage(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private string? _minimalJson;
+    private readonly string?[] _minimalJson = new string?[2];
 
     /// <summary>
     /// Whether <paramref name="socket"/> may read the file, by the read rule a query applies
@@ -276,9 +277,11 @@ public sealed class DriveEventMessage(
         var deviceOdinContext = socket.DeviceOdinContext;
 
         var shared = shape == FileResultShape.Minimal && deviceOdinContext?.PermissionsContext?.SharedSecretKey != null;
-        if (shared && _minimalJson != null)
+        // One message for the sockets answered versionUpdated and one for the rest (DriveFileUtility.AnswersVersionUpdated)
+        var slot = shared && DriveFileUtility.AnswersVersionUpdated(deviceOdinContext!) ? 1 : 0;
+        if (shared && _minimalJson[slot] != null)
         {
-            return _minimalJson;
+            return _minimalJson[slot]!;
         }
 
         var notification = ClientDriveNotification.For(shape, deviceOdinContext, drive, headers.Header, headers.Previous);
@@ -286,7 +289,7 @@ public sealed class DriveEventMessage(
 
         if (shared)
         {
-            _minimalJson = json;
+            _minimalJson[slot] = json;
         }
 
         return json;

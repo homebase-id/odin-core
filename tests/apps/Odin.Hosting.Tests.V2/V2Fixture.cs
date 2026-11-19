@@ -415,7 +415,7 @@ public abstract class V2Fixture
     protected async Task ServeStaleHeaderRowAsync(OwnerSession owner, DriveMainIndexRecord staleRow)
     {
         await using var scope = Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
-        var cache = scope.Resolve<IIdentityTransactionalCacheFactory>().Create(nameof(TableDriveMainIndex), "DriveMainIndex");
+        var cache = scope.Resolve<IIdentityTransactionalCacheFactory>().Create(TableDriveMainIndexCached.KeyPrefix, "DriveMainIndex");
         await cache.GetOrSetAsync($"{staleRow.driveId}:file:{staleRow.fileId}",
             _ => Task.FromResult(staleRow), TimeSpan.FromHours(1), tags: [$"driveId:{staleRow.driveId}"]);
 

@@ -204,11 +204,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// Writes a file's share rows (docs/selective-share-pr3-plan.md, section 3), in one transaction with the file's row
         /// locked, so a hard delete alongside can't leave a share behind. <paramref name="checkFile"/> sees the locked row
         /// first: it may refuse by throwing, and may return a new required group with the header's server data to match
-        /// (the first share lifts an Owner file to Connected). The file's modified moves and its version tag stays.
-        /// False, writing nothing, when there is no file.
+        /// (the first share lifts an Owner file to Connected). The file's modified moves and its version tag stays, unless
+        /// <paramref name="movesModified"/>, also shown the locked row, says no. False, writing nothing, when there is no file.
         /// </summary>
         internal async Task<bool> WriteSharesAsync(Guid driveId, Guid fileId, IEnumerable<DriveAclIndexRecord> shares,
-            Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> checkFile)
+            Func<DriveMainIndexRecord, (int requiredSecurityGroup, string hdrServerData)?> checkFile,
+            Func<DriveMainIndexRecord, bool> movesModified = null)
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
@@ -228,7 +229,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 await driveAclIndex.UpsertAsync(share);
             }
 
-            await driveMainIndex.TouchKeepingVersionTagAsync(driveId, fileId, group?.requiredSecurityGroup, group?.hdrServerData);
+            if (movesModified?.Invoke(file) ?? true)
+            {
+                await driveMainIndex.TouchKeepingVersionTagAsync(driveId, fileId, group?.requiredSecurityGroup, group?.hdrServerData);
+            }
+
             tx.Commit();
             return true;
         }

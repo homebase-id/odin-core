@@ -69,7 +69,7 @@ namespace Odin.Hosting.UnifiedV2.Notifications
 
                 // Authentication happens in-band: the handler treats the first message as a
                 // SocketAuthenticationPackage and resolves the peer-subscriber context from it.
-                await notificationHandler.EstablishConnection(webSocket, WebOdinContext, cancellationTokenSources.Token);
+                await notificationHandler.EstablishConnection(webSocket, WebOdinContext, cancellationTokenSources.Token, apiVersion: 2);
             }
             catch (OperationCanceledException)
             {

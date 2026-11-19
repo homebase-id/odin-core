@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Drives;
@@ -15,6 +16,14 @@ public class ClientFileMetadata
     public UnixTimeUtc Created { get; set; }
 
     public UnixTimeUtc Updated { get; set; }
+
+    /// <summary>
+    /// When the file got its <see cref="VersionTag"/>: the <see cref="Updated"/> of the write that gave it, which writes
+    /// that keep the tag (reactions, transfer history, local app data, shares) don't move.  V2 only; absent for a file
+    /// that has none, such as the tombstone of a file no longer shared with the caller.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public UnixTimeUtc? VersionUpdated { get; set; }
 
     public UnixTimeUtc TransitCreated { get; set; }
 

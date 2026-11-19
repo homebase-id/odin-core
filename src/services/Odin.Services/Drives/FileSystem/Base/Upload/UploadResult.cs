@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Peer;
 
@@ -43,6 +44,13 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// (see <see cref="Odin.Services.Base.RequestOwnWrites"/>)
         /// </summary>
         public UnixTimeUtc? Updated { get; set; }
+
+        /// <summary>
+        /// When the file got the version tag it has after this request (<see cref="DriveFileUtility.VersionUpdatedIfAnswered"/>); for V2
+        /// callers only (<see cref="DriveFileUtility.AnswersVersionUpdated"/>)
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public UnixTimeUtc? VersionUpdated { get; set; }
 
         /// <summary>
         /// One entry per payload uploaded in this request; values match the stored file header
