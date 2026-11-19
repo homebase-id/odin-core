@@ -1111,6 +1111,7 @@ three occurrences in five days, on three OS/db combinations, so it is no longer 
 ubuntu jobs passed on the same commit) and `ubuntu/sqlite/release` on PR #2132 (run 44550549070; its postgres and
 windows jobs passed). Neither PR touches the registry or tenant status. Fixing it probably means the test declaring
 the Error it causes, rather than more evidence.
+Once more on PR #2132's next commit, `ubuntu/postgres/release` (run 44560460181), the same event.
 
 ---
 
@@ -1246,6 +1247,12 @@ prints server log events only when a fixture's log assertion fails, and none wer
   `feed-acl-before-queue`; they fail the same way with the branch's `src` changes stashed. Environment:
   `WebScaffold` sets `Admin__Domain=admin.dotyou.cloud`, and that name does not resolve on this machine
   (presumably it needs a hosts entry, as the identity domains have). Not a product failure.
+  **Also in CI, 2026-11-19:** `ItemIsDroppedOnceItHasBeenDeferredForLongerThanTheMaxAge` on `ubuntu/postgres/release`,
+  PR #2132, run 44560460181: `Name or service not known (admin.dotyou.cloud:4444)`. The same job's other admin-API tests
+  (`AnUnsentOutboxItemsFileIsAmongTheQueuedFiles` before it, `PausedSenderDoesNotSendFromItsOutbox` and
+  `TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume` after it) passed, and the sqlite and windows jobs
+  passed it on the same commit. No hosts entry is involved: `admin.dotyou.cloud` resolves to 127.0.0.1 in public DNS
+  (`ns1.id.pub`, checked 2026-11-19), so this was a transient lookup failure on the runner (I).
 - `V1TagTests.CanQueryModifiedByLocalTagsMatchAtLeastOne(Owner,OK)` (Odin.Hosting.Tests.V2) -- `ubuntu/sqlite/release`,
   branch `feed-acl-before-queue`, 2026-10-21 (run 39672278932): the owner's `QueryModified` with
   `LocalTagsMatchAtLeastOne` returned no file carrying the tag just set (`Expected: True But was: False`, line 489).
