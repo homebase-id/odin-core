@@ -1187,6 +1187,10 @@ namespace Odin.Services.Membership.Connections
 
             await circleMembershipService.UpdateAsync(circleDef, odinContext);
 
+            // A member's cached context holds the circle's grants as they were: without this a narrowed grant would keep
+            // granting, and a widened one keep refusing, for up to an hour
+            await odinContextCache.ResetAsync();
+
             await mediator.Publish(new CircleDefinitionChangedNotification
             {
                 OdinContext = odinContext,

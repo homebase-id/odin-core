@@ -142,7 +142,6 @@ public partial class SelectiveShareTests
         // Out of the circle that grants him the drive, his own share gives him nothing, and stays as it was
         var revoke = await s.Frodo.Connections.RevokeCircle(s.CircleId, s.Sam.Identity);
         Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK), revoke.Error?.Content);
-        await ResetFrodosContextsAsync(s);
         await AssertSeesAsync(s.Sam, s, fileId, false, "out of the app's circle", hasDriveAccess: false);
         Assert.That((await s.SharesAsync(fileId)).Single().CircleId, Is.EqualTo(sams), "the share is still there");
         Assert.That(await MembersAsync(s, sams), Is.EqualTo(new[] { Identities.Sam }), "and so is he, in his own circle");

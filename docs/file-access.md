@@ -257,8 +257,9 @@ alone ("With Private Share").
 
 **Peers' contexts are cached** for up to an hour (`OdinContextCache`): their level, enabled circles and whether they
 are reviewed (`TransitAuthenticationService`) **(V)**. The cache is reset when a connection is finalized, blocked or
-deleted, when a member is removed from a circle (`CircleNetworkService.RevokeCircleAccessAsync`), and when a circle is
-disabled or enabled (`CircleMembershipService.SetDisabledAsync`, #2054) **(V)**, so a disabled circle grants nothing from
+deleted, when a member is removed from a circle (`CircleNetworkService.RevokeCircleAccessAsync`), when a circle's grants
+change (`UpdateCircleDefinitionAsync`), and when a circle is disabled or enabled (`CircleMembershipService.SetDisabledAsync`,
+#2054) **(V)**, so a disabled circle grants nothing from
 the next request on.
 
 ## Copies sent to others
@@ -392,10 +393,9 @@ circles together.
 - **Changing a circle's grant changes all of its shares at once, both ways.** Take `Read` away and its members stop
   reading every file shared through it, unless another of their circles grants `Read`; give it back and every share
   works again as it was. The rows aren't touched,
-  so nothing has to go through them. "At once" means when the member's context is next built: a change of a circle's
-  grants doesn't reset the cached peer contexts (`CircleNetworkService.UpdateCircleDefinitionAsync`) **(V)**, so it
-  takes up to an hour to reach a peer, on every drive. A disable or enable, by contrast, resets them (#2054, "Peers'
-  contexts are cached" above).
+  so nothing has to go through them. "At once" means from the member's next request: a change of a circle's grants
+  resets the cached peer contexts (`CircleNetworkService.UpdateCircleDefinitionAsync`), as a disable or enable does
+  (#2054, "Peers' contexts are cached" above) **(V)**.
 - **A share starts within its ceiling:** the share API refuses a row with a bit its circle doesn't grant on the drive
   (`DriveShareService.cs:296-302`) **(V)**; for an individual circle, which grants nothing, a bit the member's other
   circles don't. A later change of a grant caps the row instead.
