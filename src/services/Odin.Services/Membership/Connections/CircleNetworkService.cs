@@ -2558,9 +2558,11 @@ namespace Odin.Services.Membership.Connections
             var (accessRegistration, token) = await exchangeGrantService.CreateClientAccessToken(
                 grantKeyStoreKey, ClientTokenType.PeerNotificationSubscriber);
 
+            var icr = await GetIcrAsync(caller, odinContext, overrideHack: true, tryUpgradeEncryption: false);
             var client = new PeerIcrClient
             {
                 Identity = caller,
+                ConnectionCreated = icr.Created,
                 ServerHalfOfClientKey = accessRegistration
             };
 

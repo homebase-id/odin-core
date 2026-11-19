@@ -70,7 +70,7 @@ public class OdinContextCache(
         Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory,
         string? scope = null)
     {
-        var key = token.AsKey().ToString().ToLower() + (scope == null ? "" : $":{scope}");
+        var key = GetCacheKey(token, scope);
 
         // SEB:NOTE deliberately not using GetOrSetAsync here to avoid dealing with exceptions thrown by the factory.
         // Two builds for the same token give the same context, except across a ResetAsync: a context built from the
@@ -92,6 +92,16 @@ public class OdinContextCache(
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// The token's type is part of the key: it is a byte the caller sends, and each type is resolved
+    /// by its own handler, so a context built for one type must never be found under another.
+    /// </summary>
+    internal static string GetCacheKey(ClientAuthenticationToken token, string? scope)
+    {
+        var key = $"{token.AsKey().ToString().ToLower()}:{(int)token.ClientTokenType}";
+        return scope == null ? key : $"{key}:{scope}";
     }
 
     //

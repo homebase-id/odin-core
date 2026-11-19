@@ -314,20 +314,18 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 // authToken comes from ICR, not the app registration
                 // because it's a caller wanting to get peer app notifications
-                var ctx = await _peerAppNotificationService.GetDotYouContext(clientAuthToken, currentOdinContext);
-                if (null == ctx)
+                var cached = await _peerAppNotificationService.GetDotYouContext(clientAuthToken, currentOdinContext);
+                if (null == cached)
                 {
                     throw new OdinSecurityException("Invalid Client Token");
                 }
 
+                // A copy: the context is the token's cached one, which every socket on the token shares.
+                // Setting the auth context on it would make the next socket on the token fail with
+                // "Cannot reset auth context" until the entry expires.
+                var ctx = cached.Clone();
                 ctx.SetAuthContext("websocket-peer-app-subscriber-token");
-                if (ctx.ApiVersion != apiVersion)
-                {
-                    // A copy: the context is the token's cached one, which every socket on the token shares
-                    ctx = ctx.Clone();
-                    ctx.SetApiVersion(apiVersion);
-                }
-
+                ctx.SetApiVersion(apiVersion);
                 return ctx;
             }
 

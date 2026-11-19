@@ -72,14 +72,36 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
     }
 
     [Test]
-    public Task CanInvalidateCache() => AssertQueryIsCachedUntilAsync(async (_, _) =>
+    public async Task AnAnonymousCallerCannotInvalidateTheCache()
     {
         using var anonClient = Host.CreateAnonymousClient(PrimaryIdentity);
         var svc = RestService.For<IRefitHomeDriveQuery>(anonClient);
 
         var invalidateCacheResponse = await svc.InvalidateCache();
-        Assert.That(invalidateCacheResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-    });
+        Assert.That(invalidateCacheResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [Test]
+    public async Task QueriesSharingSectionNamesGetTheirOwnResults()
+    {
+        var owner = await LoginAsOwner();
+        var seeded = await UploadData(owner);
+
+        // Same section name, a different drive each time: the second must not be served the first's result
+        foreach (var s in seeded)
+        {
+            var result = await QueryBatchCollectionAsync([
+                new CollectionQueryParamSection
+                {
+                    Name = "shared-name",
+                    QueryParams = new FileQueryParamsV1 { TargetDrive = s.Drive, FileType = [HomeCachingService.PostFileType] }
+                }
+            ]);
+
+            Assert.That(result.Results.Single().SearchResults.Select(h => h.FileId),
+                Is.EqualTo(new[] { s.UploadResult.File.FileId }));
+        }
+    }
 
     [Test]
     public Task CanInvalidateCache_ByAddingFileToChannel() => AssertQueryIsCachedUntilAsync(

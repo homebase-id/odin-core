@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -147,6 +148,14 @@ public class CircleNetworkStorage
         await _db.AppGrantsCached.DeleteByIdentityAsync(odinId.ToHashId());
         await _circleMembershipService.DeleteMemberFromAllCirclesAsync(odinId, DomainType.Identity);
 
+        // The peer notification tokens minted for this connection end with it
+        var peerClients = await _clientRegistrationStorage.GetByTypeAndIssuedToAsync<PeerIcrClient>(
+            new PeerIcrClient().Type, odinId.DomainName);
+        if (peerClients.Count > 0)
+        {
+            await _clientRegistrationStorage.DeleteManyAsync(peerClients.Select(c => c.Id));
+        }
+
         tx.Commit();
     }
 
@@ -207,7 +216,13 @@ public class CircleNetworkStorage
     public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
     {
         var (client, row) = await _clientRegistrationStorage.GetWithRowAsync<PeerIcrClient>(accessRegId);
-        return row?.catType == client?.Type ? client : null;
+        if (client == null || row == null || row.catType != client.Type)
+        {
+            return null;
+        }
+
+        await _clientRegistrationStorage.ExtendLife(row);
+        return client;
     }
     
     private async Task<IdentityConnectionRegistration> MapFromStorageAsync(ConnectionsRecord record)
