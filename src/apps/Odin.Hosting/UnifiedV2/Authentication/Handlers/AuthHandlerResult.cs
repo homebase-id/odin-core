@@ -14,6 +14,9 @@ public sealed class AuthHandlerResult
     /// </summary>
     public List<Claim>? Claims { get; init; }
 
+    /// <summary>
+    /// Refuse the request (401)
+    /// </summary>
     public static AuthHandlerResult Fail()
     {
         return new AuthHandlerResult
@@ -23,11 +26,14 @@ public sealed class AuthHandlerResult
         };
     }
 
-    public static AuthHandlerResult Fallback()
+    /// <summary>
+    /// Serve the request as an anonymous caller, as if it brought no token
+    /// </summary>
+    public static AuthHandlerResult Anonymous()
     {
         return new AuthHandlerResult
         {
-            Status = AuthHandlerStatus.Fail,
+            Status = AuthHandlerStatus.AnonymousFallback,
             Claims = null
         };
     }

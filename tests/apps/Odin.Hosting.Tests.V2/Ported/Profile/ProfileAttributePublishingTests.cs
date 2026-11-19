@@ -469,6 +469,112 @@ public class ProfileAttributePublishingTests : V2Fixture
         AccessControlList = AccessControlList.Anonymous
     };
 
+    // #2090: the publish query used to cap the raw rows at one and filter for public after, so a newer
+    // non-public attribute hid an older public one and /pub/image silently fell back to initials.
+
+    [Test]
+    public async Task NewerNonPublicPhoto_DoesNotHideOlderPublicPhoto()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ProfileDrive,
+            DrivePermission.Read, [PermissionKeys.ManageProfile]);
+        var profile = new V2ProfileClient(app.Identity, app.Factory);
+        var circleId = await CreateCircleAsync(owner);
+
+        var publicThumb = Enumerable.Range(0, 64).Select(i => (byte)i).ToArray();
+        var publicPhoto = await profile.SetPhotoAttributeAsync(PhotoRequest(publicThumb, ProfileAttributeVisibility.Anonymous));
+        Assert.That(publicPhoto.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {publicPhoto.StatusCode}");
+
+        var circleThumb = Enumerable.Range(100, 64).Select(i => (byte)i).ToArray();
+        var circlePhoto = await profile.SetPhotoAttributeAsync(
+            PhotoRequest(circleThumb, ProfileAttributeVisibility.Connected, [circleId]));
+        Assert.That(circlePhoto.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {circlePhoto.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageResp.StatusCode}");
+        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/jpeg"),
+            "the older public photo should be published, not the initials fallback");
+        Assert.That(await imageResp.Content.ReadAsByteArrayAsync(), Is.EqualTo(publicThumb));
+    }
+
+    [Test]
+    public async Task NewerNonPublicName_DoesNotHideOlderPublicNameInInitialsAvatar()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ProfileDrive,
+            DrivePermission.Read, [PermissionKeys.ManageProfile]);
+        var profile = new V2ProfileClient(app.Identity, app.Factory);
+        var circleId = await CreateCircleAsync(owner);
+
+        var publicName = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = NameType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object> { ["givenName"] = "Frodo", ["surname"] = "Baggins" }
+        });
+        Assert.That(publicName.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {publicName.StatusCode}");
+
+        var circleName = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = NameType,
+            Visibility = ProfileAttributeVisibility.Connected,
+            CircleIds = [circleId],
+            Data = new Dictionary<string, object> { ["givenName"] = "Secret", ["surname"] = "Name" }
+        });
+        Assert.That(circleName.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {circleName.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageResp.StatusCode}");
+
+        InitialsAvatarGenerator.TryGenerate("Frodo", "Baggins", Identities.Frodo, out var expectedPngBase64);
+        Assert.That(await imageResp.Content.ReadAsByteArrayAsync(), Is.EqualTo(Convert.FromBase64String(expectedPngBase64!)),
+            "the initials should come from the public Name, not the newer circle-only one");
+    }
+
+    [Test]
+    public async Task OnlyNonPublicPhotos_StillPublishesFallback()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ProfileDrive,
+            DrivePermission.Read, [PermissionKeys.ManageProfile]);
+        var profile = new V2ProfileClient(app.Identity, app.Factory);
+        var circleId = await CreateCircleAsync(owner);
+
+        var circleThumb = Enumerable.Range(100, 64).Select(i => (byte)i).ToArray();
+        var circlePhoto = await profile.SetPhotoAttributeAsync(
+            PhotoRequest(circleThumb, ProfileAttributeVisibility.Connected, [circleId]));
+        Assert.That(circlePhoto.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {circlePhoto.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageResp.StatusCode}");
+        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/png"));
+
+        InitialsAvatarGenerator.TryGenerateFromDomain(Identities.Frodo, out var expectedPngBase64);
+        Assert.That(await imageResp.Content.ReadAsByteArrayAsync(), Is.EqualTo(Convert.FromBase64String(expectedPngBase64!)));
+    }
+
+    private static SetPhotoAttributeRequest PhotoRequest(byte[] thumb, ProfileAttributeVisibility visibility,
+        List<Guid> circleIds = null) => new()
+    {
+        Visibility = visibility,
+        CircleIds = circleIds,
+        ContentType = "image/webp",
+        Content = Enumerable.Repeat((byte)0xAB, 128).ToArray(),
+        Thumbnails =
+        [
+            new ProfilePhotoThumbnail
+            {
+                PixelWidth = 250,
+                PixelHeight = 250,
+                ContentType = "image/jpeg",
+                Content = thumb
+            }
+        ]
+    };
+
     private static async Task<Guid> CreateCircleAsync(OwnerSession owner)
     {
         var circleId = Guid.NewGuid();
