@@ -10,11 +10,14 @@ public sealed record DriveSize(long Count, long Size);
 
 public class TableDriveMainIndexCached : AbstractTableCaching
 {
+    /// <summary>The prefix of this cache's keys, with the table's version (<see cref="TableDriveMainIndexCacheKeys.KeyPrefix"/>)</summary>
+    public static readonly string KeyPrefix = TableDriveMainIndexCacheKeys.KeyPrefix(nameof(TableDriveMainIndex));
+
     private readonly TableDriveMainIndex _table;
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public TableDriveMainIndexCached(TableDriveMainIndex table, IIdentityTransactionalCacheFactory cacheFactory) :
-        base(cacheFactory, table.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
+        base(cacheFactory, KeyPrefix, TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
         _table = table;
         _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);

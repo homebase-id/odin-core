@@ -53,4 +53,5 @@ public static class SwaggerInfo
 
     // Peer notification subscriptions (live updates on drives hosted by other identities)
     public const string Notifications = "Notifications";
+    public const string Calling = "Calling";
 }

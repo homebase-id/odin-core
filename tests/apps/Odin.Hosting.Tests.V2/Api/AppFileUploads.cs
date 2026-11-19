@@ -12,6 +12,7 @@ using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.UnifiedV2.Drive.Write;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -262,6 +263,16 @@ public static class AppFileUploads
     {
         var delete = await owner.Drives.Writer.SoftDeleteFile(file.DriveId, file.FileId);
         Assert.That(delete.IsSuccessStatusCode, Is.True, $"seed delete failed: {delete.StatusCode}");
+    }
+
+    /// <summary>
+    /// The file's header as the owner reads it
+    /// </summary>
+    public static async Task<SharedSecretEncryptedFileHeader> HeaderAsync(OwnerSession owner, TargetDrive drive, Guid fileId)
+    {
+        var response = await owner.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"header read: {response.StatusCode} {response.Error?.Content}");
+        return response.Content!;
     }
 
     /// <summary>

@@ -282,6 +282,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 GlobalTransitId = metadata.GlobalTransitId,
                 NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
                 Updated = DriveStorageServiceBase.UpdatedAfterOwnWrites(Package.InternalFile, existingHeader.FileMetadata.Updated, odinContext),
+                // From what this write stored, as NewVersionTag is: a write landing since would make the header's a mismatch
+                VersionUpdated = DriveFileUtility.VersionUpdatedIfAnswered(metadata, odinContext),
                 RecipientStatus = recipientStatus,
                 Payloads = (uploadedPayloads ?? []).Select(PayloadUploadReceipt.From).ToList()
             };
