@@ -139,6 +139,9 @@ public class PeerAppNotificationService : PeerServiceBase
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Identity, nameof(request.Identity));
 
+        // The token reads the peer's drives as this identity, so a send-only grant is not enough to fetch one
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+
         var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, odinContext);
 
         ApiResponse<SharedSecretEncryptedPayload> response = null;
@@ -208,6 +211,12 @@ public class PeerAppNotificationService : PeerServiceBase
         var icr = await CircleNetworkService.GetIcrAsync(peerIcrClient.Identity, odinContext, overrideHack: true, tryUpgradeEncryption);
 
         if (!icr.IsConnected())
+        {
+            return (false, null);
+        }
+
+        // A token minted under an earlier connection with this identity ends with it
+        if (peerIcrClient.ConnectionCreated != icr.Created)
         {
             return (false, null);
         }

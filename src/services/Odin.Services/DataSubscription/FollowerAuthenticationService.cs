@@ -30,7 +30,8 @@ public class FollowerAuthenticationService(
         var tempToken = new ClientAuthenticationToken()
         {
             Id = guidId,
-            AccessTokenHalfKey = guidId.ToByteArray().ToSensitiveByteArray(),
+            // Not the id again: the cache keys on id XOR half key, which would then be the same for every caller
+            AccessTokenHalfKey = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
             ClientTokenType = ClientTokenType.DataProvider
         };
 
@@ -50,7 +51,7 @@ public class FollowerAuthenticationService(
             return dotYouContext;
         });
 
-        return await cache.GetOrAddContextAsync(tempToken, creator);
+        return await cache.GetOrAddContextAsync(tempToken, creator, scope: "follower");
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId, ClientAuthenticationToken token)
