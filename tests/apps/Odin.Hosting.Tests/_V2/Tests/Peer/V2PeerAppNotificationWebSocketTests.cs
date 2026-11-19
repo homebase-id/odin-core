@@ -250,6 +250,41 @@ public class V2PeerAppNotificationWebSocketTests
     }
 
     [Test]
+    [TestCase(null)] // V1 route
+    [TestCase(UnifiedApiRouteConstants.PeerNotifySocket)]
+    public async Task ASecondSocketOnTheSameTokenConnects(string path)
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var options = new EstablishConnectionOptions { Drives = [targetDrive] };
+
+        var memberAppApi = await PrepareScenario(host, member, targetDrive);
+        var first = new PeerTestAppWebSocketListener();
+        var second = new PeerTestAppWebSocketListener();
+        try
+        {
+            var tokenResponse = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(tokenResponse.IsSuccessStatusCode, "failed to get remote notification token");
+            var token = tokenResponse.Content!.ToCat();
+
+            // The token's context is cached; the first socket must not leave its auth context on the cached copy
+            await first.ConnectAsync(host.Identity.OdinId, token, options, path);
+            await first.DisconnectAsync();
+
+            // A reconnect on the same token, while the cache entry is still live
+            await second.ConnectAsync(host.Identity.OdinId, token, options, path);
+        }
+        finally
+        {
+            await first.DisconnectAsync();
+            await second.DisconnectAsync();
+            await Shutdown(host, member);
+        }
+    }
+
+    [Test]
     public async Task APeerTokenEndsWithTheConnectionItWasMintedUnder()
     {
         var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
@@ -270,7 +305,9 @@ public class V2PeerAppNotificationWebSocketTests
             await host.Connections.SendConnectionRequest(member.Identity.OdinId, [circleId]);
             await member.Connections.AcceptConnectionRequest(host.Identity.OdinId);
 
-            Assert.ThrowsAsync<Exception>(() => listener.ConnectAsync(host.Identity.OdinId, oldToken.Content!.ToCat(),
+            // Refused either way: an error frame, or (seen once in CI, ubuntu/sqlite) the socket reset before one.
+            // Only a completed handshake means the old token was accepted.
+            Assert.CatchAsync<Exception>(() => listener.ConnectAsync(host.Identity.OdinId, oldToken.Content!.ToCat(),
                 options, UnifiedApiRouteConstants.PeerNotifySocket), "a token from the earlier connection was accepted");
 
             // A token fetched under the new connection works

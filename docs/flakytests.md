@@ -1107,6 +1107,11 @@ only sometimes does is **undiagnosed**. It may also be the unexplained Error in 
 times. #2013's other jobs passed on the same code, and it touches no registry or tenant-status code:
 three occurrences in five days, on three OS/db combinations, so it is no longer rare.
 
+**Again 2026-11-13 and 2026-11-19, same event:** `windows/sqlite/debug` on PR #2137 (run 43432544297; its two
+ubuntu jobs passed on the same commit) and `ubuntu/sqlite/release` on PR #2132 (run 44550549070; its postgres and
+windows jobs passed). Neither PR touches the registry or tenant status. Fixing it probably means the test declaring
+the Error it causes, rather than more evidence.
+
 ---
 
 ## `Odin.Core.Storage.Tests.Cache.CrossNodeStaleFillTests`
@@ -1176,6 +1181,25 @@ connections, notifications, WebSockets or this V1 fixture. Recent `main` runs we
 
 **Cause, a hypothesis:** the listener's teardown disposes the socket under its own pending `ReceiveAsync`, and the
 resulting abort escapes `DisconnectAsync` instead of being treated as the expected end of the stream.
+
+---
+
+## `Odin.Hosting.Tests._V2.Tests.Peer.V2PeerAppNotificationWebSocketTests`
+
+- `APeerTokenEndsWithTheConnectionItWasMintedUnder`
+
+**Where:** CI, `ubuntu/sqlite/release`, PR #2132 (`context-cache-key-per-token-type`), run 44550549070,
+2026-11-19. `ubuntu/postgres/release` and `windows/sqlite/debug` passed it on the same commit; it passed 8 of 8
+runs locally (macOS, sqlite) on the branch.
+
+**Symptom:** the old-connection token was refused, but by a TCP reset during the handshake read
+(`WebSocketException: The remote party closed the WebSocket connection without completing the close handshake`,
+`Connection reset by peer`) instead of the expected error frame. `Assert.ThrowsAsync<Exception>` matches that exact
+type only, so it failed the test.
+
+**Fix in the test:** it now uses `Assert.CatchAsync<Exception>`: any failure to complete the handshake is a refusal,
+and an accepted token would still fail the test. **Why the server reset the socket is undiagnosed**: the scaffold
+prints server log events only when a fixture's log assertion fails, and none were printed for this fixture.
 
 ---
 
