@@ -7,6 +7,7 @@ using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Org.BouncyCastle.Tls;
@@ -401,6 +402,62 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (md.historyStatus != 1)
                 Assert.Fail();
         }
+
+        /// <summary>
+        /// A clash names its index, so DriveQuery can tell a global transit id taken from a uniqueId taken without reading
+        /// the rows, which Postgres refuses inside the failed transaction (#2085).
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task AUniqueClashNamesItsColumn(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+
+            var driveId = Guid.NewGuid();
+            var first = Row(driveId, globalTransitId: Guid.NewGuid(), uniqueId: Guid.NewGuid());
+            await tblDriveMainIndex.InsertAsync(first);
+
+            var sameGtid = Assert.ThrowsAsync<OdinDatabaseException>(() =>
+                tblDriveMainIndex.InsertAsync(Row(driveId, first.globalTransitId, uniqueId: Guid.NewGuid())));
+            Assert.That(sameGtid!.IsUniqueConstraintViolationOn("globalTransitId"), Is.True, sameGtid.InnerException?.Message);
+            Assert.That(sameGtid.IsUniqueConstraintViolationOn("uniqueId"), Is.False, sameGtid.InnerException?.Message);
+
+            var sameUid = Assert.ThrowsAsync<OdinDatabaseException>(() =>
+                tblDriveMainIndex.InsertAsync(Row(driveId, globalTransitId: Guid.NewGuid(), first.uniqueId)));
+            Assert.That(sameUid!.IsUniqueConstraintViolationOn("uniqueId"), Is.True, sameUid.InnerException?.Message);
+            Assert.That(sameUid.IsUniqueConstraintViolationOn("globalTransitId"), Is.False, sameUid.InnerException?.Message);
+        }
+
+        private static DriveMainIndexRecord Row(Guid driveId, Guid? globalTransitId, Guid? uniqueId) => new()
+        {
+            driveId = driveId,
+            fileId = Guid.NewGuid(),
+            globalTransitId = globalTransitId,
+            created = UnixTimeUtc.Now(),
+            fileType = 7,
+            dataType = 42,
+            senderId = "sender",
+            groupId = Guid.NewGuid(),
+            uniqueId = uniqueId,
+            userDate = UnixTimeUtc.Now(),
+            archivalStatus = 0,
+            historyStatus = 1,
+            fileSystemType = 44,
+            hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000"}""",
+            hdrVersionTag = SequentialGuid.CreateGuid(),
+            hdrAppData = """{"hdrAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+            hdrReactionSummary = """{"hdrReactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+            hdrServerData = """{"hdrServerData": "123e4567-e89b-12d3-a456-426614174000"}""",
+            hdrTransferHistory = """{"hdrTransferHistory": "123e4567-e89b-12d3-a456-426614174000"}""",
+            hdrFileMetaData = """{"hdrFileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+            hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+            hdrTmpDriveType = SequentialGuid.CreateGuid()
+        };
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]

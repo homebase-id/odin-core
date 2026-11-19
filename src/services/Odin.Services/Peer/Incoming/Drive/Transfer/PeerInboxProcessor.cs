@@ -281,10 +281,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (OdinClientException oce)
             {
-                if (oce.ErrorCode == OdinClientErrorCode.ExistingFileWithUniqueId)
+                if (oce.ErrorCode is OdinClientErrorCode.ExistingFileWithUniqueId or OdinClientErrorCode.ExistingFileWithGlobalTransitId)
                 {
                     logger.LogInformation(oce,
-                        "Processing Inbox -> UniqueId Conflict: " +
+                        "Processing Inbox -> UniqueId or GlobalTransitId Conflict: " +
                         "\nSender: {sender}. " +
                         "\nInbox InstructionType: {instructionType}. " +
                         "\nFile:{f}. " +
