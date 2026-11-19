@@ -1113,6 +1113,12 @@ windows jobs passed). Neither PR touches the registry or tenant status. Fixing i
 the Error it causes, rather than more evidence.
 Once more on PR #2132's next commit, `ubuntu/postgres/release` (run 44560460181), the same event.
 
+**Fixture teardown: fixed 2026-11-19 (PR #2132).** It was never random at the source: run alone,
+`AFailedAlignmentAfterAnotherNodesChangeIsRetried` failed the fixture's teardown 3 of 3 times on this event. The test
+now asserts the Error was logged, and the fixture's teardown ignores only that event (an `InvalidOperationException`
+with the simulated message). Why the full CI suite usually didn't count it remains unexplained. The
+`TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume` outbox failure above is separate and still open.
+
 ---
 
 ## `Odin.Core.Storage.Tests.Cache.CrossNodeStaleFillTests`
