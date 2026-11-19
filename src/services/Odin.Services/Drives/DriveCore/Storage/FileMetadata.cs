@@ -73,6 +73,19 @@ namespace Odin.Services.Drives.DriveCore.Storage
             init => _updated = value;
         }
 
+        private UnixTimeUtc _versionTagModified;
+
+        /// <summary>
+        /// When the file got its <see cref="VersionTag"/>: the <see cref="Updated"/> of the write that gave it the tag.
+        /// Writes that keep the tag (reactions, transfer history, local app data, shares) move <see cref="Updated"/> alone.
+        /// The database sets it when the header is saved, whatever a peer's copy of this object carried.
+        /// </summary>
+        public UnixTimeUtc VersionTagModified
+        {
+            get => _versionTagModified;
+            init => _versionTagModified = value;
+        }
+
         public UnixTimeUtc TransitCreated { get; set; }
 
         public UnixTimeUtc TransitUpdated { get; set; }
@@ -119,15 +132,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public long Ttl { get; set; }
 
-        public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
+        /// <param name="databaseVersionTagModified">When the row got its version tag, from a write that gave it one</param>
+        public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified,
+            UnixTimeUtc? databaseVersionTagModified = null)
         {
             _created = databaseCreated;
+            if (databaseVersionTagModified != null)
+                _versionTagModified = databaseVersionTagModified.Value;
 
             if (databaseModified != null)
                 _updated = databaseModified.Value;
             else
                 _updated = UnixTimeUtc.ZeroTime;
         }
+
 
         // The record is needed to fill in specific colums from the record that are not in the Dto,
         // i.e. the columns that are commented out above
@@ -168,6 +186,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             FileState = (FileState)record.fileState;
             Created = record.created;
             Updated = record.modified;
+            VersionTagModified = record.versionTagModified;
 
             ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
                 ? null

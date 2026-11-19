@@ -81,6 +81,8 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
             if (!TryFindClientAuthToken(out var token))
             {
+                // A V2 request without a token is still answered as V2, as one whose token falls back to anonymous is
+                odinContext.SetApiVersion(2);
                 return await CreateAnonResult(Context, odinContext);
             }
 

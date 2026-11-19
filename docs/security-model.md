@@ -341,7 +341,9 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
   - **on a drive with `AllowAnonymousReads` both checks are skipped** **(V)**. Whether the tenant "can comment" flags are
     still enforced elsewhere: **not checked** **(?)**;
   - telling recipients to delete a comment accepts either transit key; other file deletes need `UseTransitWrite`
-    (`AssertCanTellRecipientsToDelete`, #1978) **(V)**. Why comments are looser: **(?)**;
+    (`AssertCanTellRecipientsToDelete`, #1978), by file id and by global transit id (`senddeleterequest`)
+    **(V, tested)**. A channel's deleted post reaching its followers' feed drives asks nothing more of the caller than the
+    delete it follows (`SendFeedDeleteFileRequest`) **(V)**. Why comments are looser: **(?)**;
   - **who may comment follows the sharing model:** on a Server Share drive the members who may read, by the checks
     above; on a Private Share drive through shares (below); on a Private drive only owner callers (and the server's own jobs, a
     comment's TTL): any other caller's comment, new, an update or a delete, is refused, a local upload (a guest or YouAuth caller) as well as a peer's
@@ -393,6 +395,13 @@ serverMetadata
 - **`versionTag`** is the file's optimistic-concurrency token. Every header write gives it a new one, and a write that names
   a stale tag fails with `VersionTagMismatch` (`AssertVersionTagMatches`) **(V)**. Compare `updated` too, not only the
   tag (#1967).
+- **`versionUpdated`** (V2 only) is when the file got its `versionTag`: the `updated` of the write that gave it, set by
+  the same SQL statement from the same expression (`TableDriveMainIndex.UpsertAllButReactionsAndTransferAsync`, column
+  `versionTagModified`) **(V, tested)**. The three parts below move `updated` and leave it. Files from before the
+  column took their `updated` then. It's in the header, the minimal shape, and the answers to a create, an update, an
+  archival-status batch and a soft delete (single and batch); V1 answers leave it out, and so does a minimal socket that
+  isn't V2 (`DriveFileUtility.AnswersVersionUpdated`) **(V, tested)**. A member's server relays the sharer's to its own V2
+  callers only **(V, tested for V2)**. A payload upload or delete answers only its new tag **(V)**.
 - **Three parts don't follow that rule.** They have their own update paths, which write their own column and advance
   `modified` (`updated`), but leave `versionTag` alone (`TableDriveMainIndex`) **(V)**:
   - **`localAppData`** has **its own `versionTag`**, checked by compare-and-set on `hdrLocalVersionTag`. It's for

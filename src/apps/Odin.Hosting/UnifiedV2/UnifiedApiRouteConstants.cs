@@ -24,6 +24,7 @@ public static class UnifiedApiRouteConstants
     public const string Notify = BasePath + "/notify/push";
     public const string NotifyList = BasePath + "/notify";
     public const string LiveRelay = BasePath + "/live-relay";
+    public const string Calling = BasePath + "/calling";
     public const string NotifySocket = BasePath + "/notify/ws-token";
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
     public const string Links = BasePath + "/links";

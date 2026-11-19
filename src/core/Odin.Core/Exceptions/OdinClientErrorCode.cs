@@ -124,6 +124,9 @@ public enum OdinClientErrorCode
     PayloadGone = 4179,
     ExistingFileWithGlobalTransitId = 4180,
 
+    /// <summary>A payload or thumbnail of a deleted file was asked for (HTTP 404): the file was there and is deleted</summary>
+    FileDeleted = 4181,
+
 
     // Connection errors 50xx
     NotAnAutoConnection = 5001, // retired with the system circles (#1809); not reused

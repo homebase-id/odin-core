@@ -1,0 +1,101 @@
+{
+  "type": "doc",
+  "content": [
+    { "type": "heading", "attrs": { "level": 1, "textAlign": "center", "indent": 0 }, "content": [{ "type": "text", "text": "Field notes" }] },
+    { "type": "heading", "attrs": { "level": 2, "textAlign": null, "indent": 1 }, "content": [{ "type": "text", "text": "Indented heading" }] },
+    {
+      "type": "paragraph",
+      "attrs": { "textAlign": "justify", "indent": 2 },
+      "content": [
+        { "type": "text", "text": "Read " },
+        { "type": "noteLink", "attrs": { "noteId": "7f1c2e0a", "label": "My <b>other</b> note" } },
+        { "type": "text", "text": " and " },
+        { "type": "text", "text": "this", "marks": [{ "type": "link", "attrs": { "href": "https://example.com/a?b=1&c=\"2\"", "target": "_blank", "rel": "noopener noreferrer nofollow", "class": null } }] },
+        { "type": "text", "text": ", not ", "marks": [{ "type": "underline" }] },
+        { "type": "text", "text": "that", "marks": [{ "type": "link", "attrs": { "href": "javascript:alert(document.cookie)" } }] },
+        { "type": "text", "text": " or ", "marks": [{ "type": "strike" }] },
+        { "type": "text", "text": "this", "marks": [{ "type": "link", "attrs": { "href": " JaVaScRiPt:alert(1)" } }] },
+        { "type": "text", "text": " or ", "marks": [{ "type": "code" }] },
+        { "type": "text", "text": "data", "marks": [{ "type": "link", "attrs": { "href": "data:text/html,<script>alert(1)</script>" } }] },
+        { "type": "text", "text": ". H" },
+        { "type": "text", "text": "2", "marks": [{ "type": "subscript" }] },
+        { "type": "text", "text": "O and x" },
+        { "type": "text", "text": "2", "marks": [{ "type": "superscript" }] },
+        { "type": "text", "text": " with " },
+        { "type": "inlineMath", "attrs": { "latex": "a<b && \"c\"" } },
+        { "type": "footnoteReference", "attrs": { "id": "n1\" onclick=\"x" } }
+      ]
+    },
+    { "type": "codeBlock", "attrs": { "language": "html id=k3f9 wide" }, "content": [{ "type": "text", "text": "<div id=\"app\"></div>\n<script>alert('pwned')</script>" }] },
+    { "type": "codeBlock", "attrs": { "language": "react id=x9y8" }, "content": [{ "type": "text", "text": "export default function App() { return <img src=x onerror=alert(1) />; }" }] },
+    { "type": "codeBlock", "attrs": { "language": "mermaid" }, "content": [{ "type": "text", "text": "graph TD; A-->B" }] },
+    { "type": "codeBlock", "attrs": { "language": "svg" }, "content": [{ "type": "text", "text": "<svg onload=\"alert(1)\"><script>alert(2)</script></svg>" }] },
+    { "type": "codeBlock", "attrs": { "language": "\"><script>alert(1)</script> id=abcd" }, "content": [{ "type": "text", "text": "evil language" }] },
+    { "type": "codeBlock", "attrs": { "language": null }, "content": [{ "type": "text", "text": "plain code" }] },
+    {
+      "type": "taskList",
+      "content": [
+        {
+          "type": "taskItem",
+          "attrs": { "checked": true },
+          "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "outer done" }] },
+            {
+              "type": "taskList",
+              "content": [
+                { "type": "taskItem", "attrs": { "checked": false }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "inner to do" }] }] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "content": [
+        { "type": "tableRow", "content": [
+          { "type": "tableHeader", "attrs": { "colspan": 2, "rowspan": 1, "colwidth": null }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Wide header" }] }] }
+        ] },
+        { "type": "tableRow", "content": [
+          { "type": "tableCell", "attrs": { "colspan": 1, "rowspan": 1, "colwidth": [120] }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "left" }] }] },
+          { "type": "tableCell", "attrs": { "colspan": "2\" onmouseover=\"x", "rowspan": 1 }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "right" }] }] }
+        ] }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "image", "attrs": { "fileKey": "pst_rtei0", "src": null, "alt": "Alt \"quoted\"", "title": null, "align": "right", "caption": null, "width": 240, "data-pending-id": null } },
+        { "type": "image", "attrs": { "fileKey": "pst_rtei1", "alt": "Hidden caption", "caption": "", "align": "center\" onload=\"x", "width": 1e12 } },
+        { "type": "image", "attrs": { "fileKey": "pst_rtei2", "alt": "x", "caption": "<script>alert(1)</script>" } },
+        { "type": "image", "attrs": { "src": "javascript:alert(1)", "alt": "bad src" } }
+      ]
+    },
+    { "type": "gallery", "attrs": { "layout": "masonry" }, "content": [
+      { "type": "image", "attrs": { "fileKey": "pst_rtei3", "alt": "M1", "width": 500, "align": "left" } },
+      { "type": "image", "attrs": { "fileKey": "pst_rtei4", "alt": "M2" } }
+    ] },
+    { "type": "gallery", "attrs": { "layout": "carousel" }, "content": [
+      { "type": "image", "attrs": { "fileKey": "pst_rtei5", "alt": "C1" } },
+      { "type": "image", "attrs": { "fileKey": "pst_rtei6", "alt": "C2" } }
+    ] },
+    { "type": "gallery", "attrs": { "layout": "x\" onclick=\"alert(1)" }, "content": [
+      { "type": "image", "attrs": { "fileKey": "pst_rtei7", "alt": "B1" } },
+      { "type": "image", "attrs": { "fileKey": "pst_rtei8", "alt": "B2" } }
+    ] },
+    { "type": "linkPreview", "attrs": { "url": "https://journal.example/post", "title": "A \"great\" <post>", "description": "<img src=x onerror=alert(1)>", "image": null, "imageWidth": null, "imageHeight": null } },
+    { "type": "linkPreview", "attrs": { "url": "https://no-title.example/path", "title": "", "description": "" } },
+    { "type": "linkPreview", "attrs": { "url": "javascript:alert(1)", "title": "Bad preview" } },
+    { "type": "toggle", "attrs": { "summary": "" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "toggle body" }] }] },
+    { "type": "toggle", "attrs": { "summary": "</summary><script>alert(1)</script>" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "second toggle" }] }] },
+    { "type": "callout", "attrs": { "variant": "tip" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "A tip" }] }] },
+    { "type": "callout", "attrs": { "variant": "error" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "An error" }] }] },
+    { "type": "callout", "attrs": { "variant": "info\" onclick=\"alert(1)" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Bad variant" }] }] },
+    { "type": "blockMath", "attrs": { "latex": "\\frac{1}{2} < x" } },
+    { "type": "futureWidget", "attrs": { "x": 1 }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "future text kept" }] }] },
+    { "type": "futureInline", "text": "loose <text>" },
+    { "type": "footnotes", "content": [
+      { "type": "footnote", "attrs": { "id": "n1\" onclick=\"x" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "The footnote" }] }] }
+    ] }
+  ]
+}

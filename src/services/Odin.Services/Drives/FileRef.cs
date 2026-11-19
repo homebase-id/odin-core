@@ -2,6 +2,7 @@ using System;
 using System.Text.Json.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives;
 
@@ -53,12 +54,20 @@ public class FileRef
     /// </summary>
     public UnixTimeUtc Updated { get; init; }
 
+    /// <summary>
+    /// When the file got its <see cref="VersionTag"/> (as the client file header's <c>versionUpdated</c>); V2 only
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public UnixTimeUtc? VersionUpdated { get; set; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SenderOdinId { get; init; }
 
     public long FileByteCount { get; init; }
 
-    public static FileRef FromHeader(ServerFileHeader header)
+    /// <param name="withVersionUpdated">Whether the caller is answered <see cref="VersionUpdated"/>
+    /// (<see cref="FileSystem.Base.DriveFileUtility.AnswersVersionUpdated"/>)</param>
+    public static FileRef FromHeader(ServerFileHeader header, bool withVersionUpdated)
     {
         var metadata = header.FileMetadata;
         var localVersionTag = metadata.LocalAppData?.VersionTag;
@@ -77,6 +86,7 @@ public class FileRef
             UserDate = metadata.AppData?.UserDate,
             Created = metadata.Created,
             Updated = metadata.Updated,
+            VersionUpdated = withVersionUpdated ? DriveFileUtility.VersionUpdatedOf(metadata) : null,
             SenderOdinId = string.IsNullOrEmpty(metadata.SenderOdinId) ? null : metadata.SenderOdinId,
             FileByteCount = header.ServerMetadata?.FileByteCount ?? 0
         };

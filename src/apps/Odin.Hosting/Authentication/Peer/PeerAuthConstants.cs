@@ -6,7 +6,7 @@
         /// <summary>
         /// Scheme for authenticating external Digital Identity hosts when using Transit. 
         /// </summary>
-        public const string TransitCapiAuthScheme = "TransitCapiAuthScheme";
+        public const string TransitCapiAuthScheme = Odin.Services.Base.PeerAuthContexts.TransitCapi;
         
         /// <summary>
         /// Requests from identities for Connection Requests, Follower subscriptions, etc.  Anything that requires anonymous access to establish
@@ -23,7 +23,7 @@
         /// </summary>
         public const string FollowerCertificateAuthScheme = "FollowerCertificateAuthScheme";
         
-        public const string AutomatedIdentityAuthScheme = "AutomatedIdentityAuthScheme";
+        public const string AutomatedIdentityAuthScheme = Odin.Services.Base.PeerAuthContexts.AutomatedIdentity;
 
     }
 }
