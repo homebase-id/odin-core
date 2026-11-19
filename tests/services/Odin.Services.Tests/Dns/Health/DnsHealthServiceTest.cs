@@ -504,10 +504,15 @@ public class DnsHealthServiceTest
         Assert.That(attention, Has.Some.Contains("NXDOMAIN"), $"attention was: [{string.Join(" | ", attention)}]");
     }
 
+    /// <summary>
+    /// #1891: when asking again fails, the stored "not verified" is stale (every row is live, which is why we asked), so it
+    /// would blame the owner for the relay's outage. It reads as Unreachable, a warning, as on the read path; and the
+    /// failed call doesn't hold the once-per-interval slot, so the next check asks again.
+    /// </summary>
     [Test]
-    public async Task ItShouldKeepTheStoredVerdictWhenAskingAgainFails()
+    public async Task ItShouldReportTheRelayUnreachableAndAskAgainWhenAskingAgainFails()
     {
-        var (health, _) = await RelayHealthAsync(relay =>
+        var (health, attention) = await RelayHealthAsync(relay =>
         {
             relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(RelayState(false, Nxdomain));
@@ -515,8 +520,13 @@ public class DnsHealthServiceTest
                 .ThrowsAsync(new HttpRequestException("relay down"));
         });
 
-        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Unverified), $"relay was {health.Relay.Status}");
-        Assert.That(health.Relay.Problem, Does.Contain("NXDOMAIN"), $"problem was '{health.Relay.Problem}'");
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Unreachable), $"relay was {health.Relay.Status}");
+        Assert.That(health.Relay.Problem, Is.Null, $"problem was '{health.Relay.Problem}'");
+        Assert.That(health.Relay.Warning, Is.Not.Null);
+        Assert.That(attention, Has.None.Contains("NXDOMAIN"), $"attention was: [{string.Join(" | ", attention)}]");
+
+        // RelayHealthAsync made two health calls (panel + monthly attention) on one service
+        _relay.Verify(x => x.VerifyDomainAsync(Domain, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     /// <summary>

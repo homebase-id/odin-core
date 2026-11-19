@@ -355,6 +355,34 @@ public class TableJobsTests : IocTestBase
 
     //
 
+    // #1891: a system job (no identity) can be updated in place too, and only by asking for no identity
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldUpdateAJobWithNoIdentityOnlyWhenAskedForNone(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var jobs = scope.Resolve<TableJobs>();
+
+        var r1 = NewJobsRecord();
+        r1.identityId = null;
+        await jobs.InsertAsync(r1);
+        var newNextRun = DateTimeOffset.Now.AddHours(2).ToUnixTimeMilliseconds();
+
+        Assert.That(await jobs.UpdateAsync(r1.id, Guid.NewGuid(), "by an identity", newNextRun), Is.EqualTo(0));
+        Assert.That(await jobs.UpdateAsync(r1.id, null, "by none", newNextRun), Is.EqualTo(1));
+        Assert.That((await jobs.GetAsync(r1.id))!.jobData, Is.EqualTo("by none"));
+
+        var r2 = NewJobsRecord();
+        r2.identityId = Guid.NewGuid();
+        await jobs.InsertAsync(r2);
+        Assert.That(await jobs.UpdateAsync(r2.id, null, "by none", newNextRun), Is.EqualTo(0),
+            "asking for no identity doesn't reach an identity's job");
+    }
+
     [Test]
     [TestCase(DatabaseType.Sqlite)]
 #if RUN_POSTGRES_TESTS
