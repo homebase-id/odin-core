@@ -29,7 +29,8 @@ public enum FileResultShape
     /// <para>
     /// What to compare: <c>updated</c> moves on every change that moves a file along the feed.  <c>versionTag</c>
     /// changes only when the header is written and <c>localVersionTag</c> only when local app data is; a reaction
-    /// or a transfer-history update (delivery, read receipts) moves <c>updated</c> and neither tag.
+    /// or a transfer-history update (delivery, read receipts) moves <c>updated</c> and neither tag.  On V2,
+    /// <c>versionUpdated</c> is when the file got its <c>versionTag</c>: the <c>updated</c> of that write.
     /// </para>
     /// </summary>
     Minimal = 2

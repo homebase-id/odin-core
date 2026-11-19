@@ -615,7 +615,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (options.ResultShape == FileResultShape.Minimal)
             {
                 var (visible, _, _, _) = await FilterVisibleAsync(driveId, records, odinContext);
-                result.FileRefs = visible.Select(FileRef.FromHeader).ToList();
+                var withVersionUpdated = DriveFileUtility.AnswersVersionUpdated(odinContext);
+                result.FileRefs = visible.Select(h => FileRef.FromHeader(h, withVersionUpdated)).ToList();
             }
             else
             {

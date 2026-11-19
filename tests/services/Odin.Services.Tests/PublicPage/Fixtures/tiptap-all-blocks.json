@@ -1,0 +1,77 @@
+{
+  "type": "doc",
+  "content": [
+    { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "Every block" }] },
+    { "type": "heading", "attrs": { "level": 3, "textAlign": "center" }, "content": [{ "type": "text", "text": "A third-level heading" }] },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "text", "text": "bold", "marks": [{ "type": "bold" }] },
+        { "type": "text", "text": " italic", "marks": [{ "type": "italic" }, { "type": "underline" }] },
+        { "type": "text", "text": " strike", "marks": [{ "type": "strike" }] },
+        { "type": "text", "text": " code", "marks": [{ "type": "code" }] },
+        { "type": "text", "text": " Ctrl", "marks": [{ "type": "kbd" }] },
+        { "type": "text", "text": " x" },
+        { "type": "text", "text": "2", "marks": [{ "type": "superscript" }] },
+        { "type": "text", "text": " H" },
+        { "type": "text", "text": "2", "marks": [{ "type": "subscript" }] },
+        { "type": "text", "text": "O " },
+        { "type": "text", "text": "a link", "marks": [{ "type": "link", "attrs": { "href": "https://example.com" } }] },
+        { "type": "text", "text": " by " },
+        { "type": "mention", "attrs": { "id": "frodo.dotyou.cloud", "label": null } },
+        { "type": "text", "text": " with a note" },
+        { "type": "footnoteReference", "attrs": { "id": "fn1" } },
+        { "type": "text", "text": " and " },
+        { "type": "inlineMath", "attrs": { "latex": "E = mc^2" } }
+      ]
+    },
+    { "type": "blockMath", "attrs": { "latex": "\\int_0^1 x\\,dx" } },
+    { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "A quote" }] }] },
+    { "type": "codeBlock", "attrs": { "language": "ts" }, "content": [{ "type": "text", "text": "const a = 1;\nconst b = 2;" }] },
+    {
+      "type": "bulletList",
+      "content": [
+        { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "one" }] }] },
+        {
+          "type": "listItem",
+          "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "two" }] },
+            { "type": "orderedList", "attrs": { "start": 1 }, "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "two.one" }] }] }] }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "taskList",
+      "content": [
+        { "type": "taskItem", "attrs": { "checked": true }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "done" }] }] },
+        { "type": "taskItem", "attrs": { "checked": false }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "to do" }] }] }
+      ]
+    },
+    {
+      "type": "table",
+      "content": [
+        { "type": "tableRow", "content": [
+          { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Name" }] }] },
+          { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Value" }] }] }
+        ] },
+        { "type": "tableRow", "content": [
+          { "type": "tableCell", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "a" }] }] },
+          { "type": "tableCell", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "1" }] }] }
+        ] }
+      ]
+    },
+    { "type": "callout", "attrs": { "variant": "warning" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Careful" }] }] },
+    { "type": "toggle", "attrs": { "summary": "More" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Hidden body" }] }] },
+    { "type": "paragraph", "content": [{ "type": "image", "attrs": { "fileKey": "pst_rtei0", "alt": "A photo", "caption": "Its caption", "align": "left", "width": 320 } }] },
+    { "type": "gallery", "attrs": { "layout": "grid" }, "content": [
+      { "type": "image", "attrs": { "fileKey": "pst_rtei1", "alt": "One" } },
+      { "type": "image", "attrs": { "fileKey": "pst_rtei2", "alt": "Two" } }
+    ] },
+    { "type": "linkPreview", "attrs": { "url": "https://example.com/post", "title": "Example post", "description": "A description" } },
+    { "type": "horizontalRule" },
+    { "type": "footnotes", "content": [
+      { "type": "footnote", "attrs": { "id": "fn1" }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "The note" }] }] }
+    ] }
+  ]
+}
