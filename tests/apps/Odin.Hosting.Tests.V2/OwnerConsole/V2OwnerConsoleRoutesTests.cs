@@ -66,6 +66,7 @@ public class V2OwnerConsoleRoutesTests : V2Fixture
         (HttpMethod.Post, UnifiedApiRouteConstants.DriveManagement + "/set-drive-read-mode"),
         (HttpMethod.Post, UnifiedApiRouteConstants.DriveManagement + "/set-allow-subscriptions"),
         (HttpMethod.Post, UnifiedApiRouteConstants.DriveManagement + "/set-allow-cdn"),
+        (HttpMethod.Post, UnifiedApiRouteConstants.DriveManagement + "/set-block-enumeration"),
         (HttpMethod.Post, UnifiedApiRouteConstants.DriveManagement + "/set-archive-drive"),
         (HttpMethod.Post, UnifiedApiRouteConstants.DriveManagement + "/empty"),
         (HttpMethod.Post, UnifiedApiRouteConstants.DriveManagement + "/delete"),
@@ -155,6 +156,9 @@ public class V2OwnerConsoleRoutesTests : V2Fixture
 
         [Post(UnifiedApiRouteConstants.DriveManagement + "/set-allow-cdn")]
         Task<ApiResponse<HttpContent>> SetAllowCdn([Body] UpdateDriveAllowCdnRequest request);
+
+        [Post(UnifiedApiRouteConstants.DriveManagement + "/set-block-enumeration")]
+        Task<ApiResponse<HttpContent>> SetBlockEnumeration([Body] UpdateDriveBlockEnumerationRequest request);
 
         [Post(UnifiedApiRouteConstants.DriveManagement + "/set-archive-drive")]
         Task<ApiResponse<HttpContent>> SetArchive([Body] UpdateDriveArchiveFlag request);
@@ -549,6 +553,31 @@ public class V2OwnerConsoleRoutesTests : V2Fixture
         Assert.That((await routes.SetArchive(new UpdateDriveArchiveFlag { TargetDrive = drive, Archived = true })).IsSuccessStatusCode, Is.True);
         Assert.That((await routes.EmptyDrive(targetDrive)).StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         Assert.That((await routes.GetPurges()).IsSuccessStatusCode, Is.True);
+    }
+
+    [Test]
+    public async Task Drives_OwnerBlocksEnumeration_ThenAllowsItAgain()
+    {
+        var owner = await LoginAsOwner();
+        var routes = Routes(owner);
+        var drive = TargetDrive.NewTargetDrive();
+        Assert.That((await routes.CreateDrive(new CreateDriveRequest
+        {
+            TargetDrive = drive,
+            Name = "v2 drive",
+            Metadata = "",
+            AllowAnonymousReads = false,
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType
+        })).Content, Is.True);
+
+        foreach (var block in new[] { true, false })
+        {
+            var set = await routes.SetBlockEnumeration(new UpdateDriveBlockEnumerationRequest { TargetDrive = drive, BlockEnumeration = block });
+            Assert.That(set.IsSuccessStatusCode, Is.True, $"block={block}: {set.StatusCode}");
+            var read = (await routes.GetDrivesByType(drive.Type, 1, 100)).Content!.Results.Single();
+            Assert.That(read.BlockEnumeration, Is.EqualTo(block));
+        }
     }
 
     [Test]

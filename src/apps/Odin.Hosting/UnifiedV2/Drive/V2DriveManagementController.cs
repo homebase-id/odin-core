@@ -93,6 +93,13 @@ public class V2DriveManagementController(
         return Ok();
     }
 
+    [HttpPost("set-block-enumeration")]
+    public async Task<IActionResult> SetDriveBlockEnumeration([FromBody] UpdateDriveBlockEnumerationRequest request)
+    {
+        await driveManager.SetDriveBlockEnumerationAsync(request.TargetDrive.Alias, request.BlockEnumeration, WebOdinContext);
+        return Ok();
+    }
+
     [HttpPost("set-archive-drive")]
     public async Task<IActionResult> SetArchiveDriveFlag([FromBody] UpdateDriveArchiveFlag request)
     {
