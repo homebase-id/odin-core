@@ -1107,6 +1107,18 @@ only sometimes does is **undiagnosed**. It may also be the unexplained Error in 
 times. #2013's other jobs passed on the same code, and it touches no registry or tenant-status code:
 three occurrences in five days, on three OS/db combinations, so it is no longer rare.
 
+**Again 2026-11-13 and 2026-11-19, same event:** `windows/sqlite/debug` on PR #2137 (run 43432544297; its two
+ubuntu jobs passed on the same commit) and `ubuntu/sqlite/release` on PR #2132 (run 44550549070; its postgres and
+windows jobs passed). Neither PR touches the registry or tenant status. Fixing it probably means the test declaring
+the Error it causes, rather than more evidence.
+Once more on PR #2132's next commit, `ubuntu/postgres/release` (run 44560460181), the same event.
+
+**Fixture teardown: fixed 2026-11-19 (PR #2132).** It was never random at the source: run alone,
+`AFailedAlignmentAfterAnotherNodesChangeIsRetried` failed the fixture's teardown 3 of 3 times on this event. The test
+now asserts the Error was logged, and the fixture's teardown ignores only that event (an `InvalidOperationException`
+with the simulated message). Why the full CI suite usually didn't count it remains unexplained. The
+`TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume` outbox failure above is separate and still open.
+
 ---
 
 ## `Odin.Core.Storage.Tests.Cache.CrossNodeStaleFillTests`
@@ -1185,6 +1197,27 @@ resulting abort escapes `DisconnectAsync` instead of being treated as the expect
 raw token, but the cookie's value is URL-encoded, so it failed whenever the random token held a `+` or a `/`. That is most
 runs: it failed 4 in a row here, after passing two full runs. It now compares with the encoded token, and passed 6 in a row.
 
+---
+
+## `Odin.Hosting.Tests._V2.Tests.Peer.V2PeerAppNotificationWebSocketTests`
+
+- `APeerTokenEndsWithTheConnectionItWasMintedUnder`
+
+**Where:** CI, `ubuntu/sqlite/release`, PR #2132 (`context-cache-key-per-token-type`), run 44550549070,
+2026-11-19. `ubuntu/postgres/release` and `windows/sqlite/debug` passed it on the same commit; it passed 8 of 8
+runs locally (macOS, sqlite) on the branch.
+
+**Symptom:** the old-connection token was refused, but by a TCP reset during the handshake read
+(`WebSocketException: The remote party closed the WebSocket connection without completing the close handshake`,
+`Connection reset by peer`) instead of the expected error frame. `Assert.ThrowsAsync<Exception>` matches that exact
+type only, so it failed the test.
+
+**Fix in the test:** it now uses `Assert.CatchAsync<Exception>`: any failure to complete the handshake is a refusal,
+and an accepted token would still fail the test. **Why the server reset the socket is undiagnosed**: the scaffold
+prints server log events only when a fixture's log assertion fails, and none were printed for this fixture.
+
+---
+
 ## Seen once, not chased (2026-09-05 to 10-20)
 
 - `TransitCommentFileRoutingTests.FailsWhenSenderCannotWriteCommentOnRecipientServer` --
@@ -1228,6 +1261,12 @@ runs: it failed 4 in a row here, after passing two full runs. It now compares wi
   `feed-acl-before-queue`; they fail the same way with the branch's `src` changes stashed. Environment:
   `WebScaffold` sets `Admin__Domain=admin.dotyou.cloud`, and that name does not resolve on this machine
   (presumably it needs a hosts entry, as the identity domains have). Not a product failure.
+  **Also in CI, 2026-11-19:** `ItemIsDroppedOnceItHasBeenDeferredForLongerThanTheMaxAge` on `ubuntu/postgres/release`,
+  PR #2132, run 44560460181: `Name or service not known (admin.dotyou.cloud:4444)`. The same job's other admin-API tests
+  (`AnUnsentOutboxItemsFileIsAmongTheQueuedFiles` before it, `PausedSenderDoesNotSendFromItsOutbox` and
+  `TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume` after it) passed, and the sqlite and windows jobs
+  passed it on the same commit. No hosts entry is involved: `admin.dotyou.cloud` resolves to 127.0.0.1 in public DNS
+  (`ns1.id.pub`, checked 2026-11-19), so this was a transient lookup failure on the runner (I).
 - `V1TagTests.CanQueryModifiedByLocalTagsMatchAtLeastOne(Owner,OK)` (Odin.Hosting.Tests.V2) -- `ubuntu/sqlite/release`,
   branch `feed-acl-before-queue`, 2026-10-21 (run 39672278932): the owner's `QueryModified` with
   `LocalTagsMatchAtLeastOne` returned no file carrying the tag just set (`Expected: True But was: False`, line 489).

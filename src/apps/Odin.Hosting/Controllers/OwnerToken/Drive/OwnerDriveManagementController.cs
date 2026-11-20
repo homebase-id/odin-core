@@ -93,6 +93,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return Ok();
         }
 
+        [HttpPost("set-block-enumeration")]
+        public async Task<IActionResult> SetDriveBlockEnumeration([FromBody] UpdateDriveBlockEnumerationRequest request)
+        {
+            await driveManager.SetDriveBlockEnumerationAsync(request.TargetDrive.Alias, request.BlockEnumeration, WebOdinContext);
+            return Ok();
+        }
+
         [HttpPost("set-archive-drive")]
         public async Task<IActionResult> SetArchiveDriveFlag([FromBody] UpdateDriveArchiveFlag request)
         {
@@ -268,6 +275,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     {
         public TargetDrive TargetDrive { get; set; }
         public bool RequirePayloadHashes { get; set; }
+    }
+
+    public class UpdateDriveBlockEnumerationRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool BlockEnumeration { get; set; }
     }
 
     public class TargetDriveRequest

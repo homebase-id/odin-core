@@ -29,6 +29,7 @@ public static class UnifiedApiRouteConstants
     // GET list collided with the push-subscription list.
     public const string NotifyList = BasePath + "/notify";
     public const string LiveRelay = BasePath + "/live-relay";
+    public const string Calling = BasePath + "/calling";
     public const string NotifySocket = BasePath + "/notify/ws-token";
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
     public const string Links = BasePath + "/links";

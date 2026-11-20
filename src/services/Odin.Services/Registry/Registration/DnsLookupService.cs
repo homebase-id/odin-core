@@ -707,6 +707,16 @@ public class DnsLookupService : IDnsLookupService
             {
                 return true;
             }
+
+            // Fail closed (#1791): the client doesn't throw on DNS errors, so a SERVFAIL or REFUSED comes back with no
+            // answers. Reading that as "no records" would let a create replace a name another cluster holds; only
+            // NXDOMAIN says the name is free
+            if (response.HasError && response.Header.ResponseCode != DnsHeaderResponseCode.NotExistentDomain)
+            {
+                _logger.LogWarning("DNS error {code} on {type} {domain} @{resolver}; treating the name as taken",
+                    response.Header.ResponseCode, recordType, domain, resolver);
+                return true;
+            }
         }
 
         return false;

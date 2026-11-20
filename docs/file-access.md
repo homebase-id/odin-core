@@ -25,6 +25,7 @@ their own; outside callers are held to both.**
 | owner's apps | the drives in the app's registration, plus `Read` on public drives (`AppRegistrationService.cs:303-317`) **(V)** | skipped **(V)** |
 | connected identities (as peers) | what their enabled circles grant, plus the public-drive grants (`TenantSettings`) **(V)** | applies, at `Connected`, or `Authenticated` until reviewed |
 | YouAuth domains | what their circles grant, plus the public-drive grants (`YouAuthDomainRegistrationService.cs:505-552`) **(V)** | applies, at `Authenticated` (`Connected` when the domain is a connected identity) |
+| a connected identity's device, reading directly with its peer-notification token | `Read` on the zero-knowledge drives its circles (app circles included) grant, nothing else, and only on the drive reads marked `[PeerDirectRead]`; elsewhere anonymous (`CircleNetworkService.TryCreatePeerSubscriberReadContextAsync`, `PeerSubscriberAuthPathHandler`) **(V, tested)** | applies, at `Connected`, or `Authenticated` until reviewed |
 | signed-in identities, not connected | the public-drive grants only **(V)** | applies, at `Authenticated` |
 | anonymous visitors | `Read` on public drives only **(V)** | applies, at `Anonymous` |
 | `System` | every drive (`PermissionContext.cs:110`) **(V)** | skipped **(V)** |
@@ -50,6 +51,15 @@ Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → 
 | 3a | on a Server Share drive, a deposit the caller's request can open becomes the server's own file, so it is no longer client-locked at 4 (`DriveStorageServiceBase.ConvertDepositsAsync`; a query does the same, `FilterVisibleAsync`) | never refuses: a deposit it can't open stays sealed | the soft-delete batch, V1 and hard deletes and the TTL jobs (loading with `includeExpired`), which 4 lets through anyway |
 | 4 | the read rule, part 1: a client-locked file only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) | 403, or no file when the path asks for that (`aclDeniedAsMissing`) | `System`; files on the transient drive; on a Server Share drive, a sealed file for a caller holding its storage key, which the server opens for them; a tombstone's sealed key header goes out empty |
 | 5 | the read rule, part 2: the file's ACL (`CallerPassesAcl`) | as 4 | owner callers; `System` |
+
+**A deleted file's payload or thumbnail** is a 404 with `errorCode: fileDeleted` once the caller passes these checks:
+its tombstone keeps none (`DriveStorageServiceBase.AssertNotDeletedForPayloads`). Tested for the owner's V2 routes by
+file id and global transit id, a member's peer token, and a member's own server, which passes the code on **(V, tested)**;
+the V1, app and guest routes go through the same lookup **(V)**. A file that isn't there is a 404 without it; one the
+caller may not read stays a 403 (steps 2 and 5). Asked for by unique id a deleted file is the plain 404: a tombstone
+keeps no unique id **(V, tested)**. Its header still reads, with `fileState: deleted` **(V, tested)**. A 410
+(`payloadGone`) is something else: a payload the header names whose bytes are missing. A file deleted between the
+lookup and the read of its bytes is a plain 404 (I, from the code). Temporal-drive reads don't answer it yet.
 
 **The ACL check (step 5)**, in order (`DriveAclAuthorizationService.Allows`, `:101-123`) **(V)**:
 1. A missing ACL refuses.
@@ -146,15 +156,19 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   (`UpdateLocale.Peer`, or an upload sent from the transient drive) leaves no transfer history it could read: the
   transient copy is deleted once sent. So each outcome goes to the sockets of the app that sent it, or the owner's own
   client's when no app did, never another app's or a guest's (the server's own sends from the transient drive, such as
-  Shamir shards, tell no one): a `PeerSendResult` event (`PeerSendResultNotification`) **(V, tested)**. It names:
+  Shamir shards, tell no one): a `PeerSendResult` event (`PeerSendResultNotification`) **(V, tested)**. A delete
+  sent by global transit id is told the same way when it names the version it is meant for (`expectedVersionTag`,
+  below), and not otherwise **(V, tested)**. It names:
   - the recipient, the drive id and the global transit id the send named; a file sent again that the recipient
     matched by its unique id keeps its own (I, from the code);
-  - the version tag the client's upload or update gave back, which tells two sends of one file apart **(V, tested)**;
-  - whether it was an update, the transfer status (delivered, or why not) and whether the outbox tries again
-    **(V, tested)**;
+  - the version tag the client's upload or update gave back, or the one its delete named, which with whether it was an
+    update or a delete tells two sends of one file apart **(V, tested)**; `send-status` has no kind to name, so an update
+    and a delete naming the version it gave the file answer as one, whichever is due first (I, from the code);
+  - whether it was an update or a delete (`isUpdate`, `isDelete`), the transfer status (delivered, or why not) and
+    whether the outbox tries again **(V, tested)**;
   - on delivery, the version tag of the recipient's copy, for the next change to name: for a file sent, the one the
     recipient's server returns when it writes the file at once (`PeerTransferResponse.VersionTag`); for an update, the
-    new version tag the update gave it **(V, tested)**.
+    new version tag the update gave it; none for a delete **(V, tested)**.
 
   It is told before the outbox records the outcome, so a failure recording it can repeat it: the latest counts (I,
   from the code). On a drive with an inbox, a change the recipient queued there is told as delivered with no version
@@ -200,13 +214,20 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   (`PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync`, `SentFileChanges.ContextForDeleteAsync`,
   `SentFileChanges.ContextForChangeAsync`) **(V, tested)**. A sender deleting their own file is refused unless the
   file's record of their last write (`ServerMetadata.SendersWrite`) names them and still matches the file's version
-  tag, so a file stored before that record was kept is refused too; on a drive still marked as a community channel
+  tag, so a file stored before that record was kept is refused too, or the delete names the version the file has now,
+  as their update naming it is taken **(V, tested)**; on a drive still marked as a community channel
   only the original sender deletes **(V)**. The delete is of the version judged (`expectedVersionTag`): a write that
   lands in between is judged again, once, rather than lost (`PeerDriveIncomingTransferService.DeleteAtOnceAsync`)
-  **(V)**. So on a Private Share drive a member's own new file with no share is theirs to delete as its sender
-  **(V, tested)**. A delete of a file already deleted does nothing **(V)**. On a Server Share drive a peer's delete goes
-  as before: through the inbox, or on a drive marked as a community channel the original sender's alone, at once
-  (below).
+  **(V)**. A delete may also name the version it is meant for (`expectedVersionTag` on `senddeleterequest`, one
+  recipient only): it is refused (`VersionTagMismatch`) once the file has changed since, so a member's delete can't
+  discard a co-editor's newer version unseen, and is not judged again **(V, tested)**. One reaching a file already
+  deleted is done, whoever deleted it, so a delete sent again after it landed isn't refused by its own tombstone's
+  version (I, from the code). The same holds for a comment **(V, tested)** and
+  for a community channel's post **(V)**; a drive with an inbox refuses a delete naming a version, as the inbox writes
+  it later and checks nothing **(V, tested)**. So on a Private Share drive a member's own new file with no share is
+  theirs to delete as its sender **(V, tested)**. A delete of a file already deleted does nothing **(V)**. On a Server
+  Share drive a peer's delete goes as before: through the inbox, or on a drive marked as a community channel the
+  original sender's alone, at once (below).
 - **A deleted file stays deleted:** its change is refused ("File is deleted") **(V)**.
 - **A file received before this rule has no record of its sender's write,** so a sender who can only write it can't
   change it. There is no fallback: chat edits are short-lived, and clients update.
@@ -261,7 +282,9 @@ is disabled **(V)**, so a check that must see a disable asks at the time (as the
 
 - **Public drives:** the file services don't ask for drive `Read`, nor for `Comment` when writing a comment
   (`CommentFileStorageService`) **(V)**; the read rule still applies. The tenant's settings give signed-in and
-  connected callers `Read`, and by flag `Comment` and `React`, on public drives (`TenantSettings`) **(V)**.
+  connected callers `Read`, and by flag `Comment` and `React`, on public drives (`TenantSettings`) **(V)**. On a
+  drive that blocks enumeration that `Read` reaches a file only by its address: only the owner, the owner's apps and
+  the server may list it (`StorageDriveDetails.BlockEnumeration`) **(V, tested)**.
 - **Comments** are a separate file system on the same drive: reading needs drive `Read` or `Comment`, writing needs
   `Comment` (security-model.md, section 6) **(V)**. Who may comment follows the sharing model: on a Server Share
   drive the members who may read; on a Private Share drive through shares ("With Private Share"); on a Private
@@ -340,7 +363,7 @@ the index rows aren't a copy of the ACL but the record.
 | Who may edit a file | drive `Write` plus passing the read rule | owner callers, and a member with drive `Write` whose live row has `Write`. The author of a deposit edits it through the row for their individual circle it carries |
 | Sending a file again | the original sender's send again updates it while no one else has written it since; anyone else's (on a drive marked as a community channel, a member who may read it) names the file's version tag: "Changing a file you sent" **(V, tested)** | the same, as its original sender: a file with no share by that rule alone, one with a share through a live row with `Write` too ("Changing a file you sent") **(V, tested)**. It keeps its rows and its required group: shares come only with a new file, and a send again carrying any is refused. The same delivery again, the outbox retrying one that already landed, is taken as done (`PeerFileWriter.StoreNormalFileLongTermAsync`) **(V, tested)** |
 | Who may react or comment | drive `React` or `Comment` (a reaction skips the read rule, #2058) | owner callers, and a member with drive `React` or `Comment` whose live row has the same bit. A member sees a file's reactions while they may read it. A comment is read by whoever may read its file, and is encrypted with its file's key (`fileKey`, its IV only); only its author changes or deletes it |
-| Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't |
+| Changing who may see a file | a header write: new version tag, `modified` moves | a share row write: `modified` moves, the version tag doesn't, so a client judges a change of content by the version tag, never by `updated`, and when it happened by `versionUpdated`, which a share doesn't move either. Withdrawing a share of a deleted file still withdraws it, but its tombstone keeps its `modified` **(V, tested)** |
 | How others learn of it | by `modified` | owner callers' other devices by `modified`; members by their query batch, where a withdrawn share comes back as "no longer shared" |
 
 ### A share row narrows its circle's grant

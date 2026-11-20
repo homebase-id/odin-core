@@ -20,7 +20,7 @@ public class GuestAuthPathHandler : IAuthPathHandler
         var ctx = await youAuthRegService.GetDotYouContextAsync(clientAuthToken, odinContext);
         if (null == ctx)
         {
-            return AuthHandlerResult.Fallback();
+            return AuthHandlerResult.Fail();
         }
 
         odinContext.Caller = ctx.Caller;

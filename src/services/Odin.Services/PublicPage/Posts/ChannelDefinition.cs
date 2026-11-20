@@ -27,6 +27,10 @@ public class ChannelDefinition
     
     [JsonProperty("showOnHomePage")]
     public bool ShowOnHomePage { get; init; }
+
+    /// <summary>Alias of the channel's drive; set when the channel is loaded, not part of the stored definition</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public System.Guid DriveAlias { get; set; }
     
     // [JsonIgnore]
     // [JsonProperty("templateId")]

@@ -262,6 +262,16 @@ public class PeerDriveQueryService(
             await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
 
             var batch = queryBatchResponse.Content;
+            foreach (var section in batch?.Results ?? [])
+            {
+                foreach (var header in section.SearchResults ?? [])
+                {
+                    WithoutVersionUpdatedUnlessV2(header, odinContext);
+                }
+
+                WithoutVersionUpdatedUnlessV2(section.FileRefs, odinContext);
+            }
+
             return batch;
         }
         catch (TryRetryException t)
@@ -848,11 +858,39 @@ public class PeerDriveQueryService(
         {
             QueryTime = batch.QueryTime,
             SearchResults = batch.SearchResults == null ? null : TransformSharedSecret(batch.SearchResults, icr, odinContext),
-            FileRefs = batch.FileRefs,
+            FileRefs = WithoutVersionUpdatedUnlessV2(batch.FileRefs, odinContext),
             Cursor = new QueryBatchCursor(batch.CursorState),
             IncludeMetadataHeader = batch.IncludeMetadataHeader,
             HasMoreRows = batch.HasMoreRows
         };
+    }
+
+    /// <summary>
+    /// The peer's file refs, without the version times it answers this server when this server's own caller isn't
+    /// answered them (<see cref="DriveFileUtility.AnswersVersionUpdated"/>)
+    /// </summary>
+    /// <summary>
+    /// The peer's header, without the version time it answers this server when this server's own caller isn't answered it
+    /// </summary>
+    private static void WithoutVersionUpdatedUnlessV2(SharedSecretEncryptedFileHeader header, IOdinContext odinContext)
+    {
+        if (header?.FileMetadata != null && !DriveFileUtility.AnswersVersionUpdated(odinContext))
+        {
+            header.FileMetadata.VersionUpdated = null;
+        }
+    }
+
+    private static IEnumerable<FileRef> WithoutVersionUpdatedUnlessV2(IEnumerable<FileRef> fileRefs, IOdinContext odinContext)
+    {
+        if (fileRefs != null && !DriveFileUtility.AnswersVersionUpdated(odinContext))
+        {
+            foreach (var fileRef in fileRefs)
+            {
+                fileRef.VersionUpdated = null;
+            }
+        }
+
+        return fileRefs;
     }
 
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,
@@ -873,6 +911,7 @@ public class PeerDriveQueryService(
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
         IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
+        WithoutVersionUpdatedUnlessV2(sharedSecretEncryptedFileHeader, odinContext);
         if (odinContext.AuthContext == "youauth-token")
         {
             sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
@@ -942,6 +981,15 @@ public class PeerDriveQueryService(
         if (response.StatusCode == HttpStatusCode.Gone)
         {
             throw new OdinPayloadGoneException($"The payload is not available at [{odinId}]", null);
+        }
+    }
+
+    // The peer's file is deleted: passed on as the same 404 with its code, not as a file that isn't there
+    private static void AssertNotDeletedAt(OdinId odinId, ApiResponse<HttpContent> response)
+    {
+        if (response.ErrorCode() == OdinClientErrorCode.FileDeleted)
+        {
+            throw new OdinFileDeletedException($"The file is deleted at [{odinId}]");
         }
     }
 
@@ -1022,6 +1070,7 @@ public class PeerDriveQueryService(
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
+            AssertNotDeletedAt(odinId, response);
             response.Dispose();
             return (null, default, null, null, Stream.Null);
         }
@@ -1068,6 +1117,7 @@ public class PeerDriveQueryService(
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
+            AssertNotDeletedAt(odinId, response);
             response.Dispose();
             return (null, default, null);
         }

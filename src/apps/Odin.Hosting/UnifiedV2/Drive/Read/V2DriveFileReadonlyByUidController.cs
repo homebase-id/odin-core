@@ -11,6 +11,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
@@ -28,6 +29,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     {
         public const string ByUniqueId = "by-uid/{uid:guid}";
 
+        [PeerDirectRead]
         [HttpGet("header")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetFileHeaderByUid(
@@ -43,6 +45,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return new JsonResult(result);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -55,6 +58,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await this.GetPayloadByUniqueIdInternal(driveId, uid, payloadKey);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -71,6 +75,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetPayloadByUniqueIdInternal(driveId, uid, payloadKey, chunk);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb")]
         [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
@@ -102,19 +107,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// with no Ttl, so permanent data cannot be destroyed this way. (A POST on a controller named
         /// Readonly is a wart; it lives here because it shares the by-uid resolution.)
         /// </summary>
-        //
-        // ██████████████████████████████████████████████████████████████████████████████████████
-        // ██ SECURITY DEBT - MUST BE FIXED BEFORE THIS SHIPS TO REAL USERS                    ██
-        // ██                                                                                  ██
-        // ██ This endpoint must ALSO require drive.BlockAnonymousEnumeration == true (the     ██
-        // ██ flag does not exist yet). Until then, on an ENUMERABLE anonymous drive a scraper ██
-        // ██ can walk the file list and expire-now every TTL'd file on it - mass destruction  ██
-        // ██ of public-but-expiring content. The capability argument ("the caller already     ██
-        // ██ holds the link") only holds on non-enumerable drives, where you can only address ██
-        // ██ what you were given. When BlockAnonymousEnumeration lands, add the gate here     ██
-        // ██ (or in HastenExpiryAsync) and delete this banner.                                ██
-        // ██████████████████████████████████████████████████████████████████████████████████████
-        //
+        // Only on a drive that blocks enumeration (HastenExpiryAsync): there a caller reaches a file only by the
+        // unique id its link carries, so whoever can call this holds the link.
         [HttpPost("expire-now")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]

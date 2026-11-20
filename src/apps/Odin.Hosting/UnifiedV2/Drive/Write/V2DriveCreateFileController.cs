@@ -48,6 +48,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 RecipientStatus = v2Result.RecipientStatus,
                 NewVersionTag = v2Result.NewVersionTag,
                 Updated = v2Result.Updated,
+                VersionUpdated = v2Result.VersionUpdated,
                 Payloads = v2Result.Payloads
             };
         }

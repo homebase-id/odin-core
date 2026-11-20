@@ -47,11 +47,11 @@ namespace Odin.Hosting.Middleware
                 await HandleExceptionAsync(context, new RequestedRangeNotSatisfiableException(e.Message, inner: e),
                     contentRange: e.Size == null ? null : new ContentRangeHeaderValue(e.Size.Value).ToString());
             }
-            catch (OdinPayloadVersionGoneException e) // => HTTP 404
+            catch (OdinClientException e) when (e is OdinPayloadVersionGoneException or OdinFileDeletedException) // => HTTP 404
             {
-                // Caught ahead of OdinClientException, which it derives from: a payload replaced while it
-                // was being read is not a bad request, it is a version that no longer exists. Re-reading
-                // the file header gets the caller the current one.
+                // Caught ahead of OdinClientException, which they derive from, and told apart by their error codes: a
+                // payload replaced while it was being read is a version that no longer exists (re-reading the file
+                // header gets the caller the current one), and a deleted file's payloads went with it.
                 await HandleExceptionAsync(context, new NotFoundException(e.Message, e.ErrorCode, e));
             }
             catch (OdinPayloadGoneException e) // => HTTP 410

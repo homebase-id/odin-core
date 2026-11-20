@@ -53,6 +53,48 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
 #endif
+        public async Task VersionTagModifiedIsTheModifiedOfTheWriteThatGaveTheTag(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId = Guid.NewGuid();
+            var f1 = SequentialGuid.CreateGuid();
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, SequentialGuid.CreateGuid().ToString(),
+                SequentialGuid.CreateGuid(), null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+
+            var inserted = await tblDriveMainIndex.GetAsync(driveId, f1);
+            Assert.That((inserted.versionTagModified, inserted.modified), Is.EqualTo((inserted.created, inserted.created)),
+                "a new row: (versionTagModified, modified) both its created");
+
+            // Writes that keep the version tag move modified alone
+            await tblDriveMainIndex.UpdateReactionSummaryAsync(driveId, f1, "a summary");
+            await tblDriveMainIndex.UpdateTransferSummaryAsync(driveId, f1, "a transfer history");
+            await tblDriveMainIndex.TouchKeepingVersionTagAsync(driveId, f1);
+            Assert.That(await tblDriveMainIndex.UpdateLocalAppMetadataAsync(driveId, f1, Guid.Empty, Guid.NewGuid(), "{}"), Is.True,
+                "local app data written");
+            var touched = await tblDriveMainIndex.GetAsync(driveId, f1);
+            Assert.That((touched.hdrVersionTag, touched.versionTagModified), Is.EqualTo((inserted.hdrVersionTag, inserted.versionTagModified)),
+                "(version tag, versionTagModified) after the reaction summary, transfer history, a share touch and local app data");
+            Assert.That(touched.modified.milliseconds, Is.GreaterThan(inserted.modified.milliseconds), "modified moved");
+
+            // A write that gives a new tag gives versionTagModified the modified it stores, and the record says so too
+            var rewritten = await tblDriveMainIndex.GetAsync(driveId, f1);
+            await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(rewritten);
+            var stored = await tblDriveMainIndex.GetAsync(driveId, f1);
+            Assert.That(stored.hdrVersionTag, Is.Not.EqualTo(touched.hdrVersionTag), "a new tag");
+            Assert.That((stored.versionTagModified, rewritten.versionTagModified), Is.EqualTo((stored.modified, stored.modified)),
+                "(stored versionTagModified, the record's after the write) both the new modified");
+            Assert.That(stored.modified.milliseconds, Is.GreaterThan(touched.modified.milliseconds), "past every earlier write");
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
         public async Task UpdateTransferStatus(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

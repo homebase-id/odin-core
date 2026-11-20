@@ -296,6 +296,51 @@ public class DnsLookupServiceTest
             dnssecLookup);
     }
 
+    // #1791: a DNS error answer must never read as "available", or the create replaces another cluster's records
+    [TestCase(DnsHeaderResponseCode.ServerFailure, false)]
+    [TestCase(DnsHeaderResponseCode.Refused, false)]
+    [TestCase(DnsHeaderResponseCode.NotExistentDomain, true)]
+    [TestCase(DnsHeaderResponseCode.NoError, true)]
+    public async Task AManagedDomainIsAvailableOnlyWhenDnsSaysTheNameIsFree(DnsHeaderResponseCode code, bool expectedAvailable)
+    {
+        var configuration = new OdinConfiguration
+        {
+            Registry = new OdinConfiguration.RegistrySection
+            {
+                DnsConfigurationSet = new DnsConfigurationSet("131.164.170.62", "identity-host.example"),
+                PowerDnsHostAddress = "127.0.0.1",
+                ManagedDomainApexes = [new() { Apex = "demo.rocks", PrefixLabels = ["First", "Surname"] }],
+                DnsResolvers = ["1.1.1.1"],
+            },
+            Email = new OdinConfiguration.EmailSection(),
+        };
+
+        var mock = new Mock<ILookupClient>();
+        mock.Setup(c => c.QueryServerAsync(
+                It.IsAny<IReadOnlyCollection<NameServer>>(),
+                It.IsAny<DnsQuestion>(),
+                It.IsAny<DnsQueryOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MockedErrorResponse(code));
+
+        var service = CreateDnsLookupService(configuration, mock.Object);
+        var available = await service.IsManagedDomainAvailableAsync("frodo.baggins", "demo.rocks");
+
+        Assert.That(available, Is.EqualTo(expectedAvailable));
+    }
+
+    private static IDnsQueryResponse MockedErrorResponse(DnsHeaderResponseCode code)
+    {
+        var mock = new Mock<IDnsQueryResponse>();
+        mock.SetupGet(x => x.HasError).Returns(code != DnsHeaderResponseCode.NoError);
+        mock.SetupGet(x => x.Header).Returns(new DnsResponseHeader(0, (ushort)(0x8000 | (int)code), 1, 0, 0, 0));
+        mock.SetupGet(x => x.ErrorMessage).Returns(code.ToString());
+        mock.SetupGet(x => x.Answers).Returns([]);
+        mock.SetupGet(x => x.Authorities).Returns([]);
+        mock.SetupGet(x => x.NameServer).Returns(new NameServer(System.Net.IPAddress.Loopback));
+        return mock.Object;
+    }
+
     private static Mock<ILookupClient> NewMockedLookupClient()
     {
         var mock = new Mock<ILookupClient>();

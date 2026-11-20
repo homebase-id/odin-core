@@ -393,6 +393,8 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             // first so the per-connection auth context never touches the cached entry.
             var resolved = ctx?.Clone();
             resolved?.SetAuthContext(authContextName);
+            // A V2 socket's events answer what a V2 request does (DriveFileUtility.AnswersVersionUpdated)
+            resolved?.SetApiVersion(2);
             return resolved;
         }
 

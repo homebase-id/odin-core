@@ -32,6 +32,7 @@ using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Statistics;
 using Odin.Services.Email;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Calling;
 using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
@@ -145,6 +146,8 @@ public static class TenantServices
         cb.RegisterType<LiveRelayRetainedStore>().AsSelf().SingleInstance();
         cb.RegisterType<LiveRelayService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<PeerLiveRelayReceiverService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<TurnCredentialRateLimiter>().AsSelf().SingleInstance();
+        cb.RegisterType<IceServerService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<ClientRegistrationStorage>().InstancePerLifetimeScope();
 
