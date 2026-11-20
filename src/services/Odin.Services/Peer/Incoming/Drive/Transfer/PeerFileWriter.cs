@@ -271,8 +271,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             var sender = (OdinId)newMetadata.SenderOdinId;
             var sendersVersionTag = newMetadata.VersionTag.GetValueOrDefault();
-            var (writeContext, alreadyLanded) = await SentFileChanges.PrepareChangeAsync(fs, drive, stored, sender,
-                memberMayUseShares: false, sendersVersionTag, encryptedRecipientTransferInstructionSet.ExpectedVersionTag, odinContext);
+            var (writeContext, alreadyLanded, acl) = await SentFileChanges.PrepareChangeAsync(fs, drive, stored, sender,
+                memberMayUseShares: false, sendersVersionTag, encryptedRecipientTransferInstructionSet.ExpectedVersionTag,
+                serverMetadata.AccessControlList, odinContext);
             if (alreadyLanded)
             {
                 // The tag their write gave it, not the file's now: they may not have read another's change since
@@ -298,6 +299,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 await fs.Storage.ConvertDepositsAsync(drive, [stored], odinContext);
                 ZkDriveFiles.AssertFitsUpdate(stored, keyHeader, writeContext);
             }
+
+            serverMetadata.AccessControlList = acl;
 
             // The tag the header write replaces, which its SQL checks again, and the one it gives the file
             newMetadata.VersionTag = stored.FileMetadata.VersionTag;

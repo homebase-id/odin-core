@@ -1265,3 +1265,6 @@ prints server log events only when a fixture's log assertion fails, and none wer
   The `App` and `Guest` cases of the same test passed in that job, the `postgres/release` and `windows/sqlite/debug`
   jobs of the same commit passed, and all three cases pass locally on the branch. The branch only changes feed
   distribution for channel drives, which this test does not touch. Undiagnosed.
+  **Also locally, 2026-11-20:** the `Guest[Read]` case failed once in a full `Odin.Hosting.Tests.V2` Release run on macOS
+  (sqlite), branch `collab-update-keeps-acl` (#2002), and passed 3/3 when re-run alone on the same build. That branch
+  changes only the ACL of peer writes to community-channel drives, which this test doesn't use (I).

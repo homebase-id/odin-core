@@ -125,9 +125,7 @@ public class ChangingAFileYouSentTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         var pippin = await LoginAsOwner(Identities.Pippin);
-        var drive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        await Ported.Peer.CollabChannelFlow.SetupAsync(frodo, drive, [pippin, sam]);
-        await pippin.Admin.EnsureDrive(drive, $"{pippin.Identity} channel");
+        var drive = await ChannelAsync(frodo, [pippin, sam], pippin);
         var sent = await SendAsync(pippin, frodo, drive, "Pippin's");
         var posted = await HeaderAsync(frodo, drive, sent.Gtid);
 
@@ -146,6 +144,95 @@ public class ChangingAFileYouSentTests : V2Fixture
         Assert.That((await HeaderAsync(frodo, drive, sent.Gtid)).FileMetadata.AppData.Content, Is.EqualTo(pippinsChange));
     }
 
+    [Test]
+    public async Task OnACollaborativeChannelAMembersChangeKeepsWhoMayReadTheFile()
+    {
+        // Frodo's post on his channel names Sam alone.  Sam, who may read it, changes it, his copy of the ACL arriving without
+        // the names: Frodo's post keeps naming Sam alone, and a wider ACL from Sam doesn't land either (#2002)
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var drive = await ChannelAsync(frodo, [pippin, sam], sam);
+        var samAlone = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Connected, OdinIdList = [sam.Identity.DomainName] };
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: samAlone);
+        metadata.AppData.Content = "Frodo's";
+        var fileKey = KeyHeader.NewRandom16();
+        var (upload, _) = await frodo.V1.Drive.UploadNewEncryptedMetadata(metadata, new StorageOptions { Drive = drive }, null, fileKey);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, upload.Error?.Content);
+        var gtid = upload.Content!.GlobalTransitId!.Value;
+        var file = new FileIdentifier { GlobalTransitId = gtid, TargetDrive = drive };
+
+        var (samsChange, _) = await UpdateAsync(sam, frodo, file, upload.Content.NewVersionTag, "Sam's", fileKey);
+        var changed = await HeaderAsync(frodo, drive, gtid);
+        Assert.That(changed.FileMetadata.AppData.Content, Is.EqualTo(samsChange), "Sam's change landed");
+        AssertNamesSamAlone(changed.ServerMetadata.AccessControlList);
+
+        var otherCircle = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Connected, CircleIdList = [Guid.NewGuid()] };
+        var (samsWider, _) = await UpdateAsync(sam, frodo, file, changed.FileMetadata.VersionTag, "Sam's, another circle", fileKey,
+            otherCircle);
+        var after = await HeaderAsync(frodo, drive, gtid);
+        Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo(samsWider), "Sam's second change landed");
+        AssertNamesSamAlone(after.ServerMetadata.AccessControlList);
+
+        void AssertNamesSamAlone(AccessControlList acl)
+        {
+            Assert.That(acl.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+            Assert.That(acl.OdinIdList, Is.EqualTo(new[] { sam.Identity.DomainName }), "still Sam alone");
+        }
+    }
+
+    [Test]
+    public async Task OnACollaborativeChannelItsSendersChangeKeepsWhoMayReadTheirPost()
+    {
+        // Pippin's post on Frodo's channel is Connected.  His changes land, but the ACLs they carry, a circle of his own and
+        // Owner, don't: Frodo's copy stays Connected (#2002)
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var drive = await ChannelAsync(frodo, [pippin], pippin);
+        var sent = await SendAsync(pippin, frodo, drive, "Pippin's");
+
+        await ChangeAsync("a circle", new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Connected, CircleIdList = [Guid.NewGuid()] });
+        await ChangeAsync("owner only", AccessControlList.OwnerOnly);
+
+        async Task ChangeAsync(string what, AccessControlList acl)
+        {
+            var (content, _) = await UpdateAsync(pippin, frodo, OnPeer(drive, sent), null, $"Pippin's, {what}", sent.FileKey, acl);
+            var after = await HeaderAsync(frodo, drive, sent.Gtid);
+            Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo(content), $"{what}: the change landed");
+            Assert.That(after.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected), what);
+            Assert.That(after.ServerMetadata.AccessControlList.GetRequiredCircles(), Is.Empty, what);
+        }
+    }
+
+    [Test]
+    public async Task APostNamingOnlyPeopleReachesACollaborativeChannelOwnerOnly()
+    {
+        // Pippin's new post names Sam alone: Frodo's channel can't be told who, so it stores the post for Frodo alone
+        // rather than for every connection (#2002)
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var drive = await ChannelAsync(frodo, [pippin, sam], pippin);
+        var sent = await SendAsync(pippin, frodo, drive, "Pippin's, for Sam",
+            new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Connected, OdinIdList = [sam.Identity.DomainName] });
+
+        var stored = await HeaderAsync(frodo, drive, sent.Gtid);
+        Assert.That(stored.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner));
+        Assert.That(stored.ServerMetadata.AccessControlList.GetRequiredIdentities(), Is.Empty, "Frodo isn't told who");
+    }
+
+    /// <summary>
+    /// <paramref name="frodo"/>'s new channel, a drive marked as a community channel <paramref name="members"/> write to, with
+    /// the same drive on <paramref name="poster"/>.
+    /// </summary>
+    private static async Task<TargetDrive> ChannelAsync(OwnerSession frodo, OwnerSession[] members, OwnerSession poster)
+    {
+        var drive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        await Ported.Peer.CollabChannelFlow.SetupAsync(frodo, drive, members);
+        await poster.Admin.EnsureDrive(drive, $"{poster.Identity} channel");
+        return drive;
+    }
+
     /// <summary>A file sent: its global transit id, encrypted content and file key, and the sender's copy and its tag.</summary>
     private record Sent(Guid Gtid, string Content, KeyHeader FileKey, Guid FileId, Guid VersionTag);
 
@@ -156,9 +243,10 @@ public class ChangingAFileYouSentTests : V2Fixture
     private static FileIdentifier OnPeer(TargetDrive drive, Sent sent) => new() { GlobalTransitId = sent.Gtid, TargetDrive = drive };
 
     /// <summary><paramref name="sender"/> sends a new encrypted file with <paramref name="content"/> to <paramref name="recipient"/>.</summary>
-    private static async Task<Sent> SendAsync(OwnerSession sender, OwnerSession recipient, TargetDrive drive, string content)
+    private static async Task<Sent> SendAsync(OwnerSession sender, OwnerSession recipient, TargetDrive drive, string content,
+        AccessControlList? acl = null)
     {
-        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: acl ?? AccessControlList.Connected);
         metadata.AllowDistribution = true;
         metadata.AppData.Content = content;
         var fileKey = KeyHeader.NewRandom16();
@@ -176,9 +264,10 @@ public class ChangingAFileYouSentTests : V2Fixture
     /// (<see cref="UpdateLocale.Peer"/>).  The encrypted content and the new version tag.
     /// </summary>
     private static async Task<(string Content, Guid VersionTag)> UpdateAsync(OwnerSession caller, OwnerSession? recipient,
-        FileIdentifier file, Guid? versionTag, string content, KeyHeader fileKey)
+        FileIdentifier file, Guid? versionTag, string content, KeyHeader fileKey, AccessControlList? acl = null)
     {
-        var metadata = SampleMetadataData.Create(fileType: 100, acl: recipient == null ? AccessControlList.OwnerOnly : AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: 100,
+            acl: acl ?? (recipient == null ? AccessControlList.OwnerOnly : AccessControlList.Connected));
         metadata.AllowDistribution = recipient != null;
         metadata.AppData.Content = content;
         metadata.VersionTag = versionTag;

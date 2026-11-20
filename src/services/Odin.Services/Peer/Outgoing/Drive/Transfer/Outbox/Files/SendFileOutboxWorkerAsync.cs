@@ -109,9 +109,7 @@ public class SendFileOutboxWorkerAsync(
             instructionSet.AppNotificationOptions = options.AppNotificationOptions;
         }
 
-        var redactedAcl = header.ServerMetadata.AccessControlList;
-        redactedAcl?.OdinIdList?.Clear();
-        instructionSet.OriginalAcl = redactedAcl;
+        instructionSet.OriginalAcl = header.ServerMetadata.AccessControlList?.ForPeerCopy();
 
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);

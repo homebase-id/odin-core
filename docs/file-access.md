@@ -269,11 +269,16 @@ is disabled **(V)**, so a check that must see a disable asks at the time (as the
 - **Direct sends** (`TransitOptions.Recipients`) aren't checked against the ACL: the sender names the recipients
   (`PeerOutgoingTransferService.CreateOutboxItems`) **(V)**.
 - **A sent copy carries the ACL without its named identities**, so a recipient never learns who else was named
-  (`SendFileOutboxWorkerAsync`, `UpdateRemoteFileOutboxWorker`) **(V)**.
+  (`SendFileOutboxWorkerAsync`, `UpdateRemoteFileOutboxWorker`) **(V)**. One that named identities and no circle is sent
+  as `Owner`, since without the names it would open to everyone in its group (`AccessControlList.ForPeerCopy`, #2002)
+  **(V, tested)**.
 - **The recipient's copy gets a required group of `Owner`**, except: a comment, new or updated, takes the ACL of the
   file it comments on, on every drive (`IncomingFileAcl`, from `PeerFileWriter` and `PeerFileUpdateWriter`), a
-  drive marked as a community channel keeps the sender's ACL (`PeerFileWriter`), and a member's update of a standard
-  file on a Private Share drive keeps the file's own ACL (`PeerFileUpdateWriter`) **(V)**. On a Private Share drive a
+  drive marked as a community channel takes the sender's ACL for a new file (`PeerFileWriter`), and a member's update of a standard
+  file on a Private Share drive keeps the file's own ACL (`PeerFileUpdateWriter`) **(V)**. On a drive marked as a community
+  channel a peer's change of a stored standard file, sent again or updated, keeps the file's own ACL too, whoever sends
+  it: the ACL a sender's copy carries is theirs, without its names and with circles of their own
+  (`IncomingFileAcl.ForChangeOfStoredFile`, from `SentFileChanges.PrepareChangeAsync`, #2002) **(V, tested)**. On a Private Share drive a
   member's update never creates a file: one with no stored file to update, standard or comment, is refused
   (`PeerFileUpdateWriter`) **(V)**.
 - **A zero-knowledge drive sends nothing** (`ZkDriveFiles.AssertNotSent`) **(V)**.
@@ -338,7 +343,8 @@ app, by the feed app for channels members post to, and on the built-in Lists dri
 2. a peer's delete takes the direct soft-delete path, and only the post's original sender may delete it
    (`PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync`). Whether only the original sender is meant
    is Not decided (#2067);
-3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter`, `PeerFileUpdateWriter`);
+3. an incoming new file keeps the sender's ACL instead of `Owner` (`PeerFileWriter`, `PeerFileUpdateWriter`); a peer's
+   change of a stored one keeps the file's ACL (`IncomingFileAcl.ForChangeOfStoredFile`, #2002);
 4. files received from others are distributed on to the members (`AllowDistribution`,
    `FeedDriveDistributionRouter.ShouldDistribute`);
 5. an upload may name recipients for app notifications (`FileSystemStreamWriterBase`).

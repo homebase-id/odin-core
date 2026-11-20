@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
@@ -28,6 +29,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             return isCollaborationChannel ? originalAcl ?? AccessControlList.OwnerOnly : AccessControlList.OwnerOnly;
         }
+
+        /// <summary>
+        /// The ACL a peer's change of a stored file, sent again or updated, is written with, given <paramref name="incomingAcl"/>
+        /// from <see cref="ForIncomingFileAsync"/> (<see cref="SentFileChanges.PrepareChangeAsync"/>).  A standard file on a
+        /// drive marked as a community channel or a Private Share drive keeps <paramref name="storedAcl"/>: a peer's change
+        /// never changes who may read it, since the ACL a sender's copy carries is theirs, without its names and with circles
+        /// of their own (#2002).  A comment, and a file on any other drive, takes the incoming one, as when new.
+        /// </summary>
+        public static AccessControlList ForChangeOfStoredFile(StorageDrive drive, FileSystemType fileSystemType,
+            AccessControlList storedAcl, AccessControlList incomingAcl) =>
+            fileSystemType == FileSystemType.Standard && (drive.IsCollaborationDrive() || drive.IsSelectiveShare)
+                ? storedAcl ?? AccessControlList.OwnerOnly
+                : incomingAcl;
 
         public static async Task<AccessControlList> ResetAclForComment(FileSystemResolver fileSystemResolver,
             FileMetadata metadata, IOdinContext odinContext)

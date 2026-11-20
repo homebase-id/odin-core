@@ -181,4 +181,24 @@ public class AclDecisionTests
         var stored = OdinSystemSerializer.Deserialize<ServerMetadataDto>($"{{\"accessControlList\":{aclJson}}}");
         Assert.DoesNotThrow(() => stored!.AccessControlList.Validate(), "a stored header with no names still validates");
     }
+
+    // A peer's copy drops the names, and an ACL that named only people becomes Owner rather than open to its whole group (#2002)
+    [Test]
+    public void APeerCopyDropsNamedIdentitiesWithoutWideningTheAcl()
+    {
+        var personOnly = Named(SecurityGroupType.Connected, [], Sam);
+        var copy = personOnly.ForPeerCopy();
+        Assert.That(copy.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner));
+        Assert.That(copy.GetRequiredIdentities(), Is.Empty);
+        Assert.That(personOnly.OdinIdList, Is.EqualTo(new[] { Sam.DomainName }), "the original is unchanged");
+
+        var circleAndPerson = Named(SecurityGroupType.Connected, [Friends], Sam).ForPeerCopy();
+        Assert.That(circleAndPerson.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+        Assert.That(circleAndPerson.GetRequiredCircles(), Is.EqualTo(new[] { Friends }), "the circle alone is narrower");
+        Assert.That(circleAndPerson.GetRequiredIdentities(), Is.Empty);
+
+        var connected = AccessControlList.Connected.ForPeerCopy();
+        Assert.That(connected.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+        Assert.That(connected.GetRequiredCircles(), Is.Empty);
+    }
 }

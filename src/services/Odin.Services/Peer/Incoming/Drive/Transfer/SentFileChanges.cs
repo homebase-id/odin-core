@@ -5,6 +5,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -58,15 +59,19 @@ internal static class SentFileChanges
     }
 
     /// <summary>
-    /// A sent file's change: the context it is written in (<see cref="ContextForChangeAsync"/>), and whether it already
-    /// landed (<see cref="AlreadyLandedOrAssertMayChange"/>), which asserts it may go on when it hasn't.
+    /// A sent file's change: the context it is written in (<see cref="ContextForChangeAsync"/>), whether it already landed
+    /// (<see cref="AlreadyLandedOrAssertMayChange"/>), which asserts it may go on when it hasn't, and the ACL it is written
+    /// with, given <paramref name="incomingAcl"/> (<see cref="IncomingFileAcl.ForChangeOfStoredFile"/>).
     /// </summary>
-    public static async Task<(IOdinContext Context, bool AlreadyLanded)> PrepareChangeAsync(IDriveFileSystem fs, StorageDrive drive,
-        ServerFileHeader stored, OdinId sender, bool memberMayUseShares, Guid sendersVersionTag, Guid? namedVersionTag,
-        IOdinContext odinContext)
+    public static async Task<(IOdinContext Context, bool AlreadyLanded, AccessControlList Acl)> PrepareChangeAsync(IDriveFileSystem fs,
+        StorageDrive drive, ServerFileHeader stored, OdinId sender, bool memberMayUseShares, Guid sendersVersionTag,
+        Guid? namedVersionTag, AccessControlList incomingAcl, IOdinContext odinContext)
     {
         var (writeContext, sentIt) = await ContextForChangeAsync(fs, drive, stored, sender, memberMayUseShares, odinContext);
-        return (writeContext, AlreadyLandedOrAssertMayChange(stored, sender, sentIt, sendersVersionTag, namedVersionTag));
+        var alreadyLanded = AlreadyLandedOrAssertMayChange(stored, sender, sentIt, sendersVersionTag, namedVersionTag);
+        var acl = IncomingFileAcl.ForChangeOfStoredFile(drive, stored.ServerMetadata.FileSystemType,
+            stored.ServerMetadata.AccessControlList, incomingAcl);
+        return (writeContext, alreadyLanded, acl);
     }
 
     /// <summary>

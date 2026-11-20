@@ -92,6 +92,21 @@ namespace Odin.Services.Authorization.Acl
             return (IEnumerable<string>)this.OdinIdList ?? Array.Empty<string>();
         }
 
+        /// <summary>
+        /// The ACL a copy sent to a peer carries: without its named identities, so the recipient never learns who else was
+        /// named.  One that named identities and no circle becomes <see cref="SecurityGroupType.Owner"/>, since dropping the
+        /// names would open it to everyone in its group (#2002).  A copy: this one is unchanged.
+        /// </summary>
+        public AccessControlList ForPeerCopy()
+        {
+            var namesOnlyIdentities = GetRequiredIdentities().Any() && !GetRequiredCircles().Any();
+            return new AccessControlList
+            {
+                RequiredSecurityGroup = namesOnlyIdentities ? SecurityGroupType.Owner : RequiredSecurityGroup,
+                CircleIdList = CircleIdList?.ToList()
+            };
+        }
+
         public void Validate()
         {
             if (RequiredSecurityGroup == SecurityGroupType.Anonymous || RequiredSecurityGroup == SecurityGroupType.Owner)

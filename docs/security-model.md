@@ -319,7 +319,8 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
   be one of the listed identities, and still meet the security group, so a named identity that is unconnected or
   unreviewed does not pass a `Connected` ACL **(V)**. Queries apply the same rule in SQL (`aclAnyOf`) **(V)**.
 - `OdinIdList` is stored canonical and de-duplicated by `AccessControlList.Validate`, and is cleared before a file is
-  sent to a peer, so a recipient never learns who else was named **(V)**. `System` (1) is a caller level, never a file
+  sent to a peer, so a recipient never learns who else was named; one naming identities and no circle is sent as `Owner`
+  rather than opened to its whole group (`AccessControlList.ForPeerCopy`) **(V)**. `System` (1) is a caller level, never a file
   ACL **(V)**.
 - Owner and `System` callers skip the ACL **(V)**.
 - Reading a file needs **both** drive Read and the ACL. Past drive Read, one rule decides whether the caller may see a stored

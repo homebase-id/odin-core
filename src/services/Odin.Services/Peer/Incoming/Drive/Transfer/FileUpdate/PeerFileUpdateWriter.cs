@@ -56,15 +56,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             // On a Private Share drive a member edits a file shared with them, or a comment on one: never a new one.  A
             // standard file keeps its ACL, which an Owner one would close to every member (docs/selective-share-pr3-plan.md,
-            // section 7); a comment takes its file's, as on every drive (IncomingFileAcl)
-            if (drive.IsSelectiveShare)
+            // section 7), as SentFileChanges.PrepareChangeAsync gives it; a comment takes its file's, as on every drive
+            if (drive.IsSelectiveShare && existingHeader?.ServerMetadata?.AccessControlList == null)
             {
-                var existingAcl = existingHeader?.ServerMetadata?.AccessControlList ??
-                                  throw new OdinSecurityException("No shared file to update");
-                if (fileSystemType == FileSystemType.Standard)
-                {
-                    targetAcl = existingAcl;
-                }
+                throw new OdinSecurityException("No shared file to update");
             }
 
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
@@ -113,12 +108,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return (success, incomingMetadata.Payloads ?? []);
             }
 
-            var (writeContext, alreadyLanded) = await SentFileChanges.PrepareChangeAsync(fs, drive, existingHeader, sender,
-                memberMayUseShares: true, request.NewVersionTag, request.ExpectedVersionTag, odinContext);
+            var (writeContext, alreadyLanded, acl) = await SentFileChanges.PrepareChangeAsync(fs, drive, existingHeader, sender,
+                memberMayUseShares: true, request.NewVersionTag, request.ExpectedVersionTag, targetAcl, odinContext);
             if (alreadyLanded)
             {
                 return await SentFileChanges.AlreadyDeliveredAsync(fs, file, incomingMetadata.Payloads, markComplete, odinContext);
             }
+
+            serverMetadata.AccessControlList = acl;
 
             //Update existing file
             await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter UpdateExistingFile", async () =>
