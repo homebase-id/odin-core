@@ -64,6 +64,26 @@ public class CollaborativeFolderDevFixture
         Type = Guid.Parse("5da48122-e946-487a-8b9d-589642f3c91d")
     };
 
+    // The circle the Filesync app declares at install (AppConfig.kt filesyncAppRegistration): without it chat-kmp's share
+    // sheet offers no access level and its Share button stays off.  No Write: drive Write lets a member add files anywhere.
+    private static readonly CreateAppCircleRequest FilesyncCircle = new()
+    {
+        Name = "Filesync",
+        Slug = new OdinSlug("filesync"),
+        Description = "People who can see the files you share through Homebase Filesync",
+        Emoji = "\U0001F4C1",
+        DriveGrants =
+        [
+            new DriveGrantRequest
+            {
+                PermissionedDrive = new PermissionedDrive
+                {
+                    Drive = FilesyncDrive, Permission = DrivePermission.Read | DrivePermission.React | DrivePermission.Comment
+                }
+            }
+        ]
+    };
+
     // A chat-like app on Tom's identity, which chat-kmp's harness sends as
     private static readonly Guid ChatLikeAppId = Guid.Parse("7c1f2e0a-5d3b-4f6e-9a8c-1b2d3e4f5a6b");
 
@@ -85,7 +105,7 @@ public class CollaborativeFolderDevFixture
         // Written before the password is set, so a run that fails part way still leaves a way in
         await WriteFixtureAsync(outPath!, result);
 
-        // 1. Owners, initialized and zero knowledge, each with Filesync and its Private Share drive
+        // 1. Owners, initialized and zero knowledge, each with Filesync, its Private Share drive and its circle
         var pippin = await OwnerSession.LoginToDevServerAsync(Dev, Pippin, password, setPassword: true);
         var tom = await OwnerSession.LoginToDevServerAsync(Dev, Tom, password, setPassword: true);
         var pippinFilesync = await SetUpOwnerAsync(pippin, password);
@@ -242,7 +262,7 @@ public class CollaborativeFolderDevFixture
         Assert.That((status.StatusCode, status.Content?.Pending), Is.EqualTo((HttpStatusCode.OK, (bool?)false)), status.Error?.Content);
     }
 
-    private sealed record OwnersFilesync(byte[] ZkMasterKey, ZkBrowser.DriveKeys Keys, AppSession App);
+    private sealed record OwnersFilesync(byte[] ZkMasterKey, ZkBrowser.DriveKeys Keys, AppSession App, Guid AppCircleId);
 
     private static async Task<OwnersFilesync> SetUpOwnerAsync(OwnerSession owner, string password)
     {
@@ -252,9 +272,15 @@ public class CollaborativeFolderDevFixture
         await owner.Admin.RegisterApp(FilesyncAppId, new PermissionSetGrantRequest(), appSlug: new OdinSlug("filesync"));
         var (_, keys) = await ZkOwnerSteps.CreateZeroKnowledgeDriveAsync(owner, zkMasterKey, DriveSharingModel.SelectiveShare,
             FilesyncAppId, "Filesync", FilesyncDrive, driveSlug: new OdinSlug("filesync"), driveTypeSlug: new OdinSlug("filesync"));
-        var app = await AppSession.SetupAsync(owner, FilesyncDrive, FolderPermissions, [PermissionKeys.ReadConnections],
-            knownAppId: FilesyncAppId);
-        return new OwnersFilesync(zkMasterKey, keys, app);
+        // UseTransitRead as the Filesync daemon registers it (filesync crates/hbsync-homebase/src/app.rs): a member's device
+        // reads a sharer's circle key and sends notify tokens through its own server with it
+        var app = await AppSession.SetupAsync(owner, FilesyncDrive, FolderPermissions,
+            [PermissionKeys.ReadConnections, PermissionKeys.UseTransitRead], knownAppId: FilesyncAppId);
+
+        // The app's circle, created as the daemon finds or makes it: circles/create by slug, as the app
+        var circle = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(FilesyncCircle);
+        Assert.That(circle.IsSuccessStatusCode, Is.True, $"creating Filesync's circle on {owner.Identity}: {circle.StatusCode}");
+        return new OwnersFilesync(zkMasterKey, keys, app, circle.Content);
     }
 
     private static async Task ConnectAsync(OwnerSession owner, OwnerSession member)
@@ -316,6 +342,7 @@ public class CollaborativeFolderDevFixture
                 ["writeOnlyPrivateKeyPkcs8"] = Convert.ToBase64String(filesync.Keys.WriteOnlyPrivateKey)
             },
             ["filesyncApp"] = AppResult(filesync.App),
+            ["filesyncCircle"] = filesync.AppCircleId,
             ["circles"] = circles
         };
 
