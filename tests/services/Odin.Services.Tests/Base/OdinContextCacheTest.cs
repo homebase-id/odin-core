@@ -188,4 +188,46 @@ public class OdinContextCacheTest
         Assert.That(oc2.AuthTokenCreated, Is.EqualTo(oc1.AuthTokenCreated));
     }
 
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
+    public async Task EachTokenTypeHasItsOwnEntry(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var cache = _services!.Resolve<OdinContextCache>();
+
+        // One id and half key, two types: the type is a byte the caller sends, so it must be part of the key
+        var id = Guid.NewGuid();
+        var halfKey = ByteArrayUtil.GetRndByteArray(16);
+        var first = new ClientAuthenticationToken
+        {
+            Id = id,
+            AccessTokenHalfKey = halfKey.ToSensitiveByteArray(),
+            ClientTokenType = ClientTokenType.App
+        };
+        var second = new ClientAuthenticationToken
+        {
+            Id = id,
+            AccessTokenHalfKey = halfKey.ToSensitiveByteArray(),
+            ClientTokenType = ClientTokenType.YouAuth
+        };
+
+        var cached = await cache.GetOrAddContextAsync(first, () => Task.FromResult<IOdinContext?>(CreateOdinContext()));
+        Assert.That(cached, Is.Not.Null);
+
+        var secondBuilt = false;
+        var other = await cache.GetOrAddContextAsync(second, () =>
+        {
+            secondBuilt = true;
+            return Task.FromResult<IOdinContext?>(null);
+        });
+
+        Assert.That(secondBuilt, Is.True, "a token of another type was served the first type's cached context");
+        Assert.That(other, Is.Null);
+        Assert.That(OdinContextCache.GetCacheKey(first, null), Is.Not.EqualTo(OdinContextCache.GetCacheKey(second, null)));
+    }
+
 }

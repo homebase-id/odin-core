@@ -17,6 +17,15 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
         
         public const string Guest = "Unified-HasValidGuestAccessToken";
 
+        // A guest is either a YouAuth domain, with a grant of its own, or a visitor signed in on the home site
+        // (BuiltInBrowserApp), whose access is what its connection already allows.  V1 gives the two the same claims
+        // (YouAuthAuthenticationHandler); V2 lets in the one only where it lets in the other.
+        private static readonly string[] GuestTokenTypes =
+        [
+            AsClaimValue(ClientTokenType.YouAuth),
+            AsClaimValue(ClientTokenType.BuiltInBrowserApp)
+        ];
+
         public static void AddPolicies(AuthorizationOptions options)
         {
             options.AddPolicy(Owner, policy =>
@@ -57,7 +66,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
                     [
                         AsClaimValue(ClientTokenType.Owner),
                         AsClaimValue(ClientTokenType.App),
-                        AsClaimValue(ClientTokenType.YouAuth)
+                        ..GuestTokenTypes
                     ]
                 );
 
@@ -67,11 +76,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
             {
                 policy.RequireAuthenticatedUser();
 
-                policy.RequireClaim(UnifiedClaimTypes.ClientTokenType,
-                    [
-                        AsClaimValue(ClientTokenType.YouAuth)
-                    ]
-                );
+                policy.RequireClaim(UnifiedClaimTypes.ClientTokenType, GuestTokenTypes);
 
                 policy.AuthenticationSchemes.Add(UnifiedAuthConstants.SchemeName);
             });

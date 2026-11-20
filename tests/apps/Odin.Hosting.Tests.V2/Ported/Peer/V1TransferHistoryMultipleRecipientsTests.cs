@@ -118,7 +118,8 @@ public class V1TransferHistoryMultipleRecipientsTests : V2Fixture
         Assert.That(summary.TotalDelivered, Is.EqualTo(0));
         Assert.That(summary.TotalReadByRecipient, Is.EqualTo(0));
 
-        Assert.That(summary.TotalFailed, Is.EqualTo(connectedRecipients.Count),
+        // The outbox is still retrying these, so they are pending, not failed (#2087)
+        Assert.That(summary.TotalFailed, Is.EqualTo(0),
             $"(delivered:{summary.TotalDelivered}, in outbox: {summary.TotalInOutbox})");
 
         Assert.That(summary.TotalInOutbox, Is.EqualTo(connectedRecipients.Count));

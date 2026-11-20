@@ -3,6 +3,7 @@ using System.Net;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Services.Util;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -131,6 +132,18 @@ public static class DriveAsserts
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"actual {response.StatusCode}");
         Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(expected), response.Error?.Content);
     }
+
+    /// <summary>
+    /// A 404 with <paramref name="expected"/> as its error code: <c>FileDeleted</c> for a deleted file, <c>NoErrorCode</c> for one
+    /// that isn't there
+    /// </summary>
+    public static void AssertNotFound(IApiResponse response, OdinClientErrorCode expected, string what) =>
+        Assert.That((response.StatusCode, response.ErrorCode()), Is.EqualTo((HttpStatusCode.NotFound, expected)),
+            $"{what}: {response.Error?.Content}");
+
+    /// <summary>A 404 saying the file is deleted (<c>FileDeleted</c>)</summary>
+    public static void AssertFileDeleted(IApiResponse response, string what) =>
+        AssertNotFound(response, OdinClientErrorCode.FileDeleted, what);
 
     public static async Task AssertTransferStatus(
         OwnerSession sender,

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -39,6 +40,12 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             logger.LogDebug("AcceptUpdatedFileMetadata called");
             await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
             var sender = odinContext.GetCallerOdinIdOrFail();
+
+            // The lookup uses one id and the stored metadata carries the other; they must be the same file
+            if (request.FileMetadata.GlobalTransitId != request.FileId.GlobalTransitId)
+            {
+                throw new OdinSecurityException("Global transit id mismatch");
+            }
 
             if (request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
@@ -100,7 +107,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     // perform update
                     request.FileMetadata.SenderOdinId = sender;
                     await feedWriter.ReplaceFileMetadataOnFeedDrive(file.Value.FileId, request.FileMetadata, newContext,
-                        bypassCallerCheck: true);
+                        expectedSender: sender);
                 }
             }
 

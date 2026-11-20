@@ -393,11 +393,12 @@ public class VaultConversionTests : V2Fixture
         await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, returnUrl, SealToSignIn(appKey, keyPair), ZkBrowser.Lock(appKey, zkMasterKey),
             HttpStatusCode.BadRequest);
 
-        // A sign-in whose public key isn't one: a 400 at consent, not a 500
+        // A sign-in whose public key isn't one: refused before the consent page, and by consent if it gets there anyway
         var malformed = SignInRequest(app.AppId, keyPair);
         malformed.PublicKey = "not-a-key";
-        var malformedReturn = YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, malformed));
-        await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, malformedReturn, SealToSignIn(appKey, keyPair), locked, HttpStatusCode.BadRequest);
+        var malformedAuthorize = await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, malformed);
+        Assert.That(malformedAuthorize.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        await YouAuthFlow.GiveConsentAsync(frodo.Host, frodo, malformed, SealToSignIn(appKey, keyPair), locked, HttpStatusCode.BadRequest);
 
         // Still at the consent page: nothing lets a sign-in that asked for the key skip it
         YouAuthFlow.AssertRedirectsToConsent(await YouAuthFlow.AuthorizeAsync(frodo.Host, frodo, request));

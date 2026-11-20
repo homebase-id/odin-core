@@ -14,6 +14,7 @@ public interface IDriveManager
 
     Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext);
     Task SetDriveRequirePayloadHashesAsync(Guid driveId, bool requirePayloadHashes, IOdinContext odinContext);
+    Task SetDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext);
     Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext);
     Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext);
 

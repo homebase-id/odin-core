@@ -93,6 +93,7 @@ public class DriveDeletionService(
         foreach (var purge in await drivePurges.GetAllAsync())
         {
             var job = await jobManager.GetJobByHashAsync(DrivePurgeJob.HashFor(odinContext.Tenant, purge.DriveId));
+            var filesRemaining = await db.MainIndexMetaCached.CountDriveFilesAsync(purge.DriveId, purge.Cutoff);
             statuses.Add(new DrivePurgeStatus
             {
                 TargetDrive = purge.TargetDrive,
@@ -100,10 +101,15 @@ public class DriveDeletionService(
                 AppId = purge.AppId,
                 Kind = purge.Kind,
                 Requested = purge.Requested,
-                FilesRemaining = await db.MainIndexMetaCached.CountDriveFilesAsync(purge.DriveId, purge.Cutoff),
+                FilesRemaining = filesRemaining,
                 LastError = purge.LastError,
                 LastErrorAt = purge.LastErrorAt,
-                Stopped = job == null
+                Stopped = job == null,
+                Phase = job == null ? DrivePurgePhase.Stopped
+                    : purge.LastError != null ? DrivePurgePhase.Retrying
+                    : filesRemaining > 0 ? DrivePurgePhase.RemovingFiles
+                    : DrivePurgePhase.Finishing,
+                NextRunAt = job?.nextRun.milliseconds
             });
         }
 
@@ -182,4 +188,28 @@ public class DrivePurgeStatus
 
     /// <summary>No job is working on it any more: it ran out of retries. Retry restarts it.</summary>
     public bool Stopped { get; init; }
+
+    /// <summary>
+    /// Where the purge is. Files reaching zero is not the end: a delete still removes the drive's remaining rows
+    /// and directories, and its alias stays taken until that is done.
+    /// </summary>
+    public DrivePurgePhase Phase { get; init; }
+
+    /// <summary>When the job runs next, in unix ms -- after a failure, the retry. Null once stopped.</summary>
+    public long? NextRunAt { get; init; }
+}
+
+public enum DrivePurgePhase
+{
+    /// <summary>Files are still being removed; <see cref="DrivePurgeStatus.FilesRemaining"/> counts them.</summary>
+    RemovingFiles = 1,
+
+    /// <summary>The files are gone; the last cleanup (a deleted drive's rows and directories) is still to run.</summary>
+    Finishing = 2,
+
+    /// <summary>The last run failed (<see cref="DrivePurgeStatus.LastError"/>); the job tries again at <see cref="DrivePurgeStatus.NextRunAt"/>.</summary>
+    Retrying = 3,
+
+    /// <summary>No job is working on it any more; Retry restarts it.</summary>
+    Stopped = 4
 }

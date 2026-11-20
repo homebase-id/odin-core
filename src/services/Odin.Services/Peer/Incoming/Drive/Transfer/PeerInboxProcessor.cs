@@ -486,11 +486,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     (success, payloads) = await writer.HandleFile(file, fs, decryptedKeyHeader, inboxItem.Sender,
                         inboxItem.TransferInstructionSet,
                         odinContext, sourceArea: ResolveInboxSourceArea(inboxItem),
-                        driveOriginWasCollaborative: feedPayload.DriveOriginWasCollaborative, markComplete: markComplete,
+                        markComplete: markComplete,
                         metadataOverride: inboxItem.FileMetadata);
                 });
 
                 logger.LogDebug("Processing Feed Inbox Item -> HandleFile Complete. Took {ms} ms", handleFileMs);
+            }
+            catch (OdinSecurityException)
+            {
+                // Refused for good: ProcessInboxItemAsync marks it complete rather than retrying it
+                throw;
             }
             catch (Exception e)
             {

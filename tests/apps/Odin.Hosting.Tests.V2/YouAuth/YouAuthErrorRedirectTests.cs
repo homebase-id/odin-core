@@ -3,6 +3,8 @@ using System;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Cryptography.Data;
+using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
@@ -40,6 +42,35 @@ public class YouAuthErrorRedirectTests : V2Fixture
         var location = AssertRedirectsTo(await AuthorizeAsync(Host, owner, request), DomainCallback);
         Assert.That(location[YouAuthDefaults.Error], Is.EqualTo(YouAuthDefaults.ErrorInvalidRequest));
         Assert.That(location[YouAuthDefaults.State], Is.EqualTo("state-4711"), "the relying party matches the answer to its request by state");
+    }
+
+    [Test]
+    [TestCase("not-a-key", TestName = "not base64 JSON")]
+    [TestCase("bnVsbA", TestName = "the JSON null")]
+    [TestCase("eyJrdHkiOiJFQyJ9", TestName = "a JWK with only kty")]
+    public async Task YouAuth060_ADomainClientWithAMalformedPublicKeyIsSentBackWithAnError(string publicKey)
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+
+        var request = DomainRequest(Domain, DomainCallback);
+        request.PublicKey = publicKey;
+
+        var location = AssertRedirectsTo(await AuthorizeAsync(Host, owner, request), DomainCallback);
+        Assert.That(location[YouAuthDefaults.Error], Is.EqualTo(YouAuthDefaults.ErrorInvalidRequest),
+            "the owner must not be asked to consent to a sign-in that can't finish");
+    }
+
+    [Test]
+    public async Task YouAuth060_ADomainClientWithAKeyOnAnotherCurveIsSentBackWithAnError()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+
+        var request = DomainRequest(Domain, DomainCallback);
+        var secret = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+        request.PublicKey = new EccFullKeyData(secret, EccKeySize.P256, 1).PublicKeyJwkBase64Url();
+
+        var location = AssertRedirectsTo(await AuthorizeAsync(Host, owner, request), DomainCallback);
+        Assert.That(location[YouAuthDefaults.Error], Is.EqualTo(YouAuthDefaults.ErrorInvalidRequest));
     }
 
     [Test]

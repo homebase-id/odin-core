@@ -9,6 +9,7 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
@@ -364,6 +365,7 @@ public class ProfilePublishService(
             maxRecords: 1)).FirstOrDefault();
         if (photoAttribute == null)
         {
+            logger.LogInformation("No public Photo attribute; publishing the fallback profile image");
             await PublishFallbackProfileImageAsync(publishContext);
             return;
         }
@@ -372,6 +374,8 @@ public class ProfilePublishService(
         var payloadKey = GetDataString(content, ProfileAttributeFields.ProfileImageKey);
         if (string.IsNullOrWhiteSpace(payloadKey))
         {
+            logger.LogInformation("Public Photo attribute {FileId} has no {Field}; publishing the fallback profile image",
+                photoAttribute.FileId, ProfileAttributeFields.ProfileImageKey);
             await PublishFallbackProfileImageAsync(publishContext);
             return;
         }
@@ -379,6 +383,8 @@ public class ProfilePublishService(
         var payloadDescriptor = photoAttribute.FileMetadata.Payloads?.FirstOrDefault(p => p.KeyEquals(payloadKey));
         if (payloadDescriptor == null)
         {
+            logger.LogInformation("Public Photo attribute {FileId} has no payload {PayloadKey}; publishing the fallback profile image",
+                photoAttribute.FileId, payloadKey);
             await PublishFallbackProfileImageAsync(publishContext);
             return;
         }
@@ -417,6 +423,8 @@ public class ProfilePublishService(
             using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, publishContext);
             if (payloadStream == null)
             {
+                logger.LogInformation("Public Photo attribute {FileId} payload {PayloadKey} has no stream; publishing the fallback profile image",
+                    photoAttribute.FileId, payloadKey);
                 await PublishFallbackProfileImageAsync(publishContext);
                 return;
             }
@@ -462,6 +470,8 @@ public class ProfilePublishService(
 
         if (generated)
         {
+            logger.LogInformation("Publishing a generated initials profile image (from {Source})",
+                nameContent == null ? "the domain or an empty name" : "the public Name attribute");
             await staticFileContentService.PublishProfileImageAsync(pngBase64!, "image/png");
 
             await mediator.Publish(new PublicProfileContentPublishedNotification
@@ -472,6 +482,7 @@ public class ProfilePublishService(
             return;
         }
 
+        logger.LogInformation("No photo, name or domain to make a profile image from; clearing it");
         await ClearProfileImageAsync(publishContext);
     }
 
@@ -613,20 +624,37 @@ public class ProfilePublishService(
             TagsMatchAtLeastOne = attributeTypes
         };
 
-        var options = new QueryBatchResultOptions
+        // maxRecords caps the *public* results, not the raw rows (#2090): a newer non-public attribute (a
+        // per-circle photo, say) must not hide an older public one. So page through the drive until enough
+        // rows pass the public rule or the drive runs out, rather than capping the query and filtering after.
+        var results = new List<SharedSecretEncryptedFileHeader>();
+        var cursor = new QueryBatchCursor();
+        while (true)
         {
-            MaxRecords = maxRecords,
-            IncludeHeaderContent = true,
-            ExcludePreviewThumbnail = true,
-            ExcludeServerMetaData = false
-        };
+            var options = new QueryBatchResultOptions
+            {
+                Cursor = cursor,
+                MaxRecords = AttributeQueryPageSize,
+                IncludeHeaderContent = true,
+                ExcludePreviewThumbnail = true,
+                ExcludeServerMetaData = false
+            };
 
-        var batch = await fileSystem.Query.GetBatch(ProfileDrive.Alias, qp, options, publishContext);
+            var batch = await fileSystem.Query.GetBatch(ProfileDrive.Alias, qp, options, publishContext);
 
-        // Same "is this actually public" rule StaticFileContentService applies when serving sitedata.json --
-        // reuse it directly so the two can't drift on what counts as public.
-        return staticFileContentService.Filter(batch.SearchResults).ToList();
+            // Same "is this actually public" rule StaticFileContentService applies when serving sitedata.json --
+            // reuse it directly so the two can't drift on what counts as public.
+            results.AddRange(staticFileContentService.Filter(batch.SearchResults ?? []));
+            if (results.Count >= maxRecords || !batch.HasMoreRows || batch.Cursor == null)
+            {
+                return results.Take(maxRecords).ToList();
+            }
+
+            cursor = batch.Cursor;
+        }
     }
+
+    private const int AttributeQueryPageSize = 100;
 
     private ProfileAttributeContent DeserializeAttributeContent(string content)
     {

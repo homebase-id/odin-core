@@ -108,6 +108,20 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
         }
     }
 
+    public async Task<ApiResponse<NoResultResponse>> Uninstall(Guid appId, bool deleteOwnedCirclesAndDrives)
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
+
+            return await svc.Uninstall(new UninstallAppRequest
+            {
+                AppId = appId,
+                DeleteOwnedCirclesAndDrives = deleteOwnedCirclesAndDrives
+            });
+        }
+    }
+
     public async Task<ApiResponse<HttpContent>> UpdateAppAuthorizedCircles(Guid appId, List<Guid> authorizedCircles,
         PermissionSetGrantRequest grant)
     {

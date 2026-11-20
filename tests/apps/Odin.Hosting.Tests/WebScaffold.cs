@@ -27,6 +27,9 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Registry;
+using Odin.Services.Tenant.Container;
+using Autofac;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Test.Helpers.Logging;
@@ -320,6 +323,14 @@ namespace Odin.Hosting.Tests
             // Make sure this is last so it doesnt mess up the rest of the cleanup
             AssertLogEvents(logEvents, assertLogEvents);
         }
+
+        /// <summary>The identity's registry id, as its paths and jobs are keyed</summary>
+        public Guid IdOf(TestIdentity identity) =>
+            Services.GetRequiredService<IIdentityRegistry>().ResolveId(identity.OdinId.DomainName)!.Value;
+
+        /// <summary>A scope in the identity's own container, for resolving its tenant services in a test</summary>
+        public ILifetimeScope TenantScope(TestIdentity identity, string tag) =>
+            Services.GetRequiredService<IMultiTenantContainer>().GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope(tag);
 
         public OwnerApiTestUtils OldOwnerApi =>
             this._oldOwnerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");

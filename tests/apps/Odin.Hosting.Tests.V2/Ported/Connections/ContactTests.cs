@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -1248,12 +1249,7 @@ public class ContactTests : V2Fixture
     public async Task AppData_DifferentApp_NeitherSeesNorOverwritesTheOther()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
-            PermissionKeyAllowance.Apps);
-        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
-            PermissionKeyAllowance.Apps);
-        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
-        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+        var (contactsA, contactsB, appA, appB) = await TwoContactAppsAsync(owner);
 
         var create = await contactsA.CreateAsync(new CreateContactRequest
         {
@@ -1270,6 +1266,26 @@ public class ContactTests : V2Fixture
         Assert.That(stored.AppData![appA.AppId.ToString()], Is.EqualTo("\"A\""), "app A's blob is intact after app B writes");
         Assert.That(stored.AppData![appB.AppId.ToString()], Is.EqualTo("\"B\""), "app B writes its own slot");
         Assert.That(stored.AppData.Count, Is.EqualTo(2), "each app keeps a distinct slot");
+    }
+
+    [Test]
+    public async Task AppData_WriteOverAStaleRead_KeepsTheOtherAppsBlob()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var (contactsA, contactsB, appA, _) = await TwoContactAppsAsync(owner);
+        var (uid, beforeA) = await CreateContactAsync(owner, contactsA);
+
+        var setA = await contactsA.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"A\"", VersionTag = beforeA.hdrVersionTag });
+        Assert.That(setA.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // App B knows the current version; the server reads the contact as it was before app A wrote (#2093)
+        await ServeStaleHeaderRowAsync(owner, beforeA);
+        var setB = await contactsB.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"B\"", VersionTag = setA.Content!.VersionTag });
+        Assert.That(setB.StatusCode, Is.EqualTo(HttpStatusCode.Conflict), "a write built on the contact before app A's write");
+
+        await ForgetCachedHeaderRowsAsync(owner);
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.AppData![appA.AppId.ToString()], Is.EqualTo("\"A\""), "app A's blob stands");
     }
 
     [Test]
@@ -1308,12 +1324,7 @@ public class ContactTests : V2Fixture
     public async Task AppData_Delete_ClearsOnlyThatAppsBlob()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
-            PermissionKeyAllowance.Apps);
-        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
-            PermissionKeyAllowance.Apps);
-        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
-        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+        var (contactsA, contactsB, appA, appB) = await TwoContactAppsAsync(owner);
 
         var create = await contactsA.CreateAsync(new CreateContactRequest
         {
@@ -1434,12 +1445,7 @@ public class ContactTests : V2Fixture
     public async Task AppExtData_DifferentApp_NeitherSeesNorOverwritesTheOther()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
-            PermissionKeyAllowance.Apps);
-        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
-            PermissionKeyAllowance.Apps);
-        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
-        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+        var (contactsA, contactsB, appA, appB) = await TwoContactAppsAsync(owner);
 
         var create = await contactsA.CreateAsync(new CreateContactRequest
         {
@@ -1456,6 +1462,26 @@ public class ContactTests : V2Fixture
         Assert.That(appExt!.AppData![appA.AppId.ToString()], Is.EqualTo("\"A-bulk\""), "app A's bulk blob is intact");
         Assert.That(appExt.AppData![appB.AppId.ToString()], Is.EqualTo("\"B-bulk\""), "app B has its own bulk slot");
         Assert.That(appExt.AppData.Count, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task AppExtData_WriteOverAStaleRead_KeepsTheOtherAppsBulkBlob()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var (contactsA, contactsB, appA, _) = await TwoContactAppsAsync(owner);
+        var (uid, beforeA) = await CreateContactAsync(owner, contactsA);
+
+        var setA = await contactsA.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"A-bulk\"", VersionTag = beforeA.hdrVersionTag });
+        Assert.That(setA.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // App B knows the current version; the server reads the contact as it was before app A wrote (#2093)
+        await ServeStaleHeaderRowAsync(owner, beforeA);
+        var setB = await contactsB.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"B-bulk\"", VersionTag = setA.Content!.VersionTag });
+        Assert.That(setB.StatusCode, Is.EqualTo(HttpStatusCode.Conflict), "a write built on the contact before app A's write");
+
+        await ForgetCachedHeaderRowsAsync(owner);
+        var appExt = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(appExt?.AppData?.GetValueOrDefault(appA.AppId.ToString()), Is.EqualTo("\"A-bulk\""), "app A's bulk blob stands");
     }
 
     [Test]
@@ -1493,12 +1519,7 @@ public class ContactTests : V2Fixture
     public async Task AppExtData_Delete_DropsPayloadWhenEmpty_KeepsOtherApp()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
-            PermissionKeyAllowance.Apps);
-        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
-            PermissionKeyAllowance.Apps);
-        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
-        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+        var (contactsA, contactsB, appA, appB) = await TwoContactAppsAsync(owner);
 
         var create = await contactsA.CreateAsync(new CreateContactRequest
         {
@@ -1619,6 +1640,29 @@ public class ContactTests : V2Fixture
             new UploadManifest(),
             []);
         Assert.That(seed.IsSuccessStatusCode, Is.True, "seeding the profile attribute should succeed");
+    }
+
+    // Two apps that write contacts, each with its own client
+    private static async Task<(V2ContactsClient A, V2ContactsClient B, AppSession AppA, AppSession AppB)> TwoContactAppsAsync(
+        OwnerSession owner)
+    {
+        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        return (new V2ContactsClient(appA.Identity, appA.Factory), new V2ContactsClient(appB.Identity, appB.Factory), appA, appB);
+    }
+
+    // A new contact for Sam, and its stored row as created
+    private async Task<(Guid Uid, DriveMainIndexRecord Row)> CreateContactAsync(OwnerSession owner, V2ContactsClient contacts)
+    {
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+        return (uid, await HeaderRowAsync(owner, ContactDriveId, (await GetByUniqueIdAsync(owner, uid))!.FileId));
     }
 
     private static async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader> GetByUniqueIdAsync(

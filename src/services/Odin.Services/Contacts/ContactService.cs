@@ -451,13 +451,14 @@ public class ContactService(
         Guid expectedVersionTag, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
+        // The header written is built from existing; a mismatch is the version race the caller retries on
+        DriveStorageServiceBase.AssertVersionTagMatches(existing, expectedVersionTag);
 
         // The content IV must rotate on every encrypted update (re-encrypting different plaintext under
         // the same key+IV is forbidden), so re-wrap the file's key header under a fresh IV.
         var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
         existing.FileMetadata.AppData.Content = EncryptContent(contentKeyHeader, merged);
         existing.FileMetadata.AppData.Tags = BuildTags(existing.FileMetadata.AppData.UniqueId.GetValueOrDefault(), merged);
-        existing.FileMetadata.VersionTag = expectedVersionTag;
         existing.EncryptedKeyHeader = await fileSystem.Storage.EncryptKeyHeader(DriveId, contentKeyHeader, writeContext);
         await fileSystem.Storage.UpdateActiveFileHeader(file, existing, writeContext, raiseEvent: true);
         return existing.FileMetadata.VersionTag.GetValueOrDefault();
@@ -575,7 +576,8 @@ public class ContactService(
         ContactAppData appExtData, Guid expectedVersionTag, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
-        existing.FileMetadata.VersionTag = expectedVersionTag;
+        // As in WriteContentOnlyAsync: the header written is built from existing
+        DriveStorageServiceBase.AssertVersionTagMatches(existing, expectedVersionTag);
 
         // Content is unchanged, but UpdateBatchAsync rewrites the header, so re-encrypt under a fresh IV
         // (key+IV reuse across versions is forbidden).

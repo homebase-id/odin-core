@@ -167,11 +167,9 @@ public class CertificateService : ICertificateService
         }
 
         //
-        // Dispatched and deliberately not awaited. NotifyWorkAvailableAsync waits up to 30
-        // seconds for the background service to appear and then throws if it never does - which
-        // is what happens when SystemBackgroundServicesEnabled is false. Awaiting it here would
-        // put a 30-second stall back on the TLS handshake path: precisely the fault this method
-        // exists to remove.
+        // Dispatched and deliberately not awaited: nothing on the TLS handshake path waits on the
+        // issuer. When the issuer isn't running (SystemBackgroundServicesEnabled is false), the
+        // notify records a wake-up for a service that may never start, and returns.
         //
         // NOTE there is no backstop if the pulse cannot be delivered. The background issuer is
         // the ONLY thing that orders certificates now, so when it is not running no certificate

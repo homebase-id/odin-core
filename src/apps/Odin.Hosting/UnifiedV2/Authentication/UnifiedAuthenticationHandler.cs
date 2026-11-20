@@ -44,6 +44,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         private static readonly IAuthPathHandler BuiltInHandler = new BuiltInBrowserAppHandler();
         private static readonly IAuthPathHandler AppHandler = new AppAuthPathHandler();
         private static readonly IAuthPathHandler CdnHandler = new CdnAuthPathHandler();
+        private static readonly IAuthPathHandler PeerSubscriberHandler = new PeerSubscriberAuthPathHandler();
 
         /// <summary/>
         public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory loggerFactory,
@@ -80,6 +81,8 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
             if (!TryFindClientAuthToken(out var token))
             {
+                // A V2 request without a token is still answered as V2, as one whose token falls back to anonymous is
+                odinContext.SetApiVersion(2);
                 return await CreateAnonResult(Context, odinContext);
             }
 
@@ -326,6 +329,9 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
                 case ClientTokenType.Cdn:
                     return CdnHandler;
+
+                case ClientTokenType.PeerNotificationSubscriber:
+                    return PeerSubscriberHandler;
 
                 default:
                     return null;

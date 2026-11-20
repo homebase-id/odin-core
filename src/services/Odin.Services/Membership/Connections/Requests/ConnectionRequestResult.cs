@@ -68,6 +68,12 @@ namespace Odin.Services.Membership.Connections.Requests
         RecipientRequiresUpgrade = 12,
 
         /// <summary>
+        /// The caller's own identity server requires a version upgrade before it can connect: its owner
+        /// should sign in to the owner console so the upgrade runs.  Nothing was sent.
+        /// </summary>
+        SenderRequiresUpgrade = 13,
+
+        /// <summary>
         /// An unexpected error occurred. See <see cref="ConnectionRequestResult.Detail"/>.
         /// </summary>
         Failed = 99,

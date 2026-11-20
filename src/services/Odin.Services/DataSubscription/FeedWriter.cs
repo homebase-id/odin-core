@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -60,7 +62,7 @@ public class FeedWriter(
     public async Task ReplaceFileMetadataOnFeedDrive(Guid fileId,
         FileMetadata fileMetadata,
         IOdinContext odinContext,
-        bool bypassCallerCheck = false,
+        OdinId expectedSender,
         KeyHeader keyHeader = null)
     {
         var targetFile = new InternalDriveFileId()
@@ -94,16 +96,14 @@ public class FeedWriter(
             throw new OdinSystemException("Method cannot be used on drive");
         }
 
-        if (!bypassCallerCheck) //eww: this allows the follower service to synchronize files when you start following someone.
+        // The feed drive holds items from every identity the owner follows, so only the identity that
+        // delivered an item may update it.  S0510
+        if (!SharedSecretEncryptedFileHeader.IsOriginalSender(header.FileMetadata.SenderOdinId, expectedSender))
         {
-            //S0510
-            if (header.FileMetadata.SenderOdinId != odinContext.GetCallerOdinIdOrFail())
-            {
-                logger.LogDebug("ReplaceFileMetadataOnFeedDrive - header file sender ({sender}) did not match context sender {ctx}",
-                    header.FileMetadata.SenderOdinId,
-                    odinContext.GetCallerOdinIdOrFail());
-                throw new OdinSecurityException("Invalid caller");
-            }
+            logger.LogDebug("ReplaceFileMetadataOnFeedDrive - header file sender ({sender}) did not match expected sender {expected}",
+                header.FileMetadata.SenderOdinId,
+                expectedSender);
+            throw new OdinSecurityException("Invalid caller");
         }
 
         var localVersionTag = header.FileMetadata.VersionTag;

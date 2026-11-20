@@ -46,7 +46,7 @@ drive changes it only by conversion (`Drives.SharingModel`) **(V)**.
 | **write-only key pair**, **the drive's public key** | a drive's P-384 key pair; anyone may seal to the public half, which is how deposits are made (`WO-PK`, [owner-keys.md](owner-keys.md)). The public key is served to any identity, with whether the asker may write to the drive (`DrivePublicKeyResponse.CallerMayWrite`) **(V)** |
 | **drive permission** | what a caller may do on a whole drive, from their grants: `Read` 1, `Write` 2, `React` 4, `Comment` 8, `ConditionalTemporalRead` 16 (`DrivePermission`, `PermissionContext`) **(V)** |
 | **public drive** | a drive with the option `AllowAnonymousReads` |
-| **drive option** | a typed setting on the drive the drive API validates: `OwnerOnly`, `AllowAnonymousReads`, `AllowSubscriptions`, `AllowCdn`, `IsArchived`, `IsReadonly`, `RequirePayloadHashes` (`StorageDriveDetails`) **(V)** |
+| **drive option** | a typed setting on the drive the drive API validates: `OwnerOnly`, `AllowAnonymousReads`, `AllowSubscriptions`, `AllowCdn`, `IsArchived`, `IsReadonly`, `RequirePayloadHashes`, `BlockEnumeration` (`StorageDriveDetails`) **(V)** |
 | **drive attribute** | a free key/value string an app sets on a drive; the server gives meaning to one, the community channel (`StorageDriveDetails.Attributes`) **(V)**. An option and an attribute do the same job and differ only in how they're stored |
 
 ### Community channel

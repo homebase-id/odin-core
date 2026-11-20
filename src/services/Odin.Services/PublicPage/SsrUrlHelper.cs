@@ -24,4 +24,12 @@ public static class SsrUrlHelper
 
         return prefix + trimmed;
     }
+
+    /// <summary>The path without a leading /ssr segment: /ssr/posts/blog/ssr-tips is /posts/blog/ssr-tips</summary>
+    public static string FromSsrPath(string path)
+    {
+        var prefix = "/" + LinkPreviewDefaults.SsrPath;
+        if (string.IsNullOrEmpty(path) || path.Equals(prefix, StringComparison.OrdinalIgnoreCase)) return "/";
+        return path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase) ? path[prefix.Length..] : path;
+    }
 }

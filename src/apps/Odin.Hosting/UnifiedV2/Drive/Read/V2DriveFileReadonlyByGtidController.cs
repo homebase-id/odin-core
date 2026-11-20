@@ -11,6 +11,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
@@ -36,6 +37,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -48,6 +50,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await this.GetPayloadByGtidInternal(driveId, gtid, payloadKey);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -64,6 +67,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetPayloadByGtidInternal(driveId, gtid, payloadKey, chunk);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb")]
         [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]

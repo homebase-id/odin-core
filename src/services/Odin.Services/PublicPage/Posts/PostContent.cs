@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Time;
 
@@ -30,6 +31,13 @@ public class PostContent
     [JsonPropertyName("body")]
     public object Body { get; set; }
     
+    /// <summary>
+    /// Tiptap copy of the body, {format, doc, slateHash}; only valid while slateHash matches the stored body.
+    /// Kept as raw JSON so a bodyDoc in an odd shape never fails the whole post; <see cref="ArticleBodyRenderer"/> checks it.
+    /// </summary>
+    [JsonPropertyName("bodyDoc")]
+    public JsonElement? BodyDoc { get; set; }
+
     [JsonPropertyName("slug")] 
     public string Slug { get; set; }
     
@@ -40,7 +48,23 @@ public class PostContent
     [JsonPropertyName("primaryMediaFile")]
     public PrimaryMediaFile PrimaryMediaFile { get; set; }
     
+    /// <summary>Kept as raw JSON so a readingTimeStats in an odd shape never fails the whole post; see <see cref="WordCount"/></summary>
+    [JsonPropertyName("readingTimeStats")]
+    public JsonElement? ReadingTimeStats { get; set; }
+
+    /// <summary>readingTimeStats.words as a positive whole number, or null when it is missing or not a usable number</summary>
+    [JsonIgnore]
+    public int? WordCount =>
+        ReadingTimeStats is { ValueKind: JsonValueKind.Object } stats &&
+        stats.TryGetProperty("words", out var words) && words.ValueKind == JsonValueKind.Number &&
+        words.TryGetDouble(out var count) && count is >= 1 and <= int.MaxValue
+            ? (int)count
+            : null;
+
     [JsonIgnore]
     public UnixTimeUtc? UserDate { get; set; }
+
+    [JsonIgnore]
+    public bool IsArticle => string.Equals(Type, "Article", System.StringComparison.OrdinalIgnoreCase);
     
 }

@@ -125,6 +125,38 @@ public class MailRelayOnboardingJobTest
         _failureStore.Verify(x => x.ClearAsync(It.IsAny<string>()), Times.Never);
     }
 
+    /// <summary>
+    /// #1891: a relay outage is waited out like DNS propagation, a deferral counted against the ~24 h bound, instead of
+    /// a throw that spent the JobManager's ten one-minute retries and ended the job Failed.
+    /// </summary>
+    [Test]
+    public async Task ItShouldWaitOutARelayOutageWhileVerifying()
+    {
+        _relay.Setup(x => x.VerifyDomainAsync(It.IsAny<AsciiDomainName>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("relay down"));
+        var job = NewJob();
+        job.Data.SetupDone = true;
+
+        var result = await job.Run(CancellationToken.None);
+
+        Assert.That(result.Result, Is.EqualTo(RunResult.Defer), $"result was {result.Result}");
+        Assert.That(job.Data.VerifyAttempts, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ItShouldGiveUpOnARelayOutageAtTheSameBoundAsPropagation()
+    {
+        _relay.Setup(x => x.VerifyDomainAsync(It.IsAny<AsciiDomainName>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("relay down"));
+        var job = NewJob();
+        job.Data.SetupDone = true;
+        job.Data.VerifyAttempts = 143;
+
+        var result = await job.Run(CancellationToken.None);
+
+        Assert.That(result.Result, Is.EqualTo(RunResult.Success), $"result was {result.Result}");
+    }
+
     [Test]
     public void ItShouldBeUniquePerDomainWhateverTheCase()
     {

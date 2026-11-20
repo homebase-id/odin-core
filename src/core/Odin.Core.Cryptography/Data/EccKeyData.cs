@@ -106,6 +106,29 @@ namespace Odin.Core.Cryptography.Data
             return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url), hours);
         }
 
+        /// <summary>
+        /// Whether a client's input is a JWK of a public key on this curve. Input that isn't JWK fails in many ways
+        /// (bad base64, bad JSON, missing members, a point off the curve), and each is the same answer here.
+        /// </summary>
+        public static bool IsJwkBase64UrlPublicKey(string jwkbase64Url, EccKeySize size)
+        {
+            try
+            {
+                var jwk = Base64UrlEncoder.DecodeString(jwkbase64Url);
+                if (ReadEcJwk(jwk).size != size)
+                {
+                    return false;
+                }
+
+                FromJwkPublicKey(jwk);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         protected EccKeySize GetCurveEnum(ECCurve curve)
         {
             int bitLength = curve.Order.BitLength;

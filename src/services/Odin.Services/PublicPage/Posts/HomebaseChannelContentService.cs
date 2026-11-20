@@ -36,6 +36,9 @@ public class HomebaseChannelContentService(
 {
     private const string DefaultPayloadKey = "dflt_key";
     private const int PostFileType = 101;
+
+    /// <summary>The appData.dataType the post editor gives an article</summary>
+    public const int ArticleDataType = 300;
     private const int ChannelDefinitionFileType = 103;
     private const string PostFullTextPayloadKey = "pst_text";
 
@@ -55,7 +58,7 @@ public class HomebaseChannelContentService(
             return null;
         }
 
-        return await ParsePostFile(postFile, targetDrive, odinContext, cancellationToken);
+        return await ParsePostFile(postFile, targetDrive, PayloadUrlBase(targetDrive), odinContext, cancellationToken);
     }
 
     /// <summary>
@@ -74,13 +77,16 @@ public class HomebaseChannelContentService(
             var file = await QueryBatchFirstFile(targetDrive, odinContext, fileType: ChannelDefinitionFileType);
             if (null != file)
             {
-                results.Add(OdinSystemSerializer.Deserialize<ChannelDefinition>(file.FileMetadata.AppData.Content));
+                var definition = OdinSystemSerializer.Deserialize<ChannelDefinition>(file.FileMetadata.AppData.Content);
+                definition.DriveAlias = targetDrive.Alias;
+                results.Add(definition);
             }
         }
 
         return results;
     }
 
+    /// <param name="dataType">Only posts with this appData.dataType, e.g. <see cref="ArticleDataType"/>; null for all</param>
     /// <param name="includePayloadBody">
     /// When true, each post's full-text body is loaded from its payload (an extra storage read per post).
     /// List/preview callers that only render header fields (caption, slug, abstract, date) should pass false.
@@ -91,7 +97,8 @@ public class HomebaseChannelContentService(
         UnixTimeUtc? fromTimestamp = null,
         int maxPosts = 10,
         bool includePayloadBody = true,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? dataType = null)
     {
         var targetDrive = await GetChannelDrive(channelKey, odinContext);
 
@@ -99,6 +106,7 @@ public class HomebaseChannelContentService(
         {
             TargetDrive = targetDrive,
             FileType = [PostFileType],
+            DataType = dataType == null ? null : [dataType.Value],
             // a soft-deleted post leaves a tombstone (empty content, null payloads) that still matches the file type
             FileState = [FileState.Active]
         };
@@ -117,13 +125,14 @@ public class HomebaseChannelContentService(
 
         var batch = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
 
+        var payloadUrlBase = PayloadUrlBase(targetDrive);
         var channelPosts = new List<ChannelPost>();
         foreach (var sr in batch.SearchResults)
         {
             // logger.LogDebug("The DSR content: [{c}]", sr.FileMetadata.AppData.Content);
             try
             {
-                channelPosts.Add(await ParsePostFile(sr, targetDrive, odinContext, cancellationToken, includePayloadBody));
+                channelPosts.Add(await ParsePostFile(sr, targetDrive, payloadUrlBase, odinContext, cancellationToken, includePayloadBody));
             }
             catch (OdinPayloadTooLargeException)
             {
@@ -306,9 +315,21 @@ public class HomebaseChannelContentService(
         return permissibleChannels;
     }
 
+    /// <summary>Guest payload URL on the channel drive, without the fileId and payload key; null outside a request</summary>
+    private string PayloadUrlBase(TargetDrive channelDrive)
+    {
+        var request = httpContextAccessor.HttpContext?.Request;
+        // Host with its port, so the URL also works off the default port
+        return request == null
+            ? null
+            : $"{request.Scheme}://{request.Host.ToUriComponent()}/api/guest/v1/drive/files/payload" +
+              $"?alias={channelDrive.Alias}&type={channelDrive.Type}";
+    }
+
     private async Task<ChannelPost> ParsePostFile(
         SharedSecretEncryptedFileHeader postFile,
         TargetDrive channelDrive,
+        string payloadUrlBase,
         IOdinContext odinContext,
         CancellationToken cancellationToken,
         bool includePayloadBody = true)
@@ -352,6 +373,8 @@ public class HomebaseChannelContentService(
                 {
                     var bodyFromPayload = await LoadPayload(fileId, PostFullTextPayloadKey);
                     content.Body = bodyFromPayload.Body;
+                    // bodyDoc travels with body: its hash only matches the body it was written with
+                    content.BodyDoc = bodyFromPayload.BodyDoc;
                 }
             }
         }
@@ -448,8 +471,10 @@ public class HomebaseChannelContentService(
         var post = new ChannelPost()
         {
             FileId = fileId.FileId,
+            PayloadUrlBase = payloadUrlBase,
             Content = content,
             ImageUrl = imageUrl,
+            Created = postFile.FileMetadata.Created,
             Modified = postFile.FileMetadata.Updated,
             ReactionSummary = postFile.FileMetadata.ReactionPreview
         };

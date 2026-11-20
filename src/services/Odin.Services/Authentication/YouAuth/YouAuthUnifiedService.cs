@@ -44,7 +44,7 @@ public sealed class YouAuthUnifiedService(
 
         // Only the owner's browser can give an app its zero-knowledge key, at the consent page; an app that asked for
         // it goes there until it has, whatever else would let it skip consent.
-        // Read as the type [070] reads: an untyped probe (ContainsAsync) on a node that doesn't hold it in memory stores
+        // Read as the type [070] reads: an untyped read on a node that doesn't hold it in memory stores
         // the distributed copy there as a JsonElement, which the typed read then can't cast
         if (zkAppKeyPublicKey != null &&
             await level2Cache.GetOrDefaultAsync<SealedZkAppKey?>(SealedZkAppKeyCacheKey(clientIdOrDomain, zkAppKeyPublicKey), null) == null)

@@ -66,6 +66,15 @@ public enum OdinClientErrorCode
     /// </summary>
     DriveSlugAlreadySet = 4007,
 
+    /// <summary>
+    /// A drive with this alias was deleted -- an app uninstall does this -- and its background purge has not finished,
+    /// so the alias cannot be used again yet. The drive purge status says where it is.
+    /// </summary>
+    DriveStillBeingDeleted = 4008,
+
+    /// <summary>A drive nobody but the owner may list can't let followers subscribe: the feed would push them every file.</summary>
+    CannotAllowSubscriptionsOnDriveThatBlocksEnumeration = 4009,
+
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,
     CannotUploadEncryptedFileForAnonymous = 4102,
@@ -115,6 +124,9 @@ public enum OdinClientErrorCode
     PayloadGone = 4179,
     ExistingFileWithGlobalTransitId = 4180,
 
+    /// <summary>A payload or thumbnail of a deleted file was asked for (HTTP 404): the file was there and is deleted</summary>
+    FileDeleted = 4181,
+
 
     // Connection errors 50xx
     NotAnAutoConnection = 5001, // retired with the system circles (#1809); not reused
@@ -127,6 +139,7 @@ public enum OdinClientErrorCode
     ConnectionRequestAlreadySent = 5007,
     RecipientIdentityNotConfigured = 5008,
     RecipientRequiresUpgrade = 5009,
+    SenderRequiresUpgrade = 5011, // the caller's own identity must upgrade before it may connect (#2105)
 
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,

@@ -21,31 +21,22 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// <summary>
 /// Port of <c>_Universal/DriveTests/DirectDrivePayload_Concurrent_HammerTests_Encrypted</c>. Nine
 /// threads each prepare their own encrypted file and then overwrite its payload a hundred times,
-/// carrying the version tag forward. It asserts no threshold: the point is that every response is
-/// either a success whose version tag moved or a clean <c>400</c>, and that nothing wedges.
+/// carrying the version tag forward. No thread touches another's file, so every overwrite must
+/// succeed and move the version tag: a refusal means the server read a version of the file it had
+/// already replaced, which the other threads' writes to the same drive make likely if the cache
+/// lets it.
 /// </summary>
 /// <remarks>
 /// Drives the <b>V1</b> payload endpoints through the in-process host via
-/// <see cref="UniversalDriveApiClient"/>, reached through <c>owner.V1.Drive</c>.
-///
-/// The <c>[Explicit]</c> marker is carried over verbatim, together with the note explaining it, so
-/// this does not run under <c>dotnet test</c> here either. The concurrency shape
-/// (<see cref="PerformanceFramework.ThreadedTestAsync"/>, 9 threads x 100 iterations) is unchanged;
-/// each thread's work is ordinary HTTP against the test server, so every request gets its own DI
-/// scope and the <c>ScopedConnectionFactory</c> single-scope hazard does not arise.
-///
-/// The counters are left as plain <c>++</c> rather than <c>Interlocked</c>, exactly as the original
-/// had them — they are only written to the console, never asserted on, so the races they carry are
-/// pre-existing and inert. Fixing that inside a port would be a rewrite.
+/// <see cref="UniversalDriveApiClient"/>, reached through <c>owner.V1.Drive</c>. Each thread's work
+/// is ordinary HTTP against the test server, so every request gets its own DI scope and the
+/// <c>ScopedConnectionFactory</c> single-scope hazard does not arise.
 /// </remarks>
 [TestFixture]
 public class PayloadConcurrentHammerEncryptedTests : V2Fixture
 {
     private OwnerSession _owner;
     private TargetDrive _targetDrive;
-
-    private int _successCount;
-    private int _badRequestCount;
 
     [Test]
     public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
@@ -61,9 +52,6 @@ public class PayloadConcurrentHammerEncryptedTests : V2Fixture
         await _owner.Admin.CreateDrive(_targetDrive, "Test Drive 001", allowAnonymousReads: true);
 
         await PerformanceFramework.ThreadedTestAsync(maxThreads: 9, iterations: 100, OverwritePayload);
-
-        Console.WriteLine($"Success Count: {_successCount}");
-        Console.WriteLine($"Bad Request Count: {_badRequestCount}");
     }
 
     private async Task<(long, long[])> OverwritePayload(int threadNumber, int iterations)
@@ -121,14 +109,8 @@ public class PayloadConcurrentHammerEncryptedTests : V2Fixture
                 PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
             };
 
-            var prevTag = newVersionTag;
-            var tag = await UploadAndValidatePayload(targetFile, newVersionTag, uploadManifest, testPayloads, metadataKeyHeader);
-
-            if (tag.HasValue)
-            {
-                newVersionTag = tag.GetValueOrDefault();
-                Assert.That(newVersionTag, Is.Not.EqualTo(prevTag), $"version tag did not change on iteration {count}");
-            }
+            newVersionTag = await UploadAndValidatePayload(targetFile, newVersionTag, uploadManifest, testPayloads,
+                metadataKeyHeader, count);
 
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
@@ -137,27 +119,18 @@ public class PayloadConcurrentHammerEncryptedTests : V2Fixture
         return (fileByteLength, timers);
     }
 
-    private async Task<Guid?> UploadAndValidatePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag,
-        UploadManifest uploadManifest, List<TestPayloadDefinition> testPayloads, KeyHeader metadataKeyHeader)
+    private async Task<Guid> UploadAndValidatePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag,
+        UploadManifest uploadManifest, List<TestPayloadDefinition> testPayloads, KeyHeader metadataKeyHeader, int iteration)
     {
         var (uploadPayloadResponse, _) = await _owner.V1.Drive.UploadEncryptedPayloads(
             targetFile, targetVersionTag, uploadManifest, testPayloads, metadataKeyHeader.AesKey.GetKey());
 
-        if (uploadPayloadResponse.StatusCode == HttpStatusCode.OK)
-        {
-            _successCount++;
-            Assert.That(uploadPayloadResponse.Content!.NewVersionTag, Is.Not.EqualTo(targetVersionTag),
-                "Version tag should have changed");
-            return uploadPayloadResponse.Content!.NewVersionTag;
-        }
-
-        if (uploadPayloadResponse.StatusCode == HttpStatusCode.BadRequest)
-        {
-            _badRequestCount++;
-            //what to expect in this case?
-        }
-
-        return null;
+        Assert.That(uploadPayloadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            $"overwrite {iteration} of file {targetFile.FileId} at version tag {targetVersionTag} was refused: " +
+            uploadPayloadResponse.Error?.Content);
+        var newVersionTag = uploadPayloadResponse.Content!.NewVersionTag;
+        Assert.That(newVersionTag, Is.Not.EqualTo(targetVersionTag), $"version tag did not change on overwrite {iteration}");
+        return newVersionTag;
     }
 
     private async Task<(UploadResult, KeyHeader keyHeader)> PrepareEncryptedFile(TargetDrive targetDrive)

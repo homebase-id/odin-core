@@ -86,7 +86,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     FileSystemType = request.FileSystemType,
                     TransferFileType = TransferFileType.Normal
                 },
-                request.Recipients, WebOdinContext);
+                request.Recipients, WebOdinContext, request.ExpectedVersionTag);
 
             return new JsonResult(map);
         }

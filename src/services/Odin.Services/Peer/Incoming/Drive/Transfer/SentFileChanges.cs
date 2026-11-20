@@ -83,7 +83,7 @@ internal static class SentFileChanges
             return true;
         }
 
-        if (namedVersionTag == stored.FileMetadata.VersionTag || (sentIt && SendersWrite.UnchangedSinceLastWriteBy(sender, stored)))
+        if (sentIt ? MayChangeAsSender(stored, sender, namedVersionTag) : namedVersionTag == stored.FileMetadata.VersionTag)
         {
             return false;
         }
@@ -97,10 +97,12 @@ internal static class SentFileChanges
     /// null when the file is deleted already, which is done.  Who may: as for any change (<see cref="ContextForChangeAsync"/>),
     /// except that a post on a drive marked as a community channel is deleted only by its sender, as everywhere; and its
     /// sender, marked to change it unread, only while no one else has changed the file since their last write, as their
-    /// change naming no tag.  A file with no record of their last write (one stored before it was kept) is refused too.
+    /// change naming no tag, or when the delete names the version tag the file has (<paramref name="namedVersionTag"/>), as
+    /// their change naming it.  A file with no record of their last write (one stored before it was kept) is refused unless
+    /// the delete names its version.
     /// </summary>
     public static async Task<IOdinContext> ContextForDeleteAsync(IDriveFileSystem fs, StorageDrive drive, ServerFileHeader stored,
-        OdinId sender, IOdinContext odinContext)
+        OdinId sender, Guid? namedVersionTag, IOdinContext odinContext)
     {
         if (stored.FileMetadata.FileState == FileState.Deleted)
         {
@@ -113,7 +115,7 @@ internal static class SentFileChanges
             throw new OdinSecurityException("Only its original sender deletes a post on a community channel");
         }
 
-        if (writeContext.SendersOwnFile != null && !SendersWrite.UnchangedSinceLastWriteBy(sender, stored))
+        if (writeContext.SendersOwnFile != null && !MayChangeAsSender(stored, sender, namedVersionTag))
         {
             throw new OdinClientException($"File {stored.FileMetadata.File.FileId} was changed since its sender's last write",
                 OdinClientErrorCode.VersionTagMismatch);
@@ -121,6 +123,13 @@ internal static class SentFileChanges
 
         return writeContext;
     }
+
+    /// <summary>
+    /// Whether its sender changes or deletes <paramref name="stored"/>: naming the version tag it has, as anyone who read it
+    /// does, or while no one else has changed it since their last write
+    /// </summary>
+    private static bool MayChangeAsSender(ServerFileHeader stored, OdinId sender, Guid? namedVersionTag) =>
+        namedVersionTag == stored.FileMetadata.VersionTag || SendersWrite.UnchangedSinceLastWriteBy(sender, stored);
 
     /// <summary>
     /// The record of <paramref name="sender"/>'s write, whose own copy has <paramref name="sendersVersionTag"/>, giving the

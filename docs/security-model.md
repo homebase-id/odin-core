@@ -57,11 +57,15 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 | Owner | password → master key | master key unwraps everything |
 | App (owner using an app) | client token | token half ⊕ server half → App Client Key → **App Key** → its drive storage keys (+ ICR key if it asked for a transit key) |
 | Guest / YouAuth domain | client token | its own grant (`AppGrants`) |
+| Guest / home-site visitor | client token (`BuiltInBrowserApp`, `XT32` cookie) | no grant of its own: what its connection (or follow) already allows (`HomeAuthenticatorService`) |
 | Peer (another identity) | TLS client cert + CAT | CAT → **Peer Key** → that connection's circle grants |
+| Peer's device (direct read) | the peer-notification token its own server fetched for the peer socket (`PeerNotificationSubscriber`) | no key: Read on the zero-knowledge drives that connection's circle grants reach (app circles included), nothing else, and only on the drive reads marked `[PeerDirectRead]` (header, payload, thumbnail, query) of such a drive; anywhere else the caller is anonymous (`CircleNetworkService.TryCreatePeerSubscriberReadContextAsync`, `PeerSubscriberAuthPathHandler`) **(V, tested)**. A client-locked file goes out as stored; an unencrypted one and every file's metadata as on the relay |
 | Anonymous | nothing | drives with `AllowAnonymousReads` only |
 
 - The App Key and Peer Key are hub keys: each grant beneath them is wrapped once, individually (plan doc) **(V)**.
 - An app gets the ICR key only when it requests a transit permission; guests have none **(V)**, from the #1977 work.
+- Both kinds of guest pass the same checks: V1 gives them the same claims (`YouAuthAuthenticationHandler`), and V2's
+  guest policies take both token types (`UnifiedPolicies.GuestTokenTypes`) **(V)**.
 
 ### Permission keys (`CirclePermissionFlags.cs`, class `PermissionKeys`) **(V)**
 
@@ -142,7 +146,6 @@ Later:
 | `ConditionalTemporalRead` 16 | read only recently modified files, only via the temporal API; not part of `ReadWrite`/`All` |
 
 - **Write-only is cryptographic**: a writer never holds the storage key **(V, plan doc)**. Example: Chat.
-- **TO-DO** Allow / block enumerating files on a drive (block queryBatch) for web-drop like apps.
 
 ### Drive options (`StorageDriveDetails`) **(V)**
 
@@ -153,6 +156,7 @@ Later:
 | `AllowSubscriptions` | followers may subscribe (feed); a drive marked as a community channel needs it |
 | `AllowCdn` | the CDN may read payloads (`IsCdnEnabled`); anonymous drives are reachable anyway |
 | `RequirePayloadHashes` | every payload must carry client hashes |
+| `BlockEnumeration` | only the owner, the owner's apps and the server may list or count its files (every query, the drive size; a collection's section answers as a drive the caller can't read) (`DriveQueryServiceBase.DriveToListAsync`, `StorageDrive.MayBeListedBy`), or hear of them on a socket (`DriveEventMessage.VisibleToAsync`); anyone else reaches a file only by an address they were given, a WebDrop link's unique id. For anyone but the owner, its apps and the server, `expire-now` works only on such a drive (`HastenExpiryAsync`). Can't be combined with `AllowSubscriptions`. Absent = listable. A system drive has what its built-in definition says, whatever is stored (`BuiltinDrives.BlockEnumerationOf`): WebDrop's blocks it **(V, tested)** |
 | `IsReadonly` | documented "owner only, in owner auth". **No write path reads it** (grep) **(V)**, so it's not enforced |
 | `IsArchived` | non-owner callers are refused (`AssertDriveIsNotArchived`) |
 | `WriteOnlyKeyPair` | per-drive ECC-384 key: seal a deposit without being able to read; private half under the storage key. Its public half is served to any identity, with whether the asker may write (`CallerMayWrite`); a deposit still needs Write |
@@ -337,7 +341,9 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
   - **on a drive with `AllowAnonymousReads` both checks are skipped** **(V)**. Whether the tenant "can comment" flags are
     still enforced elsewhere: **not checked** **(?)**;
   - telling recipients to delete a comment accepts either transit key; other file deletes need `UseTransitWrite`
-    (`AssertCanTellRecipientsToDelete`, #1978) **(V)**. Why comments are looser: **(?)**;
+    (`AssertCanTellRecipientsToDelete`, #1978), by file id and by global transit id (`senddeleterequest`)
+    **(V, tested)**. A channel's deleted post reaching its followers' feed drives asks nothing more of the caller than the
+    delete it follows (`SendFeedDeleteFileRequest`) **(V)**. Why comments are looser: **(?)**;
   - **who may comment follows the sharing model:** on a Server Share drive the members who may read, by the checks
     above; on a Private Share drive through shares (below); on a Private drive only owner callers (and the server's own jobs, a
     comment's TTL): any other caller's comment, new, an update or a delete, is refused, a local upload (a guest or YouAuth caller) as well as a peer's
@@ -389,6 +395,13 @@ serverMetadata
 - **`versionTag`** is the file's optimistic-concurrency token. Every header write gives it a new one, and a write that names
   a stale tag fails with `VersionTagMismatch` (`AssertVersionTagMatches`) **(V)**. Compare `updated` too, not only the
   tag (#1967).
+- **`versionUpdated`** (V2 only) is when the file got its `versionTag`: the `updated` of the write that gave it, set by
+  the same SQL statement from the same expression (`TableDriveMainIndex.UpsertAllButReactionsAndTransferAsync`, column
+  `versionTagModified`) **(V, tested)**. The three parts below move `updated` and leave it. Files from before the
+  column took their `updated` then. It's in the header, the minimal shape, and the answers to a create, an update, an
+  archival-status batch and a soft delete (single and batch); V1 answers leave it out, and so does a minimal socket that
+  isn't V2 (`DriveFileUtility.AnswersVersionUpdated`) **(V, tested)**. A member's server relays the sharer's to its own V2
+  callers only **(V, tested for V2)**. A payload upload or delete answers only its new tag **(V)**.
 - **Three parts don't follow that rule.** They have their own update paths, which write their own column and advance
   `modified` (`updated`), but leave `versionTag` alone (`TableDriveMainIndex`) **(V)**:
   - **`localAppData`** has **its own `versionTag`**, checked by compare-and-set on `hdrLocalVersionTag`. It's for

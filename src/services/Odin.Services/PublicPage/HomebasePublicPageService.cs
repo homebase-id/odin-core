@@ -200,6 +200,13 @@ public class HomebasePublicPageService(
             // Client disconnected (or the request was aborted) mid-render; not a failure.
             throw;
         }
+        catch (OdinClientException e)
+        {
+            // The post link names a channel or post that doesn't resolve: a dead link, or a scanner's /posts/.git/...
+            // Anyone can send one, and no one can act on it, so it is not an error; the page falls back (#1700)
+            logger.LogDebug(e, "Failed to parse post");
+            return false;
+        }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to parse post");
@@ -275,7 +282,7 @@ public class HomebasePublicPageService(
 
         PostContent content = post.Content;
         string imageUrl = post.ImageUrl;
-        return (true, content.Caption, imageUrl, content.Abstract, post);
+        return (true, MarkdownText.ToTitle(content.Caption), imageUrl, ArticleBodyRenderer.Description(content), post);
     }
 
     private async Task WriteGenericPreview(string indexFilePath, IOdinContext odinContext)
@@ -523,7 +530,8 @@ public class HomebasePublicPageService(
         "/connections",
         "/links",
         "/about",
-        "/sitemap.xml"
+        "/sitemap.xml",
+        "/feed.xml"
     ];
 
     /// <summary>

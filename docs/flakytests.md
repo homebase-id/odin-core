@@ -1006,6 +1006,34 @@ same way once more. CI passed the branch's commits that day on all three platfor
 41997783776, 41997783347 for `861076d08`), and main's recent CI runs are green. Not run on a clean `main`
 tree locally.
 
+**Again 2026-11-07 and 11-08.** PR #2077 (`server-share-sealed-arrivals`) commit `9f285e8ea`, run
+42364376538 attempt 1, `ubuntu/sqlite/release`; PR #2088 (`peer-send-results-on-socket`) commit
+`2ba22df6c`, run 42466134155 attempt 1, `ubuntu/postgres/release`; PR #2089 (`feed-update-sender-check`)
+commit `b44785b76`, run 42487081735 attempt 1, `ubuntu/postgres/release`. The same `source payload does
+not exist` events; all three passed on a rerun.
+
+**Cause found and fixed 2026-11-08 (verified).** FusionCache dates a tag remove when the remove starts,
+and stores that date over whatever the tag had when it gets there. When two removes of one drive's tag
+overlap, the slower one can store the earlier date last, and every entry stored after that date is live
+again, though the later remove expired it. A trace of the cache during the hammer (temporary logging,
+removed) caught it: one remove took its date and stored it 70 ms later, after four other removes on the
+drive; the tag's date went back 70 ms, and a file header stored in between was served at a version the
+database had already replaced. `UpdatePayloads` then deleted the payload that stale header listed (the
+previous request had already deleted it: the Error) and left the real previous payload behind. The
+remove count from #1909 cannot see this: the entry was stored with no remove in flight. The same code is
+in FusionCache v2.9.0, the latest release.
+
+- `FusionCacheWrapper` now runs one remove of a tag at a time on a node, so each stores a later date than
+  the one before (`TagRemoveOrderTests` stalls a remove between its date and its store, and fails
+  without this).
+- `UpdatePayloads` refuses with `VersionTagMismatch` when the header it read is not at the caller's
+  version tag, instead of replacing the payloads of whatever version it read.
+- The test now requires every overwrite to succeed: each thread only changes its own file, so a refusal
+  is a stale read, and it no longer passes as a quiet `400`.
+
+Not covered: across nodes sharing Redis, two nodes' removes of one tag still race the same way in L2
+(and their clocks differ).
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`
@@ -1078,6 +1106,18 @@ only sometimes does is **undiagnosed**. It may also be the unexplained Error in 
 `ubuntu/postgres/release` on `main` right after #2013 merged (run 40320676997), the same event both
 times. #2013's other jobs passed on the same code, and it touches no registry or tenant-status code:
 three occurrences in five days, on three OS/db combinations, so it is no longer rare.
+
+**Again 2026-11-13 and 2026-11-19, same event:** `windows/sqlite/debug` on PR #2137 (run 43432544297; its two
+ubuntu jobs passed on the same commit) and `ubuntu/sqlite/release` on PR #2132 (run 44550549070; its postgres and
+windows jobs passed). Neither PR touches the registry or tenant status. Fixing it probably means the test declaring
+the Error it causes, rather than more evidence.
+Once more on PR #2132's next commit, `ubuntu/postgres/release` (run 44560460181), the same event.
+
+**Fixture teardown: fixed 2026-11-19 (PR #2132).** It was never random at the source: run alone,
+`AFailedAlignmentAfterAnotherNodesChangeIsRetried` failed the fixture's teardown 3 of 3 times on this event. The test
+now asserts the Error was logged, and the fixture's teardown ignores only that event (an `InvalidOperationException`
+with the simulated message). Why the full CI suite usually didn't count it remains unexplained. The
+`TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume` outbox failure above is separate and still open.
 
 ---
 
@@ -1157,6 +1197,25 @@ resulting abort escapes `DisconnectAsync` instead of being treated as the expect
 
 ---
 
+## `Odin.Hosting.Tests._V2.Tests.Peer.V2PeerAppNotificationWebSocketTests`
+
+- `APeerTokenEndsWithTheConnectionItWasMintedUnder`
+
+**Where:** CI, `ubuntu/sqlite/release`, PR #2132 (`context-cache-key-per-token-type`), run 44550549070,
+2026-11-19. `ubuntu/postgres/release` and `windows/sqlite/debug` passed it on the same commit; it passed 8 of 8
+runs locally (macOS, sqlite) on the branch.
+
+**Symptom:** the old-connection token was refused, but by a TCP reset during the handshake read
+(`WebSocketException: The remote party closed the WebSocket connection without completing the close handshake`,
+`Connection reset by peer`) instead of the expected error frame. `Assert.ThrowsAsync<Exception>` matches that exact
+type only, so it failed the test.
+
+**Fix in the test:** it now uses `Assert.CatchAsync<Exception>`: any failure to complete the handshake is a refusal,
+and an accepted token would still fail the test. **Why the server reset the socket is undiagnosed**: the scaffold
+prints server log events only when a fixture's log assertion fails, and none were printed for this fixture.
+
+---
+
 ## Seen once, not chased (2026-09-05 to 10-20)
 
 - `TransitCommentFileRoutingTests.FailsWhenSenderCannotWriteCommentOnRecipientServer` --
@@ -1200,6 +1259,12 @@ resulting abort escapes `DisconnectAsync` instead of being treated as the expect
   `feed-acl-before-queue`; they fail the same way with the branch's `src` changes stashed. Environment:
   `WebScaffold` sets `Admin__Domain=admin.dotyou.cloud`, and that name does not resolve on this machine
   (presumably it needs a hosts entry, as the identity domains have). Not a product failure.
+  **Also in CI, 2026-11-19:** `ItemIsDroppedOnceItHasBeenDeferredForLongerThanTheMaxAge` on `ubuntu/postgres/release`,
+  PR #2132, run 44560460181: `Name or service not known (admin.dotyou.cloud:4444)`. The same job's other admin-API tests
+  (`AnUnsentOutboxItemsFileIsAmongTheQueuedFiles` before it, `PausedSenderDoesNotSendFromItsOutbox` and
+  `TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume` after it) passed, and the sqlite and windows jobs
+  passed it on the same commit. No hosts entry is involved: `admin.dotyou.cloud` resolves to 127.0.0.1 in public DNS
+  (`ns1.id.pub`, checked 2026-11-19), so this was a transient lookup failure on the runner (I).
 - `V1TagTests.CanQueryModifiedByLocalTagsMatchAtLeastOne(Owner,OK)` (Odin.Hosting.Tests.V2) -- `ubuntu/sqlite/release`,
   branch `feed-acl-before-queue`, 2026-10-21 (run 39672278932): the owner's `QueryModified` with
   `LocalTagsMatchAtLeastOne` returned no file carrying the tag just set (`Expected: True But was: False`, line 489).
