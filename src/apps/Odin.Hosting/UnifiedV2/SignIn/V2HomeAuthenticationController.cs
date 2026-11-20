@@ -17,7 +17,7 @@ namespace Odin.Hosting.UnifiedV2.SignIn;
 /// <remarks>
 /// The guest scheme because is-authenticated asks about the visitor's XT32 cookie. The unified scheme takes the owner's
 /// cookie first, so an owner would read as signed in on a page where they are not, and a stale owner cookie would make it
-/// a 401. The token exchange at the callback stays on the peer's V1 route: that peer can be running any version.
+/// a 401. The token exchange at the callback calls the peer's V2 route (<see cref="IHomePerimeterHttpClient"/>).
 /// </remarks>
 [Route(UnifiedApiRouteConstants.HomeAuth)]
 [ApiExplorerSettings(GroupName = "v2")]

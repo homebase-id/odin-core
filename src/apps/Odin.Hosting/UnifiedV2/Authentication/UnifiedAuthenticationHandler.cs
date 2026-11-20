@@ -77,10 +77,11 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         {
             var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
+            // Every V2 request is answered as V2, also one without a token or whose token falls back to anonymous
+            odinContext.SetApiVersion(2);
+
             if (!TryFindClientAuthToken(out var token))
             {
-                // A V2 request without a token is still answered as V2, as one whose token falls back to anonymous is
-                odinContext.SetApiVersion(2);
                 return await CreateAnonResult(Context, odinContext);
             }
 
@@ -94,8 +95,6 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                 }
 
                 var result = await handler.HandleAsync(Context, token, odinContext);
-
-                odinContext.SetApiVersion(2);
 
                 _callerLogContext.Caller = odinContext.Caller?.OdinId ?? "caller-not-found-v2";
 

@@ -25,6 +25,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Peer.AppNotification;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 [assembly: InternalsVisibleTo("Odin.Hosting.Tests")]
 [assembly: InternalsVisibleTo("Odin.Hosting.Tests.V2")]
@@ -151,10 +152,14 @@ namespace Odin.Hosting.UnifiedV2.Notifications
                 return;
             }
 
-            // V1's owner handler does this on the same upgrade; the console's socket shouldn't stop being a trigger
+            // V1's owner handler does these on the same upgrade; the console's socket shouldn't stop being a trigger
             var versionUpgradeScheduler = HttpContext.RequestServices.GetRequiredService<VersionUpgradeScheduler>();
             await versionUpgradeScheduler.EnsureScheduledAsync(token, WebOdinContext);
+            await HttpContext.RequestServices.GetRequiredService<ShamirConfigurationService>()
+                .RemoveDeadFriendDealIfNeeded(WebOdinContext);
 
+            // A V2 socket's events answer what a V2 request does (DriveFileUtility.AnswersVersionUpdated)
+            WebOdinContext.SetApiVersion(2);
             await AcceptAndRunAsync(WebOdinContext, RequestedNotifySubProtocol());
         }
 

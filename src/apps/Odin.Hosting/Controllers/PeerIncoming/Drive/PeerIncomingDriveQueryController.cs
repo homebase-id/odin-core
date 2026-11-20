@@ -209,7 +209,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         /// </summary>
         private void LogIfDriveIsNotReadable(FileQueryParamsV1 queryParams)
         {
-            if (!logger.IsEnabled(LogLevel.Debug))
+            if (!logger.IsEnabled(LogLevel.Debug) || queryParams == null)
             {
                 return;
             }
@@ -223,11 +223,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             var readableDrives = permissions.Redacted().PermissionGroups
                 .SelectMany(g => g.DriveGrants)
+                .Where(g => g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read))
                 .Select(g => g.PermissionedDrive.Drive.Alias.ToString())
                 .Distinct();
             logger.LogDebug(
                 "Peer query of a drive the caller can't read: drive {driveId} caller {caller} level {level} " +
-                "canReadConditionally {conditional} grantedDrives {grantedDrives}",
+                "canReadConditionally {conditional} readableDrives {readableDrives}",
                 driveId, WebOdinContext.Caller.OdinId?.ToString(), WebOdinContext.Caller.SecurityLevel,
                 permissions.HasDrivePermission(driveId, DrivePermission.ConditionalTemporalRead),
                 string.Join(",", readableDrives));
