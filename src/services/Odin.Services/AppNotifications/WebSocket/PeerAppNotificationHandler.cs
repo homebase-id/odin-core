@@ -163,7 +163,17 @@ namespace Odin.Services.AppNotifications.WebSocket
                     catch (Exception)
                     {
                         // We can get here if the browser forgets to pre-auth the websocket connection...
-                        await SendErrorMessageAsync(deviceSocket, "Error decrypting message", cancellationToken);
+                        const string error = "Error decrypting message";
+                        if (deviceSocket.DeviceOdinContext == null)
+                        {
+                            // Unencrypted and closed right after, so waited for as the refusal above is
+                            await _dispatcher.SendUnencryptedNowAsync(deviceSocket,
+                                ClientNotificationJson.Of(ClientNotificationType.Error, error), cancellationToken);
+                        }
+                        else
+                        {
+                            await SendErrorMessageAsync(deviceSocket, error, cancellationToken);
+                        }
 
                         return; // hangup!
                     }

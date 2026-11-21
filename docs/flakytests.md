@@ -1204,9 +1204,15 @@ runs locally (macOS, sqlite) on the branch.
 `Connection reset by peer`) instead of the expected error frame. `Assert.ThrowsAsync<Exception>` matches that exact
 type only, so it failed the test.
 
-**Fix in the test:** it now uses `Assert.CatchAsync<Exception>`: any failure to complete the handshake is a refusal,
-and an accepted token would still fail the test. **Why the server reset the socket is undiagnosed**: the scaffold
-prints server log events only when a fixture's log assertion fails, and none were printed for this fixture.
+**Cause (from reading the code, branch `peer-socket-refusal-frame`):** with no device context yet, the peer dispatcher
+started the socket's close before it sent the unencrypted error frame, so the close could reach the client first,
+or the frame's send could fail on the closing socket and abort it (the reset).
+
+**Fix:** the server now waits for the authenticationError to go out, then closes with PolicyViolation. The test's
+`Assert.CatchAsync<Exception>` tolerance is gone: it asserts the frame and the close code
+(`ConnectRefusedAsync`, `AssertTokenRefused`). A reset here again is a regression, not this flake. One known way
+left to a NormalClosure instead of the refusal: a client notification broadcast to the socket in the window before
+its close (the broadcast removes sockets with no context; not changed by that branch).
 
 ---
 

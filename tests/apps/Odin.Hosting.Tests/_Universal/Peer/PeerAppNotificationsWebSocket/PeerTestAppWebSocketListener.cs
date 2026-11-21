@@ -59,14 +59,24 @@ public sealed class PeerTestAppWebSocketListener
         if (_clientWebSocket.CloseStatus == null)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            if (await LiveRelayTestHelpers.ReadFrameAsync(_clientWebSocket, timeout.Token) != null)
+            try
             {
-                throw new Exception($"Expected the server to close the socket after {answer?.NotificationType}, got another frame");
+                if (await LiveRelayTestHelpers.ReadFrameAsync(_clientWebSocket, timeout.Token) != null)
+                {
+                    throw new Exception($"Expected the server to close the socket after {Describe(answer)}, got another frame");
+                }
+            }
+            catch (Exception e) when (e is OperationCanceledException or WebSocketException)
+            {
+                throw new Exception($"No close from the server after {Describe(answer)} ({e.GetType().Name}: {e.Message})", e);
             }
         }
 
         return new RefusedHandshake(answer, _clientWebSocket.CloseStatus, _clientWebSocket.CloseStatusDescription);
     }
+
+    private static string Describe(TestClientNotification answer) =>
+        answer == null ? "no frame" : $"{answer.NotificationType} '{answer.Data}'";
 
     // Sends the authentication package; the first frame back, or null when the server closed the socket instead
     private async Task<TestClientNotification> HandshakeAsync(OdinId identity, ClientAccessToken token,

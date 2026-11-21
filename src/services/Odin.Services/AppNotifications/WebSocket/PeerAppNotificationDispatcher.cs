@@ -101,11 +101,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         // Dst: PubSub queue
         public async Task PublishClientNotificationAsync(IClientNotification notification)
         {
-            var json = OdinSystemSerializer.Serialize(new
-            {
-                notification.NotificationType,
-                Data = notification.GetClientData()
-            });
+            var json = ClientNotificationJson.Of(notification.NotificationType, notification.GetClientData());
 
             var message = new ClientNotificationMessage
             {
@@ -196,7 +192,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 await deviceSocket.SendMessageAsync(json, cancellationToken);
             }
-            catch (Exception e) when (e is OperationCanceledException or WebSocketException)
+            catch (Exception e)
             {
                 _logger.LogDebug("WebSocket {key}: message not sent before the close ({error})", deviceSocket.Key, e.Message);
             }

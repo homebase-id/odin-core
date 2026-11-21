@@ -345,9 +345,6 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-
-        //
-
         private async Task FlushRetainedLiveRelayAsync(DeviceSocket deviceSocket, CancellationToken cancellationToken)
         {
             var appId = deviceSocket.AppId;
