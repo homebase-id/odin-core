@@ -396,20 +396,12 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private static string JsonMessage(ClientNotificationType notificationType, string message)
-        {
-            return OdinSystemSerializer.Serialize(new
-            {
-                NotificationType = notificationType,
-                Data = message,
-            });
-        }
 
         //
 
         public async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken = default)
         {
-            var json = JsonMessage(ClientNotificationType.Error, errorText);
+            var json = ClientNotificationJson.Of(ClientNotificationType.Error, errorText);
             await SendMessageAsync(
                 deviceSocket,
                 json,

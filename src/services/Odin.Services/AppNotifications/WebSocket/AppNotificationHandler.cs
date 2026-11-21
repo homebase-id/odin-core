@@ -268,7 +268,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     }
                     catch (OdinSecurityException e)
                     {
-                        var json = JsonMessage(ClientNotificationType.AuthenticationError, e.Message);
+                        var json = ClientNotificationJson.Of(ClientNotificationType.AuthenticationError, e.Message);
                         await SendMessageAsync(
                             deviceSocket,
                             json,
@@ -345,14 +345,6 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private static string JsonMessage(ClientNotificationType notificationType, string message)
-        {
-            return OdinSystemSerializer.Serialize(new
-            {
-                NotificationType = notificationType,
-                Data = message,
-            });
-        }
 
         //
 

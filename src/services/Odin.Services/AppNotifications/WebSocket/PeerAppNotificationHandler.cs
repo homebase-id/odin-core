@@ -32,6 +32,8 @@ namespace Odin.Services.AppNotifications.WebSocket
         INotificationHandler<IClientNotification>,
         INotificationHandler<IDriveNotification>
     {
+        private const string InvalidToken = "Invalid Token";
+
         private readonly ILogger<PeerAppNotificationHandler> _logger;
         private readonly PeerAppNotificationDispatcher _dispatcher;
         private readonly PeerAppNotificationService _peerAppNotificationService;
@@ -60,6 +62,8 @@ namespace Odin.Services.AppNotifications.WebSocket
             int apiVersion = 1)
         {
             var webSocketKey = Guid.NewGuid();
+            var closeStatus = WebSocketCloseStatus.NormalClosure;
+            var closeReason = "";
             try
             {
                 var deviceSocket = new DeviceSocket
@@ -71,6 +75,10 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 await _dispatcher.SubscribeAsync(cancellationToken);
                 await AwaitCommands(deviceSocket, odinContext, apiVersion, cancellationToken);
+            }
+            catch (CloseWebSocketException e)
+            {
+                (closeStatus, closeReason) = (e.Status, e.Reason);
             }
             catch (OperationCanceledException)
             {
@@ -88,7 +96,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             finally
             {
                 await _dispatcher.UnsubscribeAsync(CancellationToken.None);
-                await _dispatcher.RemoveSocket(webSocketKey);
+                await _dispatcher.RemoveSocket(webSocketKey, closeStatus, closeReason);
                 _logger.LogTrace("WebSocket closed");
             }
         }
@@ -144,21 +152,13 @@ namespace Odin.Services.AppNotifications.WebSocket
                             decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
                         }
                     }
-                    catch (OdinSecurityException) when (deviceSocket.DeviceOdinContext == null)
-                    {
-                        await _dispatcher.RefuseTokenAsync(deviceSocket, cancellationToken);
-                        return; // hangup: closed with PolicyViolation
-                    }
                     catch (OdinSecurityException)
                     {
-                        await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
-                            {
-                                NotificationType = ClientNotificationType.AuthenticationError,
-                                Data = "Invalid Token",
-                            }),
-                            deviceSocket.HasSharedSecret,
-                            cancellationToken);
-                        continue;
+                        // The handshake's token was refused.  The error first, then a PolicyViolation close, so the client
+                        // can tell "fetch a new token" from a server going away.
+                        await _dispatcher.SendUnencryptedNowAsync(deviceSocket,
+                            ClientNotificationJson.Of(ClientNotificationType.AuthenticationError, InvalidToken), cancellationToken);
+                        throw new CloseWebSocketException(WebSocketCloseStatus.PolicyViolation, InvalidToken);
                     }
                     catch (Exception)
                     {

@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
-using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
@@ -361,9 +360,7 @@ public class V2PeerAppNotificationWebSocketTests
         }
     }
 
-    private static void AssertTokenRefused(
-        (TestClientNotification Answer, WebSocketCloseStatus? CloseStatus, string CloseReason) refusal,
-        string what)
+    private static void AssertTokenRefused(RefusedHandshake refusal, string what)
     {
         Assert.That(refusal.Answer?.NotificationType, Is.EqualTo(ClientNotificationType.AuthenticationError),
             $"{what}: the first frame should be an authenticationError, not {refusal.Answer?.NotificationType.ToString() ?? "none"} " +
