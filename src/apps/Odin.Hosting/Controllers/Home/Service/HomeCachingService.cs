@@ -2,10 +2,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -50,13 +54,23 @@ namespace Odin.Hosting.Controllers.Home.Service
         public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request,
             IOdinContext odinContext, OdinId tenantOdinId)
         {
-            var key = GetCacheKey(string.Join("-", request.Queries.Select(q => q.Name)), tenantOdinId);
+            var fileSystemType = _fsResolver.GetFileSystemType();
+            var fileSystem = _fsResolver.ResolveFileSystem(fileSystemType);
+
+            // A result is built with the caller's own permissions, so only one every caller would get
+            // alike may be shared: an anonymous one. Anyone else gets their own, uncached.
+            if (odinContext.Caller.SecurityLevel != SecurityGroupType.Anonymous)
+            {
+                return await fileSystem.Query.GetBatchCollection(request.Queries, odinContext);
+            }
+
+            var key = GetCacheKey(request, fileSystemType, tenantOdinId);
             var result = await _cache.GetOrSetAsync(key, _ =>
                 {
 #if DEBUG
                     Interlocked.Increment(ref CacheMiss);
 #endif
-                    return _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request.Queries, odinContext);
+                    return fileSystem.Query.GetBatchCollection(request.Queries, odinContext);
                 },
                 TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds),
                 EntrySize.Large,
@@ -105,9 +119,14 @@ namespace Odin.Hosting.Controllers.Home.Service
             }
         }
 
-        private string GetCacheKey(string key, OdinId tenantOdinId)
+        /// <summary>
+        /// The whole query, not just its section names: two requests may share names and ask for different things.
+        /// </summary>
+        private static string GetCacheKey(QueryBatchCollectionRequest request, FileSystemType fileSystemType, OdinId tenantOdinId)
         {
-            return $"{tenantOdinId}-{key}";
+            var query = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
+            var hash = Convert.ToHexString(SHA256.HashData(query));
+            return $"{tenantOdinId}-{fileSystemType}-{hash}";
         }
 
         private List<string> CacheTags { get; } = [nameof(HomeCachingService)];

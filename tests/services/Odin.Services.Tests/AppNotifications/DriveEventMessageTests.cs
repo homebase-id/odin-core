@@ -6,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
@@ -89,6 +90,53 @@ public class DriveEventMessageTests
 
         var message = new DriveEventMessage(ClientNotificationType.FileDeleted, null, tombstone, asItWas);
         Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: false, SecurityGroupType.Authenticated), ReadRule), Is.False);
+    }
+
+    [TestCase(SecurityGroupType.Owner, true, TestName = "ADriveThatBlocksEnumerationTellsTheOwnerOfAFile")]
+    [TestCase(SecurityGroupType.Connected, false, TestName = "ADriveThatBlocksEnumerationTellsNoConnectionOfAFile")]
+    [TestCase(SecurityGroupType.Anonymous, false, TestName = "ADriveThatBlocksEnumerationTellsNoVisitorOfAFile")]
+    public async Task OnADriveThatBlocksEnumerationOnlyWhoMayListItHearsOfAFile(SecurityGroupType level, bool expected)
+    {
+        // Every new drop's header carries its address; telling a reader of it would hand out what only its link should
+        var drive = new StorageDrive(null!, new StorageDriveData
+        {
+            TargetDriveInfo = TargetDrive.NewTargetDrive(),
+            AllowAnonymousReads = true,
+            BlockEnumeration = true
+        });
+        var message = new DriveEventMessage(ClientNotificationType.FileAdded, drive,
+            Header(EncryptionType.Aes, AccessControlList.Anonymous), null);
+        Assert.That(await message.VisibleToAsync(Socket(holdsMasterKey: level == SecurityGroupType.Owner, level), ReadRule),
+            Is.EqualTo(expected));
+    }
+
+    [TestCase(true, TestName = "AV2MinimalSocketGetsVersionUpdatedWhenAV1OneIsServedFirst")]
+    [TestCase(false, TestName = "AV1MinimalSocketGetsNoVersionUpdatedWhenAV2OneIsServedFirst")]
+    public async Task OneEventsMinimalMessageAnswersEachSocketsApiVersion(bool v1First)
+    {
+        // The message is built once per event for the minimal sockets: once for the V2 ones and once for the rest
+        var header = Header(EncryptionType.Aes);
+        header.FileMetadata = new FileMetadata { IsEncrypted = true, VersionTagModified = new Odin.Core.Time.UnixTimeUtc(4242) };
+        var message = new DriveEventMessage(ClientNotificationType.FileAdded, null, header, null);
+        var (v1, v2) = (MinimalSocket(apiVersion: 1), MinimalSocket(apiVersion: 2));
+
+        string?[] json = v1First
+            ? [await message.MessageForAsync(v1, ReadRule), await message.MessageForAsync(v2, ReadRule)]
+            : [null, await message.MessageForAsync(v2, ReadRule)];
+        json[0] ??= await message.MessageForAsync(v1, ReadRule);
+
+        Assert.That(json[0], Does.Not.Contain("versionUpdated"), "the V1 socket's message");
+        Assert.That(json[1], Does.Contain("versionUpdated"), "the V2 socket's message");
+    }
+
+    private static DeviceSocket MinimalSocket(int apiVersion)
+    {
+        var socket = Socket(holdsMasterKey: true);
+        socket.ResultShape = FileResultShape.Minimal;
+        socket.DeviceOdinContext!.SetPermissionContext(new PermissionContext([],
+            new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16))));
+        socket.DeviceOdinContext.SetApiVersion(apiVersion);
+        return socket;
     }
 
     private static ServerFileHeader Header(EncryptionType type, AccessControlList? acl = null) => new()

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.WebSockets;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -27,9 +29,9 @@ namespace Odin.Hosting.Tests._V2.Tests.Peer;
 /// a drive hosted by another identity over the V2 peer websocket
 /// (<c>/api/v2/peer/notify/ws-token</c>).
 ///
-/// FLAGGED: this lives in the OLD WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>),
-/// because WebSocket flows are an explicit non-goal of the fast framework — they need a real Kestrel
-/// host. The handshake/in-band-auth and assertions are ported from the battle-tested V1
+/// FLAGGED: this lives in the OLD WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>). The fast
+/// framework can open a socket within a test too (<c>Odin.Hosting.Tests.V2/ZeroKnowledge/SelectiveShareTests.PeerSocket</c>),
+/// so moving this one costs only the port. The handshake/in-band-auth and assertions are ported from the battle-tested V1
 /// <c>_Universal/Peer/PeerAppNotificationsWebSocket/PeerAppNotificationTests</c>; only the websocket
 /// URL differs (V2 route instead of <c>/api/apps/v1/notify/peer/ws</c>).
 /// </summary>
@@ -220,8 +222,162 @@ public class V2PeerAppNotificationWebSocketTests
         }
     }
 
+    [Test]
+    public async Task AnAppThatMayOnlySendCannotFetchAPeerToken()
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        try
+        {
+            await PrepareScenarioWithCircle(host, member, targetDrive);
+
+            var sendOnly = await member.AppManager.RegisterAppAndClient(Guid.NewGuid(), new PermissionSetGrantRequest
+            {
+                Drives = [],
+                PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite)
+            });
+            var sendOnlyApi = _scaffold.CreateAppApiClientRedux(member.Identity.OdinId, sendOnly);
+
+            var tokenResponse = await sendOnlyApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            Assert.That(tokenResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        }
+        finally
+        {
+            await Shutdown(host, member);
+        }
+    }
+
+    [Test]
+    [TestCase(null)] // V1 route
+    [TestCase(UnifiedApiRouteConstants.PeerNotifySocket)]
+    public async Task ASecondSocketOnTheSameTokenConnects(string path)
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var options = new EstablishConnectionOptions { Drives = [targetDrive] };
+
+        var memberAppApi = await PrepareScenario(host, member, targetDrive);
+        var first = new PeerTestAppWebSocketListener();
+        var second = new PeerTestAppWebSocketListener();
+        try
+        {
+            var tokenResponse = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(tokenResponse.IsSuccessStatusCode, "failed to get remote notification token");
+            var token = tokenResponse.Content!.ToCat();
+
+            // The token's context is cached; the first socket must not leave its auth context on the cached copy
+            await first.ConnectAsync(host.Identity.OdinId, token, options, path);
+            await first.DisconnectAsync();
+
+            // A reconnect on the same token, while the cache entry is still live
+            await second.ConnectAsync(host.Identity.OdinId, token, options, path);
+        }
+        finally
+        {
+            await first.DisconnectAsync();
+            await second.DisconnectAsync();
+            await Shutdown(host, member);
+        }
+    }
+
+    [Test]
+    public async Task APeerTokenEndsWithTheConnectionItWasMintedUnder()
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var options = new EstablishConnectionOptions { Drives = [targetDrive] };
+
+        var (memberAppApi, circleId) = await PrepareScenarioWithCircle(host, member, targetDrive);
+        var listener = new PeerTestAppWebSocketListener();
+        try
+        {
+            var oldToken = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(oldToken.IsSuccessStatusCode, "failed to get remote notification token");
+
+            // Disconnect and connect again, into the same circle
+            await Shutdown(host, member);
+            await host.Connections.SendConnectionRequest(member.Identity.OdinId, [circleId]);
+            await member.Connections.AcceptConnectionRequest(host.Identity.OdinId);
+
+            var refusal = await listener.ConnectRefusedAsync(host.Identity.OdinId, oldToken.Content!.ToCat(), options,
+                UnifiedApiRouteConstants.PeerNotifySocket);
+            AssertTokenRefused(refusal, "a token from the earlier connection");
+
+            // A token fetched under the new connection works
+            var newToken = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(newToken.IsSuccessStatusCode, "failed to get remote notification token");
+
+            var fresh = new PeerTestAppWebSocketListener();
+            await fresh.ConnectAsync(host.Identity.OdinId, newToken.Content!.ToCat(), options, UnifiedApiRouteConstants.PeerNotifySocket);
+            await fresh.DisconnectAsync();
+        }
+        finally
+        {
+            await listener.DisconnectAsync();
+            await Shutdown(host, member);
+        }
+    }
+
+    /// <summary>
+    /// A client must tell a refused token (fetch a new one) from a server going away (reconnect), so the refusal is an
+    /// authenticationError frame and then a PolicyViolation close, never a bare close.
+    /// </summary>
+    [Test]
+    [TestCase(null)] // V1 route
+    [TestCase(UnifiedApiRouteConstants.PeerNotifySocket)]
+    public async Task ATokenTheServerNeverMadeGetsAnAuthenticationErrorAndAPolicyViolationClose(string path)
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var options = new EstablishConnectionOptions { Drives = [targetDrive] };
+
+        var memberAppApi = await PrepareScenario(host, member, targetDrive);
+        var listener = new PeerTestAppWebSocketListener();
+        try
+        {
+            var tokenResponse = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(tokenResponse.IsSuccessStatusCode, "failed to get remote notification token");
+            var unknown = tokenResponse.Content!.ToCat();
+            unknown.Id = Guid.NewGuid();
+
+            var refusal = await listener.ConnectRefusedAsync(host.Identity.OdinId, unknown, options, path);
+            AssertTokenRefused(refusal, "a token the server never made");
+        }
+        finally
+        {
+            await listener.DisconnectAsync();
+            await Shutdown(host, member);
+        }
+    }
+
+    private static void AssertTokenRefused(RefusedHandshake refusal, string what)
+    {
+        Assert.That(refusal.Answer?.NotificationType, Is.EqualTo(ClientNotificationType.AuthenticationError),
+            $"{what}: the first frame should be an authenticationError, not {refusal.Answer?.NotificationType.ToString() ?? "none"} " +
+            $"(close: {refusal.CloseStatus} '{refusal.CloseReason}')");
+        Assert.That(refusal.CloseStatus, Is.EqualTo(WebSocketCloseStatus.PolicyViolation),
+            $"{what}: the close should be PolicyViolation, not {refusal.CloseStatus} '{refusal.CloseReason}'");
+    }
+
     private async Task<AppApiClientRedux> PrepareScenario(OwnerApiClientRedux host, OwnerApiClientRedux member,
         TargetDrive groupChannelDrive)
+    {
+        var (app, _) = await PrepareScenarioWithCircle(host, member, groupChannelDrive);
+        return app;
+    }
+
+    private async Task<(AppApiClientRedux App, Guid CircleId)> PrepareScenarioWithCircle(OwnerApiClientRedux host,
+        OwnerApiClientRedux member, TargetDrive groupChannelDrive)
     {
         Dictionary<string, string> isCollaborativeChannel =
             new() { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } };
@@ -253,7 +409,7 @@ public class V2PeerAppNotificationWebSocketTests
         };
 
         var memberAppClientAccessToken = await member.AppManager.RegisterAppAndClient(communityAppId, permissions);
-        return _scaffold.CreateAppApiClientRedux(member.Identity.OdinId, memberAppClientAccessToken);
+        return (_scaffold.CreateAppApiClientRedux(member.Identity.OdinId, memberAppClientAccessToken), memberCircleId);
     }
 
     private static async Task<TransitResult> SendChatMessage(string message, OwnerApiClientRedux sender,

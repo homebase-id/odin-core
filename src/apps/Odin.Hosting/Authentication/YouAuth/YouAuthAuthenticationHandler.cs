@@ -26,6 +26,7 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Hosting.UnifiedV2;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -49,7 +50,11 @@ namespace Odin.Hosting.Authentication.YouAuth
                 return await HandleAppAuth(dotYouContext);
             }
 
+            // The V2 home routes are V1's controllers under another path, and answer to this scheme for the same
+            // reason: the home page serves a visitor by the XT32 cookie alone (docs/youauth-unified-authorization.md).
             bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(GuestApiPathConstantsV1.BasePathV1,
+                                     StringComparison.InvariantCultureIgnoreCase) ||
+                                 this.Context.Request.Path.StartsWithSegments(UnifiedApiRouteConstants.Home,
                                      StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {

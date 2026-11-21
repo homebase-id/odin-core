@@ -415,7 +415,7 @@ public abstract class V2Fixture
     protected async Task ServeStaleHeaderRowAsync(OwnerSession owner, DriveMainIndexRecord staleRow)
     {
         await using var scope = Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
-        var cache = scope.Resolve<IIdentityTransactionalCacheFactory>().Create(nameof(TableDriveMainIndex), "DriveMainIndex");
+        var cache = scope.Resolve<IIdentityTransactionalCacheFactory>().Create(TableDriveMainIndexCached.KeyPrefix, "DriveMainIndex");
         await cache.GetOrSetAsync($"{staleRow.driveId}:file:{staleRow.fileId}",
             _ => Task.FromResult(staleRow), TimeSpan.FromHours(1), tags: [$"driveId:{staleRow.driveId}"]);
 
@@ -429,6 +429,17 @@ public abstract class V2Fixture
     {
         await using var scope = Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
         await scope.Resolve<TableDriveMainIndexCached>().InvalidateAllAsync();
+    }
+
+    /// <summary>Where <paramref name="owner"/>'s payload store keeps each payload and thumbnail a file lists</summary>
+    protected async Task<List<string>> StoredObjectPathsAsync(OwnerSession owner, TargetDrive drive, Guid fileId)
+    {
+        var header = (await owner.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId)).Content!;
+        var paths = TenantPaths(owner);
+        return header.FileMetadata.Payloads.SelectMany(p => p.Thumbnails
+                .Select(t => paths.GetThumbnailDirectoryAndFileName(drive.Alias, fileId, p.Key, p.Uid, t.PixelWidth, t.PixelHeight))
+                .Prepend(paths.GetPayloadDirectoryAndFileName(drive.Alias, fileId, p.Key, p.Uid)))
+            .ToList();
     }
 
     /// <summary>

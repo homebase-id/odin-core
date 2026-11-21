@@ -11,6 +11,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
@@ -36,6 +37,23 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
+        [PeerDirectRead]
+        [HttpGet("header")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        public async Task<IActionResult> GetFileHeaderByGtid(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid gtid)
+        {
+            var header = await this.GetFileHeaderByGtidInternal(driveId, gtid, includeTransferHistory: true);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(header);
+        }
+
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -48,6 +66,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await this.GetPayloadByGtidInternal(driveId, gtid, payloadKey);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -64,6 +83,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetPayloadByGtidInternal(driveId, gtid, payloadKey, chunk);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb")]
         [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
@@ -92,7 +112,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         // Deliberately not DriveStorageControllerBase.GetFileHeaderByGlobalTransitId: that one gates on
         // PermissionsContext.AssertCanReadDrive, which has no AllowAnonymousReads bypass and so rejects an
         // anonymous or CDN caller even on a public drive. The query service's own gate does have it.
-        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGtidInternal(Guid driveId, Guid gtid)
+        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGtidInternal(Guid driveId, Guid gtid,
+            bool includeTransferHistory = false)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
             return await queryService.GetFileByGlobalTransitId(
@@ -100,7 +121,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 gtid,
                 WebOdinContext,
                 excludePreviewThumbnail: false,
-                includeTransferHistory: false);
+                includeTransferHistory: includeTransferHistory);
         }
 
         private async Task<IActionResult> GetPayloadByGtidInternal(Guid driveId, Guid gtid, string payloadKey,

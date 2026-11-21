@@ -1,0 +1,55 @@
+[
+  { "type": "h1", "id": "a1", "children": [{ "text": "Trip notes" }] },
+  {
+    "type": "p",
+    "id": "a2",
+    "children": [
+      { "text": "We left " },
+      { "text": "early", "bold": true },
+      { "text": " and " },
+      { "text": "late", "bold": true, "italic": true },
+      { "text": ", with " },
+      { "type": "mention", "value": "frodo.dotyou.cloud", "children": [{ "text": "" }] },
+      { "text": ". Map: " },
+      { "type": "a", "url": "https://example.com/map", "children": [{ "text": "the route" }] },
+      { "text": ". Press " },
+      { "text": "Ctrl", "kbd": true },
+      { "text": " to " },
+      { "text": "zoom", "underline": true },
+      { "text": ", not " },
+      { "text": "pan", "strikethrough": true },
+      { "text": " with " },
+      { "text": "map.zoom()", "code": true },
+      { "text": ".\nSecond line." }
+    ]
+  },
+  { "type": "p", "id": "a3", "children": [{ "text": "" }] },
+  { "type": "h2", "id": "a4", "children": [{ "text": "Packing" }] },
+  {
+    "type": "ul",
+    "id": "a5",
+    "children": [
+      { "type": "li", "children": [{ "type": "lic", "children": [{ "text": "Boots" }] }] },
+      {
+        "type": "li",
+        "children": [
+          { "type": "lic", "children": [{ "text": "Food" }] },
+          { "type": "ol", "children": [{ "type": "li", "children": [{ "type": "lic", "children": [{ "text": "Bread" }] }] }] }
+        ]
+      }
+    ]
+  },
+  { "type": "blockquote", "id": "a6", "children": [{ "text": "Not all those who wander are lost." }] },
+  {
+    "type": "code_block",
+    "id": "a7",
+    "lang": "javascript",
+    "children": [
+      { "type": "code_line", "children": [{ "text": "const pack = ['boots'];" }] },
+      { "type": "code_line", "children": [{ "text": "" }] },
+      { "type": "code_line", "children": [{ "text": "pack.push('food');" }] }
+    ]
+  },
+  { "type": "local_image", "id": "a8", "fileKey": "pst_rtei0", "lastModified": 1730000000000, "children": [{ "text": "" }] },
+  { "type": "p", "id": "a9", "children": [{ "text": "The end." }] }
+]

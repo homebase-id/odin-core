@@ -94,10 +94,11 @@ public sealed partial class OwnerAdmin
         OdinSlug driveSlug = default,
         OdinSlug driveTypeSlug = default,
         DriveSharingModel sharingModel = DriveSharingModel.Collaborative,
-        ZkConvertDriveRequest? zkKeys = null)
+        ZkConvertDriveRequest? zkKeys = null,
+        bool blockEnumeration = false)
     {
         var response = await TryCreateDrive(drive, name, allowAnonymousReads, ownerOnly, allowSubscriptions, attributes, allowCdn,
-            appId, driveSlug, driveTypeSlug, sharingModel, zkKeys);
+            appId, driveSlug, driveTypeSlug, sharingModel, zkKeys, blockEnumeration);
         EnsureSuccess(response, nameof(CreateDrive));
         return response;
     }
@@ -115,7 +116,8 @@ public sealed partial class OwnerAdmin
         OdinSlug driveSlug = default,
         OdinSlug driveTypeSlug = default,
         DriveSharingModel sharingModel = DriveSharingModel.Collaborative,
-        ZkConvertDriveRequest? zkKeys = null)
+        ZkConvertDriveRequest? zkKeys = null,
+        bool blockEnumeration = false)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
@@ -129,6 +131,7 @@ public sealed partial class OwnerAdmin
             AllowAnonymousReads = allowAnonymousReads,
             AllowSubscriptions = allowSubscriptions,
             AllowCdn = allowCdn,
+            BlockEnumeration = blockEnumeration,
             OwnerOnly = ownerOnly,
             Attributes = attributes,
 
@@ -220,6 +223,28 @@ public sealed partial class OwnerAdmin
         });
         EnsureSuccess(response, nameof(SetRequirePayloadHashes));
         return response;
+    }
+
+    /// <summary>
+    /// Toggles whether only the owner, the owner's apps and the server may list a drive.
+    /// </summary>
+    public async Task<ApiResponse<System.Net.Http.HttpContent>> SetBlockEnumeration(TargetDrive drive, bool blockEnumeration)
+    {
+        var response = await TrySetBlockEnumeration(drive, blockEnumeration);
+        EnsureSuccess(response, nameof(SetBlockEnumeration));
+        return response;
+    }
+
+    /// <summary>As <see cref="SetBlockEnumeration"/>, with the answer as it came: for a test that expects a refusal.</summary>
+    public async Task<ApiResponse<System.Net.Http.HttpContent>> TrySetBlockEnumeration(TargetDrive drive, bool blockEnumeration)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
+        return await svc.SetBlockEnumeration(new UpdateDriveBlockEnumerationRequest
+        {
+            TargetDrive = drive,
+            BlockEnumeration = blockEnumeration,
+        });
     }
 
     /// <summary>

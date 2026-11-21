@@ -32,7 +32,9 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
+using Odin.Test.Helpers.Logging;
 using Refit;
+using Serilog.Events;
 using Status = Odin.Services.Registry.TenantStatus;
 using static Odin.Hosting.Tests._Universal.TenantStatus.TenantStatusTestSupport;
 
@@ -59,8 +61,19 @@ public class TenantStatusTests
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {
-        _scaffold.RunAfterAnyTests();
+        // Every Error fails the fixture, except the one AFailedAlignmentAfterAnotherNodesChangeIsRetried causes on purpose
+        _scaffold.RunAfterAnyTests(logEvents =>
+        {
+            logEvents[LogEventLevel.Error] = logEvents[LogEventLevel.Error].Where(e => !IsSimulatedAlignFailure(e)).ToList();
+            LogEvents.DumpErrorEvents(logEvents);
+            LogEvents.AssertEvents(logEvents);
+        });
     }
+
+    private const string SimulatedAlignFailure = "simulated failure to align background services";
+
+    private static bool IsSimulatedAlignFailure(LogEvent e) =>
+        e.Exception is InvalidOperationException { Message: SimulatedAlignFailure };
 
     [TearDown]
     public async Task ResetStatuses()
@@ -519,7 +532,7 @@ public class TenantStatusTests
         Registry.AlignRetryBaseDelay = TimeSpan.FromMilliseconds(50);
         Registry.BeforeAligningBackgroundServices = forId =>
             forId == id && Interlocked.Increment(ref attempts) == 1
-                ? throw new InvalidOperationException("simulated failure to align background services")
+                ? throw new InvalidOperationException(SimulatedAlignFailure)
                 : Task.CompletedTask;
         try
         {
@@ -529,6 +542,11 @@ public class TenantStatusTests
             await WaitUntilAsync(() => !Registry.AreBackgroundServicesRunning(id),
                 "background services stopped although the first attempt failed");
             Assert.That(attempts, Is.GreaterThanOrEqualTo(2), "the failed attempt was retried");
+
+            // A node that cannot honour a status change has to stay visible: the failure is logged at Error
+            // (written before the retry, so it is in the store by now). The fixture's teardown expects it.
+            Assert.That(_scaffold.GetLogEvents()[LogEventLevel.Error].Any(IsSimulatedAlignFailure), Is.True,
+                "the failed attempt was logged at Error");
         }
         finally
         {

@@ -24,7 +24,7 @@ public class BuiltInBrowserAppHandler : IAuthPathHandler
             {
                 if (shouldIgnoreAuth)
                 {
-                    return AuthHandlerResult.Fallback();
+                    return AuthHandlerResult.Fail();
                 }
             }
         }
@@ -34,7 +34,7 @@ public class BuiltInBrowserAppHandler : IAuthPathHandler
 
         if (ctx == null)
         {
-            return AuthHandlerResult.Fallback();
+            return AuthHandlerResult.Fail();
         }
 
         odinContext.Caller = ctx.Caller;

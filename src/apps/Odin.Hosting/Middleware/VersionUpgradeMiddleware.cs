@@ -42,7 +42,7 @@ namespace Odin.Hosting.Middleware
                 return next(context);
             }
 
-            if (path.StartsWith(OwnerApiPathConstants.AuthV1))
+            if (path.StartsWith(OwnerApiPathConstants.AuthV1) || path.StartsWith(UnifiedApiRouteConstants.OwnerAuth))
             {
                 return next(context);
             }
@@ -96,6 +96,7 @@ namespace Odin.Hosting.Middleware
         {
             return path.Contains(OwnerDataConversionController.VersionInfoEndpoint) ||
                    request.Path.StartsWithSegments(GuestApiPathConstantsV1.IdentV1) ||
+                   request.Path.StartsWithSegments(UnifiedApiRouteConstants.Ident) ||
                    request.Path.StartsWithSegments(UnifiedApiRouteConstants.Health);
         }
 
@@ -112,7 +113,8 @@ namespace Odin.Hosting.Middleware
         /// </remarks>
         private static bool IsYouAuthAuthorizeByOwner(HttpRequest request)
         {
-            if (!request.Path.StartsWithSegments(OwnerApiPathConstants.YouAuthV1Authorize))
+            if (!request.Path.StartsWithSegments(OwnerApiPathConstants.YouAuthV1Authorize) &&
+                !request.Path.StartsWithSegments(UnifiedApiRouteConstants.YouAuthAuthorize))
             {
                 return false;
             }

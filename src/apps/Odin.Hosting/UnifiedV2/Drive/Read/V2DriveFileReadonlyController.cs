@@ -8,10 +8,12 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
@@ -27,6 +29,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
+        [PeerDirectRead]
         [HttpGet("header")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetFileHeader(
@@ -58,6 +61,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         }
 
         // Full payload (optional query range)
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -76,6 +80,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         }
 
         // Ranged payload (route-based)
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -96,6 +101,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 chunk);
         }
 
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
@@ -119,6 +125,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetThumbnailInternal(file, width, height, payloadKey, directMatchOnly);
         }
         
+        [PeerDirectRead]
         [HttpGet("payload/{payloadKey}/thumb")]
         [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
@@ -184,6 +191,38 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             };
         }
 
+        /// <summary>
+        /// What a browser got, for a read the server calls a 200 and the app calls a failure: who asked and from where,
+        /// the headers the app decrypts by and CORS decides by, and whether the browser stayed for the whole response.
+        /// </summary>
+        private void LogPayloadResponse(Guid driveId, Guid fileId, string key, IActionResult payload)
+        {
+            if (!logger.IsEnabled(LogLevel.Debug))
+            {
+                return;
+            }
+
+            var context = HttpContext;
+            var caller = WebOdinContext.Caller;
+            context.Response.OnCompleted(() =>
+            {
+                var response = context.Response;
+                logger.LogDebug(
+                    "V2 payload response: drive {driveId} file {fileId} key {key} caller {caller} level {level} token {tokenType} " +
+                    "origin {origin} fetchMode {fetchMode} result {result} status {status} contentType {contentType} " +
+                    "payloadEncrypted {payloadEncrypted} decryptedContentType {decryptedContentType} " +
+                    "allowOrigin {allowOrigin} contentLength {contentLength} clientAborted {clientAborted}",
+                    driveId, fileId, key, caller.OdinId?.ToString(), caller.SecurityLevel, caller.ClientTokenType,
+                    context.Request.Headers.Origin.ToString(), context.Request.Headers["Sec-Fetch-Mode"].ToString(),
+                    payload.GetType().Name, response.StatusCode, response.ContentType,
+                    response.Headers[HttpHeaderConstants.PayloadEncrypted].ToString(),
+                    response.Headers[HttpHeaderConstants.DecryptedContentType].ToString(),
+                    response.Headers.AccessControlAllowOrigin.ToString(), response.ContentLength,
+                    context.RequestAborted.IsCancellationRequested);
+                return Task.CompletedTask;
+            });
+        }
+
         private async Task<IActionResult> GetPayloadInternal(
             Guid driveId,
             Guid fileId,
@@ -207,6 +246,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
             }
 
+            LogPayloadResponse(driveId, fileId, key, payload);
             return payload;
         }
     }

@@ -61,7 +61,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public void AddSocket(DeviceSocket deviceSocket) => _deviceSocketCollection.AddSocket(deviceSocket);
 
-        public Task RemoveSocket(Guid key) => _deviceSocketCollection.RemoveSocket(key);
+        public Task RemoveSocket(Guid key, WebSocketCloseStatus status = WebSocketCloseStatus.NormalClosure, string reason = "") =>
+            _deviceSocketCollection.RemoveSocket(key, status, reason);
 
         public Task SubscribeAsync(CancellationToken cancellationToken = default) =>
             _notificationSubscription.SubscribeAsync(cancellationToken);
@@ -100,11 +101,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         // Dst: PubSub queue
         public async Task PublishClientNotificationAsync(IClientNotification notification)
         {
-            var json = OdinSystemSerializer.Serialize(new
-            {
-                notification.NotificationType,
-                Data = notification.GetClientData()
-            });
+            var json = ClientNotificationJson.Of(notification.NotificationType, notification.GetClientData());
 
             var message = new ClientNotificationMessage
             {
@@ -177,14 +174,28 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken = default)
         {
-            await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
-                {
-                    NotificationType = ClientNotificationType.Error,
-                    Data = errorText,
-                }),
+            await SendMessageAsync(deviceSocket, ClientNotificationJson.Of(ClientNotificationType.Error, errorText),
                 deviceSocket.HasSharedSecret,
-                sendEvenIfNoDeviceOdinContext: false,
                 cancellationToken);
+        }
+
+        //
+
+        /// <summary>
+        /// Sends an unencrypted message and waits until it is out, for a message the socket is closed right after: a close
+        /// sent sooner could reach the client first.  A socket that can't take it is left for the close to end.
+        /// </summary>
+        public async Task SendUnencryptedNowAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken = default)
+        {
+            var json = OdinSystemSerializer.Serialize(new ClientNotificationPayload { IsEncrypted = false, Payload = message });
+            try
+            {
+                await deviceSocket.SendMessageAsync(json, cancellationToken);
+            }
+            catch (Exception e)
+            {
+                _logger.LogDebug("WebSocket {key}: message not sent before the close ({error})", deviceSocket.Key, e.Message);
+            }
         }
 
         //
@@ -193,7 +204,6 @@ namespace Odin.Services.AppNotifications.WebSocket
             DeviceSocket deviceSocket,
             string message,
             bool encrypt,
-            bool sendEvenIfNoDeviceOdinContext = false,
             CancellationToken cancellationToken = default)
         {
             var socket = deviceSocket.Socket;
@@ -203,30 +213,20 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            if (deviceSocket.DeviceOdinContext == null)
-            {
-                // Removed at once; not awaited, so a client slow to answer the close cannot hold up the others
-                _ = _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
-                _logger.LogInformation("Invalid/Stale Device found; removing from list");
-                if (sendEvenIfNoDeviceOdinContext)
-                {
-                    var payload = new ClientNotificationPayload()
-                    {
-                        IsEncrypted = false,
-                        Payload = message
-                    };
-
-                    var json = OdinSystemSerializer.Serialize(payload);
-                    await deviceSocket.FireAndForgetAsync(json, _logger, cancellationToken);
-                }
-
-                return;
-            }
-
             try
             {
                 if (encrypt)
                 {
+                    // Only an encrypted message needs the handshake's context; an unencrypted one (an error before the
+                    // handshake) still goes out, as on the owner and app sockets
+                    if (deviceSocket.DeviceOdinContext == null)
+                    {
+                        // Removed at once; not awaited, so a client slow to answer the close cannot hold up the others
+                        _ = _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                        _logger.LogInformation("Invalid/Stale Device found; removing from list");
+                        return;
+                    }
+
                     if (deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey == null)
                     {
                         throw new OdinSystemException("Cannot encrypt message without shared secret key");

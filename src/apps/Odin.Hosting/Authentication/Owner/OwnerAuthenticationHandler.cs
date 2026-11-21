@@ -18,6 +18,7 @@ using Odin.Services.Authorization;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.UnifiedV2;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -33,6 +34,7 @@ namespace Odin.Hosting.Authentication.Owner
         private static readonly PathString[] RedirectPaths =
         [
             OwnerApiPathConstants.YouAuthV1Authorize,
+            UnifiedApiRouteConstants.YouAuthAuthorize,
             new PathString("/api/owner/v1/security/recovery/verify-email")
         ];
         

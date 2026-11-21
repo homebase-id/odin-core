@@ -1,4 +1,7 @@
 using System;
+using Odin.Services.Authentication.YouAuth;
+using Odin.Services.Authentication.Owner;
+using Odin.Hosting.Authentication.YouAuth;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -25,6 +28,9 @@ namespace Odin.Hosting.Middleware
         ICorrelationContext correlationContext,
         IHostEnvironment env)
     {
+        private static readonly string[] AuthCookieNames =
+            [OwnerAuthConstants.CookieName, YouAuthConstants.AppCookieName, YouAuthDefaults.XTokenCookieName];
+
         private readonly bool _sendInternalErrorDetailsToClient = env.IsDevelopment();
 
         //
@@ -41,11 +47,11 @@ namespace Odin.Hosting.Middleware
                 await HandleExceptionAsync(context, new RequestedRangeNotSatisfiableException(e.Message, inner: e),
                     contentRange: e.Size == null ? null : new ContentRangeHeaderValue(e.Size.Value).ToString());
             }
-            catch (OdinPayloadVersionGoneException e) // => HTTP 404
+            catch (OdinClientException e) when (e is OdinPayloadVersionGoneException or OdinFileDeletedException) // => HTTP 404
             {
-                // Caught ahead of OdinClientException, which it derives from: a payload replaced while it
-                // was being read is not a bad request, it is a version that no longer exists. Re-reading
-                // the file header gets the caller the current one.
+                // Caught ahead of OdinClientException, which they derive from, and told apart by their error codes: a
+                // payload replaced while it was being read is a version that no longer exists (re-reading the file
+                // header gets the caller the current one), and a deleted file's payloads went with it.
                 await HandleExceptionAsync(context, new NotFoundException(e.Message, e.ErrorCode, e));
             }
             catch (OdinPayloadGoneException e) // => HTTP 410
@@ -161,6 +167,19 @@ namespace Odin.Hosting.Middleware
                         context.Request.Method,
                         context.Request.Path,
                         exception.Message);
+                    break;
+                case 400:
+                    // Names only, no values. Whether a credential came along says a lot about a 400: a body encrypted
+                    // for a session the server no longer accepts reaches the action undecrypted, and reads as empty.
+                    logger.LogDebug("Bad request {method} {path}: {message} (contentType {contentType} contentLength {contentLength} " +
+                                    "bearer {hasBearer} cookies {authCookies})",
+                        context.Request.Method,
+                        context.Request.Path,
+                        exception.Message,
+                        context.Request.ContentType,
+                        context.Request.ContentLength,
+                        context.Request.Headers.Authorization.Count > 0,
+                        string.Join(",", AuthCookieNames.Where(context.Request.Cookies.ContainsKey)));
                     break;
                 case 499:
                     logger.LogWarning("{WarningText} [origin: {method} {path}]",

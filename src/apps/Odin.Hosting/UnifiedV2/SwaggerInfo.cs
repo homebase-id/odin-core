@@ -44,6 +44,8 @@ public static class SwaggerInfo
     // Email setup (the chat-kmp add-on; owner console keeps /api/owner/v1/mail)
     public const string Mail = "Email Setup";
 
+    public const string OwnerSecurity = "Owner Security and System";
+
     /// <summary>
     /// Temporary bucket for the slug-addressed routes
     /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>, docs/security-model.md, Drive addressing), so they can be reviewed
@@ -53,4 +55,5 @@ public static class SwaggerInfo
 
     // Peer notification subscriptions (live updates on drives hosted by other identities)
     public const string Notifications = "Notifications";
+    public const string Calling = "Calling";
 }

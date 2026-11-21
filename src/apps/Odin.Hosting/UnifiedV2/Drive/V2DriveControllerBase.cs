@@ -81,8 +81,10 @@ namespace Odin.Hosting.UnifiedV2.Drive
                     fileId, string.Join(",", responses.Select(kv => $"{kv.Key}={kv.Value}")));
             }
 
-            result.Updated = await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null, options?.VersionTag);
-            result.LocalFileDeleted = result.Updated != null;
+            var deleted = await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null, options?.VersionTag);
+            result.Updated = deleted?.Updated;
+            result.VersionUpdated = deleted?.VersionUpdated;
+            result.LocalFileDeleted = deleted != null;
 
             logger.LogDebug("[DeleteFlow] PerformFileDelete -> local soft-delete complete for fileId:{fileId} on driveId:{driveId}",
                 fileId, driveId);
@@ -164,24 +166,30 @@ namespace Odin.Hosting.UnifiedV2.Drive
             var recipientStatus = recipients.Count == 0 ? []
                 : await peerOutgoingTransferService.SendDeleteFileRequest(header, recipients, recipientTokens, WebOdinContext);
 
-            UnixTimeUtc? updated = header.FileMetadata.Updated;
+            // An already deleted file answers its tombstone's times
+            DriveStorageServiceBase.WriteTimes times =
+                new(header.FileMetadata.Updated, DriveFileUtility.VersionUpdatedOf(header.FileMetadata));
             OdinClientErrorCode? errorCode = null;
             if (!alreadyDeleted)
             {
                 try
                 {
                     // Null is a failure the tombstone write logged and swallowed; like hard delete, it fails the request
-                    updated = await storage.SoftDeleteLongTermFile(file, WebOdinContext, null, versionTag)
-                              ?? throw new OdinSystemException($"Soft delete of {file} failed");
+                    times = await storage.SoftDeleteLongTermFile(file, WebOdinContext, null, versionTag)
+                            ?? throw new OdinSystemException($"Soft delete of {file} failed");
                 }
                 catch (OdinClientException e)
                 {
                     // An edit since the check above; the recipients were told already, and the result says so
-                    (updated, errorCode) = (null, e.ErrorCode);
+                    (times, errorCode) = (null, e.ErrorCode);
                 }
             }
 
-            return new SoftDeleteResultV2 { FileId = file.FileId, Updated = updated, ErrorCode = errorCode, RecipientStatus = recipientStatus };
+            return new SoftDeleteResultV2
+            {
+                FileId = file.FileId, Updated = times?.Updated, VersionUpdated = times?.VersionUpdated, ErrorCode = errorCode,
+                RecipientStatus = recipientStatus
+            };
         }
 
         protected IDriveFileSystem GetFileSystem()
