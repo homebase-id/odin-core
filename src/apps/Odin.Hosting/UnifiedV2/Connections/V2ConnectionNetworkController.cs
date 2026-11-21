@@ -116,31 +116,6 @@ public class V2ConnectionNetworkController(
         return redacted;
     }
 
-    [HttpGet("connected")]
-    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Get list of connected identities")]
-    public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, string cursor)
-    {
-        var result = await circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
-        var ownerSide = CallerIsOwnerSideViewer;
-
-        var results = result.Results
-            .Select(p => ownerSide ? p.Redacted() : p.RedactedForExternalViewer())
-            .ToList();
-
-        if (ownerSide)
-        {
-            // One pass for the page: the lookups are memoised across it, and most connections have
-            // nothing awaiting, so this costs nothing for them.
-            await circleNetwork.PopulateAwaitingAppNamesAsync(results, WebOdinContext);
-        }
-
-        return new CursoredResult<RedactedIdentityConnectionRegistration>()
-        {
-            Cursor = result.Cursor,
-            Results = results
-        };
-    }
-
     [HttpGet("blocked")]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Get list of blocked identities")]

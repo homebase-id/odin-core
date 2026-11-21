@@ -10,11 +10,15 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests._Universal.ApiClient;
+using Odin.Hosting.Tests._V2.Tests.LiveRelay;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
 namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
+
+/// <summary>What the server did with a refused handshake: the frame it answered with (null if none), then its close</summary>
+public sealed record RefusedHandshake(TestClientNotification Answer, WebSocketCloseStatus? CloseStatus, string CloseReason);
 
 public sealed class PeerTestAppWebSocketListener
 {
@@ -34,6 +38,49 @@ public sealed class PeerTestAppWebSocketListener
 
     public async Task ConnectAsync(OdinId identity, ClientAccessToken token, EstablishConnectionOptions options,
         string pathOverride = null)
+    {
+        var response = await HandshakeAsync(identity, token, options, pathOverride);
+        if (response?.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
+        {
+            throw new Exception($"Did not receive a valid handshake: {response?.NotificationType} {response?.Data}");
+        }
+
+        this.StartReceiving();
+    }
+
+    /// <summary>
+    /// Connects with a token the server should refuse: the frame it answered with (null if none came before the close),
+    /// and the close it then sent
+    /// </summary>
+    public async Task<RefusedHandshake> ConnectRefusedAsync(
+        OdinId identity, ClientAccessToken token, EstablishConnectionOptions options, string pathOverride = null)
+    {
+        var answer = await HandshakeAsync(identity, token, options, pathOverride);
+        if (_clientWebSocket.CloseStatus == null)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                if (await LiveRelayTestHelpers.ReadFrameAsync(_clientWebSocket, timeout.Token) != null)
+                {
+                    throw new Exception($"Expected the server to close the socket after {Describe(answer)}, got another frame");
+                }
+            }
+            catch (Exception e) when (e is OperationCanceledException or WebSocketException)
+            {
+                throw new Exception($"No close from the server after {Describe(answer)} ({e.GetType().Name}: {e.Message})", e);
+            }
+        }
+
+        return new RefusedHandshake(answer, _clientWebSocket.CloseStatus, _clientWebSocket.CloseStatusDescription);
+    }
+
+    private static string Describe(TestClientNotification answer) =>
+        answer == null ? "no frame" : $"{answer.NotificationType} '{answer.Data}'";
+
+    // Sends the authentication package; the first frame back, or null when the server closed the socket instead
+    private async Task<TestClientNotification> HandshakeAsync(OdinId identity, ClientAccessToken token,
+        EstablishConnectionOptions options, string pathOverride)
     {
         _token = token;
         // _clientWebSocket.Options.Cookies = new CookieContainer();
@@ -76,25 +123,11 @@ public sealed class PeerTestAppWebSocketListener
         //
         // Wait for the reply 
         //
-        var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 3]);
-        var receiveResult = await _clientWebSocket.ReceiveAsync(receiveBuffer, tokenSource.Token);
-        if (receiveResult.MessageType != WebSocketMessageType.Text)
-        {
-            throw new Exception("Did not receive a valid handshake");
-        }
-
-        var array = receiveBuffer.Array;
-        Array.Resize(ref array, receiveResult.Count);
+        var frame = await LiveRelayTestHelpers.ReadFrameAsync(_clientWebSocket, tokenSource.Token);
 
         // Read as a generic notification: EstablishConnectionResponse.NotificationType is fixed to
         // DeviceHandshakeSuccess, so checking it would pass any first frame, an error included
-        var response = DecryptClientNotificationPayload<TestClientNotification>(array);
-        if (response.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
-        {
-            throw new Exception($"Did not receive a valid handshake: {response.NotificationType} {response.Data}");
-        }
-
-        this.StartReceiving();
+        return frame == null ? null : DecryptClientNotificationPayload<TestClientNotification>(frame);
     }
 
     public async Task DisconnectAsync()

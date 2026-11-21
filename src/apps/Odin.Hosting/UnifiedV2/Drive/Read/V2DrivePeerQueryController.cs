@@ -27,6 +27,33 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await peerDriveQueryService.FileExistsOnRemoteByUniqueId(
                 (OdinId)odinId, driveId, uid, WebOdinContext);
         }
+
+        [HttpGet("header")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        public async Task<IActionResult> GetFileHeader(
+            [FromRoute] string odinId,
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid uid)
+        {
+            AssertIsValidOdinId(odinId, out var id);
+
+            // The remote resolves the drive by alias alone (LookupHeaderByUniqueId), so Type is left empty.
+            var file = new GetPayloadByUniqueIdRequest
+            {
+                UniqueId = uid,
+                TargetDrive = new TargetDrive { Alias = driveId, Type = Guid.Empty }
+            };
+
+            var result = await peerDriveQueryService.GetFileHeaderByUniqueIdAsync(
+                id, file, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
+        }
     }
 
     /// <summary>

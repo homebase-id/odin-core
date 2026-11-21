@@ -1,4 +1,7 @@
 using System;
+using Odin.Services.Authentication.YouAuth;
+using Odin.Services.Authentication.Owner;
+using Odin.Hosting.Authentication.YouAuth;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -25,6 +28,9 @@ namespace Odin.Hosting.Middleware
         ICorrelationContext correlationContext,
         IHostEnvironment env)
     {
+        private static readonly string[] AuthCookieNames =
+            [OwnerAuthConstants.CookieName, YouAuthConstants.AppCookieName, YouAuthDefaults.XTokenCookieName];
+
         private readonly bool _sendInternalErrorDetailsToClient = env.IsDevelopment();
 
         //
@@ -161,6 +167,19 @@ namespace Odin.Hosting.Middleware
                         context.Request.Method,
                         context.Request.Path,
                         exception.Message);
+                    break;
+                case 400:
+                    // Names only, no values. Whether a credential came along says a lot about a 400: a body encrypted
+                    // for a session the server no longer accepts reaches the action undecrypted, and reads as empty.
+                    logger.LogDebug("Bad request {method} {path}: {message} (contentType {contentType} contentLength {contentLength} " +
+                                    "bearer {hasBearer} cookies {authCookies})",
+                        context.Request.Method,
+                        context.Request.Path,
+                        exception.Message,
+                        context.Request.ContentType,
+                        context.Request.ContentLength,
+                        context.Request.Headers.Authorization.Count > 0,
+                        string.Join(",", AuthCookieNames.Where(context.Request.Cookies.ContainsKey)));
                     break;
                 case 499:
                     logger.LogWarning("{WarningText} [origin: {method} {path}]",
