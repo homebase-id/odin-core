@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.WebSockets;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
+using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
@@ -305,10 +307,9 @@ public class V2PeerAppNotificationWebSocketTests
             await host.Connections.SendConnectionRequest(member.Identity.OdinId, [circleId]);
             await member.Connections.AcceptConnectionRequest(host.Identity.OdinId);
 
-            // Refused either way: an error frame, or (seen once in CI, ubuntu/sqlite) the socket reset before one.
-            // Only a completed handshake means the old token was accepted.
-            Assert.CatchAsync<Exception>(() => listener.ConnectAsync(host.Identity.OdinId, oldToken.Content!.ToCat(),
-                options, UnifiedApiRouteConstants.PeerNotifySocket), "a token from the earlier connection was accepted");
+            var refusal = await listener.ConnectRefusedAsync(host.Identity.OdinId, oldToken.Content!.ToCat(), options,
+                UnifiedApiRouteConstants.PeerNotifySocket);
+            AssertTokenRefused(refusal, "a token from the earlier connection");
 
             // A token fetched under the new connection works
             var newToken = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
@@ -324,6 +325,51 @@ public class V2PeerAppNotificationWebSocketTests
             await listener.DisconnectAsync();
             await Shutdown(host, member);
         }
+    }
+
+    /// <summary>
+    /// A client must tell a refused token (fetch a new one) from a server going away (reconnect), so the refusal is an
+    /// authenticationError frame and then a PolicyViolation close, never a bare close.
+    /// </summary>
+    [Test]
+    [TestCase(null)] // V1 route
+    [TestCase(UnifiedApiRouteConstants.PeerNotifySocket)]
+    public async Task ATokenTheServerNeverMadeGetsAnAuthenticationErrorAndAPolicyViolationClose(string path)
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var options = new EstablishConnectionOptions { Drives = [targetDrive] };
+
+        var memberAppApi = await PrepareScenario(host, member, targetDrive);
+        var listener = new PeerTestAppWebSocketListener();
+        try
+        {
+            var tokenResponse = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(tokenResponse.IsSuccessStatusCode, "failed to get remote notification token");
+            var unknown = tokenResponse.Content!.ToCat();
+            unknown.Id = Guid.NewGuid();
+
+            var refusal = await listener.ConnectRefusedAsync(host.Identity.OdinId, unknown, options, path);
+            AssertTokenRefused(refusal, "a token the server never made");
+        }
+        finally
+        {
+            await listener.DisconnectAsync();
+            await Shutdown(host, member);
+        }
+    }
+
+    private static void AssertTokenRefused(
+        (TestClientNotification Answer, WebSocketCloseStatus? CloseStatus, string CloseReason) refusal,
+        string what)
+    {
+        Assert.That(refusal.Answer?.NotificationType, Is.EqualTo(ClientNotificationType.AuthenticationError),
+            $"{what}: the first frame should be an authenticationError, not {refusal.Answer?.NotificationType.ToString() ?? "none"} " +
+            $"(close: {refusal.CloseStatus} '{refusal.CloseReason}')");
+        Assert.That(refusal.CloseStatus, Is.EqualTo(WebSocketCloseStatus.PolicyViolation),
+            $"{what}: the close should be PolicyViolation, not {refusal.CloseStatus} '{refusal.CloseReason}'");
     }
 
     private async Task<AppApiClientRedux> PrepareScenario(OwnerApiClientRedux host, OwnerApiClientRedux member,

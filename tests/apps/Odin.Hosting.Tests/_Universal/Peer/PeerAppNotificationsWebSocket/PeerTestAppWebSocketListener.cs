@@ -35,6 +35,40 @@ public sealed class PeerTestAppWebSocketListener
     public async Task ConnectAsync(OdinId identity, ClientAccessToken token, EstablishConnectionOptions options,
         string pathOverride = null)
     {
+        var (response, _) = await HandshakeAsync(identity, token, options, pathOverride);
+        if (response?.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
+        {
+            throw new Exception($"Did not receive a valid handshake: {response?.NotificationType} {response?.Data}");
+        }
+
+        this.StartReceiving();
+    }
+
+    /// <summary>
+    /// Connects with a token the server should refuse: the frame it answered with (null if none came before the close),
+    /// and the close it then sent
+    /// </summary>
+    public async Task<(TestClientNotification Answer, WebSocketCloseStatus? CloseStatus, string CloseReason)> ConnectRefusedAsync(
+        OdinId identity, ClientAccessToken token, EstablishConnectionOptions options, string pathOverride = null)
+    {
+        var (answer, closed) = await HandshakeAsync(identity, token, options, pathOverride);
+        if (!closed)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var receiveResult = await _clientWebSocket.ReceiveAsync(new ArraySegment<byte>(new byte[1024]), timeout.Token);
+            if (receiveResult.MessageType != WebSocketMessageType.Close)
+            {
+                throw new Exception($"Expected the server to close the socket after {answer?.NotificationType}, got a {receiveResult.MessageType} frame");
+            }
+        }
+
+        return (answer, _clientWebSocket.CloseStatus, _clientWebSocket.CloseStatusDescription);
+    }
+
+    // Sends the authentication package; the first frame back, or closed when the server closed the socket instead
+    private async Task<(TestClientNotification Response, bool Closed)> HandshakeAsync(OdinId identity, ClientAccessToken token,
+        EstablishConnectionOptions options, string pathOverride)
+    {
         _token = token;
         // _clientWebSocket.Options.Cookies = new CookieContainer();
         // var cookie = new Cookie(YouAuthConstants.SubscriberCookieName, token.ToAuthenticationToken().ToString())
@@ -78,6 +112,11 @@ public sealed class PeerTestAppWebSocketListener
         //
         var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 3]);
         var receiveResult = await _clientWebSocket.ReceiveAsync(receiveBuffer, tokenSource.Token);
+        if (receiveResult.MessageType == WebSocketMessageType.Close)
+        {
+            return (null, true);
+        }
+
         if (receiveResult.MessageType != WebSocketMessageType.Text)
         {
             throw new Exception("Did not receive a valid handshake");
@@ -88,13 +127,7 @@ public sealed class PeerTestAppWebSocketListener
 
         // Read as a generic notification: EstablishConnectionResponse.NotificationType is fixed to
         // DeviceHandshakeSuccess, so checking it would pass any first frame, an error included
-        var response = DecryptClientNotificationPayload<TestClientNotification>(array);
-        if (response.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
-        {
-            throw new Exception($"Did not receive a valid handshake: {response.NotificationType} {response.Data}");
-        }
-
-        this.StartReceiving();
+        return (DecryptClientNotificationPayload<TestClientNotification>(array), false);
     }
 
     public async Task DisconnectAsync()

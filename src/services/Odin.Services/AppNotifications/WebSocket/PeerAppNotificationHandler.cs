@@ -144,6 +144,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                             decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
                         }
                     }
+                    catch (OdinSecurityException) when (deviceSocket.DeviceOdinContext == null)
+                    {
+                        await _dispatcher.RefuseTokenAsync(deviceSocket, cancellationToken);
+                        return; // hangup: closed with PolicyViolation
+                    }
                     catch (OdinSecurityException)
                     {
                         await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
@@ -152,7 +157,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                                 Data = "Invalid Token",
                             }),
                             deviceSocket.HasSharedSecret,
-                            sendEvenIfNoDeviceOdinContext: true,
                             cancellationToken);
                         continue;
                     }
@@ -243,10 +247,9 @@ namespace Odin.Services.AppNotifications.WebSocket
             DeviceSocket deviceSocket,
             string message,
             bool encrypt,
-            bool sendEvenIfNoDeviceOdinContext = false,
             CancellationToken cancellationToken = default)
         {
-            return _dispatcher.SendMessageAsync(deviceSocket, message, encrypt, sendEvenIfNoDeviceOdinContext, cancellationToken);
+            return _dispatcher.SendMessageAsync(deviceSocket, message, encrypt, cancellationToken);
         }
 
         //
@@ -284,7 +287,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                         deviceSocket,
                         OdinSystemSerializer.Serialize(response),
                         encrypt: true,
-                        sendEvenIfNoDeviceOdinContext: false,
                         cancellationToken);
                     break;
 
@@ -293,7 +295,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                         deviceSocket,
                         OdinSystemSerializer.Serialize(new { NotificationType = ClientNotificationType.Pong }),
                         encrypt: true,
-                        sendEvenIfNoDeviceOdinContext: false,
                         cancellationToken);
                     break;
 

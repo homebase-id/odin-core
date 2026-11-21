@@ -183,8 +183,40 @@ namespace Odin.Services.AppNotifications.WebSocket
                     Data = errorText,
                 }),
                 deviceSocket.HasSharedSecret,
-                sendEvenIfNoDeviceOdinContext: false,
                 cancellationToken);
+        }
+
+        //
+
+        /// <summary>
+        /// Turns away a socket whose handshake token was refused: an unencrypted authenticationError, awaited so it goes
+        /// out first, then a close with <see cref="WebSocketCloseStatus.PolicyViolation"/>.  The client can tell "fetch a
+        /// new token" from a server going away.
+        /// </summary>
+        public async Task RefuseTokenAsync(DeviceSocket deviceSocket, CancellationToken cancellationToken = default)
+        {
+            const string reason = "Invalid Token";
+            var json = OdinSystemSerializer.Serialize(new ClientNotificationPayload
+            {
+                IsEncrypted = false,
+                Payload = OdinSystemSerializer.Serialize(new
+                {
+                    NotificationType = ClientNotificationType.AuthenticationError,
+                    Data = reason,
+                })
+            });
+
+            try
+            {
+                await deviceSocket.SendMessageAsync(json, cancellationToken);
+            }
+            catch (Exception e) when (e is OperationCanceledException or WebSocketException)
+            {
+                // The client is gone or not reading; the close below still ends the socket
+                _logger.LogDebug("Refused token: the authenticationError was not sent ({error})", e.Message);
+            }
+
+            await _deviceSocketCollection.RemoveSocket(deviceSocket.Key, WebSocketCloseStatus.PolicyViolation, reason);
         }
 
         //
@@ -193,7 +225,6 @@ namespace Odin.Services.AppNotifications.WebSocket
             DeviceSocket deviceSocket,
             string message,
             bool encrypt,
-            bool sendEvenIfNoDeviceOdinContext = false,
             CancellationToken cancellationToken = default)
         {
             var socket = deviceSocket.Socket;
@@ -208,18 +239,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                 // Removed at once; not awaited, so a client slow to answer the close cannot hold up the others
                 _ = _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
                 _logger.LogInformation("Invalid/Stale Device found; removing from list");
-                if (sendEvenIfNoDeviceOdinContext)
-                {
-                    var payload = new ClientNotificationPayload()
-                    {
-                        IsEncrypted = false,
-                        Payload = message
-                    };
-
-                    var json = OdinSystemSerializer.Serialize(payload);
-                    await deviceSocket.FireAndForgetAsync(json, _logger, cancellationToken);
-                }
-
                 return;
             }
 
