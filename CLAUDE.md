@@ -190,6 +190,26 @@ gh run watch <run-id> --repo homebase-id/odin-core --exit-status
   - `host-deploy-image-to-environment.yml` deploys a given image to bleeding edge, sandbox or production.
 - `start_choice=true` starts the container after the deploy. Every release so far has used `true`.
 
+## Opening a PR
+
+One PR solves one problem. Unrelated fixes are separate PRs, however small; no "Small fixes: …" grab-bags. If the title needs "and" or a list to say what the PR does, it is probably two PRs. Two issues share a PR only when the same change fixes both.
+
+End the description with this block, one line each, before the attribution lines. The weekly team data reads it.
+
+```
+Type: feature | fix | refactor | speed-up | docs | tests
+Part of: #<tracking issue>
+Fixes a problem from: #<merged PR>
+Verified: <what ran: unit tests, integration tests, a local host run, bleeding edge>
+```
+
+Leave out `Part of` when there is no tracking issue, and `Fixes a problem from` unless the PR fixes something a merged PR got wrong. `Verified` names what actually ran, not what CI will run.
+
+## Filing issues
+
+- An issue about something a merged PR got wrong starts with "Found after #<PR>" and gets the `post-merge` label.
+- When a fix doesn't hold, reopen its issue with "Still broken: …" instead of filing a new one.
+
 ## Reporting findings
 
 When reporting a bug, review finding, or any analysis of this codebase, explicitly separate what was verified by reading code/tests from what was inferred or assumed. If a conclusion depends on an assumption about behavior outside this repo (external scripts, ops/ansible playbooks, infra config, runtime environment, etc.) or on unverified reasoning, say so directly in the same sentence as the claim -- do not state inferred conclusions as confirmed facts.
