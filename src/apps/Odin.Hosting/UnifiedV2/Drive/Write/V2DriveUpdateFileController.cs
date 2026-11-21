@@ -45,7 +45,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             OdinValidationUtils.AssertNotEmptyGuid(fileId, "missing file id");
             
             var v1Result = await ReceiveFileUpdateV2(driveId, fileId);
-            return UpdateFileResult.From(v1Result, withLocalFile: true);
+            return UpdateFileResult.From(v1Result);
         }
         
         /// <summary>
@@ -72,7 +72,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             OdinValidationUtils.AssertNotEmptyGuid(uniqueId, "missing uid");
             
             var v1Result = await ReceiveFileUpdateByUniqueIdV2(driveId, uniqueId);
-            return UpdateFileResult.From(v1Result, withLocalFile: true);
+            return UpdateFileResult.From(v1Result);
         }
     }
 }
