@@ -672,19 +672,14 @@ public partial class SelectiveShareTests : V2Fixture
         Assert.That(await CommentsAsync(s.Frodo.Drives.Reader, s, file), Has.Count.EqualTo(1), "Comment granted back");
     }
 
-    // Then Frodo's cached peer contexts are reset, as the hour they are cached for would: a change of a circle's grants
-    // doesn't reset them today (file-access.md, "Peers' contexts are cached")
+    // Reaches Sam's next request: a change of a circle's grants resets Frodo's cached peer contexts
     private async Task SetCircleGrantAsync(Arranged s, DrivePermission permission)
     {
         var definition = await s.Frodo.Admin.GetCircleDefinition(s.CircleId);
         definition.DriveGrants.Single().PermissionedDrive.Permission = permission;
         var update = await s.Frodo.Admin.TryUpdateCircleDefinition(definition);
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK), update.Error?.Content);
-        await ResetFrodosContextsAsync(s);
     }
-
-    private Task ResetFrodosContextsAsync(Arranged s) =>
-        Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<OdinContextCache>().ResetAsync();
 
     private static Task<ApiResponse<HttpContent>> SamAddsReactionAsync(Arranged s, GlobalTransitIdFileIdentifier file, string reaction) =>
         s.Sam.RefitFor<IRefitOwnerTransitReaction>().AddReaction(new PeerAddReactionRequest

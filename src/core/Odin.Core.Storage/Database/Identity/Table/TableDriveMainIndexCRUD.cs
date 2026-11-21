@@ -112,13 +112,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE DriveMainIndex IS '{ \"Version\": 202611171200 }';";
+               commentSql = "COMMENT ON TABLE DriveMainIndex IS '{ \"Version\": 202611191400 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveMainIndex( -- { \"Version\": 202611171200 }\n"
+                "CREATE TABLE IF NOT EXISTS DriveMainIndex( -- { \"Version\": 202611191400 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
@@ -150,10 +150,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"versionTagModified BIGINT NOT NULL DEFAULT 0, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
-                   +", UNIQUE(identityId,driveId,fileId)"
-                   +", UNIQUE(identityId,driveId,uniqueId)"
-                   +", UNIQUE(identityId,driveId,globalTransitId)"
-                   +", UNIQUE(identityId,hdrVersionTag)"
+                   +", CONSTRAINT DriveMainIndex_fileId UNIQUE(identityId,driveId,fileId)"
+                   +", CONSTRAINT DriveMainIndex_uniqueId UNIQUE(identityId,driveId,uniqueId)"
+                   +", CONSTRAINT DriveMainIndex_globalTransitId UNIQUE(identityId,driveId,globalTransitId)"
+                   +", CONSTRAINT DriveMainIndex_hdrVersionTag UNIQUE(identityId,hdrVersionTag)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,created,rowId);"
                    +"CREATE INDEX IF NOT EXISTS Idx1DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"

@@ -1279,3 +1279,15 @@ its close (the broadcast removes sockets with no context; not changed by that br
   The `App` and `Guest` cases of the same test passed in that job, the `postgres/release` and `windows/sqlite/debug`
   jobs of the same commit passed, and all three cases pass locally on the branch. The branch only changes feed
   distribution for channel drives, which this test does not touch. Undiagnosed.
+
+## `Odin.Core.Storage.Tests.Database.Identity.Table.TableFollowsMeTests.InsertRowIdTest(Postgres)`
+
+**Where:** local, once (2026-11-19), in a full `Odin.Core.Storage.Tests` run with `RUN_POSTGRES_TESTS`
+against testcontainers Postgres on Docker Desktop (macOS): 1 failed of 984, the test taking 16 s.
+
+**Symptom:** failed; the error text was not captured (the run's output was filtered to the summary).
+
+**Evidence it is not the change in flight:** the change (branch `low-hanging-fruit-2054-2065-2085`,
+named UNIQUE constraints on `DriveMainIndex`) does not touch `FollowsMe`. Run on its own straight
+after, on the same tree, all four `InsertRowIdTest`/`TryInsertRowIdTest` cases passed. Cause unknown;
+the 16 s suggests a slow container start, but that is a guess.

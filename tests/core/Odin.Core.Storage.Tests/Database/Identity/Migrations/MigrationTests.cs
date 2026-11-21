@@ -9,6 +9,7 @@ using Odin.Core.Time;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -111,11 +112,11 @@ public class DatabaseMigrationTests : IocTestBase
         // This will be wrong when we get a newer table - I will rewrite it when I am not 
         // stress coding
         var sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
-        var latest = list.GetLatestVersion();
-        ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
+        ClassicAssert.IsTrue(sqlVersion == list.GetLatestVersion().MigrationVersion);
 
-        var previous = list.Migrations[list.Migrations.Count - 2];
-        ClassicAssert.IsTrue(latest.PreviousVersion == previous.MigrationVersion);
+        // The versionTagModified migration, pinned: later ones copy the column as it is
+        var latest = list.Migrations.Single(m => m.MigrationVersion == 202611171200);
+        var previous = list.Migrations.Single(m => m.MigrationVersion == latest.PreviousVersion);
 
         // We need to downgrade to the previous version
         await SqlHelper.DeleteTableAsync(cn, "DriveMainIndex");
@@ -244,6 +245,28 @@ public class DatabaseMigrationTests : IocTestBase
             // The address carries across; WriteOnlyKeyPair stays nullable.
             "SELECT COUNT(*) FROM Drives WHERE DriveName = 'seed drive' " +
             "AND AppId IS NOT NULL AND DriveSlug = 'seed-drive' AND DriveTypeSlug = 'drive' AND WriteOnlyKeyPair IS NULL");
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task DriveMainIndexMigration_CopiesARow_AndKeepsItsVersionTagModified(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+        await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
+
+        await AssertMigratesRowUpAndDownAsync(cn, new TableDriveMainIndexMigrationList(), "DriveMainIndex",
+            "INSERT INTO DriveMainIndex (identityId,driveId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate," +
+            "fileType,dataType,archivalStatus,historyStatus,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData," +
+            "hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,versionTagModified,created,modified) VALUES " +
+            "(@identityId,@driveId,@fileId,0,1,1,0,1,1,0,0,42,'{}',@versionTag,'{}','{}','{}',@tmpDriveAlias,@tmpDriveType," +
+            "777,1,@modified)",
+            cmd => BindDriveMainIndexSeed(cmd, Guid.NewGuid(), 1000),
+            "SELECT COUNT(*) FROM DriveMainIndex WHERE versionTagModified = 777 AND modified = 1000");
     }
 
     private const string DrivesSeedSql =

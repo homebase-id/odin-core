@@ -352,6 +352,12 @@ public class DriveQuery(
                 GuidOneOrTwo(fileMetadata.File.FileId, r?.fileId),
                 drive.Name);
 
+            if (e.IsUniqueConstraintViolationOn("globalTransitId"))
+            {
+                throw new OdinClientException($"A file already has the global transit id {fileMetadata.GlobalTransitId}",
+                    OdinClientErrorCode.ExistingFileWithGlobalTransitId);
+            }
+
             throw new OdinClientException($"UniqueId [{fileMetadata.AppData.UniqueId}] not unique.",
                 OdinClientErrorCode.ExistingFileWithUniqueId);
         }

@@ -145,6 +145,7 @@ public class PeerUpdateFileTests : V2Fixture
             }
         };
 
+        var beforeTheUpdate = Odin.Core.Time.UnixTimeUtc.Now().milliseconds;
         var updateFileResponse = await caller.V1.Drive.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
         await senderOwnerClient.Sync.DrainOutboxAsync();
         Assert.That(updateFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -167,6 +168,8 @@ public class PeerUpdateFileTests : V2Fixture
         Assert.That(header.FileMetadata.Payloads.Select(pd => pd.Key), Does.Contain(payload2.Key), "payload 2 should remain");
         Assert.That(header.FileMetadata.Payloads.Select(pd => pd.Key), Does.Contain(payloadToAdd.Key),
             "payloadToAdd should have been, well, added :)");
+        var transitUpdated = header.FileMetadata.TransitUpdated.milliseconds;
+        Assert.That(transitUpdated, Is.GreaterThanOrEqualTo(beforeTheUpdate), "the sender's update moves TransitUpdated (#2065)");
 
         var recipientFile = new ExternalFileIdentifier()
         {
@@ -231,6 +234,28 @@ public class PeerUpdateFileTests : V2Fixture
         var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
         Assert.That(theFileSearchResult, Is.Not.Null);
         Assert.That(theFileSearchResult.FileId, Is.EqualTo(recipientFile.FileId));
+
+        //
+        // The recipient's own change to its copy keeps the time its sender last changed it
+        //
+        var localMetadata = SampleMetadataData.Create(fileType: 100);
+        localMetadata.AccessControlList = AccessControlList.Connected;
+        localMetadata.AppData.Content = "the recipient's own change";
+        localMetadata.VersionTag = header.FileMetadata.VersionTag;
+        var localUpdate = await recipientOwnerClient.V1.Drive.UpdateFile(new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = recipientFile.ToFileIdentifier(),
+            Manifest = new UploadManifest { PayloadDescriptors = [] }
+        }, localMetadata, []);
+        Assert.That(localUpdate.StatusCode, Is.EqualTo(HttpStatusCode.OK), localUpdate.Error?.Content);
+
+        var afterLocal = (await recipientOwnerClient.V1.Drive.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier()))
+            .Content.SearchResults.Single();
+        Assert.That(afterLocal.FileMetadata.AppData.Content, Is.EqualTo(localMetadata.AppData.Content));
+        Assert.That(afterLocal.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated),
+            "a local update keeps TransitUpdated");
     }
 
     [Test]

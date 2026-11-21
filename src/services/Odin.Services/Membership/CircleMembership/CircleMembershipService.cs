@@ -36,7 +36,8 @@ public class CircleMembershipService(
     ILogger<CircleMembershipService> logger,
     IMediator mediator,
     IdentityDatabase db,
-    TenantContext tenantContext)
+    TenantContext tenantContext,
+    OdinContextCache odinContextCache)
 {
     public async Task Temp_ReconcileCircleAndAppGrants()
     {
@@ -632,6 +633,10 @@ public class CircleMembershipService(
     {
         await AssertCallerMayManageCircleAsync(circleId, disabled ? "disable" : "enable", odinContext);
         await circleDefinitionService.SetDisabledAsync(circleId, disabled);
+
+        // A member's context, with its enabled circles and their grants, is cached for up to an hour: without this
+        // a disabled circle would keep granting until then, and an enabled one keep refusing
+        await odinContextCache.ResetAsync();
 
         await mediator.Publish(new CircleDefinitionChangedNotification
         {

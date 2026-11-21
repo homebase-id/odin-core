@@ -147,9 +147,6 @@ public class PrivateDrivePeerWritesTests : V2Fixture
         definition.DriveGrants.Single().PermissionedDrive.Permission = DrivePermission.React;
         var narrow = await frodo.Admin.TryUpdateCircleDefinition(definition);
         Assert.That(narrow.StatusCode, Is.EqualTo(HttpStatusCode.OK), narrow.Error?.Content);
-        // A change of a circle's grants doesn't reset Frodo's cached peer contexts today (file-access.md, "Peers' contexts
-        // are cached"); the hour they are cached for would
-        await Host.GetTenantScope(frodo.Identity.DomainName).Resolve<OdinContextCache>().ResetAsync();
 
         var reaction = await sam.V1.Reactions.AddReaction(new AddReactionRequestRedux
         {
