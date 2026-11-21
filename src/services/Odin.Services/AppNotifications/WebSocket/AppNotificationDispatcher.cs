@@ -128,11 +128,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 !(notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted
                     or ClientNotificationType.ConnectionRequestReceived);
 
-            var json = OdinSystemSerializer.Serialize(new
-            {
-                notification.NotificationType,
-                Data = notification.GetClientData()
-            });
+            var json = ClientNotificationJson.Of(notification.NotificationType, notification.GetClientData());
 
             var message = new ClientNotificationMessage
             {
@@ -157,11 +153,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             IClientNotification notification,
             CancellationToken cancellationToken = default)
         {
-            var json = OdinSystemSerializer.Serialize(new
-            {
-                notification.NotificationType,
-                Data = notification.GetClientData()
-            });
+            var json = ClientNotificationJson.Of(notification.NotificationType, notification.GetClientData());
 
             return SendMessageAsync(deviceSocket, json, encrypt: true, cancellationToken);
         }
@@ -376,11 +368,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             bool encrypt,
             CancellationToken cancellationToken = default)
         {
-            var json = OdinSystemSerializer.Serialize(new
-            {
-                notification.NotificationType,
-                Data = notification.GetClientData()
-            });
+            var json = ClientNotificationJson.Of(notification.NotificationType, notification.GetClientData());
 
             var sockets = _deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == targetDriveId));
@@ -396,20 +384,9 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private static string JsonMessage(ClientNotificationType notificationType, string message)
-        {
-            return OdinSystemSerializer.Serialize(new
-            {
-                NotificationType = notificationType,
-                Data = message,
-            });
-        }
-
-        //
-
         public async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken = default)
         {
-            var json = JsonMessage(ClientNotificationType.Error, errorText);
+            var json = ClientNotificationJson.Of(ClientNotificationType.Error, errorText);
             await SendMessageAsync(
                 deviceSocket,
                 json,
