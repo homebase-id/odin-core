@@ -190,6 +190,51 @@ gh run watch <run-id> --repo homebase-id/odin-core --exit-status
   - `host-deploy-image-to-environment.yml` deploys a given image to bleeding edge, sandbox or production.
 - `start_choice=true` starts the container after the deploy. Every release so far has used `true`.
 
+## Simplify, then code review
+
+Before opening a PR that changes code, run `/simplify` on the branch and then `/code-review`, always
+in that order: the review then reads the cleaned-up diff, and catches anything the cleanup broke.
+Only a docs-only PR skips both, and says so in one line.
+
+**Each pass ends in a commit of its own**, even one that changes nothing (`git commit --allow-empty`),
+so the history shows the pass ran and what it found. The weekly team data reads these commits and
+reports a PR without them.
+
+```
+SIMPLIFY: <what the cleanup did, or "nothing to change">
+
+<each finding fixed, and each one skipped with why>
+
+Simplify-Found: <findings the pass reported>
+Simplify-Fixed: <how many of them were fixed>
+Code-Lines: <scripts/pass-stats.sh>
+```
+
+```
+REVIEW: <what the review fixed, or "nothing to fix">
+
+<each finding fixed, and each one skipped with why>
+
+Review-Round: <1, 2, ...>
+Review-Level: <the level it ran at>
+Review-Found: <findings reported>
+Review-Max: <the most findings it could report>
+Review-Fixed: <how many were fixed>
+Code-Lines: <scripts/pass-stats.sh>
+```
+
+- **`Code-Lines` is measured, never counted by hand:** run `scripts/pass-stats.sh` on the staged
+  changes just before committing and paste its line. It counts real code only, leaving out tests,
+  docs, blank lines and comment-only lines.
+- **A review that reports its cap ran out of room, not out of findings.** When `Review-Found` equals
+  `Review-Max`, fix what it found, commit, and run another round (`Review-Round: 2`); repeat until a
+  round reports fewer than its cap.
+- **A SIMPLIFY commit keeps behaviour.** A behaviour change in it is either a bug or something its body
+  calls out. A finding that is a design change rather than a cleanup is filed, not added to the PR.
+- **New feature work after both passes means running both again**, on the new work. Merges of main and
+  the passes' own fixes don't count.
+- **The PR description repeats each pass's counts**, with what it fixed and what it skipped.
+
 ## Opening a PR
 
 One PR solves one problem. Unrelated fixes are separate PRs, however small; no "Small fixes: …" grab-bags. If the title needs "and" or a list to say what the PR does, it is probably two PRs. Two issues share a PR only when the same change fixes both.
