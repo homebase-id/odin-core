@@ -207,7 +207,7 @@ SIMPLIFY: <what the cleanup did, or "nothing to change">
 
 Simplify-Found: <findings the pass reported>
 Simplify-Fixed: <how many of them were fixed>
-Code-Lines: <scripts/pass-stats.sh>
+Code-Lines: <scripts/pass-stats.py>
 ```
 
 ```
@@ -220,10 +220,10 @@ Review-Level: <the level it ran at>
 Review-Found: <findings reported>
 Review-Max: <the most findings it could report>
 Review-Fixed: <how many were fixed>
-Code-Lines: <scripts/pass-stats.sh>
+Code-Lines: <scripts/pass-stats.py>
 ```
 
-- **`Code-Lines` is measured, never counted by hand:** run `scripts/pass-stats.sh` on the staged
+- **`Code-Lines` is measured, never counted by hand:** run `scripts/pass-stats.py` on the staged
   changes just before committing and paste its line. It counts real code only, leaving out tests,
   docs, blank lines and comment-only lines.
 - **A review that reports its cap ran out of room, not out of findings.** When `Review-Found` equals
