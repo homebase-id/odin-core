@@ -1,8 +1,8 @@
 # Simplify
 
-The first of a PR's two passes (CLAUDE.md, "Simplify, then code review"). It makes the changed code simpler
-without changing what it does, so the code review then reads the cleaned-up diff. Start it with exactly the
-prompt in CLAUDE.md, and read this before it runs.
+The first of a PR's two passes (CLAUDE.md, "Simplify, then code review"), for a PR that changes real code. It
+makes the changed code simpler without changing what it does, so the code review then reads the cleaned-up
+diff. Start it with exactly the prompt in CLAUDE.md, and read this before it runs.
 
 ## What it looks for
 
@@ -54,6 +54,7 @@ Code-Lines: <scripts/pass-stats.py>
 
 - **`Found`** counts each distinct finding once, however many agents reported it. **`Fixed`** counts the ones
   fixed; every other one is in the body with its reason.
-- **`Code-Lines`** is measured, never counted by hand: run `scripts/pass-stats.py` on the staged changes just
-  before committing and paste its line.
+- **`Code-Lines`** is measured, never counted by hand: stage the fixes, run `scripts/pass-stats.py`, paste its
+  line, and commit with a plain `git commit` (no `-a`, no paths), so the commit holds exactly what was measured.
+  `scripts/pass-stats.py HEAD` gives the same line afterwards.
 - **The PR description** repeats the counts, with what was fixed and what was skipped.
