@@ -192,50 +192,17 @@ gh run watch <run-id> --repo homebase-id/odin-core --exit-status
 
 ## Simplify, then code review
 
-Before opening a PR that changes code, run `/simplify` on the branch and then `/code-review`, always
-in that order: the review then reads the cleaned-up diff, and catches anything the cleanup broke.
-Only a docs-only PR skips both, and says so in one line.
-
-**Each pass ends in a commit of its own**, even one that changes nothing (`git commit --allow-empty`),
-so the history shows the pass ran and what it found. The weekly team data reads these commits and
-reports a PR without them.
+Before opening a PR that changes code, run both passes, always in this order, each started with exactly
+this prompt (`<target>` is the branch, the PR or the commit range):
 
 ```
-SIMPLIFY: <what the cleanup did, or "nothing to change">
-
-<each finding fixed, and each one skipped with why>
-
-Simplify-Found: <findings the pass reported>
-Simplify-Fixed: <how many of them were fixed>
-Code-Lines: <scripts/pass-stats.py>
+/simplify <target>. Follow SIMPLIFY.md.
+/code-review high --max-findings 15 <target>. Check the diff against CODE_REVIEW.md.
 ```
 
-```
-REVIEW: <what the review fixed, or "nothing to fix">
-
-<each finding fixed, and each one skipped with why>
-
-Review-Round: <1, 2, ...>
-Review-Level: <the level it ran at>
-Review-Found: <findings reported>
-Review-Max: <the most findings it could report>
-Review-Fixed: <how many were fixed>
-Code-Lines: <scripts/pass-stats.py>
-```
-
-- **`Code-Lines` is measured, never counted by hand:** run `scripts/pass-stats.py` on the staged
-  changes just before committing and paste its line. It counts source files only (Kotlin, Swift, Java,
-  C#, TypeScript and JavaScript, Python, shell, C and C++, Go, Rust, SQL), leaving out tests, docs,
-  resources, vendored code, blank lines and comment-only lines.
-- **A review that reports its cap ran out of room, not out of findings.** When `Review-Found` equals
-  `Review-Max`, fix what it found, commit, and run another round (`Review-Round: 2`). Stop when a round
-  reports fewer than its cap, or fixes none of what it found because everything left is kept on
-  purpose; its commit body says which.
-- **A SIMPLIFY commit keeps behaviour.** A behaviour change in it is either a bug or something its body
-  calls out. A finding that is a design change rather than a cleanup is filed, not added to the PR.
-- **New feature work after both passes means running both again**, on the new work. Merges of main and
-  the passes' own fixes don't count.
-- **The PR description repeats each pass's counts**, with what it fixed and what it skipped.
+Read [`SIMPLIFY.md`](SIMPLIFY.md) and [`CODE_REVIEW.md`](CODE_REVIEW.md) before their passes: what each
+looks for, what it may fix, and its commit. Each pass ends in a commit of its own with its counts, even one
+that changes nothing; the weekly team data reads them. Only a docs-only PR skips both, and says so in one line.
 
 ## Opening a PR
 
