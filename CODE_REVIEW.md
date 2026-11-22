@@ -31,15 +31,16 @@ not only the fixes. Stop at the first round that says no.
 
 Another round is needed when:
 
-- **the round reported its cap** (`Review-Found` equals `Review-Max`): it ran out of room, not out of findings;
+- **the round reported its cap** (`Review-Found` equals `Review-Max`): it ran out of room, not out of findings.
+  `Review-Found` counts new findings only: one an earlier round reported and kept on purpose isn't counted again;
 - **a fix went deep:** it changed what a flow does, its ordering or concurrency, a stored or sent format, a
   permission or security check, or error handling a caller relies on;
-- **the fixes were large next to the change:** the round's `Code-Lines` is more than about a quarter of the
-  branch's (`scripts/pass-stats.py <base>...HEAD`);
+- **the fixes were large next to the change:** the round's `Code-Lines`, added plus removed, is more than about a
+  quarter of the branch's (`scripts/pass-stats.py <base>...HEAD`);
 - **a fix landed where no test reaches**, so only a reader would see what it broke.
 
-Otherwise one round is enough: say which of these didn't apply. A round that fixes nothing because everything
-left is kept on purpose is `Review-Again: no`.
+Otherwise one round is enough: say which of these didn't apply. A round that fixes none of its new findings,
+because each is kept on purpose with its reason, is `Review-Again: no` even at its cap.
 
 New feature work after both passes means running both again, on the new work. Merges of main and the passes'
 own fixes don't count.
@@ -64,6 +65,7 @@ Code-Lines: <scripts/pass-stats.py>
 
 - **`Found`** is every finding the round reported. **`Fixed`** is how many were fixed. Every other one is in the
   body with its reason: out of scope, a design change to file, a false positive, kept on purpose.
-- **`Code-Lines`** is measured, never counted by hand: run `scripts/pass-stats.py` on the staged changes just
-  before committing and paste its line.
+- **`Code-Lines`** is measured, never counted by hand: stage the round's fixes, run `scripts/pass-stats.py`, paste
+  its line, and commit with a plain `git commit` (no `-a`, no paths), so the commit holds exactly what was measured.
+  `scripts/pass-stats.py HEAD` gives the same line afterwards.
 - **The PR description** repeats each round's counts, with what was fixed and what was skipped.

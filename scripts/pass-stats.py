@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Prints the Code-Lines trailer for the staged changes, a commit, or a branch (`origin/main...HEAD`). The
+"""Prints the Code-Lines trailer for the staged changes, a commit, or a range such as `origin/main...HEAD`. The
 weekly team data runs this file from each commit's tree, so its rules are what "real code" means there."""
 import re
 import subprocess
 import sys
 
-CODE = {"kt", "kts", "swift", "java", "cs", "ts", "tsx", "js", "jsx", "mjs", "py", "sh", "m", "mm", "c", "h", "cpp", "go", "rs", "sq", "sqm", "sql"}
-HASH_COMMENTS = {"py", "sh"}
-DASH_COMMENTS = {"sq", "sqm", "sql"}
+# Source, build and config files; a line in these counts unless it is blank or only a comment.
+C_LIKE = {"kt", "kts", "swift", "java", "cs", "ts", "tsx", "js", "jsx", "mjs", "m", "mm", "c", "h", "cpp", "go", "rs", "gradle"}
+LINE_COMMENT = {"py": "#", "sh": "#", "toml": "#", "yml": "#", "yaml": "#", "properties": "#", "pro": "#",
+                "sq": "--", "sqm": "--", "sql": "--", "xml": "<!--", "plist": "<!--", "csproj": "<!--",
+                "props": "<!--", "targets": "<!--", "json": None}
 NOT_CODE = re.compile(
-    r"(^|/)(libs|vendor|third_party|gradle/local-repo|node_modules|docs|resources|fixtures?)/|\.xcframework/|stb_image|/cpp/blake3/|\.min\.js$"
+    r"(^|/)(libs|vendor|third_party|gradle/local-repo|node_modules|docs|resources|fixtures?|\.idea)/|\.xcframework/"
+    r"|stb_image|/cpp/blake3/|\.min\.js$|\.lock$|package-lock\.json$|(^|/)(res|composeResources)/values[^/]*/"
     r"|(^|/)src/[A-Za-z]*[Tt]est[A-Za-z]*/|^tests?/|(^|/)(__tests__|test-utils|test-fixtures|iosAppTests)/"
     r"|\.(test|spec)\.(ts|tsx|js)$|_test\.rs$"
 )
@@ -29,32 +32,44 @@ def ext(path):
 
 
 def is_code(path):
-    return path != "/dev/null" and ext(path) in CODE and not NOT_CODE.search(path)
+    return path != "/dev/null" and (ext(path) in C_LIKE or ext(path) in LINE_COMMENT) and not NOT_CODE.search(path)
 
 
-def code_line_numbers(source, ext):
+def code_line_numbers(source, kind):
     """The 1-based numbers of the lines that hold code, not only blanks or comments."""
-    numbers, in_block = set(), False
+    if kind in LINE_COMMENT:
+        marker = LINE_COMMENT[kind]
+        return {n for n, line in enumerate(source.splitlines(), 1) if line.strip() and not (marker and line.strip().startswith(marker))}
+    numbers, depth, raw = set(), 0, False  # block comments nest in Kotlin and Swift; raw: inside a """ string
     for number, line in enumerate(source.splitlines(), 1):
-        if ext in HASH_COMMENTS or ext in DASH_COMMENTS:
-            text = line.strip()
-            if text and not text.startswith("#" if ext in HASH_COMMENTS else "--"):
-                numbers.add(number)
-            continue
-        code, i = "", 0
+        code, i = raw, 0
         while i < len(line):
-            if in_block:
-                end = line.find("*/", i)
+            if raw:
+                end = line.find('"""', i)
                 if end < 0:
                     break
-                in_block, i = False, end + 2
+                raw, i = False, end + 3
+            elif depth:
+                if line.startswith("/*", i):
+                    depth, i = depth + 1, i + 2
+                elif line.startswith("*/", i):
+                    depth, i = depth - 1, i + 2
+                else:
+                    i += 1
             elif line.startswith("//", i):
                 break
             elif line.startswith("/*", i):
-                in_block, i = True, i + 2
+                depth, i = 1, i + 2
+            elif line.startswith('"""', i):
+                raw, code, i = True, True, i + 3
+            elif line[i] in "\"'":
+                quote, code, i = line[i], True, i + 1
+                while i < len(line) and line[i] != quote:
+                    i += 2 if line[i] == "\\" else 1
+                i += 1
             else:
-                code, i = code + line[i], i + 1
-        if code.strip():
+                code, i = code or not line[i].isspace(), i + 1
+        if code:
             numbers.add(number)
     return numbers
 
@@ -64,18 +79,25 @@ def path_of(header):
     return path[1:-1] if path.startswith('"') and path.endswith('"') else path
 
 
-def main(rev):
+def sides(rev):
+    """The two revisions to compare; "" is the index."""
     if not rev:
-        old_rev, new_rev, sides = "HEAD", "", ["--cached"]
-    elif "..." in rev:
+        return "HEAD", ""
+    if "..." in rev:
         base, head = rev.split("...", 1)
-        new_rev = head or "HEAD"
-        old_rev = git("merge-base", base, new_rev).strip()
-        sides = [old_rev, new_rev]
-    else:
-        old_rev, new_rev = f"{rev}^1", rev
-        sides = [old_rev, new_rev]
-    text = git("diff", *DIFF, *sides)
+        head = head or "HEAD"
+        return git("merge-base", base or "HEAD", head).strip(), head
+    if ".." in rev:
+        base, head = rev.split("..", 1)
+        return base or "HEAD", head or "HEAD"
+    parent = subprocess.run([*GIT, "rev-parse", "--verify", "-q", f"{rev}^1"], capture_output=True, text=True).stdout.strip()
+    # A root commit is compared with the empty tree.
+    return parent or git("hash-object", "-t", "tree", "/dev/null").strip(), rev
+
+
+def main(rev):
+    old_rev, new_rev = sides(rev)
+    text = git("diff", *DIFF, old_rev, new_rev) if new_rev else git("diff", "--cached", *DIFF)
     added = removed = 0
     old_lines = new_lines = set()
     old_path, header = None, False
