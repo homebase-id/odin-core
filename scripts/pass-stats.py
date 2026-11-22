@@ -23,9 +23,13 @@ def git(*args):
     return subprocess.run([*GIT, *args], check=True, capture_output=True).stdout.decode("utf-8", "replace")
 
 
-def is_code(path):
+def ext(path):
     name = path.rsplit("/", 1)[-1]
-    return path != "/dev/null" and "." in name and name.rsplit(".", 1)[-1].lower() in CODE and not NOT_CODE.search(path)
+    return name.rsplit(".", 1)[-1].lower() if "." in name else ""
+
+
+def is_code(path):
+    return path != "/dev/null" and ext(path) in CODE and not NOT_CODE.search(path)
 
 
 def code_line_numbers(source, ext):
@@ -60,17 +64,18 @@ def path_of(header):
     return path[1:-1] if path.startswith('"') and path.endswith('"') else path
 
 
-def main(commit):
-    if commit and "..." in commit:
-        base, head = commit.split("...", 1)
-        old_rev, new_rev = git("merge-base", base, head or "HEAD").strip(), head or "HEAD"
-        text = git("diff", *DIFF, old_rev, new_rev)
-    elif commit:
-        old_rev, new_rev = f"{commit}^1", commit
-        text = git("show", "--format=", "--diff-merges=first-parent", *DIFF, commit)
+def main(rev):
+    if not rev:
+        old_rev, new_rev, sides = "HEAD", "", ["--cached"]
+    elif "..." in rev:
+        base, head = rev.split("...", 1)
+        new_rev = head or "HEAD"
+        old_rev = git("merge-base", base, new_rev).strip()
+        sides = [old_rev, new_rev]
     else:
-        old_rev, new_rev = "HEAD", ""
-        text = git("diff", "--cached", *DIFF)
+        old_rev, new_rev = f"{rev}^1", rev
+        sides = [old_rev, new_rev]
+    text = git("diff", *DIFF, *sides)
     added = removed = 0
     old_lines = new_lines = set()
     old_path, header = None, False
@@ -82,8 +87,8 @@ def main(commit):
             old_path = path_of(line)
         elif header and line.startswith("+++ ") and old_path is not None:
             new_path = path_of(line)
-            old_lines = code_line_numbers(git("show", f"{old_rev}:{old_path}"), old_path.rsplit(".", 1)[-1].lower()) if is_code(old_path) else set()
-            new_lines = code_line_numbers(git("show", f"{new_rev}:{new_path}"), new_path.rsplit(".", 1)[-1].lower()) if is_code(new_path) else set()
+            old_lines = code_line_numbers(git("show", f"{old_rev}:{old_path}"), ext(old_path)) if is_code(old_path) else set()
+            new_lines = code_line_numbers(git("show", f"{new_rev}:{new_path}"), ext(new_path)) if is_code(new_path) else set()
             old_path = None
         elif match := HUNK.match(line):
             header = False

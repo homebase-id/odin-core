@@ -35,7 +35,7 @@ Another round is needed when:
 - **a fix went deep:** it changed what a flow does, its ordering or concurrency, a stored or sent format, a
   permission or security check, or error handling a caller relies on;
 - **the fixes were large next to the change:** the round's `Code-Lines` is more than about a quarter of the
-  branch's (`scripts/pass-stats.py origin/main...HEAD`);
+  branch's (`scripts/pass-stats.py <base>...HEAD`);
 - **a fix landed where no test reaches**, so only a reader would see what it broke.
 
 Otherwise one round is enough: say which of these didn't apply. A round that fixes nothing because everything

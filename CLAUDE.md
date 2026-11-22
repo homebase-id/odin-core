@@ -204,8 +204,9 @@ Read [`SIMPLIFY.md`](SIMPLIFY.md) and [`CODE_REVIEW.md`](CODE_REVIEW.md) before 
 looks for, what it may fix, and its commit. Each pass ends in a commit of its own with its counts, even one
 that changes nothing; the weekly team data reads them.
 
-A PR changes real code when `scripts/pass-stats.py origin/main...HEAD` reports more than `+0 -0`. One that
-only changes docs, tests or comments skips both passes, and its description says so in one line.
+A PR changes real code when `scripts/pass-stats.py <base>...HEAD` reports more than `+0 -0`; `<base>` is the
+PR's base branch, `origin/main` unless the PR is stacked. One that only changes docs, tests or comments skips
+both passes, and its description says so in one line.
 
 ## Opening a PR
 
