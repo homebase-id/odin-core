@@ -27,19 +27,22 @@ class Scanner(unittest.TestCase):
         self.assertEqual({1, 2}, code('val t = "image/*"\nval b = 1\n'))
         self.assertEqual({1, 2}, code("val c = '/'\nval d = '*'\n"))
 
-    def test_raw_strings_span_lines(self):
-        self.assertEqual({1, 2, 3, 4}, code('val s = """\n// not a comment\n/* nor this\n"""\n'))
-
-    def test_block_comments_nest_only_where_the_language_nests_them(self):
-        self.assertEqual({2}, code("/* a /* nested */ still */\nx\n", "kt"))
+    def test_a_comment_opener_inside_a_line_never_hides_code(self):
+        self.assertEqual({1, 2, 3}, code("const a = 'image/*';\nconst b = 1;\nconst c = 2;\n", "js"))
+        self.assertEqual({1, 3, 4}, code("const a = `x\\`y`;\n// note\nconst b = `see /* here`;\nconst c = 1;\n", "js"))
+        self.assertEqual({1, 2, 3}, code("const r = /\\/*$/;\nconst c = 1;\nconst d = 2;\n", "js"))
         self.assertEqual({2, 3}, code("/** Accepts image/* types. */\nfunction g() {}\nconst x = 1;\n", "js"))
 
-    def test_template_literals_are_strings(self):
-        self.assertEqual({1, 2}, code("const t = `image/*`;\nconst y = 2;\n", "ts"))
-        self.assertEqual({1, 2, 3}, code("const t = `\n/* text\n`;\n", "ts"))
+    def test_a_misjudged_line_only_ever_counts_a_comment_as_code(self):
+        self.assertEqual({1, 2}, code("/* a /* nested */ still */\nx\n"), "code after a closer counts")
+        self.assertEqual({1, 2}, code("fn f<'a>(x: &'a str) {} /* c\n*/\n", "rs"), "a comment opened mid-line isn't followed")
 
-    def test_a_rust_lifetime_isnt_a_quote(self):
-        self.assertEqual({1}, code("fn f<'a>(x: &'a str) {} /* c\n*/\n", "rs"))
+    def test_the_one_way_it_can_miss_code(self):
+        # A line inside a multi-line string that starts with a comment marker reads as comment.
+        self.assertEqual({1, 3}, code('val s = """\n// not a comment\n"""\n'))
+
+    def test_a_cinterop_def_has_comments_above_its_separator_and_c_below(self):
+        self.assertEqual({2, 5, 6}, code("# about\nheaders = blake3.h\n---\n\n#include \"blake3.c\"\n#define X 1\n", "def"))
 
     def test_lines_are_numbered_as_git_numbers_them(self):
         self.assertEqual({1, 2, 3}, code('val s = "a\x0cb"\nval b = 2\nval c = 3\n'))
@@ -65,12 +68,19 @@ class Paths(unittest.TestCase):
 
     def test_c_quoted_paths_are_unescaped(self):
         self.assertEqual('a"b.kt', ps.path_of('+++ "a\\"b.kt"'))
-        self.assertEqual("é.kt", ps.path_of('+++ "\\303\\251.kt"'))
+        self.assertEqual('café"x.kt', ps.path_of('+++ "café\\"x.kt"'))
+        self.assertEqual("a\tb.kt", ps.path_of('+++ "a\\tb.kt"'))
         self.assertEqual("a b/Foo.kt", ps.path_of("+++ a b/Foo.kt\t"))
 
 
 class Repository(unittest.TestCase):
+    ISOLATED = dict(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+                    GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+
     def setUp(self):
+        # No signing, hooks or settings of whoever runs the tests, for the tests' git and the script's alike.
+        self.saved_env = dict(os.environ)
+        os.environ.update(self.ISOLATED)
         self.dir = tempfile.TemporaryDirectory()
         self.root = Path(self.dir.name)
         self.cwd = os.getcwd()
@@ -79,11 +89,12 @@ class Repository(unittest.TestCase):
 
     def tearDown(self):
         os.chdir(self.cwd)
+        os.environ.clear()
+        os.environ.update(self.saved_env)
         self.dir.cleanup()
 
     def git(self, *args):
-        env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
-        return subprocess.run(["git", *args], check=True, capture_output=True, text=True, env=env).stdout.strip()
+        return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout.strip()
 
     def write(self, path, text):
         (self.root / path).parent.mkdir(parents=True, exist_ok=True)
@@ -109,21 +120,50 @@ class Repository(unittest.TestCase):
         self.assertEqual((2, 0), ps.code_lines(f"{root}..{second}"))
         self.assertEqual((2, 0), ps.code_lines(f"{root}...{second}"))
 
-    def test_a_rename_counts_each_side_by_its_own_path(self):
+    def test_a_move_between_code_and_tests_counts_the_whole_code_side(self):
         self.write("src/commonMain/Foo.kt", "val a = 1\nval b = 2\n")
         self.commit()
         os.makedirs("src/jvmTest", exist_ok=True)
         self.git("mv", "src/commonMain/Foo.kt", "src/jvmTest/Foo.kt")
         self.write("src/jvmTest/Foo.kt", "val a = 1\n")
-        self.assertEqual((0, 1), ps.code_lines(self.commit()), "the removed production line counts; the test side doesn't")
+        self.assertEqual((0, 2), ps.code_lines(self.commit()), "both production lines left the code")
+        self.git("mv", "src/jvmTest/Foo.kt", "src/commonMain/Foo.kt")
+        self.assertEqual((1, 0), ps.code_lines(self.commit()), "an unedited move into code adds its lines")
 
     def test_the_runners_git_config_and_folder_dont_change_the_count(self):
-        self.write("A.kt", "val a = 1\n")
+        self.write("A.kt", "val a = 1\nval b = 2\nval c = 3\nval d = 4\n")
         self.write("sub/B.kt", "val b = 1\n")
+        self.commit()
+        self.write("A.kt", "val a = 9\nval b = 2\nval c = 3\nval d = 9\n")
+        self.write("sub/B.kt", "val b = 9\n")
         self.git("add", "-A")
-        self.git("config", "diff.relative", "true")
+        for key, value in [("diff.relative", "true"), ("diff.interHunkContext", "5"), ("diff.renames", "false")]:
+            self.git("config", key, value)
+        (self.root / ".git/info/attributes").write_text("sub/B.kt -diff\n")
         os.chdir(self.root / "sub")
-        self.assertEqual((2, 0), ps.code_lines(None))
+        self.assertEqual((3, 3), ps.code_lines(None))
+
+    def test_a_shallow_clones_missing_parent_is_an_error_not_a_root(self):
+        self.write("A.kt", "val a = 1\n")
+        self.commit()
+        self.write("A.kt", "val a = 2\n")
+        self.commit()
+        shallow = self.root.parent / (self.root.name + "-shallow")
+        subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{self.root}", str(shallow)], check=True, capture_output=True)
+        os.chdir(shallow)
+        try:
+            with self.assertRaises(SystemExit) as error:
+                ps.code_lines("HEAD")
+            self.assertIn("shallow", str(error.exception))
+        finally:
+            subprocess.run(["rm", "-rf", str(shallow)])
+
+    def test_gits_own_message_is_shown_when_it_fails(self):
+        self.write("A.kt", "val a = 1\n")
+        self.commit()
+        with self.assertRaises(SystemExit) as error:
+            ps.code_lines("no-such-branch...HEAD")
+        self.assertIn("no-such-branch", str(error.exception))
 
 
 if __name__ == "__main__":
