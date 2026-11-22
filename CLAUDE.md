@@ -190,6 +190,20 @@ gh run watch <run-id> --repo homebase-id/odin-core --exit-status
   - `host-deploy-image-to-environment.yml` deploys a given image to bleeding edge, sandbox or production.
 - `start_choice=true` starts the container after the deploy. Every release so far has used `true`.
 
+## Simplify, then code review
+
+Before opening a PR that changes code, run both passes, always in this order, each started with exactly
+this prompt (`<target>` is the branch, the PR or the commit range):
+
+```
+/simplify <target>. Follow SIMPLIFY.md.
+/code-review high --max-findings 15 <target>. Check the diff against CODE_REVIEW.md.
+```
+
+Read [`SIMPLIFY.md`](SIMPLIFY.md) and [`CODE_REVIEW.md`](CODE_REVIEW.md) before their passes: what each
+looks for, what it may fix, and its commit. Each pass ends in a commit of its own with its counts, even one
+that changes nothing; the weekly team data reads them. Only a docs-only PR skips both, and says so in one line.
+
 ## Opening a PR
 
 One PR solves one problem. Unrelated fixes are separate PRs, however small; no "Small fixes: …" grab-bags. If the title needs "and" or a list to say what the PR does, it is probably two PRs. Two issues share a PR only when the same change fixes both.
