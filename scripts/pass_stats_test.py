@@ -37,9 +37,13 @@ class Scanner(unittest.TestCase):
         self.assertEqual({1, 2}, code("/* a /* nested */ still */\nx\n"), "code after a closer counts")
         self.assertEqual({1, 2}, code("fn f<'a>(x: &'a str) {} /* c\n*/\n", "rs"), "a comment opened mid-line isn't followed")
 
-    def test_the_one_way_it_can_miss_code(self):
-        # A line inside a multi-line string that starts with a comment marker reads as comment.
+    def test_the_one_way_it_can_miss_code_is_one_line(self):
+        # A line inside a multi-line string that looks like a comment reads as one, and no more than that line.
         self.assertEqual({1, 3}, code('val s = """\n// not a comment\n"""\n'))
+        self.assertEqual({1, 3, 4, 5}, code('val s = """\n/* glob\n"""\nval y = 2\nval z = 3\n'))
+
+    def test_a_block_comment_without_stars_counts_as_code_after_its_first_line(self):
+        self.assertEqual({2, 3, 4}, code("/* note\n   more\n*/\nx\n"), "counted as code: one more pass, never one skipped")
 
     def test_a_cinterop_def_has_comments_above_its_separator_and_c_below(self):
         self.assertEqual({2, 5, 6}, code("# about\nheaders = blake3.h\n---\n\n#include \"blake3.c\"\n#define X 1\n", "def"))
@@ -57,7 +61,12 @@ class Paths(unittest.TestCase):
     def test_what_counts_as_code(self):
         counts = ["a/src/commonMain/kotlin/A.kt", "webApp/src/wasmJsMain/resources/sw.js", "iosApp/fastlane/Fastfile",
                   "homebase-blake3/src/main/cpp/CMakeLists.txt", "iosApp/iosApp/iosApp.entitlements", "gradle/libs.versions.toml",
-                  "androidApp/src/main/res/xml/network_security_config.xml", "core/test/TestHelpers.kt", "src/Odin.Core/Drive.cs"]
+                  "androidApp/src/main/res/xml/network_security_config.xml", "core/test/TestHelpers.kt", "src/Odin.Core/Drive.cs",
+                  "homebase-core/objc-entry-points.txt", "desktopApp/linux/id.homebase.feed.vault-unlock.policy",
+                  "androidApp/src/main/resources/META-INF/services/kotlinx.coroutines.CoroutineExceptionHandler",
+                  "iosApp/iosApp.xcodeproj/xcshareddata/xcschemes/iosApp.xcscheme", "iosApp/ShareExtension/Base.lproj/MainInterface.storyboard",
+                  "src/Odin.Oidc.Login/Pages/Consent.cshtml", "Dockerfile", "Makefile", "web/app.css", "web/vite.config.cjs",
+                  "packaging/linux/homebase-filesync.spec"]
         skips = ["a/src/jvmTest/kotlin/ATest.kt", "tests/apps/DriveTests.cs", "docs/x.kt", "README.md",
                  "webApp/src/wasmJsMain/resources/sql-wasm.js", "webApp/src/wasmJsMain/resources/mp4box.all.min.js",
                  "webApp/src/wasmJsMain/resources/ffmpeg-wasm/core/esm/ffmpeg-core.js", "androidApp/src/main/res/drawable/x.xml",
@@ -157,6 +166,27 @@ class Repository(unittest.TestCase):
             self.assertIn("shallow", str(error.exception))
         finally:
             subprocess.run(["rm", "-rf", str(shallow)])
+
+    def test_a_root_commit_in_a_shallow_clone_is_still_a_root(self):
+        self.write("A.kt", "val a = 1\n")
+        root = self.commit()
+        shallow = self.root.parent / (self.root.name + "-root")
+        subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{self.root}", str(shallow)], check=True, capture_output=True)
+        os.chdir(shallow)
+        try:
+            self.assertEqual((1, 0), ps.code_lines(root))
+        finally:
+            subprocess.run(["rm", "-rf", str(shallow)])
+
+    def test_unrelated_histories_say_so(self):
+        self.write("A.kt", "val a = 1\n")
+        self.commit()
+        self.git("checkout", "-q", "--orphan", "other")
+        self.write("B.kt", "val b = 1\n")
+        self.commit()
+        with self.assertRaises(SystemExit) as error:
+            ps.code_lines("master...HEAD" if "master" in self.git("branch") else "main...HEAD")
+        self.assertIn("no common ancestor", str(error.exception))
 
     def test_gits_own_message_is_shown_when_it_fails(self):
         self.write("A.kt", "val a = 1\n")

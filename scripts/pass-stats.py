@@ -8,17 +8,18 @@ import subprocess
 import sys
 
 # Source, build and config files: a line in these counts unless it is blank or only a comment.
-C_LIKE = {"kt", "kts", "swift", "java", "cs", "ts", "tsx", "js", "jsx", "mjs", "m", "mm", "c", "h", "cpp", "go", "rs",
-          "gradle", "xcconfig", "pbxproj"}
+C_LIKE = {"kt", "kts", "swift", "java", "cs", "cshtml", "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs", "css",
+          "m", "mm", "c", "h", "cpp", "go", "rs", "gradle", "xcconfig", "pbxproj"}
 LINE_COMMENT = {"py": "#", "sh": "#", "rb": "#", "toml": "#", "yml": "#", "yaml": "#", "properties": "#", "pro": "#",
-                "conf": "#", "cmake": "#", "sq": "--", "sqm": "--", "sql": "--", "json": None, "bat": None}
-XML = {"xml", "plist", "entitlements", "csproj", "props", "targets", "html"}
+                "conf": "#", "cmake": "#", "docker": "#", "make": "#", "spec": "#", "lines": None, "sq": "--", "sqm": "--", "sql": "--", "json": None, "bat": None}
+XML = {"xml", "plist", "entitlements", "csproj", "props", "targets", "html", "policy", "xcscheme", "storyboard"}
 SPECIAL = {"def"}  # a cinterop .def: # comments above its --- line, C below it
-NAMES = {"Fastfile": "rb", "Podfile": "rb", "Gemfile": "rb", "CMakeLists.txt": "cmake"}
+NAMES = {"Fastfile": "rb", "Podfile": "rb", "Gemfile": "rb", "CMakeLists.txt": "cmake", "Dockerfile": "docker",
+         "Makefile": "make", "objc-entry-points.txt": "lines"}
 NOT_CODE = re.compile(
     r"(^|/)(libs|vendor|third_party|gradle/local-repo|node_modules|docs|fixtures?|\.idea|ffmpeg-wasm/core)/"
     r"|\.xcframework/|stb_image|/cpp/blake3/|\.min\.js$|(^|/)sql-wasm\.js$|\.lock$|package-lock\.json$"
-    r"|(^|/)composeResources/|(^|/)res/(?!xml/)|(^|/)resources/(?!.*\.(js|mjs|html|json)$)"
+    r"|(^|/)composeResources/|(^|/)res/(?!xml/)|(^|/)resources/(?!META-INF/|.*\.(js|mjs|html|json)$)"
     r"|(^|/)src/[A-Za-z]*[Tt]est[A-Za-z]*/|^tests?/|(^|/)(__tests__|test-utils|test-fixtures|iosAppTests)/"
     r"|\.(test|spec)\.(ts|tsx|js)$|_test\.(rs|py)$"
 )
@@ -38,6 +39,8 @@ def git(*args):
 
 def kind(path):
     name = path.rsplit("/", 1)[-1]
+    if "/META-INF/services/" in path:
+        return "lines"
     return NAMES.get(name) or (name.rsplit(".", 1)[-1].lower() if "." in name else "")
 
 
@@ -52,8 +55,9 @@ def lines_of(text):
 
 
 def code_line_numbers(source, k):
-    """Only a line that starts with a comment marker, or sits in a block comment whose opener starts a line, is a
-    comment; anything else counts. Misjudging a line can only count a comment as code, never hide code."""
+    """Only a line that starts with a comment marker, or continues a block comment opened at the start of a line (it
+    starts with * or holds the closer), is a comment; anything else counts, and ends the block. A misjudged line
+    counts a comment as code; the one way to miss code is a line in a multi-line string that looks like a comment."""
     lines = lines_of(source)
     if k == "def":
         cut = next((i for i, line in enumerate(lines) if line.strip() == "---"), len(lines))
@@ -65,10 +69,12 @@ def code_line_numbers(source, k):
     numbers, in_block = set(), False
     for n, line in enumerate(lines, 1):
         text = line.strip()
-        if in_block:
+        if in_block and (closer in text or not text or k in XML or text.startswith("*")):
             in_block = closer not in text
             if in_block or not text.split(closer, 1)[1].strip():
                 continue
+        elif in_block:
+            in_block = False
         elif not text or marker and text.startswith(marker):
             continue
         elif text.startswith(opener):
@@ -95,14 +101,20 @@ def sides(rev):
     if "..." in rev:
         base, head = rev.split("...", 1)
         head = head or "HEAD"
-        return git("merge-base", base or "HEAD", head).strip(), head
+        found = subprocess.run([*GIT, "merge-base", base or "HEAD", head], capture_output=True, text=True)
+        if found.returncode:
+            sys.exit(found.stderr.strip() or f"{base or 'HEAD'} and {head} have no common ancestor")
+        return found.stdout.strip(), head
     if ".." in rev:
         base, head = rev.split("..", 1)
         return base or "HEAD", head or "HEAD"
-    parent = subprocess.run([*GIT, "rev-parse", "--verify", "-q", f"{rev}^1"], capture_output=True, text=True).stdout.strip()
-    if not parent and git("rev-parse", "--is-shallow-repository").strip() == "true":
+    # The commit object names its parents even where a shallow clone cut them off.
+    parents = [line.split()[1] for line in lines_of(git("cat-file", "-p", rev)) if line.startswith("parent ")]
+    if not parents:
+        return empty_tree(), rev
+    if subprocess.run([*GIT, "cat-file", "-e", parents[0]], capture_output=True).returncode:
         sys.exit(f"{rev}'s parent isn't in this shallow clone: fetch more history")
-    return parent or empty_tree(), rev
+    return parents[0], rev
 
 
 def empty_tree():
