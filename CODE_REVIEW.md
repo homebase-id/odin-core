@@ -63,8 +63,9 @@ Review-Again: <yes or no: whether the fixes need another round, and why in the b
 Code-Lines: <scripts/pass-stats.py>
 ```
 
-- **`Found`** is every finding the round reported. **`Fixed`** is how many were fixed. Every other one is in the
-  body with its reason: out of scope, a design change to file, a false positive, kept on purpose.
+- **`Found`** is every new finding the round reported; a finding an earlier round reported and kept is listed in the
+  body but not counted again. **`Fixed`** is how many were fixed. Every other one is in the body with its reason:
+  out of scope, a design change to file, a false positive, kept on purpose.
 - **`Code-Lines`** is measured, never counted by hand: stage the round's fixes, run `scripts/pass-stats.py`, paste
   its line, and commit with a plain `git commit` (no `-a`, no paths), so the commit holds exactly what was measured.
   `scripts/pass-stats.py HEAD` gives the same line afterwards.
