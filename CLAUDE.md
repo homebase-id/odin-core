@@ -224,11 +224,13 @@ Code-Lines: <scripts/pass-stats.py>
 ```
 
 - **`Code-Lines` is measured, never counted by hand:** run `scripts/pass-stats.py` on the staged
-  changes just before committing and paste its line. It counts real code only, leaving out tests,
-  docs, blank lines and comment-only lines.
+  changes just before committing and paste its line. It counts source files only (Kotlin, Swift, Java,
+  C#, TypeScript and JavaScript, Python, shell, C and C++, Go, Rust, SQL), leaving out tests, docs,
+  resources, vendored code, blank lines and comment-only lines.
 - **A review that reports its cap ran out of room, not out of findings.** When `Review-Found` equals
-  `Review-Max`, fix what it found, commit, and run another round (`Review-Round: 2`); repeat until a
-  round reports fewer than its cap.
+  `Review-Max`, fix what it found, commit, and run another round (`Review-Round: 2`). Stop when a round
+  reports fewer than its cap, or fixes none of what it found because everything left is kept on
+  purpose; its commit body says which.
 - **A SIMPLIFY commit keeps behaviour.** A behaviour change in it is either a bug or something its body
   calls out. A finding that is a design change rather than a cleanup is filed, not added to the PR.
 - **New feature work after both passes means running both again**, on the new work. Merges of main and
