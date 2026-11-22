@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Prints the Code-Lines trailer for the staged changes, or for the commit given. The weekly team data
-runs this file from each commit's tree, so its rules are what "real code" means there."""
+"""Prints the Code-Lines trailer for the staged changes, a commit, or a branch (`origin/main...HEAD`). The
+weekly team data runs this file from each commit's tree, so its rules are what "real code" means there."""
 import re
 import subprocess
 import sys
@@ -61,7 +61,11 @@ def path_of(header):
 
 
 def main(commit):
-    if commit:
+    if commit and "..." in commit:
+        base, head = commit.split("...", 1)
+        old_rev, new_rev = git("merge-base", base, head or "HEAD").strip(), head or "HEAD"
+        text = git("diff", *DIFF, old_rev, new_rev)
+    elif commit:
         old_rev, new_rev = f"{commit}^1", commit
         text = git("show", "--format=", "--diff-merges=first-parent", *DIFF, commit)
     else:

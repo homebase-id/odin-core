@@ -1,8 +1,8 @@
 # Simplify
 
-The first of a PR's two passes (CLAUDE.md, "Simplify, then code review"). It makes the changed code simpler
-without changing what it does, so the code review then reads the cleaned-up diff. Start it with exactly the
-prompt in CLAUDE.md, and read this before it runs.
+The first of a PR's two passes (CLAUDE.md, "Simplify, then code review"), for a PR that changes real code. It
+makes the changed code simpler without changing what it does, so the code review then reads the cleaned-up
+diff. Start it with exactly the prompt in CLAUDE.md, and read this before it runs.
 
 ## What it looks for
 
