@@ -98,7 +98,12 @@ One consolidated `Email` section replaces today's top-level `Mailgun` section an
                                             // the HA group has 2-3 nodes)
       "SpfIncludeTarget": "_spf.id.pub",    // what tenant SPF records include:
       "DmarcReportEmail": "dmarc-reports@id.pub",
-      "TlsReportEmail": "tls-reports@id.pub"
+      "TlsReportEmail": "tls-reports@id.pub",
+      "MtaStsMode": "testing",              // optional: testing | enforce | none. "enforce" only once every
+                                            // MX node serves a certificate valid for its hostname
+      "MtaStsMaxAgeSeconds": 86400          // optional: policy cache lifetime, 1..31557600 (about a week
+                                            // once enforcing). Mode, max_age and MxNodes all feed the
+                                            // _mta-sts id, so changing any of them re-publishes it
     }
   }
 }
