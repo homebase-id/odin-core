@@ -91,8 +91,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 {
                     try
                     {
-                        // A send that threw may have queued some recipients first: the outbox removes the file once it sent
-                        // them all
+                        // A send that threw may have queued some recipients first: the outbox removes the file once it is
+                        // done with each of their items
                         if (!await peerOutbox.HasAnyItemForFileAsync(transientFile))
                         {
                             await fileSystem.Storage.HardDeleteLongTermFile(transientFile, odinContext);

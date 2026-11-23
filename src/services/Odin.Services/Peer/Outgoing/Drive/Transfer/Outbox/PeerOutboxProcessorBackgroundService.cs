@@ -250,7 +250,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                logger.LogInformation(e, "Failed to clean up transient file {file}; record is already marked complete", fileItem.File);
+                // Error: the file stays, and its uniqueId refuses the next send of the same file
+                logger.LogError(e, "Failed to clean up transient file {file}; record is already marked complete", fileItem.File);
             }
         }
 

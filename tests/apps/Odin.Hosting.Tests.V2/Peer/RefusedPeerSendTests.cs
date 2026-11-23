@@ -179,6 +179,7 @@ public class RefusedPeerSendTests : V2Fixture
 
         // Sam's server answers the first try with a 500, so his update is tried again after Frodo's was sent
         Host.PeerFaults.FailNext(from: Identities.Pippin, to: Identities.Sam, "/update");
+        var uniqueId = Guid.NewGuid();
         var updated = await pippin.V1.Drive.UpdateFile(new FileUpdateInstructionSet
         {
             Locale = UpdateLocale.Peer,
@@ -186,7 +187,7 @@ public class RefusedPeerSendTests : V2Fixture
             File = file.ToFileIdentifier(),
             Recipients = [frodo.Identity, sam.Identity],
             Manifest = EmptyManifest
-        }, Metadata(Guid.NewGuid(), "updated"), []);
+        }, Metadata(uniqueId, "updated"), []);
         Assert.That(updated.StatusCode, Is.EqualTo(HttpStatusCode.OK), updated.Error?.Content);
 
         await pippin.Sync.DrainOutboxAsync();
@@ -197,6 +198,9 @@ public class RefusedPeerSendTests : V2Fixture
             Assert.That(header.Content!.SearchResults.Single().FileMetadata.AppData.Content, Is.EqualTo("updated"),
                 $"{recipient.Identity}'s copy");
         }
+
+        // and once both were sent, the transient file is gone
+        await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
     }
 
     /// <summary>A file staged on the transient drive with no recipients is the client's: kept, as one it overwrites later</summary>
