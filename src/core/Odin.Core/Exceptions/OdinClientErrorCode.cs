@@ -17,7 +17,7 @@ public enum OdinClientErrorCode
 
     /// <summary>
     /// The caller's token lacks a permission key the call needs (HTTP 403).  The problem details name the keys that would
-    /// do as <c>permissionKeys</c>, any one of them (PermissionKeys: UseTransitWrite 210, UseTransitRead 305, ...).
+    /// do as <c>permissionKeys</c>, any one of them (the values of PermissionKeys).
     /// </summary>
     MissingPermissionKey = 1006,
 

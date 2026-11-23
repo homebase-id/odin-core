@@ -6,12 +6,14 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Ported.Peer;
 using Odin.Services.Peer.AppNotification;
+using Odin.Services.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -37,7 +39,7 @@ public class MissingPermissionKeyTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true);
 
-        var refused = await V2PeerUpdateByGtidTests.UpdateAsync(app, (Odin.Core.Identity.OdinId)Identities.Frodo, drive, Guid.NewGuid(),
+        var refused = await V2PeerUpdateByGtidTests.UpdateAsync(app, (OdinId)Identities.Frodo, drive, Guid.NewGuid(),
             metadata, V2PeerUpdateByGtidTests.Instructions(drive, new UploadManifest { PayloadDescriptors = [] }));
 
         AssertMissing(refused, PermissionKeys.UseTransitWrite);
@@ -49,7 +51,7 @@ public class MissingPermissionKeyTests : V2Fixture
         var app = await AppWithAsync(PermissionKeys.UseTransitWrite);
 
         var refused = await app.RefitFor<IDrivePeerNotificationHttpClientApiV2>()
-            .GetToken(new GetRemoteTokenRequest { Identity = (Odin.Core.Identity.OdinId)Identities.Frodo });
+            .GetToken(new GetRemoteTokenRequest { Identity = (OdinId)Identities.Frodo });
 
         AssertMissing(refused, PermissionKeys.UseTransitRead);
     }
@@ -65,10 +67,9 @@ public class MissingPermissionKeyTests : V2Fixture
 
     private static void AssertMissing(IApiResponse response, int key)
     {
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
+        Assert.That((response.StatusCode, response.ErrorCode()),
+            Is.EqualTo((HttpStatusCode.Forbidden, OdinClientErrorCode.MissingPermissionKey)), response.Error?.Content);
         var problem = OdinSystemSerializer.Deserialize<Microsoft.AspNetCore.Mvc.ProblemDetails>(response.Error!.Content!)!;
-        Assert.That(Enum.Parse<OdinClientErrorCode>(problem.Extensions["errorCode"]!.ToString()!, true),
-            Is.EqualTo(OdinClientErrorCode.MissingPermissionKey), response.Error.Content);
         var keys = ((JsonElement)problem.Extensions["permissionKeys"]!).EnumerateArray().Select(k => k.GetInt32());
         Assert.That(keys, Is.EqualTo(new[] { key }), response.Error.Content);
     }

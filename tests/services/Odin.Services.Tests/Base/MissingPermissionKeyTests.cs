@@ -15,18 +15,12 @@ public class MissingPermissionKeyTests
 {
     private static readonly PermissionContext NoKeys = new([], null);
 
-    [Test]
-    public void APeerSendWithoutUseTransitWriteNamesIt()
+    [TestCase(PeerAccess.Write, PermissionKeys.UseTransitWrite)]
+    [TestCase(PeerAccess.Read, PermissionKeys.UseTransitRead)]
+    public void APeerFileOperationWithoutItsKeyNamesIt(PeerAccess access, int key)
     {
-        var e = Assert.Throws<OdinSecurityException>(() => NoKeys.AssertCanUsePeer(PeerAccess.Write));
-        AssertMissing(e!, PermissionKeys.UseTransitWrite);
-    }
-
-    [Test]
-    public void APeerReadWithoutUseTransitReadNamesIt()
-    {
-        var e = Assert.Throws<OdinSecurityException>(() => NoKeys.AssertCanUsePeer(PeerAccess.Read));
-        AssertMissing(e!, PermissionKeys.UseTransitRead);
+        var e = Assert.Throws<OdinSecurityException>(() => NoKeys.AssertCanUsePeer(access));
+        AssertMissing(e!, key);
     }
 
     [Test]
@@ -47,7 +41,6 @@ public class MissingPermissionKeyTests
     private static void AssertMissing(OdinSecurityException e, params int[] keys)
     {
         Assert.That(e.ErrorCode, Is.EqualTo(OdinClientErrorCode.MissingPermissionKey), e.Message);
-        Assert.That(e.Extensions, Is.Not.Null, "no extensions");
-        Assert.That(e.Extensions!["permissionKeys"], Is.EqualTo(keys));
+        Assert.That(e.Extensions["permissionKeys"], Is.EqualTo(keys));
     }
 }

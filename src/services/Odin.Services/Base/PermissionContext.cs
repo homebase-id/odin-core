@@ -187,7 +187,7 @@ namespace Odin.Services.Base
         /// A refusal a client can tell from any other 403: its code, and the keys any one of which would have done.  They name
         /// only what the call needs, which the caller's own security context and the route already say.
         /// </summary>
-        private static OdinSecurityException MissingPermissionKey(string message, params int[] permissionKeys) =>
+        public static OdinSecurityException MissingPermissionKey(string message, params int[] permissionKeys) =>
             new(message, OdinClientErrorCode.MissingPermissionKey)
             {
                 Extensions = new Dictionary<string, object> { ["permissionKeys"] = permissionKeys }
