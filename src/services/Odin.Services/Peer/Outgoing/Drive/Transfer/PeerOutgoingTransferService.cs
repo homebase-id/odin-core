@@ -76,40 +76,29 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task<Dictionary<string, TransferStatus>> SendFromTransientDriveAsync(InternalDriveFileId transientFile,
             IDriveFileSystem fileSystem, Func<Task<Dictionary<string, TransferStatus>>> send, IOdinContext odinContext)
         {
-            Dictionary<string, TransferStatus> status;
+            Dictionary<string, TransferStatus> status = null;
             try
             {
-                status = await send();
+                return status = await send();
             }
-            catch
+            finally
             {
-                await DeleteUnlessQueuedAsync(transientFile, fileSystem, odinContext);
-                throw;
-            }
-
-            if (!status.ContainsValue(TransferStatus.Enqueued))
-            {
-                await DeleteUnlessQueuedAsync(transientFile, fileSystem, odinContext);
-            }
-
-            return status;
-        }
-
-        private async Task DeleteUnlessQueuedAsync(InternalDriveFileId transientFile, IDriveFileSystem fileSystem,
-            IOdinContext odinContext)
-        {
-            try
-            {
-                // A send that threw may have queued some recipients first: the outbox removes the file once it sent them.
-                // Any item counts: a peer update is queued as a RemoteFileUpdate, not a File
-                if (!await peerOutbox.HasAnyItemForFileAsync(transientFile))
+                if (status?.ContainsValue(TransferStatus.Enqueued) != true)
                 {
-                    await fileSystem.Storage.HardDeleteLongTermFile(transientFile, odinContext);
+                    try
+                    {
+                        // A send that threw may have queued some recipients first: the outbox removes the file once it sent
+                        // them.  Any item counts: a peer update is queued as a RemoteFileUpdate, not a File
+                        if (!await peerOutbox.HasAnyItemForFileAsync(transientFile))
+                        {
+                            await fileSystem.Storage.HardDeleteLongTermFile(transientFile, odinContext);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogWarning(e, "Could not delete transient file {file}, which no recipient was queued for", transientFile);
+                    }
                 }
-            }
-            catch (Exception e)
-            {
-                logger.LogWarning(e, "Could not delete transient file {file}, which no recipient was queued for", transientFile);
             }
         }
 

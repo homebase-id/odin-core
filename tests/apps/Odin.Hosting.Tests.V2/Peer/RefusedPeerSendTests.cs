@@ -38,27 +38,37 @@ public class RefusedPeerSendTests : V2Fixture
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Pippin, Identities.Merry];
 
     private static readonly Guid TransientDrive = SystemDriveConstants.TransientTempDrive.Alias;
-
-    // A send to Merry fails to queue, and SendFile logs that at Error (PeerOutgoingTransferService.CreateOutboxItems)
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings => ["Failed while creating outbox item"];
+    private static readonly Odin.Core.Identity.OdinId Merry = new(Identities.Merry);
 
     private static UploadManifest EmptyManifest => new() { PayloadDescriptors = [] };
 
-    [Test]
-    public async Task ARefusedPeerUpdateStoresNothing_SoTheNextOneGoesThrough()
+    /// <summary>How the first attempt fails: refused before anything is stored, or stored and then queued for no recipient</summary>
+    public enum FirstTry { RefusedForUseTransitWrite, QueuedForNoOne }
+
+    [TestCase(FirstTry.RefusedForUseTransitWrite)]
+    [TestCase(FirstTry.QueuedForNoOne)]
+    public async Task APeerUpdateThatIsntSentLeavesNothing_SoTheNextOneGoesThrough(FirstTry firstTry)
     {
         var (pippin, frodo, drive) = await ArrangeAsync();
         var gtid = await V2PeerUpdateByGtidTests.TransferAsync(pippin, frodo, drive, Metadata(Guid.NewGuid(), "first"), []);
         var uniqueId = Guid.NewGuid();
-        var readOnlyApp = await ReadOnlyAppAsync(pippin, SystemDriveConstants.TransientTempDrive);
+        var instructions = V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest);
 
-        var refused = await V2PeerUpdateByGtidTests.UpdateAsync(readOnlyApp, frodo.Identity, drive, gtid, Metadata(uniqueId, "refused"),
-            V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest));
-        AssertRefusedForSending(refused);
+        if (firstTry == FirstTry.RefusedForUseTransitWrite)
+        {
+            var readOnlyApp = await ReadOnlyAppAsync(pippin, SystemDriveConstants.TransientTempDrive);
+            AssertRefusedForSending(await V2PeerUpdateByGtidTests.UpdateAsync(readOnlyApp, frodo.Identity, drive, gtid,
+                Metadata(uniqueId, "not sent"), instructions));
+        }
+        else
+        {
+            var unqueued = await V2PeerUpdateByGtidTests.UpdateAsync(pippin, Merry, drive, gtid, Metadata(uniqueId, "not sent"), instructions);
+            AssertQueuedForNoOne(unqueued, unqueued.Content?.RecipientStatus);
+        }
+
         await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
 
-        var sent = await V2PeerUpdateByGtidTests.UpdateAsync(pippin, frodo.Identity, drive, gtid, Metadata(uniqueId, "sent"),
-            V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest));
+        var sent = await V2PeerUpdateByGtidTests.UpdateAsync(pippin, frodo.Identity, drive, gtid, Metadata(uniqueId, "sent"), instructions);
         Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
 
         await pippin.Sync.DrainOutboxAsync();
@@ -67,17 +77,29 @@ public class RefusedPeerSendTests : V2Fixture
         Assert.That(header.Content!.SearchResults.Single().FileMetadata.AppData.Content, Is.EqualTo("sent"));
     }
 
-    [Test]
-    public async Task ARefusedTransientUploadStoresNothing_SoTheNextOneGoesThrough()
+    [TestCase(FirstTry.RefusedForUseTransitWrite)]
+    [TestCase(FirstTry.QueuedForNoOne)]
+    public async Task ATransientUploadThatIsntSentLeavesNothing_SoTheNextOneGoesThrough(FirstTry firstTry)
     {
         var (pippin, frodo, drive) = await ArrangeAsync();
         var uniqueId = Guid.NewGuid();
         var transit = new TransitOptions { IsTransient = true, Recipients = [frodo.Identity.DomainName], RemoteTargetDrive = drive };
-        var readOnlyApp = await ReadOnlyAppAsync(pippin, SystemDriveConstants.TransientTempDrive);
 
-        var refused = await readOnlyApp.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "refused"),
-            EmptyManifest, [], transit);
-        AssertRefusedForSending(refused);
+        if (firstTry == FirstTry.RefusedForUseTransitWrite)
+        {
+            var readOnlyApp = await ReadOnlyAppAsync(pippin, SystemDriveConstants.TransientTempDrive);
+            AssertRefusedForSending(await readOnlyApp.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "not sent"),
+                EmptyManifest, [], transit));
+        }
+        else
+        {
+            // SendFile logs a recipient it can't queue at Error (PeerOutgoingTransferService.CreateOutboxItems)
+            ExpectErrorLogEvent("Failed while creating outbox item");
+            var unqueued = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "not sent"), EmptyManifest, [],
+                new TransitOptions { IsTransient = true, Recipients = [Merry.DomainName], RemoteTargetDrive = drive });
+            AssertQueuedForNoOne(unqueued, unqueued.Content?.RecipientStatus);
+        }
+
         await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
 
         var sent = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "sent"), EmptyManifest, [], transit);
@@ -135,47 +157,6 @@ public class RefusedPeerSendTests : V2Fixture
         Assert.That(stored.Content.FileMetadata.VersionTag, Is.EqualTo(created.Content.NewVersionTag));
     }
 
-    [Test]
-    public async Task AnUnqueuedPeerUpdateLeavesNothing_SoTheNextOneGoesThrough()
-    {
-        var (pippin, frodo, drive) = await ArrangeAsync();
-        var gtid = await V2PeerUpdateByGtidTests.TransferAsync(pippin, frodo, drive, Metadata(Guid.NewGuid(), "first"), []);
-        var uniqueId = Guid.NewGuid();
-
-        var unqueued = await V2PeerUpdateByGtidTests.UpdateAsync(pippin, (Odin.Core.Identity.OdinId)Identities.Merry, drive, gtid,
-            Metadata(uniqueId, "unqueued"), V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest));
-        Assert.That(unqueued.StatusCode, Is.EqualTo(HttpStatusCode.OK), unqueued.Error?.Content);
-        Assert.That(unqueued.Content!.RecipientStatus[Identities.Merry], Is.EqualTo(TransferStatus.EnqueuedFailed));
-        await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
-
-        var sent = await V2PeerUpdateByGtidTests.UpdateAsync(pippin, frodo.Identity, drive, gtid, Metadata(uniqueId, "sent"),
-            V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest));
-        Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
-
-        await pippin.Sync.DrainOutboxAsync();
-        await frodo.Sync.ProcessInboxAsync(drive, int.MaxValue);
-        var header = await frodo.V1.Drive.QueryByGlobalTransitId(new GlobalTransitIdFileIdentifier { GlobalTransitId = gtid, TargetDrive = drive });
-        Assert.That(header.Content!.SearchResults.Single().FileMetadata.AppData.Content, Is.EqualTo("sent"));
-    }
-
-    [Test]
-    public async Task AnUnqueuedTransientUploadLeavesNothing_SoTheNextOneGoesThrough()
-    {
-        var (pippin, frodo, drive) = await ArrangeAsync();
-        var uniqueId = Guid.NewGuid();
-
-        var unqueued = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "unqueued"), EmptyManifest, [],
-            new TransitOptions { IsTransient = true, Recipients = [Identities.Merry], RemoteTargetDrive = drive });
-        Assert.That(unqueued.StatusCode, Is.EqualTo(HttpStatusCode.OK), unqueued.Error?.Content);
-        Assert.That(unqueued.Content!.RecipientStatus[Identities.Merry], Is.EqualTo(TransferStatus.EnqueuedFailed));
-        await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
-
-        var sent = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "sent"), EmptyManifest, [],
-            new TransitOptions { IsTransient = true, Recipients = [frodo.Identity.DomainName], RemoteTargetDrive = drive });
-        Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
-        Assert.That(sent.Content!.RecipientStatus[frodo.Identity.DomainName], Is.EqualTo(TransferStatus.Enqueued));
-    }
-
     /// <summary>A file staged on the transient drive with no recipients is the client's: kept, as one it overwrites later</summary>
     [Test]
     public async Task AFileStagedOnTheTransientDriveWithoutRecipientsIsKept()
@@ -209,6 +190,13 @@ public class RefusedPeerSendTests : V2Fixture
     {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
         Assert.That(response.Error?.Content, Does.Contain("requires UseTransitWrite"));
+    }
+
+    /// <summary>Answered 200, with Merry's send not queued: she isn't connected to Pippin</summary>
+    private static void AssertQueuedForNoOne(IApiResponse response, Dictionary<string, TransferStatus>? recipientStatus)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        Assert.That(recipientStatus?[Merry.DomainName], Is.EqualTo(TransferStatus.EnqueuedFailed));
     }
 
     private static async Task AssertNothingStoredAsync(OwnerSession owner, Guid driveId, Guid uniqueId)
