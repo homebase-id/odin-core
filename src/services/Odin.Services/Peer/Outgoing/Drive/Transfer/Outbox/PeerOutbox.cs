@@ -121,13 +121,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return records?.Count > 0;
         }
 
-        public async Task<bool> HasOutboxFileItemAsync(OutboxFileItem fileItem)
-        {
-            var records = await tblOutbox.GetAsync(fileItem.File.DriveId, fileItem.File.FileId);
-            var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
-            return hasRecord;
-        }
-
         /// <summary>
         /// Whether the caller's send from the transient drive is still waiting in the outbox: the one its result event will
         /// name (<see cref="Files.PeerSendResultNotification"/>), to <paramref name="recipient"/>'s drive

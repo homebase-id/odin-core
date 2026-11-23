@@ -35,7 +35,7 @@ namespace Odin.Hosting.Tests.V2.Peer;
 [TestFixture]
 public class RefusedPeerSendTests : V2Fixture
 {
-    protected override string[] HostIdentities => [Identities.Frodo, Identities.Pippin, Identities.Merry];
+    protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Pippin, Identities.Merry];
 
     private static readonly Guid TransientDrive = SystemDriveConstants.TransientTempDrive.Alias;
     private static readonly Odin.Core.Identity.OdinId Merry = new(Identities.Merry);
@@ -155,6 +155,51 @@ public class RefusedPeerSendTests : V2Fixture
         var stored = await pippin.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, localDrive.Alias);
         Assert.That(stored.Content!.FileMetadata.AppData.Content, Is.EqualTo("first"));
         Assert.That(stored.Content.FileMetadata.VersionTag, Is.EqualTo(created.Content.NewVersionTag));
+    }
+
+    /// <summary>
+    /// A peer update to two recipients is queued as one item each, on one transient file: it stays until both are sent.
+    /// The outbox counted only queued sends, not updates, so it deleted the file once the first was sent, and a second
+    /// still waiting (here Sam's, tried again after a 500) had nothing left to send
+    /// </summary>
+    [Test]
+    public async Task APeerUpdateToTwoRecipientsReachesBoth()
+    {
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var drive = TargetDrive.NewTargetDrive();
+        await CollabChannelFlow.SetupAsync(frodo, drive, [pippin], driveName: "Frodo's drive");
+        await CollabChannelFlow.SetupAsync(sam, drive, [pippin], driveName: "Sam's drive");
+
+        var sent = await pippin.V1.PeerDirect.TransferNewFile(drive, Metadata(Guid.NewGuid(), "first"), [frodo.Identity, sam.Identity], null,
+            EmptyManifest, []);
+        Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
+        await pippin.Sync.DrainOutboxAsync();
+        await frodo.Sync.ProcessInboxAsync(drive, int.MaxValue);
+        await sam.Sync.ProcessInboxAsync(drive, int.MaxValue);
+        var file = sent.Content!.RemoteGlobalTransitIdFileIdentifier;
+
+        // Sam's server answers the first try with a 500, so his update is tried again after Frodo's was sent
+        Host.PeerFaults.FailNext(from: Identities.Pippin, to: Identities.Sam, "/update");
+        var updated = await pippin.V1.Drive.UpdateFile(new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Peer,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = file.ToFileIdentifier(),
+            Recipients = [frodo.Identity, sam.Identity],
+            Manifest = EmptyManifest
+        }, Metadata(Guid.NewGuid(), "updated"), []);
+        Assert.That(updated.StatusCode, Is.EqualTo(HttpStatusCode.OK), updated.Error?.Content);
+
+        await pippin.Sync.DrainOutboxAsync();
+        foreach (var recipient in new[] { frodo, sam })
+        {
+            await recipient.Sync.ProcessInboxAsync(drive, int.MaxValue);
+            var header = await recipient.V1.Drive.QueryByGlobalTransitId(file);
+            Assert.That(header.Content!.SearchResults.Single().FileMetadata.AppData.Content, Is.EqualTo("updated"),
+                $"{recipient.Identity}'s copy");
+        }
     }
 
     /// <summary>A file staged on the transient drive with no recipients is the client's: kept, as one it overwrites later</summary>
