@@ -62,9 +62,10 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet.AssertIsValid();
         // Before anything is stored: a peer update committed to the transient drive first stayed behind (#2155)
-        if (instructionSet.Recipients is { Count: > 0 } recipients)
+        var sending = instructionSet.Recipients is { Count: > 0 };
+        if (sending)
         {
-            PeerOutgoingTransferService.AssertMaySendTo(recipients, odinContext.Tenant, odinContext);
+            PeerOutgoingTransferService.AssertMaySendTo(instructionSet.Recipients, odinContext.Tenant, odinContext);
         }
 
         instructionSet.Manifest.ResetPayloadUiDs();
@@ -95,20 +96,26 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
             // Before anything is stored: a file with no global transit id can't be sent, and the update was
             // committed before the send found that out (#2160). A missing file is left to the update to report.
-            if (instructionSet.Recipients is { Count: > 0 } &&
-                await FileSystem.Storage.GetServerFileHeader(file, odinContext) is { } header)
+            FileIdentifier peerTarget = null;
+            if (sending)
             {
-                new FileIdentifier
+                var header = await FileSystem.Storage.GetServerFileHeader(file, odinContext);
+                peerTarget = new FileIdentifier
                 {
-                    GlobalTransitId = header.FileMetadata.GlobalTransitId,
+                    GlobalTransitId = header?.FileMetadata.GlobalTransitId,
                     TargetDrive = instructionSet.File.TargetDrive
-                }.AssertIsValidPeerTarget();
+                };
+                if (header != null)
+                {
+                    peerTarget.AssertIsValidPeerTarget();
+                }
             }
 
             this.Package = new FileUpdatePackage(file)
             {
                 InstructionSet = instructionSet,
-                FileSystemType = fileSystemType
+                FileSystemType = fileSystemType,
+                PeerTarget = peerTarget
             };
 
             return;
@@ -129,7 +136,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             this.Package = new FileUpdatePackage(file)
             {
                 InstructionSet = instructionSet,
-                FileSystemType = fileSystemType
+                FileSystemType = fileSystemType,
+                PeerTarget = instructionSet.File
             };
             return;
         }
@@ -278,14 +286,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
             var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
 
-            var recipientStatus = await ProcessTransitInstructions(Package,
-                new FileIdentifier()
-                {
-                    GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId,
-                    TargetDrive = Package.InstructionSet.File.TargetDrive
-                },
-                keyHeader,
-                odinContext);
+            var recipientStatus = await ProcessTransitInstructions(Package, Package.PeerTarget, keyHeader, odinContext);
 
             return new FileUpdateResult
             {
@@ -325,7 +326,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false,
                 odinContext, sourceArea: StagingArea.Upload);
 
-            var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext,
+            var recipientStatus = await ProcessTransitInstructions(Package, Package.PeerTarget, keyHeader, odinContext,
                 expectedVersionTag);
 
             return new FileUpdateResult()
