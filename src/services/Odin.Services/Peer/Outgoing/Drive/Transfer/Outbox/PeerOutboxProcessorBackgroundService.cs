@@ -238,8 +238,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     await PerformanceCounter.MeasureExecutionTime("Outbox CleanupIfTransientFile",
                         async () =>
                         {
-                            // Try to clean up the transient file
-                            if (!await peerOutbox.HasOutboxFileItemAsync(fileItem))
+                            // Try to clean up the transient file, once no item of it is left: a peer update to several
+                            // recipients is one RemoteFileUpdate item each, not a File item
+                            if (!await peerOutbox.HasAnyItemForFileAsync(fileItem.File))
                             {
                                 logger.LogDebug("File was transient and all other outbox records sent; deleting");
                                 await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext);
@@ -249,7 +250,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                logger.LogInformation(e, "Failed to clean up transient file {file}; record is already marked complete", fileItem.File);
+                // Error: the file stays, and its uniqueId refuses the next send of the same file
+                logger.LogError(e, "Failed to clean up transient file {file}; record is already marked complete", fileItem.File);
             }
         }
 

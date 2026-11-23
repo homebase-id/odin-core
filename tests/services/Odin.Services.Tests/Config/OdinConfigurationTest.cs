@@ -178,6 +178,73 @@ public class OdinConfigurationTest
         Assert.That(section.TenantMail.SpfIncludeTarget, Is.EqualTo("_spf.id.pub"));
         Assert.That(section.TenantMail.DmarcReportEmail, Is.EqualTo("dmarc-reports@id.pub"));
         Assert.That(section.TenantMail.TlsReportEmail, Is.EqualTo("tls-reports@id.pub"));
+        // Unset: today's policy
+        Assert.That(section.TenantMail.MtaStsMode, Is.EqualTo("testing"));
+        Assert.That(section.TenantMail.MtaStsMaxAgeSeconds, Is.EqualTo(86400));
+    }
+
+    [Test]
+    public void TenantMailSection_ParsesMtaStsModeAndMaxAge()
+    {
+        var section = new OdinConfiguration.TenantMailSection(BuildConfig(TenantMailPairs(new()
+        {
+            ["Email:TenantMail:MtaStsMode"] = "enforce",
+            ["Email:TenantMail:MtaStsMaxAgeSeconds"] = "604800",
+        })));
+
+        Assert.That(section.MtaStsMode, Is.EqualTo("enforce"));
+        Assert.That(section.MtaStsMaxAgeSeconds, Is.EqualTo(604800));
+    }
+
+    [TestCase("")]
+    [TestCase("  ")]
+    public void TenantMailSection_TakesABlankMtaStsModeAsUnset(string mode)
+    {
+        var section = new OdinConfiguration.TenantMailSection(BuildConfig(TenantMailPairs(new()
+        {
+            ["Email:TenantMail:MtaStsMode"] = mode,
+        })));
+
+        Assert.That(section.MtaStsMode, Is.EqualTo("testing"));
+    }
+
+    [TestCase("Enforce")]
+    [TestCase("strict")]
+    public void TenantMailSection_RejectsAnUnknownMtaStsMode(string mode)
+    {
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.TenantMailSection(BuildConfig(TenantMailPairs(new()
+        {
+            ["Email:TenantMail:MtaStsMode"] = mode,
+        }))));
+    }
+
+    [TestCase("0")]
+    [TestCase("-1")]
+    [TestCase("31557601")]
+    public void TenantMailSection_RejectsAnMtaStsMaxAgeOutOfRange(string maxAge)
+    {
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.TenantMailSection(BuildConfig(TenantMailPairs(new()
+        {
+            ["Email:TenantMail:MtaStsMaxAgeSeconds"] = maxAge,
+        }))));
+    }
+
+    /// <summary>An enabled Email:TenantMail with its required values, plus <paramref name="extra"/></summary>
+    private static Dictionary<string, string?> TenantMailPairs(Dictionary<string, string?> extra)
+    {
+        var pairs = new Dictionary<string, string?>
+        {
+            ["Email:TenantMail:Enabled"] = "true",
+            ["Email:TenantMail:MxNodes:0"] = "node-a.example.com",
+            ["Email:TenantMail:SpfIncludeTarget"] = "_spf.id.pub",
+            ["Email:TenantMail:DmarcReportEmail"] = "dmarc-reports@id.pub",
+            ["Email:TenantMail:TlsReportEmail"] = "tls-reports@id.pub",
+        };
+        foreach (var (key, value) in extra)
+        {
+            pairs[key] = value;
+        }
+        return pairs;
     }
 
     [Test]

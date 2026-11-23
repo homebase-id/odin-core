@@ -60,6 +60,7 @@ Email:Stalwart:AdminPassword=<strong>
 | `SpfIncludeTarget` | A hostname whose TXT record holds `v=spf1 ...`. Tenant SPF records are generated as `v=spf1 include:<this> -all`. | Not used — no records are published. Set the intended value if known, else a placeholder. |
 | `DmarcReportEmail` | Goes into generated DMARC records as `rua=mailto:`. | Not used in Phase 1. |
 | `TlsReportEmail` | Goes into generated TLS-RPT records as `rua=mailto:`. | Not used in Phase 1. |
+| `MtaStsMode`, `MtaStsMaxAgeSeconds` | Optional. The MTA-STS policy's `mode` (`testing`, `enforce`, `none`; default `testing`) and `max_age` in seconds (default 86400). Both feed the `_mta-sts` id, which changes in DNS only when the records are rewritten (`populate-managed-domain-records commit`, see `docs/email-dns-plan.md`). Switch to `enforce` only once every MX node serves a certificate valid for its hostname (see `docs/stalwart-production-checklist.md`). | Leave unset. |
 | `DkimStorageKey` | **Encrypts tenants' DKIM private keys at rest** (AES-CBC). Exactly 32 bytes as 64 hex chars. | Generate **once**, back it up, never change it — see below. |
 | `Stalwart:*` | Container address and admin credential. | `BaseUrl` is the container name on the shared docker network, not `localhost`. |
 

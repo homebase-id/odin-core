@@ -752,6 +752,21 @@ public class OdinConfiguration
         public string DmarcReportEmail { get; init; } = "";
         public string TlsReportEmail { get; init; } = "";
 
+        /// <summary>
+        /// The MTA-STS policy's mode (RFC 8461): "testing" (receivers report failures but still deliver),
+        /// "enforce" or "none". Switch a fleet to "enforce" only once every node in <see cref="MxNodes"/>
+        /// serves a certificate valid for its hostname, or enforcing senders stop delivering.
+        /// </summary>
+        public string MtaStsMode { get; init; } = DefaultMtaStsMode;
+
+        /// <summary>How long receivers may cache the MTA-STS policy, in seconds (RFC 8461: at most 31557600)</summary>
+        public int MtaStsMaxAgeSeconds { get; init; } = DefaultMtaStsMaxAgeSeconds;
+
+        private const string DefaultMtaStsMode = "testing";
+        private const int DefaultMtaStsMaxAgeSeconds = 86400;
+        private const int MaxMtaStsMaxAgeSeconds = 31557600;
+        private static readonly string[] MtaStsModes = ["testing", "enforce", "none"];
+
         public TenantMailSection()
         {
             // Mockable support
@@ -767,6 +782,22 @@ public class OdinConfiguration
                 SpfIncludeTarget = config.Required<string>("Email:TenantMail:SpfIncludeTarget");
                 DmarcReportEmail = config.Required<string>("Email:TenantMail:DmarcReportEmail");
                 TlsReportEmail = config.Required<string>("Email:TenantMail:TlsReportEmail");
+
+                // Blank, as an env var left empty to clear it, is unset
+                var mode = config.GetOrDefault("Email:TenantMail:MtaStsMode", "");
+                MtaStsMode = string.IsNullOrWhiteSpace(mode) ? DefaultMtaStsMode : mode;
+                if (!MtaStsModes.Contains(MtaStsMode))
+                {
+                    throw new OdinConfigException(
+                        $"Email:TenantMail:MtaStsMode '{MtaStsMode}' is not one of {string.Join(", ", MtaStsModes)}");
+                }
+
+                MtaStsMaxAgeSeconds = config.GetOrDefault("Email:TenantMail:MtaStsMaxAgeSeconds", DefaultMtaStsMaxAgeSeconds);
+                if (MtaStsMaxAgeSeconds is <= 0 or > MaxMtaStsMaxAgeSeconds)
+                {
+                    throw new OdinConfigException(
+                        $"Email:TenantMail:MtaStsMaxAgeSeconds {MtaStsMaxAgeSeconds} is not between 1 and {MaxMtaStsMaxAgeSeconds}");
+                }
             }
         }
     }
