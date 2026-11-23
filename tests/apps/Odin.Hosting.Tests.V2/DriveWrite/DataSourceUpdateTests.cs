@@ -60,6 +60,7 @@ public class DataSourceUpdateTests : V2Fixture
 
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), update.Error?.Content);
         Assert.That(TestUtils.ParseProblemDetails(update.Error!), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
+        await AssertUnchangedAsync(frodo, file);
     }
 
     [Test]
@@ -75,6 +76,7 @@ public class DataSourceUpdateTests : V2Fixture
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "bytes stored here for a file whose payloads are remote");
         Assert.That(TestUtils.ParseProblemDetails(update.Error!), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
         AssertNoPayloadFiles(frodo, drive);
+        await AssertUnchangedAsync(frodo, file);
     }
 
     [Test]
@@ -100,6 +102,10 @@ public class DataSourceUpdateTests : V2Fixture
             overwriteFileId: local.Content.File.FileId);
         Assert.That(overwrite.StatusCode, Is.EqualTo(HttpStatusCode.OK), overwrite.Error?.Content);
 
+        var header = (await frodo.V1.Drive.GetFileHeader(local.Content.File)).Content!;
+        Assert.That(header.FileMetadata.DataSource?.PayloadsAreRemote, Is.True);
+        Assert.That(header.FileMetadata.Payloads.Select(p => p.Key), Is.EquivalentTo(payloads.Select(p => p.Key)));
+        Assert.That(header.FileMetadata.Payloads.Single().BytesWritten, Is.EqualTo(0), "the header lists the remote payload, not the old one");
         foreach (var path in stored)
         {
             Assert.That(await store.ExistsAsync(path), Is.False, $"left in the store, listed by no file: {path}");
@@ -107,6 +113,13 @@ public class DataSourceUpdateTests : V2Fixture
     }
 
     //
+
+    private static async Task AssertUnchangedAsync(OwnerSession frodo, UploadResult file)
+    {
+        var header = (await frodo.V1.Drive.GetFileHeader(file.File)).Content!;
+        Assert.That(header.FileMetadata.AppData.Content, Is.EqualTo("first"));
+        Assert.That(header.FileMetadata.VersionTag, Is.EqualTo(file.NewVersionTag));
+    }
 
     private static UploadFileMetadata RemoteMetadata(TargetDrive drive, string content)
     {

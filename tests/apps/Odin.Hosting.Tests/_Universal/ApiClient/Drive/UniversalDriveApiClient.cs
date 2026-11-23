@@ -433,7 +433,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             StorageOptions = new()
             {
                 Drive = targetDrive,
-                OverwriteFileId = overwriteFileId ?? default
+                OverwriteFileId = overwriteFileId
             },
             TransitOptions = transitOptions ?? new TransitOptions()
             {
