@@ -55,8 +55,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         /// <summary>
         /// What sending or updating a file on <paramref name="recipients"/> needs.  The upload and update writers ask it
-        /// before they store anything, so a refused send leaves no file behind (#2155); <see cref="SendFile"/> and
-        /// <see cref="UpdateFile"/> ask it again for their other callers.
+        /// before they store anything, so a refused send leaves no file behind (#2155).  <see cref="SendFile"/> asks it again
+        /// for its other callers (feed distribution, Shamir); <see cref="UpdateFile"/>, called only by the update writer,
+        /// asks it again so it never depends on that.
         /// </summary>
         public static void AssertMaySendTo(IReadOnlyCollection<OdinId> recipients, OdinId tenant, IOdinContext odinContext)
         {
