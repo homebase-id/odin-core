@@ -1100,7 +1100,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.PayloadsAreRemote;
+            // The new payloads are copied in only when they are stored here; the replaced ones are deleted per the old
+            // header, which may hold local payloads even when the new one's are remote (#2108)
+            var keepStoredPayloads = ignorePayload.GetValueOrDefault(false);
+            var copyPayloads = !keepStoredPayloads && !newMetadata.PayloadsAreRemote;
 
             List<PayloadDescriptor> payloads = [];
             var (existingServerHeader, shares) = await GetServerFileHeaderAndSharesAsync(targetFile, odinContext);
@@ -1152,7 +1155,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // rollback and the post-commit-failure rollback below must leave these objects alone.
             var committedPayloads = existingServerHeader.FileMetadata.Payloads?.ToList() ?? [];
 
-            if (!ignorePayload.GetValueOrDefault(false))
+            if (copyPayloads)
             {
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive, sourceArea,
                     committedPayloads);
@@ -1202,7 +1205,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 if (success)
                 {
-                    if (!ignorePayload.GetValueOrDefault(false))
+                    // TryHardDeletePayloadsOf leaves an old header's remote payloads alone
+                    if (!keepStoredPayloads)
                     {
                         //Since this method is a full overwrite, zombies are all payloads on the file being
                         //overwritten, except any the incoming header reuses in place: a peer retransmit carries the
@@ -1214,7 +1218,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 else
                 {
-                    if (!ignorePayload.GetValueOrDefault(false))
+                    if (copyPayloads)
                     {
                         // The header was never replaced, so the old one still references committedPayloads. Roll back
                         // only the incoming copies that live at their own objects.
@@ -1245,13 +1249,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // The payloads replaced below are the ones this header lists
             AssertVersionTagMatches(existingServerHeader, expectedVersionTag);
 
-            // A file whose payloads are remote has none stored here: bytes copied in would be listed as remote, never
-            // served, and never deleted with the file
-            if (existingServerHeader.FileMetadata.PayloadsAreRemote)
-            {
-                throw new OdinClientException("Cannot add a payload to a file whose payloads are remote",
-                    OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
-            }
+            AssertPayloadsAreStoredHere(existingServerHeader);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
@@ -1506,10 +1504,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             // A member's update keeping a shared file's key becomes the file's own key header with the new IV
             manifest.KeyHeader = ZkDriveFiles.KeepFileKey(existingHeader, manifest.KeyHeader);
 
-            if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
+            // By value: the stored header and the manifest never share an instance, so a reference compare refused
+            // every file with a data source (#2108)
+            AssertSameDataSource(existingHeader, manifest.FileMetadata);
+            if ((manifest.PayloadInstruction ?? []).Any(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
             {
-                throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates",
-                    OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+                AssertPayloadsAreStoredHere(existingHeader);
             }
 
             // First prepare by copying everything needed
@@ -2584,6 +2584,19 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         public Task AssertMayChangeSharedFileAsync(StorageDrive drive, ServerFileHeader stored, IOdinContext odinContext) =>
             AssertSenderOrShareMayWriteAsync(drive, stored, odinContext.GetCallerOdinIdOrFail(), odinContext);
+
+        /// <summary>
+        /// A file whose payloads are remote has none stored here: bytes copied in would be listed as remote, never served,
+        /// and never deleted with the file
+        /// </summary>
+        private static void AssertPayloadsAreStoredHere(ServerFileHeader existing)
+        {
+            if (existing.FileMetadata.PayloadsAreRemote)
+            {
+                throw new OdinClientException("Cannot add a payload to a file whose payloads are remote",
+                    OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+            }
+        }
 
         /// <summary>A file sent again keeps its data source.</summary>
         internal static void AssertSameDataSource(ServerFileHeader existing, FileMetadata newMetadata)
