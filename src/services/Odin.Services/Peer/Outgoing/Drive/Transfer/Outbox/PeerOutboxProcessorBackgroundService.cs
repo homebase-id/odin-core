@@ -239,7 +239,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         async () =>
                         {
                             // Try to clean up the transient file
-                            if (!await peerOutbox.HasOutboxFileItemAsync(fileItem))
+                            if (!await peerOutbox.HasOutboxFileItemAsync(fileItem.File))
                             {
                                 logger.LogDebug("File was transient and all other outbox records sent; deleting");
                                 await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext);

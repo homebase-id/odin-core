@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Hosting.UnifiedV2.Drive.Write;
@@ -22,18 +24,23 @@ using Refit;
 namespace Odin.Hosting.Tests.V2.Peer;
 
 /// <summary>
-/// A send or a peer update from a caller without <c>UseTransitWrite</c> is refused before anything is stored (#2155).
-/// A peer update or a transient upload is stored on the sender's transient drive until the outbox sends it; one stored
-/// and then refused stayed there for good, and its uniqueId refused every later update of the same file.
+/// A peer update or a transient upload is stored on the sender's transient drive until the outbox sends it, and only the
+/// outbox removes it.  One stored and then refused, or that no recipient was queued for, stayed there for good, and its
+/// uniqueId refused every later update of the same file.  A send from a caller without <c>UseTransitWrite</c> is refused
+/// before anything is stored (#2155); a transient file the outbox didn't get is deleted (#2158).
 ///
-/// Layout: Pippin sends; Frodo hosts the drive, and grants Pippin Write through a circle.
+/// Layout: Pippin sends; Frodo hosts the drive, and grants Pippin Write through a circle.  Merry isn't connected to
+/// Pippin, so a send to her is never queued.
 /// </summary>
 [TestFixture]
 public class RefusedPeerSendTests : V2Fixture
 {
-    protected override string[] HostIdentities => [Identities.Frodo, Identities.Pippin];
+    protected override string[] HostIdentities => [Identities.Frodo, Identities.Pippin, Identities.Merry];
 
     private static readonly Guid TransientDrive = SystemDriveConstants.TransientTempDrive.Alias;
+
+    // A send to Merry fails to queue, and SendFile logs that at Error (PeerOutgoingTransferService.CreateOutboxItems)
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings => ["Failed while creating outbox item"];
 
     private static UploadManifest EmptyManifest => new() { PayloadDescriptors = [] };
 
@@ -128,6 +135,61 @@ public class RefusedPeerSendTests : V2Fixture
         Assert.That(stored.Content.FileMetadata.VersionTag, Is.EqualTo(created.Content.NewVersionTag));
     }
 
+    [Test]
+    public async Task AnUnqueuedPeerUpdateLeavesNothing_SoTheNextOneGoesThrough()
+    {
+        var (pippin, frodo, drive) = await ArrangeAsync();
+        var gtid = await V2PeerUpdateByGtidTests.TransferAsync(pippin, frodo, drive, Metadata(Guid.NewGuid(), "first"), []);
+        var uniqueId = Guid.NewGuid();
+
+        var unqueued = await V2PeerUpdateByGtidTests.UpdateAsync(pippin, (Odin.Core.Identity.OdinId)Identities.Merry, drive, gtid,
+            Metadata(uniqueId, "unqueued"), V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest));
+        Assert.That(unqueued.StatusCode, Is.EqualTo(HttpStatusCode.OK), unqueued.Error?.Content);
+        Assert.That(unqueued.Content!.RecipientStatus[Identities.Merry], Is.EqualTo(TransferStatus.EnqueuedFailed));
+        await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
+
+        var sent = await V2PeerUpdateByGtidTests.UpdateAsync(pippin, frodo.Identity, drive, gtid, Metadata(uniqueId, "sent"),
+            V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest));
+        Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
+
+        await pippin.Sync.DrainOutboxAsync();
+        await frodo.Sync.ProcessInboxAsync(drive, int.MaxValue);
+        var header = await frodo.V1.Drive.QueryByGlobalTransitId(new GlobalTransitIdFileIdentifier { GlobalTransitId = gtid, TargetDrive = drive });
+        Assert.That(header.Content!.SearchResults.Single().FileMetadata.AppData.Content, Is.EqualTo("sent"));
+    }
+
+    [Test]
+    public async Task AnUnqueuedTransientUploadLeavesNothing_SoTheNextOneGoesThrough()
+    {
+        var (pippin, frodo, drive) = await ArrangeAsync();
+        var uniqueId = Guid.NewGuid();
+
+        var unqueued = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "unqueued"), EmptyManifest, [],
+            new TransitOptions { IsTransient = true, Recipients = [Identities.Merry], RemoteTargetDrive = drive });
+        Assert.That(unqueued.StatusCode, Is.EqualTo(HttpStatusCode.OK), unqueued.Error?.Content);
+        Assert.That(unqueued.Content!.RecipientStatus[Identities.Merry], Is.EqualTo(TransferStatus.EnqueuedFailed));
+        await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
+
+        var sent = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "sent"), EmptyManifest, [],
+            new TransitOptions { IsTransient = true, Recipients = [frodo.Identity.DomainName], RemoteTargetDrive = drive });
+        Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
+        Assert.That(sent.Content!.RecipientStatus[frodo.Identity.DomainName], Is.EqualTo(TransferStatus.Enqueued));
+    }
+
+    /// <summary>A file staged on the transient drive with no recipients is the client's: kept, as one it overwrites later</summary>
+    [Test]
+    public async Task AFileStagedOnTheTransientDriveWithoutRecipientsIsKept()
+    {
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var uniqueId = Guid.NewGuid();
+
+        var staged = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "staged"), EmptyManifest, []);
+        Assert.That(staged.StatusCode, Is.EqualTo(HttpStatusCode.OK), staged.Error?.Content);
+
+        var stored = await pippin.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, TransientDrive);
+        Assert.That(stored.StatusCode, Is.EqualTo(HttpStatusCode.OK), stored.Error?.Content);
+    }
+
     //
 
     private static UploadFileMetadata Metadata(Guid uniqueId, string content)
@@ -153,7 +215,7 @@ public class RefusedPeerSendTests : V2Fixture
     {
         var stored = await owner.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, driveId);
         Assert.That(stored.StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
-            $"the refused write stored file {stored.Content?.FileId} on drive {driveId}");
+            $"the write left file {stored.Content?.FileId} on drive {driveId}");
     }
 
     /// <summary>Frodo's drive, which his circle lets Pippin write</summary>
