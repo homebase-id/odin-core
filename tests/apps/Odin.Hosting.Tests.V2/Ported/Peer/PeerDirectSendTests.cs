@@ -116,6 +116,7 @@ public class PeerDirectSendTests : V2Fixture
         Assert.That(receivedFile.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(0));
 
         //Sender updates their comment
+        var beforeTheUpdate = Odin.Core.Time.UnixTimeUtc.Now().milliseconds;
 
         var (_, encryptedUpdatedCommentJsonContent64) = await TransferComment(
             sender,
@@ -132,7 +133,8 @@ public class PeerDirectSendTests : V2Fixture
         Assert.That(updatedReceivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
 
         Assert.That(updatedReceivedFile.FileMetadata.TransitCreated.milliseconds, Is.GreaterThan(0));
-        Assert.That(updatedReceivedFile.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(0));
+        Assert.That(updatedReceivedFile.FileMetadata.TransitUpdated.milliseconds, Is.GreaterThanOrEqualTo(beforeTheUpdate),
+            "the sender's send again moves TransitUpdated (#2065)");
     }
 
     /// <summary>

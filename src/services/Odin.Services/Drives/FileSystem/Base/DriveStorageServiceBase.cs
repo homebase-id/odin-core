@@ -1118,7 +1118,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             ZkDriveFiles.AssertMayReplace(existingServerHeader, keyHeader, odinContext);
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
-            newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
+            KeepStoredTransitUpdatedUnlessSet(existingServerHeader.FileMetadata, newMetadata);
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
             newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created,
@@ -2813,6 +2813,18 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
         }
 
+        /// <summary>
+        /// TransitUpdated is when a copy received over transit was last changed by its sender: a sender's send again
+        /// (PeerFileWriter) or update (PeerFileUpdateWriter) sets it, and every other write keeps the stored one (#2065)
+        /// </summary>
+        private static void KeepStoredTransitUpdatedUnlessSet(FileMetadata stored, FileMetadata newMetadata)
+        {
+            if (newMetadata.TransitUpdated.milliseconds == 0)
+            {
+                newMetadata.TransitUpdated = stored.TransitUpdated;
+            }
+        }
+
         private async Task OverwriteMetadataInternal(KeyHeader newKeyHeader, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
             IOdinContext odinContext, Guid? useThisVersionTag = null)
@@ -2842,6 +2854,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             }
+
+            KeepStoredTransitUpdatedUnlessSet(existingServerHeader.FileMetadata, newMetadata);
 
             ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 

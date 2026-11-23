@@ -129,6 +129,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     incomingMetadata.GlobalTransitId);
                 
                 incomingMetadata.VersionTag = existingHeader.FileMetadata.VersionTag;
+                // The sender changed the recipient's copy (#2065)
+                incomingMetadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
 
                 var manifest = new BatchUpdateManifest()
                 {

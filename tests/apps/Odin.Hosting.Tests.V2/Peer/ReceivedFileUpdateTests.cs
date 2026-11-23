@@ -3,8 +3,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Ported.Peer;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -60,6 +62,52 @@ public class ReceivedFileUpdateTests : V2Fixture
         var after = await FindAsync(sam, drive, globalTransitId);
         Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo("opened"));
         Assert.That(after.FileMetadata.TransitCreated.milliseconds, Is.EqualTo(transitCreated));
+    }
+
+    // #2065: TransitUpdated is when the sender last changed the copy.  A sender's update moves it, and the owner's own
+    // update keeps it
+    [Test]
+    public async Task SendersUpdate_MovesTransitUpdated_AndOwnersUpdateKeepsIt()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var drive = TargetDrive.NewTargetDrive();
+        await CollabChannelFlow.SetupAsync(frodo, drive, [sam], driveName: "Frodo's drive");
+
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true);
+        metadata.AppData.Content = "first";
+        var globalTransitId = await V2PeerUpdateByGtidTests.TransferAsync(sam, frodo, drive, metadata, []);
+        var received = await FindAsync(frodo, drive, globalTransitId);
+        Assert.That(received.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(0), "a first delivery is no update");
+
+        var beforeTheUpdate = UnixTimeUtc.Now().milliseconds;
+        var change = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true);
+        change.AppData.Content = "changed by sam";
+        var sent = await V2PeerUpdateByGtidTests.UpdateAsync(sam, frodo.Identity, drive, globalTransitId, change,
+            V2PeerUpdateByGtidTests.Instructions(drive, new UploadManifest { PayloadDescriptors = [] }));
+        Assert.That(sent.IsSuccessStatusCode, Is.True, sent.Error?.Content);
+        await sam.Sync.DrainOutboxAsync();
+        await frodo.Sync.ProcessInboxAsync(drive, int.MaxValue);
+
+        var changed = await FindAsync(frodo, drive, globalTransitId);
+        Assert.That(changed.FileMetadata.AppData.Content, Is.EqualTo("changed by sam"));
+        var transitUpdated = changed.FileMetadata.TransitUpdated.milliseconds;
+        Assert.That(transitUpdated, Is.GreaterThanOrEqualTo(beforeTheUpdate), "the sender's update moves TransitUpdated");
+
+        var own = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        own.AppData.Content = "changed by frodo";
+        own.VersionTag = changed.FileMetadata.VersionTag;
+        var update = await frodo.Drives.Writer.UpdateFileByFileId(drive.Alias, changed.FileId, new FileUpdateInstructionSetV2
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            Manifest = new UploadManifest { PayloadDescriptors = [] }
+        }, own, []);
+        Assert.That(update.IsSuccessStatusCode, Is.True, update.Error?.Content);
+
+        var after = await FindAsync(frodo, drive, globalTransitId);
+        Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo("changed by frodo"));
+        Assert.That(after.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated), "the owner's update keeps it");
     }
 
     private static async Task<SharedSecretEncryptedFileHeader> FindAsync(OwnerSession owner, TargetDrive drive,
