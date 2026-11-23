@@ -258,8 +258,9 @@ alone ("With Private Share").
 **Peers' contexts are cached** for up to an hour (`OdinContextCache`): their level, enabled circles and whether they
 are reviewed (`TransitAuthenticationService`) **(V)**. The cache is reset when a connection is finalized, blocked or
 deleted, when a member is removed from a circle (`CircleNetworkService.RevokeCircleAccessAsync`), and when a circle
-is disabled or enabled (`CircleMembershipService.SetDisabledAsync`, #2054) **(V)**, so a disable ends a peer's access
-at once and an enable returns it at once.
+is disabled or enabled (`CircleDefinitionService.SetDisabledAsync`, #2054) **(V)**, so a disable ends a peer's access,
+and an enable returns it, on their next call. A peer notification socket already open keeps the context it connected
+with until it reconnects (`PeerAppNotificationHandler.HandleAuthentication`) **(V)**.
 
 ## Copies sent to others
 
