@@ -56,6 +56,18 @@ public class MissingPermissionKeyTests : V2Fixture
         AssertMissing(refused, PermissionKeys.UseTransitRead);
     }
 
+    /// <summary>Naming a peer's drive by slug needs either transit key: both are named</summary>
+    [Test]
+    public async Task ResolvingAPeerDriveBySlugWithNeitherTransitKeyNamesBoth()
+    {
+        var app = await AppWithAsync(PermissionKeys.ReadConnections);
+
+        var refused = await app.RefitFor<IPeerAppDriveHttpClientApiV2>()
+            .GetFileHeaderByGtid(Identities.Frodo, "some-app", "some-drive", Guid.NewGuid());
+
+        AssertMissing(refused, PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead);
+    }
+
     /// <summary>An app of Pippin's holding only <paramref name="key"/></summary>
     private async Task<AppSession> AppWithAsync(int key)
     {
@@ -65,12 +77,12 @@ public class MissingPermissionKeyTests : V2Fixture
         return await AppSession.SetupAsync(pippin, drive, DrivePermission.ReadWrite, [key]);
     }
 
-    private static void AssertMissing(IApiResponse response, int key)
+    private static void AssertMissing(IApiResponse response, params int[] keys)
     {
         Assert.That((response.StatusCode, response.ErrorCode()),
             Is.EqualTo((HttpStatusCode.Forbidden, OdinClientErrorCode.MissingPermissionKey)), response.Error?.Content);
         var problem = OdinSystemSerializer.Deserialize<Microsoft.AspNetCore.Mvc.ProblemDetails>(response.Error!.Content!)!;
-        var keys = ((JsonElement)problem.Extensions["permissionKeys"]!).EnumerateArray().Select(k => k.GetInt32());
-        Assert.That(keys, Is.EqualTo(new[] { key }), response.Error.Content);
+        var named = ((JsonElement)problem.Extensions["permissionKeys"]!).EnumerateArray().Select(k => k.GetInt32());
+        Assert.That(named, Is.EqualTo(keys), response.Error.Content);
     }
 }

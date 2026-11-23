@@ -62,7 +62,7 @@ public class PeerDriveQueryService(
         {
             throw PermissionContext.MissingPermissionKey(
                 $"Resolving a peer drive address requires {nameof(PermissionKeys.UseTransitRead)} or " +
-                $"{nameof(PermissionKeys.UseTransitWrite)}", PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite);
+                $"{nameof(PermissionKeys.UseTransitWrite)}", PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead);
         }
 
         OdinSlug.Required(appSlug, nameof(appSlug));

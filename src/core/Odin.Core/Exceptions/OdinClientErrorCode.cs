@@ -16,8 +16,9 @@ public enum OdinClientErrorCode
     PasswordRecoveryNotConfigured = 1005,
 
     /// <summary>
-    /// The caller's token lacks a permission key the call needs (HTTP 403).  The problem details name the keys that would
-    /// do as <c>permissionKeys</c>, any one of them (the values of PermissionKeys).
+    /// The caller lacks a permission key the call needs (HTTP 403): an app or guest its grant doesn't give, a peer its
+    /// circles don't.  The problem details name the keys that would do as <c>permissionKeys</c>, any one of them (the
+    /// values of PermissionKeys).
     /// </summary>
     MissingPermissionKey = 1006,
 
