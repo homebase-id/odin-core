@@ -178,9 +178,10 @@ public class CircleShareKeyTests : V2Fixture
 
     /// <summary>
     /// A disabled circle grants nothing, so its members can't fetch their copies, even within the hour a peer's
-    /// context stays cached; enabling it again gives the same copy back at once, to a member whose context was
-    /// built while it was disabled.  Both reset the cached peer contexts (#2054) and rewrite the circle row, which
-    /// keeps its key.
+    /// context stays cached (the read asks whether it is enabled); enabling it again gives the same copy back at
+    /// once, to a member whose context was built while it was disabled, which needs the reset of the cached peer
+    /// contexts (#2054).  Both rewrite the circle row, which keeps its key.  The reset on a disable is tested by
+    /// <see cref="Ported.Circles.CircleMembershipTakesEffectImmediatelyTests"/>.
     /// </summary>
     [Test]
     public async Task ADisabledCircleServesNoCopy()

@@ -332,7 +332,8 @@ namespace Odin.Services.Membership.Circles
         /// The only writer of <see cref="CircleDefinition.Disabled"/>; <see cref="UpdateAsync"/> keeps
         /// the stored value.  Resets the cached peer contexts, which hold their enabled circles: without it a
         /// disable reaches a member, and an enable returns their access, only when theirs expires, up to an hour
-        /// later (#2054).
+        /// later (#2054).  Not for use inside a transaction: the reset is immediate, so a context rebuilt before the
+        /// commit would read the old row (a caller holding one would make the reset a post-commit action).
         /// </summary>
         public async Task SetDisabledAsync(GuidId circleId, bool disabled)
         {
