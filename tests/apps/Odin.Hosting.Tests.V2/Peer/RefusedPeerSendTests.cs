@@ -1,9 +1,11 @@
 #nullable enable
 using System;
+using Autofac;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Core.Storage.Database.Identity.Table;
 using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
@@ -128,7 +130,50 @@ public class RefusedPeerSendTests : V2Fixture
         Assert.That(stored.Content.FileMetadata.VersionTag, Is.EqualTo(created.Content.NewVersionTag));
     }
 
+    /// <summary>A local update naming recipients of a file that can't be sent (no global transit id) is refused whole:
+    /// before, the local file was changed, then the send answered 400 (#2160)</summary>
+    [Test]
+    public async Task ALocalUpdateWithRecipientsOfAFileWithNoGlobalTransitIdChangesNothing()
+    {
+        var pippin = await LoginAsOwner(Identities.Pippin);
+        var localDrive = TargetDrive.NewTargetDrive();
+        await pippin.Admin.CreateDrive(localDrive, "local drive");
+        var created = await AppFileUploads.SeedTextFileAsync(pippin, localDrive, "first");
+        await DropGlobalTransitIdAsync(pippin, localDrive, created.FileId);
+
+        var metadata = Metadata(Guid.NewGuid(), "refused");
+        metadata.VersionTag = created.NewVersionTag;
+        var refused = await pippin.Drives.Writer.UpdateFileByFileId(localDrive.Alias, created.FileId, new FileUpdateInstructionSetV2
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            Recipients = [new Odin.Core.Identity.OdinId(Identities.Frodo)],
+            Manifest = EmptyManifest
+        }, metadata, []);
+
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), refused.Error?.Content);
+        Assert.That(refused.Error?.Content, Does.Contain("named by its global transit id"));
+        var after = await AppFileUploads.HeaderAsync(pippin, localDrive, created.FileId);
+        Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo("first"));
+        Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(created.NewVersionTag));
+    }
+
     //
+
+    /// <summary>
+    /// Every upload gets a global transit id now, so the file is made as an older one stored without one: its row's
+    /// id is cleared in the table
+    /// </summary>
+    private async Task DropGlobalTransitIdAsync(OwnerSession owner, TargetDrive drive, Guid fileId)
+    {
+        var row = await HeaderRowAsync(owner, drive.Alias, fileId);
+        row.globalTransitId = null;
+        await using var scope = Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
+        await scope.Resolve<TableDriveMainIndexCached>().RawUpdateAsync(row);
+
+        var header = await AppFileUploads.HeaderAsync(owner, drive, fileId);
+        Assert.That(header.FileMetadata.GlobalTransitId, Is.Null, "precondition: the file has no global transit id");
+    }
 
     private static UploadFileMetadata Metadata(Guid uniqueId, string content)
     {

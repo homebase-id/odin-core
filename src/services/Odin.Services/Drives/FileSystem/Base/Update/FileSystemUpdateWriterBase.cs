@@ -93,13 +93,24 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 FileId = fileId.GetValueOrDefault()
             };
 
+            // Before anything is stored: a file with no global transit id can't be sent, and the update was
+            // committed before the send found that out (#2160). A missing file is left to the update to report.
+            if (instructionSet.Recipients is { Count: > 0 } &&
+                await FileSystem.Storage.GetServerFileHeader(file, odinContext) is { } header)
+            {
+                new FileIdentifier
+                {
+                    GlobalTransitId = header.FileMetadata.GlobalTransitId,
+                    TargetDrive = instructionSet.File.TargetDrive
+                }.AssertIsValidPeerTarget();
+            }
+
             this.Package = new FileUpdatePackage(file)
             {
                 InstructionSet = instructionSet,
                 FileSystemType = fileSystemType
             };
 
-            await Task.CompletedTask;
             return;
         }
 
