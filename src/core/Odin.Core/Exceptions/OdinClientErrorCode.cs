@@ -15,6 +15,12 @@ public enum OdinClientErrorCode
     PublicKeyEncryptionIsInvalid = 1004,
     PasswordRecoveryNotConfigured = 1005,
 
+    /// <summary>
+    /// The caller's token lacks a permission key the call needs (HTTP 403).  The problem details name the keys that would
+    /// do as <c>permissionKeys</c>, any one of them (PermissionKeys: UseTransitWrite 210, UseTransitRead 305, ...).
+    /// </summary>
+    MissingPermissionKey = 1006,
+
     // Notifcation Errors 20xx
     InvalidNotificationType = 2001,
     UnknownNotificationId = 2002,
