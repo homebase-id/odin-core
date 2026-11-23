@@ -169,9 +169,9 @@ namespace Odin.Services.Base
             var key = access == PeerAccess.Write ? PermissionKeys.UseTransitWrite : PermissionKeys.UseTransitRead;
             if (!HasPermission(key))
             {
-                throw new OdinSecurityException(access == PeerAccess.Write
+                throw MissingPermissionKey(access == PeerAccess.Write
                     ? "Sending, updating or deleting files on a peer requires UseTransitWrite"
-                    : "Reading or querying a peer's files requires UseTransitRead");
+                    : "Reading or querying a peer's files requires UseTransitRead", key);
             }
         }
 
@@ -179,9 +179,19 @@ namespace Odin.Services.Base
         {
             if (!HasAtLeastOnePermission(permissionKeys))
             {
-                throw new OdinSecurityException("Does not have permission");
+                throw MissingPermissionKey("Does not have permission", permissionKeys);
             }
         }
+
+        /// <summary>
+        /// A refusal a client can tell from any other 403: its code, and the keys any one of which would have done.  They name
+        /// only what the call needs, which the caller's own security context and the route already say.
+        /// </summary>
+        public static OdinSecurityException MissingPermissionKey(string message, params int[] permissionKeys) =>
+            new(message, OdinClientErrorCode.MissingPermissionKey)
+            {
+                Extensions = new Dictionary<string, object> { ["permissionKeys"] = permissionKeys }
+            };
 
         public bool HasAtLeastOnePermission(params int[] permissionKeys)
         {
@@ -192,7 +202,7 @@ namespace Odin.Services.Base
         {
             if (!HasPermission(permissionKey))
             {
-                throw new OdinSecurityException("Does not have permission");
+                throw MissingPermissionKey("Does not have permission", permissionKey);
             }
         }
 

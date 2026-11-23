@@ -60,9 +60,9 @@ public class PeerDriveQueryService(
         var perms = odinContext.PermissionsContext;
         if (!perms.HasPermission(PermissionKeys.UseTransitRead) && !perms.HasPermission(PermissionKeys.UseTransitWrite))
         {
-            throw new OdinSecurityException(
+            throw PermissionContext.MissingPermissionKey(
                 $"Resolving a peer drive address requires {nameof(PermissionKeys.UseTransitRead)} or " +
-                $"{nameof(PermissionKeys.UseTransitWrite)}");
+                $"{nameof(PermissionKeys.UseTransitWrite)}", PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead);
         }
 
         OdinSlug.Required(appSlug, nameof(appSlug));
@@ -135,8 +135,8 @@ public class PeerDriveQueryService(
         // Write, not read: the key exists to put data on someone else's drive, or a key for them to open
         if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.UseTransitWrite))
         {
-            throw new OdinSecurityException(
-                $"Fetching a peer drive public key requires {nameof(PermissionKeys.UseTransitWrite)}");
+            throw PermissionContext.MissingPermissionKey(
+                $"Fetching a peer drive public key requires {nameof(PermissionKeys.UseTransitWrite)}", PermissionKeys.UseTransitWrite);
         }
 
         OdinSlug.Required(appSlug, nameof(appSlug));
