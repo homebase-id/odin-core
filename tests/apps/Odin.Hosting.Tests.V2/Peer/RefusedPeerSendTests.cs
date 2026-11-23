@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests.V2.Peer;
 /// before anything is stored (#2155); a transient file the outbox didn't get is deleted (#2158).
 ///
 /// Layout: Pippin sends; Frodo hosts the drive, and grants Pippin Write through a circle.  Merry isn't connected to
-/// Pippin, so a send to her is never queued.
+/// Pippin, so a send to her is never queued.  Sam hosts a second copy of Frodo's drive, for an update sent to both.
 /// </summary>
 [TestFixture]
 public class RefusedPeerSendTests : V2Fixture
@@ -165,11 +165,8 @@ public class RefusedPeerSendTests : V2Fixture
     [Test]
     public async Task APeerUpdateToTwoRecipientsReachesBoth()
     {
-        var pippin = await LoginAsOwner(Identities.Pippin);
-        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (pippin, frodo, drive) = await ArrangeAsync();
         var sam = await LoginAsOwner(Identities.Sam);
-        var drive = TargetDrive.NewTargetDrive();
-        await CollabChannelFlow.SetupAsync(frodo, drive, [pippin], driveName: "Frodo's drive");
         await CollabChannelFlow.SetupAsync(sam, drive, [pippin], driveName: "Sam's drive");
 
         var sent = await pippin.V1.PeerDirect.TransferNewFile(drive, Metadata(Guid.NewGuid(), "first"), [frodo.Identity, sam.Identity], null,
