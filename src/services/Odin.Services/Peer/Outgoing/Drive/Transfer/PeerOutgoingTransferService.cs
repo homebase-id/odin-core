@@ -52,6 +52,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// </summary>
         public static void AssertRecipientCount(int count) =>
             OdinValidationUtils.AssertIsTrue(count <= MaxRecipientCount, $"max recipients is {MaxRecipientCount}");
+
+        /// <summary>
+        /// What sending or updating a file on <paramref name="recipients"/> needs.  The upload and update writers ask it
+        /// before they store anything, so a refused send leaves no file behind (#2155); <see cref="SendFile"/> and
+        /// <see cref="UpdateFile"/> ask it again for their other callers.
+        /// </summary>
+        public static void AssertMaySendTo(IReadOnlyCollection<OdinId> recipients, OdinId tenant, IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
+            OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenant);
+            AssertRecipientCount(recipients.Count);
+        }
+
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         /// <summary>
@@ -71,10 +84,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             Guid? expectedVersionTag = null,
             bool tellSendersClient = false)
         {
-            odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
-
-            OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
-            AssertRecipientCount(options.Recipients.Count);
+            AssertMaySendTo(options.Recipients.ToOdinIdList(), tenantContext.HostOdinId, odinContext);
 
             var sfo = new FileTransferOptions()
             {
@@ -132,9 +142,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             DataSource overrideDataSource = null,
             Guid? expectedVersionTag = null)
         {
-            odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
-            OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
-            AssertRecipientCount(recipients.Count);
+            AssertMaySendTo(recipients, tenantContext.HostOdinId, odinContext);
 
             var request = new UpdateRemoteFileRequest()
             {

@@ -63,6 +63,12 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
         instructionSet.AssertIsValid();
         OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, allowEmpty: true, odinContext.Tenant);
 
+        // Before anything is stored: a peer update committed to the transient drive first stayed behind (#2155)
+        if (instructionSet.Recipients is { Count: > 0 } recipients)
+        {
+            PeerOutgoingTransferService.AssertMaySendTo(recipients, odinContext.Tenant, odinContext);
+        }
+
         instructionSet.Manifest.ResetPayloadUiDs();
 
         if (instructionSet.Locale == UpdateLocale.Local)
