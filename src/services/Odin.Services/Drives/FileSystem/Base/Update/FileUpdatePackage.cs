@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
@@ -30,6 +31,14 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         public FileSystemType FileSystemType { get; init; }
 
         public Guid NewVersionTag { get; init; }
+
+        /// <summary>
+        /// The recipients' copy of the file, worked out before anything is stored; null when the update names no
+        /// recipients.  A local update keeps the stored global transit id, so it is still the one after the commit.
+        /// Its GlobalTransitId is null when the stored header couldn't be read at the start: the update refuses that
+        /// file before any send, and the send asserts the target again.
+        /// </summary>
+        public FileIdentifier PeerTarget { get; init; }
 
         /// <summary>
         /// List of payloads uploaded
