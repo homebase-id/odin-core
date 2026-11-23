@@ -103,11 +103,18 @@ One consolidated `Email` section replaces today's top-level `Mailgun` section an
                                             // MX node serves a certificate valid for its hostname
       "MtaStsMaxAgeSeconds": 86400          // optional: policy cache lifetime, 1..31557600 (about a week
                                             // once enforcing). Mode, max_age and MxNodes all feed the
-                                            // _mta-sts id, so changing any of them re-publishes it
+                                            // _mta-sts id. The policy file changes at once; the TXT
+                                            // id only when the records are rewritten (see below)
     }
   }
 }
 ```
+
+Changing `MtaStsMode`, `MtaStsMaxAgeSeconds` or `MxNodes`: the policy file is built from config on every request, so it changes as soon as the host restarts, but the `_mta-sts` TXT id is written only at registration. Rewrite the records after the change, or receivers that cached the old policy keep it until its `max_age` runs out (backing out of `enforce` included):
+
+- managed domains: `populate-managed-domain-records commit`;
+- own-domain zones we host: `create-own-domain-zones commit`;
+- self-managed DNS: the owner updates the TXT record.
 
 Notes:
 

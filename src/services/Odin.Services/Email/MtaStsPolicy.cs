@@ -33,7 +33,8 @@ public static class MtaStsPolicy
     /// <summary>
     /// Deterministic policy id: derived from the whole policy body, so it changes exactly when
     /// the served policy does (MX nodes, mode or max_age), which is what makes receivers refetch.
-    /// No clock dependency.
+    /// No clock dependency. The id reaches DNS only when a tenant's records are written (registration,
+    /// or the populate-managed-domain-records / create-own-domain-zones commands), not on a config change.
     /// </summary>
     public static string ComputeId(OdinConfiguration.TenantMailSection tenantMail)
     {

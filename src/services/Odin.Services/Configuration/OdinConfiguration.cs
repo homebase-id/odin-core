@@ -783,7 +783,9 @@ public class OdinConfiguration
                 DmarcReportEmail = config.Required<string>("Email:TenantMail:DmarcReportEmail");
                 TlsReportEmail = config.Required<string>("Email:TenantMail:TlsReportEmail");
 
-                MtaStsMode = config.GetOrDefault("Email:TenantMail:MtaStsMode", DefaultMtaStsMode);
+                // Blank, as an env var left empty to clear it, is unset
+                var mode = config.GetOrDefault("Email:TenantMail:MtaStsMode", "");
+                MtaStsMode = string.IsNullOrWhiteSpace(mode) ? DefaultMtaStsMode : mode;
                 if (!MtaStsModes.Contains(MtaStsMode))
                 {
                     throw new OdinConfigException(

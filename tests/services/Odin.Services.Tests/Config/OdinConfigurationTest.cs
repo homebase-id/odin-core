@@ -196,9 +196,20 @@ public class OdinConfigurationTest
         Assert.That(section.MtaStsMaxAgeSeconds, Is.EqualTo(604800));
     }
 
+    [TestCase("")]
+    [TestCase("  ")]
+    public void TenantMailSection_TakesABlankMtaStsModeAsUnset(string mode)
+    {
+        var section = new OdinConfiguration.TenantMailSection(BuildConfig(TenantMailPairs(new()
+        {
+            ["Email:TenantMail:MtaStsMode"] = mode,
+        })));
+
+        Assert.That(section.MtaStsMode, Is.EqualTo("testing"));
+    }
+
     [TestCase("Enforce")]
     [TestCase("strict")]
-    [TestCase("")]
     public void TenantMailSection_RejectsAnUnknownMtaStsMode(string mode)
     {
         Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.TenantMailSection(BuildConfig(TenantMailPairs(new()
