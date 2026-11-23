@@ -114,11 +114,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return item;
         }
 
-        public async Task<bool> HasOutboxFileItemAsync(OutboxFileItem fileItem)
+        /// <summary>Whether the outbox holds any item for <paramref name="file"/>: a send, an update or anything else</summary>
+        public async Task<bool> HasAnyItemForFileAsync(InternalDriveFileId file)
         {
-            var records = await tblOutbox.GetAsync(fileItem.File.DriveId, fileItem.File.FileId);
-            var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
-            return hasRecord;
+            var records = await tblOutbox.GetAsync(file.DriveId, file.FileId);
+            return records?.Count > 0;
         }
 
         /// <summary>
