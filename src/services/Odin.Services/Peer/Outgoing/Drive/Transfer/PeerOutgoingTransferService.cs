@@ -100,8 +100,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             try
             {
-                // A send that threw may have queued some recipients first: the outbox removes the file once it sent them
-                if (!await peerOutbox.HasOutboxFileItemAsync(transientFile))
+                // A send that threw may have queued some recipients first: the outbox removes the file once it sent them.
+                // Any item counts: a peer update is queued as a RemoteFileUpdate, not a File
+                if (!await peerOutbox.HasAnyItemForFileAsync(transientFile))
                 {
                     await fileSystem.Storage.HardDeleteLongTermFile(transientFile, odinContext);
                 }
