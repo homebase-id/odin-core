@@ -49,6 +49,7 @@ public class OdinDatabaseException : OdinSystemException
 
         return named?.Contains(columnPrefix, StringComparison.OrdinalIgnoreCase) == true;
     }
+
     private bool IsUniqueConstraintViolationError()
     {
         if (InnerException == null)
