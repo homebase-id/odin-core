@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Odin.Core.Exceptions
 {
@@ -23,5 +24,8 @@ namespace Odin.Core.Exceptions
         public bool IsRemoteIcrIssue { get; set; }
 
         public OdinClientErrorCode ErrorCode { get; set; } = OdinClientErrorCode.NoErrorCode;
+
+        /// <summary>Written onto the problem details, as <see cref="OdinClientException.Extensions"/> is</summary>
+        public Dictionary<string, object> Extensions { get; init; }
     }
 }

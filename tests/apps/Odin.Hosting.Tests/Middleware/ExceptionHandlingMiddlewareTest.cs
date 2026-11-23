@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading;
@@ -122,6 +123,28 @@ public class ExceptionHandlingMiddlewareTest
                 It.IsAny<Exception>(),
                 It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
             Times.Never);
+    }
+
+    [Test]
+    public async Task SecurityExceptionIsForbiddenWithItsCodeAndExtensions()
+    {
+        var server = CreateTestServer(Environments.Production, new Mock<ILogger<ExceptionHandlingMiddleware>>().Object, async _ =>
+        {
+            await Task.CompletedTask;
+            throw new OdinSecurityException("no key", OdinClientErrorCode.MissingPermissionKey)
+            {
+                Extensions = new Dictionary<string, object> { ["permissionKeys"] = new[] { 210 } }
+            };
+        });
+
+        var response = await server.CreateClient().GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), content);
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(Enum.Parse<OdinClientErrorCode>(problems.Extensions["errorCode"].ToString()!, true),
+            Is.EqualTo(OdinClientErrorCode.MissingPermissionKey));
+        Assert.That(problems.Extensions["permissionKeys"].ToString(), Is.EqualTo("[210]"));
     }
 
     [Test]

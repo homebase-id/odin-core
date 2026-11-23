@@ -326,8 +326,9 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false,
                 odinContext, sourceArea: StagingArea.Upload);
 
-            var recipientStatus = await ProcessTransitInstructions(Package, Package.PeerTarget, keyHeader, odinContext,
-                expectedVersionTag);
+            var recipientStatus = await _peerOutgoingTransferService.SendFromTransientDriveAsync(Package.InternalFile, FileSystem,
+                () => ProcessTransitInstructions(Package, Package.PeerTarget, keyHeader, odinContext, expectedVersionTag),
+                odinContext);
 
             return new FileUpdateResult()
             {
