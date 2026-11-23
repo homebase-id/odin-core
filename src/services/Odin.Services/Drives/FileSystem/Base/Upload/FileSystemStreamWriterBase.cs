@@ -476,8 +476,6 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
         if (transitOptions.Recipients?.Any() ?? false)
         {
-            OdinValidationUtils.AssertValidRecipientList(transitOptions.Recipients, allowEmpty: true);
-
             recipientStatus = await _peerOutgoingTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,

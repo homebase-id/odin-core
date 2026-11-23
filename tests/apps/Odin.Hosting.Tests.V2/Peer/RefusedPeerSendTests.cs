@@ -31,21 +31,23 @@ public class RefusedPeerSendTests : V2Fixture
 
     private static readonly Guid TransientDrive = SystemDriveConstants.TransientTempDrive.Alias;
 
+    private static UploadManifest EmptyManifest => new() { PayloadDescriptors = [] };
+
     [Test]
     public async Task ARefusedPeerUpdateStoresNothing_SoTheNextOneGoesThrough()
     {
-        var (pippin, frodo, drive, gtid) = await FrodosFileFromPippinAsync();
+        var (pippin, frodo, drive) = await ArrangeAsync();
+        var gtid = await V2PeerUpdateByGtidTests.TransferAsync(pippin, frodo, drive, Metadata(Guid.NewGuid(), "first"), []);
         var uniqueId = Guid.NewGuid();
-        var readOnlyApp = await AppSession.SetupAsync(pippin, SystemDriveConstants.TransientTempDrive, DrivePermission.ReadWrite,
-            [PermissionKeys.UseTransitRead]);
+        var readOnlyApp = await ReadOnlyAppAsync(pippin, SystemDriveConstants.TransientTempDrive);
 
         var refused = await V2PeerUpdateByGtidTests.UpdateAsync(readOnlyApp, frodo.Identity, drive, gtid, Metadata(uniqueId, "refused"),
-            V2PeerUpdateByGtidTests.Instructions(drive, new UploadManifest { PayloadDescriptors = [] }));
+            V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest));
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), refused.Error?.Content);
         await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
 
         var sent = await V2PeerUpdateByGtidTests.UpdateAsync(pippin, frodo.Identity, drive, gtid, Metadata(uniqueId, "sent"),
-            V2PeerUpdateByGtidTests.Instructions(drive, new UploadManifest { PayloadDescriptors = [] }));
+            V2PeerUpdateByGtidTests.Instructions(drive, EmptyManifest));
         Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
 
         await pippin.Sync.DrainOutboxAsync();
@@ -57,19 +59,17 @@ public class RefusedPeerSendTests : V2Fixture
     [Test]
     public async Task ARefusedTransientUploadStoresNothing_SoTheNextOneGoesThrough()
     {
-        var (pippin, frodo, drive, _) = await FrodosFileFromPippinAsync();
+        var (pippin, frodo, drive) = await ArrangeAsync();
         var uniqueId = Guid.NewGuid();
         var transit = new TransitOptions { IsTransient = true, Recipients = [frodo.Identity.DomainName], RemoteTargetDrive = drive };
-        var readOnlyApp = await AppSession.SetupAsync(pippin, SystemDriveConstants.TransientTempDrive, DrivePermission.ReadWrite,
-            [PermissionKeys.UseTransitRead]);
+        var readOnlyApp = await ReadOnlyAppAsync(pippin, SystemDriveConstants.TransientTempDrive);
 
         var refused = await readOnlyApp.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "refused"),
-            new UploadManifest { PayloadDescriptors = [] }, [], transit);
+            EmptyManifest, [], transit);
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), refused.Error?.Content);
         await AssertNothingStoredAsync(pippin, TransientDrive, uniqueId);
 
-        var sent = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "sent"),
-            new UploadManifest { PayloadDescriptors = [] }, [], transit);
+        var sent = await pippin.Drives.Writer.CreateNewUnencryptedFile(TransientDrive, Metadata(uniqueId, "sent"), EmptyManifest, [], transit);
         Assert.That(sent.StatusCode, Is.EqualTo(HttpStatusCode.OK), sent.Error?.Content);
     }
 
@@ -77,15 +77,14 @@ public class RefusedPeerSendTests : V2Fixture
     [Test]
     public async Task ARefusedLocalUploadWithRecipientsStoresNothing()
     {
-        var (pippin, frodo, drive, _) = await FrodosFileFromPippinAsync();
+        var pippin = await LoginAsOwner(Identities.Pippin);
         var uniqueId = Guid.NewGuid();
         var localDrive = TargetDrive.NewTargetDrive();
         await pippin.Admin.CreateDrive(localDrive, "local drive");
-        var readOnlyApp = await AppSession.SetupAsync(pippin, localDrive, DrivePermission.ReadWrite, [PermissionKeys.UseTransitRead]);
+        var readOnlyApp = await ReadOnlyAppAsync(pippin, localDrive);
 
         var refused = await readOnlyApp.Drives.Writer.CreateNewUnencryptedFile(localDrive.Alias, Metadata(uniqueId, "refused"),
-            new UploadManifest { PayloadDescriptors = [] }, [],
-            new TransitOptions { Recipients = [frodo.Identity.DomainName], RemoteTargetDrive = drive });
+            EmptyManifest, [], new TransitOptions { Recipients = [Identities.Frodo], RemoteTargetDrive = TargetDrive.NewTargetDrive() });
 
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), refused.Error?.Content);
         await AssertNothingStoredAsync(pippin, localDrive.Alias, uniqueId);
@@ -101,6 +100,10 @@ public class RefusedPeerSendTests : V2Fixture
         return metadata;
     }
 
+    /// <summary>An app of <paramref name="owner"/>'s that writes <paramref name="drive"/> and reads peers, but may not send to them</summary>
+    private static Task<AppSession> ReadOnlyAppAsync(OwnerSession owner, TargetDrive drive) =>
+        AppSession.SetupAsync(owner, drive, DrivePermission.ReadWrite, [PermissionKeys.UseTransitRead]);
+
     private static async Task AssertNothingStoredAsync(OwnerSession owner, Guid driveId, Guid uniqueId)
     {
         var stored = await owner.Drives.Reader.GetFileHeaderByUniqueIdAsync(uniqueId, driveId);
@@ -108,22 +111,13 @@ public class RefusedPeerSendTests : V2Fixture
             $"the refused write stored file {stored.Content?.FileId} on drive {driveId}");
     }
 
-    /// <summary>A file Pippin sent to Frodo's drive, which Frodo's circle lets him write</summary>
-    private async Task<(OwnerSession Pippin, OwnerSession Frodo, TargetDrive Drive, Guid Gtid)> FrodosFileFromPippinAsync()
+    /// <summary>Frodo's drive, which his circle lets Pippin write</summary>
+    private async Task<(OwnerSession Pippin, OwnerSession Frodo, TargetDrive Drive)> ArrangeAsync()
     {
         var pippin = await LoginAsOwner(Identities.Pippin);
         var frodo = await LoginAsOwner(Identities.Frodo);
-
         var drive = TargetDrive.NewTargetDrive();
         await CollabChannelFlow.SetupAsync(frodo, drive, [pippin], driveName: "Frodo's drive");
-
-        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true);
-        var response = await pippin.V1.PeerDirect.TransferNewFile(drive, metadata, [frodo.Identity], null,
-            new UploadManifest { PayloadDescriptors = [] }, []);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
-
-        await pippin.Sync.DrainOutboxAsync();
-        await frodo.Sync.ProcessInboxAsync(drive, int.MaxValue);
-        return (pippin, frodo, drive, response.Content!.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+        return (pippin, frodo, drive);
     }
 }
