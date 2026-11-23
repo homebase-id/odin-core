@@ -35,6 +35,8 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         /// <summary>
         /// The recipients' copy of the file, worked out before anything is stored; null when the update names no
         /// recipients.  A local update keeps the stored global transit id, so it is still the one after the commit.
+        /// Its GlobalTransitId is null when the stored header couldn't be read at the start: the update refuses that
+        /// file before any send, and the send asserts the target again.
         /// </summary>
         public FileIdentifier PeerTarget { get; init; }
 
