@@ -61,7 +61,11 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet.AssertIsValid();
-        OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, allowEmpty: true, odinContext.Tenant);
+        // Before anything is stored: a peer update committed to the transient drive first stayed behind (#2155)
+        if (instructionSet.Recipients is { Count: > 0 } recipients)
+        {
+            PeerOutgoingTransferService.AssertMaySendTo(recipients, odinContext.Tenant, odinContext);
+        }
 
         instructionSet.Manifest.ResetPayloadUiDs();
 
@@ -421,7 +425,6 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
         if (recipients?.Any() ?? false)
         {
-            OdinValidationUtils.AssertValidRecipientList(recipients);
             targetFile.AssertIsValidPeerTarget();
 
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(

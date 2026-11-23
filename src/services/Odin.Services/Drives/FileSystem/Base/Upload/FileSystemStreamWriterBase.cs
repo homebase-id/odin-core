@@ -82,6 +82,12 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         // override, so a comment drive applies its rule rather than plain Write.
         await FileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
+        // And one that cannot send it on, before anything is stored: a file committed first stayed behind (#2155)
+        if (instructionSet.TransitOptions?.Recipients is { Count: > 0 } recipients)
+        {
+            PeerOutgoingTransferService.AssertMaySendTo(recipients.ToOdinIdList(), _tenantContext.HostOdinId, odinContext);
+        }
+
         bool isUpdateOperation = false;
 
         if (overwriteFileId == Guid.Empty)
@@ -470,8 +476,6 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
         if (transitOptions.Recipients?.Any() ?? false)
         {
-            OdinValidationUtils.AssertValidRecipientList(transitOptions.Recipients, allowEmpty: true);
-
             recipientStatus = await _peerOutgoingTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
