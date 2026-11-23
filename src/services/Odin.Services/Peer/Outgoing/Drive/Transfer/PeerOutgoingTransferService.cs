@@ -20,6 +20,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Shares;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
@@ -64,6 +65,46 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
             OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenant);
             AssertRecipientCount(recipients.Count);
+        }
+
+        /// <summary>
+        /// Sends <paramref name="transientFile"/>, just stored on the transient drive to be sent, through <paramref name="send"/>,
+        /// and deletes it when the outbox didn't get it: no recipient was queued, or the send threw.  Only the outbox removes
+        /// a transient file, once it is sent, so one it never got stayed for good, and its uniqueId refused the next send of
+        /// the same file (#2158).  The answer, or the exception, is the send's, unchanged.
+        /// </summary>
+        public async Task<Dictionary<string, TransferStatus>> SendFromTransientDriveAsync(InternalDriveFileId transientFile,
+            IDriveFileSystem fileSystem, Func<Task<Dictionary<string, TransferStatus>>> send, IOdinContext odinContext)
+        {
+            // It hard-deletes what it is given: never a file on any other drive
+            OdinValidationUtils.AssertIsTrue(SystemDriveConstants.IsTransientTempDrive(transientFile.DriveId),
+                "only a file on the transient drive is sent from it");
+
+            Dictionary<string, TransferStatus> status = null;
+            try
+            {
+                return status = await send();
+            }
+            finally
+            {
+                if (status?.ContainsValue(TransferStatus.Enqueued) != true)
+                {
+                    try
+                    {
+                        // A send that threw may have queued some recipients first: the outbox removes the file once it is
+                        // done with each of their items
+                        if (!await peerOutbox.HasAnyItemForFileAsync(transientFile))
+                        {
+                            await fileSystem.Storage.HardDeleteLongTermFile(transientFile, odinContext);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // Error: the file stays, and its uniqueId refuses the next send of the same file
+                        logger.LogError(e, "Could not delete transient file {file}, which no recipient was queued for", transientFile);
+                    }
+                }
+            }
         }
 
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;

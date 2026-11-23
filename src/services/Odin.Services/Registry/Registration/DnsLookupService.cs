@@ -156,7 +156,7 @@ public class DnsLookupService : IDnsLookupService
             result.Add(EmailTxt(domainName, "_dmarc",
                 $"v=DMARC1; p=reject; rua=mailto:{tenantMail.DmarcReportEmail}", "DMARC policy"));
             result.Add(EmailTxt(domainName, "_mta-sts",
-                $"v=STSv1; id={MtaStsPolicy.ComputeId(tenantMail.MxNodes)}", "MTA-STS (TLS enforcement)"));
+                $"v=STSv1; id={MtaStsPolicy.ComputeId(tenantMail)}", "MTA-STS (TLS enforcement)"));
             result.Add(EmailTxt(domainName, "_smtp._tls",
                 $"v=TLSRPTv1; rua=mailto:{tenantMail.TlsReportEmail}", "TLS-RPT (TLS failure reports)"));
 
