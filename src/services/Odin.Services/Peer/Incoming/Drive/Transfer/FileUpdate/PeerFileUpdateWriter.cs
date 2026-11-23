@@ -68,6 +68,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
 
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
+            // A peer's change of an existing copy; a new copy is a first delivery, whatever the sender's header says (#2065)
+            incomingMetadata.TransitUpdated = existingHeader == null ? 0 : UnixTimeUtc.Now().milliseconds;
             incomingMetadata!.SenderOdinId = sender;
 
             var request = instructionSet.Request;
@@ -129,8 +131,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     incomingMetadata.GlobalTransitId);
                 
                 incomingMetadata.VersionTag = existingHeader.FileMetadata.VersionTag;
-                // The sender changed the recipient's copy (#2065)
-                incomingMetadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
 
                 var manifest = new BatchUpdateManifest()
                 {

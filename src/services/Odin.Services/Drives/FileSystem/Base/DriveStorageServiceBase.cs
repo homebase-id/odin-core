@@ -2814,8 +2814,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// TransitUpdated is when a copy received over transit was last changed by its sender: a sender's send again
-        /// (PeerFileWriter) or update (PeerFileUpdateWriter) sets it, and every other write keeps the stored one (#2065)
+        /// TransitUpdated is when a file was last changed over transit by a peer: a sender's send again (PeerFileWriter) or a
+        /// peer's update (PeerFileUpdateWriter, a member's edit included) sets it, and the overwrites here keep the stored
+        /// one for every other write (#2065).  The feed drive's replace (FeedWriter) doesn't come through here
         /// </summary>
         private static void KeepStoredTransitUpdatedUnlessSet(FileMetadata stored, FileMetadata newMetadata)
         {
