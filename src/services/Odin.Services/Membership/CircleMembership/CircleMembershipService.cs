@@ -36,7 +36,8 @@ public class CircleMembershipService(
     ILogger<CircleMembershipService> logger,
     IMediator mediator,
     IdentityDatabase db,
-    TenantContext tenantContext)
+    TenantContext tenantContext,
+    OdinContextCache odinContextCache)
 {
     public async Task Temp_ReconcileCircleAndAppGrants()
     {
@@ -632,6 +633,10 @@ public class CircleMembershipService(
     {
         await AssertCallerMayManageCircleAsync(circleId, disabled ? "disable" : "enable", odinContext);
         await circleDefinitionService.SetDisabledAsync(circleId, disabled);
+
+        // A peer's cached context holds their enabled circles; without this a disable reaches them, and an enable
+        // returns their access, only when it expires, up to an hour later (#2054)
+        await odinContextCache.ResetAsync();
 
         await mediator.Publish(new CircleDefinitionChangedNotification
         {

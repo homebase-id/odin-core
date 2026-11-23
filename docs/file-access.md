@@ -257,9 +257,9 @@ alone ("With Private Share").
 
 **Peers' contexts are cached** for up to an hour (`OdinContextCache`): their level, enabled circles and whether they
 are reviewed (`TransitAuthenticationService`) **(V)**. The cache is reset when a connection is finalized, blocked or
-deleted, and when a member is removed from a circle (`CircleNetworkService.RevokeCircleAccessAsync`), not when a circle
-is disabled **(V)**, so a check that must see a disable asks at the time (as the circle share key read does,
-`CircleShareKeyService`) **(V)**.
+deleted, when a member is removed from a circle (`CircleNetworkService.RevokeCircleAccessAsync`), and when a circle
+is disabled or enabled (`CircleMembershipService.SetDisabledAsync`, #2054) **(V)**, so a disable ends a peer's access
+at once and an enable returns it at once.
 
 ## Copies sent to others
 
@@ -394,7 +394,7 @@ circles together.
   works again as it was. The rows aren't touched,
   so nothing has to go through them. "At once" means when the member's context is next built: a change of a circle's
   grants doesn't reset the cached peer contexts (`CircleNetworkService.UpdateCircleDefinitionAsync`) **(V)**, so it
-  takes up to an hour to reach a peer, on every drive, as a disable does (#2054, "Peers' contexts are cached" above).
+  takes up to an hour to reach a peer, on every drive ("Peers' contexts are cached" above).
 - **A share starts within its ceiling:** the share API refuses a row with a bit its circle doesn't grant on the drive
   (`DriveShareService.cs:296-302`) **(V)**; for an individual circle, which grants nothing, a bit the member's other
   circles don't. A later change of a grant caps the row instead.

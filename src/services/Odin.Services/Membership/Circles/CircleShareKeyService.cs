@@ -27,8 +27,8 @@ namespace Odin.Services.Membership.Circles;
 /// and never on an owner circle, which has no app key to lock with (plan, decision 2).  A member reads only
 /// their own copy, through the Peer API, while the circle grants them access.
 /// </remarks>
-public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService circleDefinitionService,
-    CircleMembershipService circleMembershipService, TenantContext tenantContext)
+public class CircleShareKeyService(IdentityDatabase db, CircleMembershipService circleMembershipService,
+    TenantContext tenantContext)
 {
     /// <summary>
     /// The first byte of every share key blob: key header version 2 (#2024), AES-GCM from the start.
@@ -193,9 +193,8 @@ public class CircleShareKeyService(IdentityDatabase db, CircleDefinitionService 
                 OdinClientErrorCode.NotReviewedByOwner);
         }
 
-        // The caller's circles come from a peer context cached for up to an hour, which disabling a circle doesn't
-        // clear, so whether it is enabled is asked now
-        if (odinContext.Caller.Circles?.Contains(circleId) != true || !await circleDefinitionService.IsEnabledAsync(circleId))
+        // The caller's circles are their enabled ones; disabling or enabling a circle resets the cached contexts
+        if (odinContext.Caller.Circles?.Contains(circleId) != true)
         {
             throw new OdinSecurityException($"Caller is not a member of circle {circleId}");
         }
