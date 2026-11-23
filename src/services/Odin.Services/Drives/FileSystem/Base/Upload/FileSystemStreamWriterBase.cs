@@ -302,7 +302,14 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
             Package.InternalFile.FileId, phaseSw.ElapsedMilliseconds);
 
         var transitSw = System.Diagnostics.Stopwatch.StartNew();
-        Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext);
+        // A new file on the transient drive sent as transient is there only to be sent, as the outbox decides when it deletes
+        // one; one staged without recipients, an overwrite of one, or one not sent as transient is the client's to keep
+        var sendsTransientFile = SystemDriveConstants.IsTransientTempDrive(Package.InternalFile.DriveId) && !Package.IsUpdateOperation &&
+                                 Package.InstructionSet.TransitOptions is { IsTransient: true, Recipients.Count: > 0 };
+        var recipientStatus = sendsTransientFile
+            ? await _peerOutgoingTransferService.SendFromTransientDriveAsync(Package.InternalFile, FileSystem,
+                () => ProcessTransitInstructions(Package, odinContext), odinContext)
+            : await ProcessTransitInstructions(Package, odinContext);
         _logger.LogInformation(
             "[UploadTiming] Finalize phase: transit/outbox enqueue done fileId:{fileId} recipients:{recipients} transitMs:{transitMs} totalFinalizeMs:{totalFinalizeMs}",
             Package.InternalFile.FileId, recipientStatus?.Count ?? 0, transitSw.ElapsedMilliseconds, phaseSw.ElapsedMilliseconds);
