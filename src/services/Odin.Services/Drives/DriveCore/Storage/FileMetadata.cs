@@ -88,6 +88,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public UnixTimeUtc TransitCreated { get; set; }
 
+        /// <summary>
+        /// When the file was last changed over transit by a peer (a sender's send again or a peer's update, a member's
+        /// edit included); 0 for a file never changed that way.  The owner's own writes keep it (#2065)
+        /// </summary>
         public UnixTimeUtc TransitUpdated { get; set; }
 
         public ReactionSummary ReactionPreview { get; set; }

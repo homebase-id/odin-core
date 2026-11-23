@@ -64,8 +64,8 @@ public class ReceivedFileUpdateTests : V2Fixture
         Assert.That(after.FileMetadata.TransitCreated.milliseconds, Is.EqualTo(transitCreated));
     }
 
-    // #2065: TransitUpdated is when the sender last changed the copy.  A sender's update moves it, and the owner's own
-    // update keeps it
+    // #2065: TransitUpdated is when the file was last changed over transit by a peer.  A sender's update moves it, and
+    // the owner's own update keeps it
     [Test]
     public async Task SendersUpdate_MovesTransitUpdated_AndOwnersUpdateKeepsIt()
     {
