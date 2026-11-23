@@ -76,6 +76,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task<Dictionary<string, TransferStatus>> SendFromTransientDriveAsync(InternalDriveFileId transientFile,
             IDriveFileSystem fileSystem, Func<Task<Dictionary<string, TransferStatus>>> send, IOdinContext odinContext)
         {
+            // It hard-deletes what it is given: never a file on any other drive
+            OdinValidationUtils.AssertIsTrue(SystemDriveConstants.IsTransientTempDrive(transientFile.DriveId),
+                "only a file on the transient drive is sent from it");
+
             Dictionary<string, TransferStatus> status = null;
             try
             {
@@ -96,7 +100,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     }
                     catch (Exception e)
                     {
-                        logger.LogWarning(e, "Could not delete transient file {file}, which no recipient was queued for", transientFile);
+                        // Error: the file stays, and its uniqueId refuses the next send of the same file
+                        logger.LogError(e, "Could not delete transient file {file}, which no recipient was queued for", transientFile);
                     }
                 }
             }

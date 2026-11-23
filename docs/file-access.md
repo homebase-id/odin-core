@@ -154,7 +154,8 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
   it is refused there for good (I, from the code).
 - **The sender's client hears how it went.** A client's change with no copy on the sender's own drive
   (`UpdateLocale.Peer`, or an upload sent from the transient drive) leaves no transfer history it could read: the
-  transient copy is deleted once sent. So each outcome goes to the sockets of the app that sent it, or the owner's own
+  transient copy is deleted once sent, or at once when no recipient was queued for it or the send failed
+  (`PeerOutgoingTransferService.SendFromTransientDriveAsync`) **(V; tested for no recipient queued)**. So each outcome goes to the sockets of the app that sent it, or the owner's own
   client's when no app did, never another app's or a guest's (the server's own sends from the transient drive, such as
   Shamir shards, tell no one): a `PeerSendResult` event (`PeerSendResultNotification`) **(V, tested)**. A delete
   sent by global transit id is told the same way when it names the version it is meant for (`expectedVersionTag`,
