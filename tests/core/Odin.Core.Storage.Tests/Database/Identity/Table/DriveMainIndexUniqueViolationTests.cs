@@ -2,8 +2,10 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Npgsql;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -27,7 +29,7 @@ public class DriveMainIndexUniqueViolationTests : IocTestBase
         var gtid = Guid.NewGuid();
         var e = await ClashAsync(databaseType, first: (gtid, null), second: (gtid, null));
 
-        Assert.That(e.IsUniqueConstraintViolationOn("globaltran"), Is.True, e.InnerException?.Message);
+        Assert.That(e.IsUniqueConstraintViolationOn(GlobalTransitId), Is.True, e.InnerException?.Message);
         Assert.That(e.IsUniqueConstraintViolationOn("uniqueid"), Is.False, e.InnerException?.Message);
     }
 
@@ -42,8 +44,34 @@ public class DriveMainIndexUniqueViolationTests : IocTestBase
         var e = await ClashAsync(databaseType, first: (Guid.NewGuid(), uniqueId), second: (Guid.NewGuid(), uniqueId));
 
         Assert.That(e.IsUniqueConstraintViolationOn("uniqueid"), Is.True, e.InnerException?.Message);
-        Assert.That(e.IsUniqueConstraintViolationOn("globaltran"), Is.False, e.InnerException?.Message);
+        Assert.That(e.IsUniqueConstraintViolationOn(GlobalTransitId), Is.False, e.InnerException?.Message);
     }
+
+    /// <summary>
+    /// The names Postgres 16 gave DriveMainIndex's unique constraints: on the table as created, on a migration's table,
+    /// and on later migrations' tables made while an earlier one's, kept under its old name, held the shorter names.
+    /// Only the global transit id ones may answer to the marker, however Postgres cut them.
+    /// </summary>
+    [TestCase("drivemainindex_identityid_driveid_globaltransitid_key", true)]
+    [TestCase("drivemainindexmigrationsv0_identityid_driveid_globaltransit_key", true)]
+    [TestCase("drivemainindexmigrationsv2026_identityid_driveid_globaltran_key", true)]
+    [TestCase("drivemainindexmigrationsv2026_identityid_driveid_globaltra_key1", true)]
+    [TestCase("drivemainindexmigrationsv2026_identityid_driveid_globaltra_key2", true)]
+    [TestCase("drivemainindexmigrationsv202611_identityid_driveid_uniqueid_key", false)]
+    [TestCase("drivemainindexmigrationsv20261_identityid_driveid_uniqueid_key1", false)]
+    [TestCase("drivemainindexmigrationsv20261117_identityid_driveid_fileid_key", false)]
+    [TestCase("drivemainindexmigrationsv202611171_identityid_hdrversiontag_key", false)]
+    [TestCase("drivemainindex_pkey", false)]
+    public void APostgresConstraintNameAnswersToTheMarkerOnlyOnTheGlobalTransitId(string constraintName, bool isGlobalTransitId)
+    {
+        var e = new OdinDatabaseException(DatabaseType.Postgres, "a clash",
+            new PostgresException("duplicate key value violates unique constraint", "ERROR", "ERROR", "23505",
+                constraintName: constraintName));
+
+        Assert.That(e.IsUniqueConstraintViolationOn(GlobalTransitId), Is.EqualTo(isGlobalTransitId));
+    }
+
+    private const string GlobalTransitId = TableDriveMainIndex.GlobalTransitIdIndexMarker;
 
     /// <summary>Two new files on one drive, the second written in a transaction as a commit is, and the error it gets</summary>
     private async Task<OdinDatabaseException> ClashAsync(DatabaseType databaseType, (Guid gtid, Guid? uniqueId) first,

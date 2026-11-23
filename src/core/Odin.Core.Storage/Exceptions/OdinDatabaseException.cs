@@ -30,8 +30,8 @@ public class OdinDatabaseException : OdinSystemException
     /// own error says.  Unlike a read of the clashing row, it works inside a transaction Postgres has aborted.
     /// SQLite's message lists the index's columns ("UNIQUE constraint failed: DriveMainIndex.identityId, ...,
     /// DriveMainIndex.globalTransitId").  Postgres names the constraint after the table it was created on and its
-    /// columns, cut to 63 characters, so pass a prefix the cut keeps: a migration's table gives
-    /// "drivemainindexmigrationsv2026_identityid_driveid_globaltran_key".
+    /// columns, cut to 63 characters and numbered when the name is taken, so pass a prefix every cut keeps
+    /// (<see cref="Database.Identity.Table.TableDriveMainIndex.GlobalTransitIdIndexMarker"/>).
     /// </summary>
     public bool IsUniqueConstraintViolationOn(string columnPrefix)
     {
