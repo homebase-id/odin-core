@@ -352,6 +352,14 @@ public class DriveQuery(
                 GuidOneOrTwo(fileMetadata.File.FileId, r?.fileId),
                 drive.Name);
 
+            // From the database's own error, not the reads above: those fail on Postgres inside a caller's transaction,
+            // as a new file's commit is (#2085)
+            if (e.IsUniqueConstraintViolationOn("globaltran"))
+            {
+                throw new OdinClientException($"A file already has the global transit id {fileMetadata.GlobalTransitId}",
+                    OdinClientErrorCode.ExistingFileWithGlobalTransitId);
+            }
+
             throw new OdinClientException($"UniqueId [{fileMetadata.AppData.UniqueId}] not unique.",
                 OdinClientErrorCode.ExistingFileWithUniqueId);
         }

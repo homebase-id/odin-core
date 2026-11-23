@@ -118,7 +118,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         Package.Descriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         // Before any payload is read, so a resent file is refused at once instead of after its whole body.
-        // FinalizeUploadAsync checks again for a file committed while this one's body arrived.
+        // FinalizeUploadAsync checks the uniqueId again for a file committed while this one's body arrived; for the
+        // global transit id the database's unique index is that guard, answered with the same code (#2085).
         if (!Package.IsUpdateOperation)
         {
             await AssertUniqueIdNotInUseAsync(Package.Descriptor?.FileMetadata?.AppData?.UniqueId, odinContext);
@@ -291,7 +292,6 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         else
         {
             await AssertUniqueIdNotInUseAsync(metadata.AppData.UniqueId, odinContext);
-            await AssertGlobalTransitIdNotInUseAsync(Package.Descriptor?.GlobalTransitId, odinContext);
 
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
         }
@@ -395,7 +395,8 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
     /// <summary>
     /// A global transit id the client picked must not belong to a file on the drive, deleted or not: it stays in the
-    /// index (<see cref="UploadFileDescriptor.GlobalTransitId"/>).  The database's unique index is the final guard.
+    /// index (<see cref="UploadFileDescriptor.GlobalTransitId"/>).  Asked before the body is read; at the commit the
+    /// database's unique index is the guard, and DriveQuery answers its clash with the same code.
     /// </summary>
     private async Task AssertGlobalTransitIdNotInUseAsync(Guid? globalTransitId, IOdinContext odinContext)
     {

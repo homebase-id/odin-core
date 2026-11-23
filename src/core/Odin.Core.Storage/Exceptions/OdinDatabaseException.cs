@@ -24,6 +24,31 @@ public class OdinDatabaseException : OdinSystemException
     }
 
     public bool IsUniqueConstraintViolation => IsUniqueConstraintViolationError();
+
+    /// <summary>
+    /// Whether the write broke the unique index on a column starting <paramref name="columnPrefix"/>, as the database's
+    /// own error says.  Unlike a read of the clashing row, it works inside a transaction Postgres has aborted.
+    /// SQLite's message lists the index's columns ("UNIQUE constraint failed: DriveMainIndex.identityId, ...,
+    /// DriveMainIndex.globalTransitId").  Postgres names the constraint after the table it was created on and its
+    /// columns, cut to 63 characters, so pass a prefix the cut keeps: a migration's table gives
+    /// "drivemainindexmigrationsv2026_identityid_driveid_globaltran_key".
+    /// </summary>
+    public bool IsUniqueConstraintViolationOn(string columnPrefix)
+    {
+        if (!IsUniqueConstraintViolation)
+        {
+            return false;
+        }
+
+        var named = InnerException switch
+        {
+            SqliteException sqliteException => sqliteException.Message,
+            PostgresException postgresException => postgresException.ConstraintName,
+            _ => null
+        };
+
+        return named?.Contains(columnPrefix, StringComparison.OrdinalIgnoreCase) == true;
+    }
     private bool IsUniqueConstraintViolationError()
     {
         if (InnerException == null)
