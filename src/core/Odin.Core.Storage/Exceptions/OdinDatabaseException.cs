@@ -26,14 +26,15 @@ public class OdinDatabaseException : OdinSystemException
     public bool IsUniqueConstraintViolation => IsUniqueConstraintViolationError();
 
     /// <summary>
-    /// Whether the write broke the unique index on a column starting <paramref name="columnPrefix"/>, as the database's
-    /// own error says.  Unlike a read of the clashing row, it works inside a transaction Postgres has aborted.
-    /// SQLite's message lists the index's columns ("UNIQUE constraint failed: DriveMainIndex.identityId, ...,
-    /// DriveMainIndex.globalTransitId").  Postgres names the constraint after the table it was created on and its
-    /// columns, cut to 63 characters and numbered when the name is taken, so pass a prefix every cut keeps
-    /// (<see cref="Database.Identity.Table.TableDriveMainIndex.GlobalTransitIdIndexMarker"/>).
+    /// Whether the write broke a unique index whose name in the database's own error holds
+    /// <paramref name="nameFragment"/>, case aside.  Unlike a read of the clashing row, it works inside a transaction
+    /// Postgres has aborted.  The name holds the table's as well as the columns', so the fragment must be one no other
+    /// index of the table has: SQLite's message lists table and columns ("UNIQUE constraint failed:
+    /// DriveMainIndex.identityId, ..., DriveMainIndex.globalTransitId"); Postgres names the constraint after the table
+    /// it was created on and its columns, cut to 63 characters and numbered when the name is taken, so the fragment must
+    /// also survive every cut (<see cref="Database.Identity.Table.TableDriveMainIndex.GlobalTransitIdIndexMarker"/>).
     /// </summary>
-    public bool IsUniqueConstraintViolationOn(string columnPrefix)
+    public bool IsUniqueConstraintViolationOn(string nameFragment)
     {
         if (!IsUniqueConstraintViolation)
         {
@@ -47,7 +48,7 @@ public class OdinDatabaseException : OdinSystemException
             _ => null
         };
 
-        return named?.Contains(columnPrefix, StringComparison.OrdinalIgnoreCase) == true;
+        return named?.Contains(nameFragment, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private bool IsUniqueConstraintViolationError()

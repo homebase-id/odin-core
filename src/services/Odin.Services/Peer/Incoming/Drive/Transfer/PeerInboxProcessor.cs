@@ -285,7 +285,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 if (oce.ErrorCode is OdinClientErrorCode.ExistingFileWithUniqueId or OdinClientErrorCode.ExistingFileWithGlobalTransitId)
                 {
                     logger.LogInformation(oce,
-                        "Processing Inbox -> {errorCode} Conflict: " +
+                        "Processing Inbox -> UniqueId Conflict ({errorCode}): " +
                         "\nSender: {sender}. " +
                         "\nInbox InstructionType: {instructionType}. " +
                         "\nFile:{f}. " +
