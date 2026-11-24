@@ -14,8 +14,7 @@ public class DeleteFileOptionsV2  {
     public Guid? VersionTag { get; init; }
 
     /// <summary>
-    /// Optional. What the tombstone keeps beyond the default, e.g. <c>{ "keepUniqueId": true }</c>; left out, the
-    /// tombstone is as it always was. Recipients' copies get the default tombstone.
+    /// Optional. What the tombstone keeps beyond the default; see <see cref="TombstoneOptions"/>.
     /// </summary>
     public TombstoneOptions Tombstone { get; init; }
 }

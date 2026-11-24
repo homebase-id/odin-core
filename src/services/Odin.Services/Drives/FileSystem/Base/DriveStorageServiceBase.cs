@@ -900,10 +900,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <param name="expectedVersionTag">When set, the delete only goes ahead if the file is still at this
         /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
         /// conditional on the tag read here, which closes the gap between this check and the write.</param>
-        /// <param name="tombstone">What the tombstone keeps beyond the default; null is the default</param>
+        /// <param name="tombstoneOptions">What the tombstone keeps beyond the default; null is the default</param>
         /// <returns>The tombstone's times; null when the delete failed</returns>
         public async Task<WriteTimes> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
-            WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null, TombstoneOptions tombstone = null)
+            WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null, TombstoneOptions tombstoneOptions = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
@@ -912,10 +912,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                                  ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
             AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
-            var written = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete, tombstone ?? TombstoneOptions.Default);
-            return written == null
+            var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete, tombstoneOptions);
+            return tombstone == null
                 ? null
-                : WriteTimes.Of(file, written.FileMetadata, odinContext);
+                : WriteTimes.Of(file, tombstone.FileMetadata, odinContext);
         }
 
         /// <summary>A file's times after a write</summary>
@@ -2331,7 +2331,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                     AppData = new AppFileMetaData
                     {
-                        UniqueId = options.KeepUniqueId ? appData.UniqueId : null,
+                        UniqueId = options?.KeepUniqueId == true ? appData.UniqueId : null,
                         Tags = appData.Tags,
                         FileType = appData.FileType,
                         DataType = appData.DataType,

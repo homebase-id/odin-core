@@ -19,9 +19,8 @@ public class SoftDeleteBatchRequestV2
     public List<SoftDeleteFileV2> Files { get; init; }
 
     /// <summary>
-    /// Optional. What each file's tombstone keeps beyond the default, e.g. <c>{ "keepUniqueId": true }</c>; left out, the
-    /// tombstone is as it always was. A file already deleted
-    /// is left as it is, and recipients' copies get the default tombstone.
+    /// Optional. What each file's tombstone keeps beyond the default; see <see cref="TombstoneOptions"/>. A file already
+    /// deleted is left as it is.
     /// </summary>
     public TombstoneOptions Tombstone { get; init; }
 

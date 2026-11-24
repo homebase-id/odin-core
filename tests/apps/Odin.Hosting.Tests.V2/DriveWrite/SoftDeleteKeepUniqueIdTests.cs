@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Tests._Universal.DriveTests;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives;
@@ -31,7 +30,7 @@ public class SoftDeleteKeepUniqueIdTests : V2Fixture
 
         var response = await owner.Drives.Writer.SoftDeleteBatch(drive.Alias, new SoftDeleteBatchRequestV2
         {
-            Files = [new SoftDeleteFileV2 { FileId = file.FileId, VersionTag = file.NewVersionTag }],
+            Files = [SoftDeleteBatchTests.File(file.FileId, file.NewVersionTag)],
             Tombstone = Options(keepUniqueId)
         });
 
@@ -76,7 +75,7 @@ public class SoftDeleteKeepUniqueIdTests : V2Fixture
         var found = byUniqueId.Content!.SearchResults.Select(f => (f.FileId, f.FileState, f.FileMetadata.AppData.UniqueId)).ToList();
         Assert.That(found, Is.EqualTo(kept ? new[] { (fileId, FileState.Deleted, (Guid?)uniqueId) } : []));
 
-        var again = await CreateAsync(owner, drive, uniqueId);
+        var again = await AppFileUploads.TryCreateTextFileAsync(owner, drive, "again", uniqueId: uniqueId);
         if (kept)
         {
             DriveAsserts.AssertRejected(again, OdinClientErrorCode.ExistingFileWithUniqueId);
@@ -92,15 +91,7 @@ public class SoftDeleteKeepUniqueIdTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (_, owner) = await SetupCallerWithOwner(spec);
         var uniqueId = Guid.NewGuid();
-        var file = await CreateAsync(owner, spec.TargetDrive, uniqueId);
-        Assert.That(file.IsSuccessStatusCode, Is.True, $"seed upload: {file.StatusCode} {file.Error?.Content}");
-        return (owner, spec.TargetDrive, uniqueId, file.Content!);
-    }
-
-    private static Task<Refit.ApiResponse<CreateFileResult>> CreateAsync(OwnerSession owner, TargetDrive drive, Guid uniqueId)
-    {
-        var metadata = SampleMetadataData.Create(fileType: 100);
-        metadata.AppData.UniqueId = uniqueId;
-        return owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata, new UploadManifest { PayloadDescriptors = [] }, []);
+        var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "kept or not", uniqueId: uniqueId);
+        return (owner, spec.TargetDrive, uniqueId, file);
     }
 }
