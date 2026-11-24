@@ -179,10 +179,7 @@ public class AdminController : ControllerBase
 
     //
 
-    /// <summary>
-    /// Ends a temporary hold (paused, out of quota): sets the tenant active and returns the previous status. 400 for a
-    /// disabled copy, with how to re-enable it; re-enabling is a deliberate set-status.
-    /// </summary>
+    /// <summary>See <see cref="IIdentityRegistry.ResumeAsync"/>; returns the previous status, 400 for a disabled copy.</summary>
     [HttpPost("tenants/{domain}/resume")]
     public async Task<ActionResult<TenantStatusState>> ResumeTenant(string domain)
     {

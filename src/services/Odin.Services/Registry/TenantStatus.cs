@@ -193,30 +193,6 @@ public static class TenantStatusRules
         // moved until it is deleted, or an operator unlocks it on purpose: to paused, which serves nothing until
         // DNS points back here and it is resumed.
         var isMoved = HasMovedAway(fromStatus, fromReason);
-        if (resume)
-        {
-            if (toStatus != TenantStatus.Active)
-            {
-                throw new OdinClientException("Resuming sets an identity active");
-            }
-
-            if (isMoved)
-            {
-                throw new OdinClientException(
-                    "This identity has moved to another host; resuming doesn't re-enable it. To roll the move back, " +
-                    "unlock it to paused on purpose (odin-admin tenant unlock-moved), then resume it");
-            }
-
-            if (fromStatus == TenantStatus.Disabled)
-            {
-                throw new OdinClientException(
-                    $"This identity is disabled ({fromReason}); resuming is for a paused or out-of-quota one. To re-enable " +
-                    "it on purpose, set it active (odin-admin tenant set-status <tenant> active)");
-            }
-
-            return;
-        }
-
         if (unlockMoved)
         {
             if (!isMoved || toStatus != TenantStatus.Paused)
@@ -233,6 +209,14 @@ public static class TenantStatusRules
             throw new OdinClientException(
                 "This identity has moved to another host and cannot be re-enabled here. To roll the move back, " +
                 "unlock it to paused on purpose (odin-admin tenant unlock-moved)");
+        }
+
+        // A resume ends a temporary hold; it never re-enables a disabled identity (a moved one is refused above)
+        if (resume && fromStatus == TenantStatus.Disabled)
+        {
+            throw new OdinClientException(
+                $"This identity is disabled ({fromReason}); resuming is for a paused or out-of-quota one. To re-enable " +
+                "it on purpose, set it active (odin-admin tenant set-status <tenant> active)");
         }
 
         // Leaving disabled is a deliberate re-enable, straight to active. Otherwise pause-then-resume

@@ -25,7 +25,7 @@ public interface ITenantAdmin
     /// <summary>Takes a copy disabled as moved back to paused (rolling a move back); see <see cref="IIdentityRegistry.UnlockMovedAsync"/></summary>
     Task<TenantStatusState?> UnlockMovedAsync(string domain);
 
-    /// <summary>Ends a temporary hold and sets active; refuses a disabled copy. See <see cref="IIdentityRegistry.ResumeAsync"/></summary>
+    /// <summary>See <see cref="IIdentityRegistry.ResumeAsync"/></summary>
     Task<TenantStatusState?> ResumeTenantAsync(string domain);
 
     /// <summary>

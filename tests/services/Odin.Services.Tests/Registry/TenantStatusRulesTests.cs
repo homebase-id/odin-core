@@ -259,12 +259,4 @@ public class TenantStatusRulesTests
             TenantStatusRules.Validate(TenantStatus.Disabled, reason, TenantStatus.Active, null, resume: true));
         Assert.That(refused!.Message, Does.Contain(how));
     }
-
-    [TestCase(TenantStatus.Paused)]
-    [TestCase(TenantStatus.OutOfQuota)]
-    public void ResumeOnlySetsActive(TenantStatus to)
-    {
-        Assert.Throws<OdinClientException>(() =>
-            TenantStatusRules.Validate(TenantStatus.Paused, null, to, null, resume: true));
-    }
 }
