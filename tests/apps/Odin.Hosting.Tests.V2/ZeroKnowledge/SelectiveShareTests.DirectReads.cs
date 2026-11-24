@@ -141,12 +141,16 @@ public partial class SelectiveShareTests
         // server to convert the deposit
         var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
         await AppCircles.AddMemberAsync(s.App, circleId, Identities.Sam);
-        var pending = (await Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<CircleNetworkStorage>().GetAsync(s.Sam.Identity))!.PeerKeyStore;
+        var storage = Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
+        var pending = (await storage.GetAsync(s.Sam.Identity))!.PeerKeyStore;
         Assert.That((pending.DepositedGrants.Any(d => d.CircleId == circleId), pending.CircleGrants.ContainsKey(circleId)), Is.EqualTo((true, false)),
             "precondition: the app's add deposited the grant, unconverted");
 
         await PayloadBytesAsync(direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key),
             "his first read straight from Frodo's server after the app's add");
+        var converted = (await storage.GetAsync(s.Sam.Identity))!.PeerKeyStore;
+        Assert.That((converted.DepositedGrants.Any(d => d.CircleId == circleId), converted.CircleGrants.ContainsKey(circleId)), Is.EqualTo((false, true)),
+            "the read converted the deposit");
     }
 
     [Test]
