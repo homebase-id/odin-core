@@ -132,19 +132,40 @@ public class FeedWriter(
     /// <summary>
     /// Whether a replace carries a change the sender made to the post itself, which moves TransitUpdated. A sender pushes
     /// an item again for a reaction or a local-only write on its copy, and a follower's catch-up sync rewrites every item;
-    /// none of those changes what is compared here
+    /// none of those changes what is compared here. Archival status is left out: the follower may set it on its own copy
     /// </summary>
     private static bool SendersContentDiffers(FileMetadata stored, FileMetadata incoming) =>
         SendersContentOf(stored) != SendersContentOf(incoming);
 
     private static string SendersContentOf(FileMetadata m) => OdinSystemSerializer.Serialize(new
     {
-        m.AppData,
+        m.AppData?.Content,
+        m.AppData?.Tags,
+        m.AppData?.FileType,
+        m.AppData?.DataType,
+        m.AppData?.GroupId,
+        m.AppData?.UserDate,
+        // A sync stores the stand-in for a thumbnail that fails validation, a push the thumbnail itself
+        PreviewThumbnail = PreviewThumbnailForFeed(m.AppData?.PreviewThumbnail),
         m.Payloads,
         m.IsEncrypted,
         m.ReferencedFile,
         m.DataSource
     });
+
+    /// <summary>The preview thumbnail a feed item keeps: a stand-in for one that fails validation</summary>
+    public static ThumbnailContent PreviewThumbnailForFeed(ThumbnailContent thumbnail) =>
+        thumbnail == null || thumbnail.TryValidate() ? thumbnail : InvalidThumbnailStandIn();
+
+    private static ThumbnailContent InvalidThumbnailStandIn() => new()
+    {
+        PixelWidth = 594,
+        PixelHeight = 497,
+        ContentType = "image/webp",
+        BytesWritten = 0,
+        Content = Convert.FromBase64String(
+            "UklGRr4CAABXRUJQVlA4WAoAAAAgAAAAEwAAEAAASUNDUMgBAAAAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADZWUDgg0AAAAHAFAJ0BKhQAEQA+9XKwUyqmpKKoCAFQHolnAM45i2X0kIuwndxsFE34nVBHGFszwHZV8SgAyzpLin+kW9ywqKsxofEadS2Rip94f5OHdFtM/yYfsrr7xi10XLJmghR4yV+C+ZMFqn3OT/BKMJhzf/SbgkjMD0Hik4z7sPZIfYFx8/a1qPW5hS1TbWtU6vP3cO/OORwki96rapqidTKwBau/DQMJqMCXqYjw+YbZcZXvUmuGmgiF3lz2Yh1jP0Oz1HgZE/JB3wOOhJwtKkAAAAA=")
+    };
 
     public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext)
     {
