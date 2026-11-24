@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -83,7 +84,7 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<div>");
 
             // Channel name with link to /posts/{slug}
-            contentBuilder.AppendLine($"<h1><a href='{SsrUrlHelper.ToSsrUrl($"/posts/{channel.Slug}")}'>" +
+            contentBuilder.AppendLine($"<h1><a href='{HttpUtility.HtmlEncode(SsrUrlHelper.ToSsrUrl($"/posts/{Uri.EscapeDataString(channel.Slug ?? "")}"))}'>" +
                                       $"{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h1>");
 
             if (!string.IsNullOrWhiteSpace(channel.Description))
