@@ -377,7 +377,12 @@ public class TenantAdmin(
 
     public async Task<TenantStatusState?> ResumeTenantAsync(string domain)
     {
-        await AssertPayloadsAreHereAsync(domain, TenantStatus.Active);
+        // A disabled tenant is refused for that, by the registry, before anything is said about its payloads
+        if ((await identityRegistry.GetAsync(domain))?.Status != TenantStatus.Disabled)
+        {
+            await AssertPayloadsAreHereAsync(domain, TenantStatus.Active);
+        }
+
         return await identityRegistry.ResumeAsync(domain);
     }
 

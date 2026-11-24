@@ -179,7 +179,10 @@ public class AdminController : ControllerBase
 
     //
 
-    /// <summary>See <see cref="IIdentityRegistry.ResumeAsync"/>; returns the previous status, 400 for a disabled copy.</summary>
+    /// <summary>
+    /// See <see cref="IIdentityRegistry.ResumeAsync"/>; returns the previous status. 400 for a disabled copy, or while a
+    /// moved identity's queued payloads are still arriving.
+    /// </summary>
     [HttpPost("tenants/{domain}/resume")]
     public async Task<ActionResult<TenantStatusState>> ResumeTenant(string domain)
     {

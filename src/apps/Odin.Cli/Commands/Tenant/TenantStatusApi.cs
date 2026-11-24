@@ -10,16 +10,6 @@ namespace Odin.Cli.Commands.Tenant;
 
 internal static class TenantStatusApi
 {
-    public static async Task<TenantModel> GetTenantAsync(HttpClient httpClient, string domain)
-    {
-        var response = await httpClient.GetAsync($"tenants/{domain}");
-        await EnsureSuccessAsync(response, domain);
-        var json = await response.Content.ReadAsStringAsync();
-        return OdinSystemSerializer.Deserialize<TenantModel>(json) ?? new TenantModel();
-    }
-
-    //
-
     public static async Task<TenantStatusState> SetStatusAsync(HttpClient httpClient, string domain, TenantStatus status,
         DisabledReason? reason = null)
     {
