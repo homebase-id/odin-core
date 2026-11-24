@@ -49,8 +49,18 @@ namespace Odin.Services.Membership.YouAuth
         public async Task<RedactedYouAuthDomainRegistration> RegisterDomainAsync(YouAuthDomainRegistrationRequest request,
             IOdinContext odinContext)
         {
-            odinContext.Caller.AssertHasMasterKey();
+            return await TryRegisterDomainAsync(request, odinContext) ?? throw new OdinClientException("Domain already registered");
+        }
 
+        /// <summary>
+        /// <see cref="RegisterDomainAsync"/>, or null when the domain is registered already, by an earlier call or one
+        /// running at the same time: the write is insert-only, so the key store key the first one made, and every
+        /// client minted from it, stays.
+        /// </summary>
+        private async Task<RedactedYouAuthDomainRegistration?> TryRegisterDomainAsync(YouAuthDomainRegistrationRequest request,
+            IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
 
             OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
             OdinValidationUtils.AssertNotNullOrEmpty(request.Domain, nameof(request.Domain));
@@ -62,7 +72,7 @@ namespace Odin.Services.Membership.YouAuth
 
             if (null != await this.GetDomainRegistrationInternalAsync(new AsciiDomainName(request.Domain)))
             {
-                throw new OdinClientException("Domain already registered");
+                return null;
             }
 
             var masterKey = odinContext.Caller.GetMasterKey();
@@ -84,7 +94,10 @@ namespace Odin.Services.Membership.YouAuth
                 ConsentRequirements = request.ConsentRequirements
             };
 
-            await SaveRegistrationAsync(reg, odinContext);
+            if (!await SaveRegistrationAsync(reg, odinContext, isNew: true))
+            {
+                return null;
+            }
 
             return reg.Redacted();
         }
@@ -113,7 +126,8 @@ namespace Odin.Services.Membership.YouAuth
                     throw new OdinClientException($"{domain} not registered");
                 }
 
-                await RegisterDomainAsync(request, odinContext);
+                // A consent page and a sign-in at once both get here; the one registering second uses the first's
+                await TryRegisterDomainAsync(request, odinContext);
                 reg = await GetDomainRegistrationInternalAsync(domain);
             }
 
@@ -461,41 +475,46 @@ namespace Odin.Services.Membership.YouAuth
             return GuidId.FromString(domainName.DomainName);
         }
 
-        private async Task SaveRegistrationAsync(YouAuthDomainRegistration registration, IOdinContext odinContext)
+        /// <summary>
+        /// Writes the registration and its circle rows.  A domain that is a connected identity gets no circle rows of its
+        /// own: an identity is an identity, so its sign-in uses the connection's circles
+        /// (<see cref="CircleNetworkService.TryCreateConnectedYouAuthContextAsync"/>), and one row per identity per
+        /// circle means a YouAuth grant can never take over the connection's (#2043).  Any other domain's rows are
+        /// matched to its grants, leaving alone a circle whose row an identity holds.
+        /// </summary>
+        /// <param name="isNew">Insert-only: nothing is written when the domain is registered already</param>
+        /// <returns>False when <paramref name="isNew"/> and the domain was registered already.</returns>
+        private async Task<bool> SaveRegistrationAsync(YouAuthDomainRegistration registration, IOdinContext odinContext,
+            bool isNew = false)
         {
-            var domain = new OdinId(registration.Domain);
+            var isConnected = (await circleNetworkService.GetIcrAsync((OdinId)registration.Domain.DomainName, odinContext,
+                tryUpgradeEncryption: false)).IsConnected();
 
             await using var tx = await db.BeginStackedTransactionAsync();
 
-            //TODO: this is causing an issue where in the circles are also deleted for the ICR 
-            // 
-            await circleMembershipService.DeleteMemberFromAllCirclesAsync(registration.Domain, DomainType.YouAuth);
-
-            foreach (var (circleId, circleGrant) in registration.CircleGrants)
-            {
-                var circleMembers = (await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext))
-                    .Where(d => d.DomainType == DomainType.YouAuth);
-                var isMember = circleMembers.Any(d =>
-                    OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
-
-                if (!isMember)
-                {
-                    //
-                    // BUG - this method calls upsert which will overwrite a circle membership
-                    // from the DomainType.Identity when it is granted to the DomainType.youauth
-                    //
-                    await circleMembershipService.AddCircleMemberAsync(circleId, domain, circleGrant, DomainType.YouAuth);
-                }
-            }
+            await circleMembershipService.ReconcileMemberCirclesAsync(registration.Domain, DomainType.YouAuth,
+                isConnected ? new Dictionary<Guid, CircleGrant>() : registration.CircleGrants);
 
             //clear them here so we don't have two locations
             registration.CircleGrants.Clear();
 
-            await DomainStorage.UpsertAsync(db.KeyThreeValueCached, GetDomainKey(registration.Domain), GuidId.Empty,
-                DomainRegistrationDataType,
-                registration);
+            if (isNew)
+            {
+                if (!await DomainStorage.TryInsertAsync(db.KeyThreeValueCached, GetDomainKey(registration.Domain), GuidId.Empty,
+                        DomainRegistrationDataType, registration))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                await DomainStorage.UpsertAsync(db.KeyThreeValueCached, GetDomainKey(registration.Domain), GuidId.Empty,
+                    DomainRegistrationDataType,
+                    registration);
+            }
 
             tx.Commit();
+            return true;
         }
 
         private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomainAsync(

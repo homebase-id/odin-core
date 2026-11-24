@@ -64,9 +64,11 @@ public class CircleNetworkStorage
 
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        // Reconcile circle grants in the table, keeping each kept row's sealed share key
+        // Reconcile circle grants in the table, keeping each kept row's sealed share key.  A connected identity holds
+        // no YouAuth rows (#2043): its sign-in uses the connection's circles, so what its YouAuth registration held
+        // goes, and can't keep the connection out of a circle.
         await _circleMembershipService.ReconcileMemberCirclesAsync(icr.OdinId, DomainType.Identity,
-            icr.PeerKeyStore?.CircleGrants ?? []);
+            icr.PeerKeyStore?.CircleGrants ?? [], deleteOtherType: icr.IsConnected());
 
         // remove all app grants,
         await _db.AppGrantsCached.DeleteByIdentityAsync(odinHashId);
@@ -177,18 +179,13 @@ public class CircleNetworkStorage
     }
 
     /// <summary>
-    /// Creates a new icr key; fails if one already exists
+    /// Creates a new icr key; fails if one already exists.  Insert-only, so of two first-time calls at once the
+    /// second fails instead of replacing the key every connection's token is locked with.
     /// </summary>
     /// <param name="masterKey"></param>
     /// <exception cref="OdinClientException"></exception>
     public async Task CreateIcrKeyAsync(SensitiveByteArray masterKey)
     {
-        var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValueCached, _icrKeyStorageId);
-        if (null != existingKey)
-        {
-            throw new OdinClientException("IcrKey already exists");
-        }
-
         var icrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
         var record = new IcrKeyRecord()
@@ -197,7 +194,10 @@ public class CircleNetworkStorage
             Created = UnixTimeUtc.Now()
         };
 
-        await _icrKeyStorage.UpsertAsync(_db.KeyValueCached, _icrKeyStorageId, record);
+        if (!await _icrKeyStorage.TryInsertAsync(_db.KeyValueCached, _icrKeyStorageId, record))
+        {
+            throw new OdinClientException("IcrKey already exists");
+        }
     }
 
     public async Task<SymmetricKeyEncryptedAes> GetMasterKeyEncryptedIcrKeyAsync()
