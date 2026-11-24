@@ -900,9 +900,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <param name="expectedVersionTag">When set, the delete only goes ahead if the file is still at this
         /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
         /// conditional on the tag read here, which closes the gap between this check and the write.</param>
+        /// <param name="tombstoneOptions">What the tombstone keeps beyond the default; null is the default</param>
         /// <returns>The tombstone's times; null when the delete failed</returns>
         public async Task<WriteTimes> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
-            WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null)
+            WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null, TombstoneOptions tombstoneOptions = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
@@ -911,7 +912,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                                  ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
             AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
-            var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+            var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete, tombstoneOptions);
             return tombstone == null
                 ? null
                 : WriteTimes.Of(file, tombstone.FileMetadata, odinContext);
@@ -2302,13 +2303,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// The tombstone a soft delete stores: the file's ids, group, types, dates and ACL, no content, payloads or unique
-        /// id.  Not what a Selective Share member gets for a file no longer shared with them, which holds less
+        /// The tombstone a soft delete stores: the file's ids, group, types, dates and ACL, no content or payloads, and no
+        /// unique id unless <paramref name="options"/> keeps it.  Not what a Selective Share member gets for a file no
+        /// longer shared with them, which holds less
         /// (<see cref="NoLongerSharedTombstoneOf"/>).  It keeps the key header, which opens nothing, for who may see it: on a
         /// zero-knowledge drive a client-locked one keeps it from callers without the drive's key (ZkDriveFiles.VisibleTo), and
         /// a Server Share drive's are relabelled with the rest when it is converted to one (ZkDriveConversionService).
         /// </summary>
-        private static ServerFileHeader TombstoneOf(ServerFileHeader existingHeader)
+        private static ServerFileHeader TombstoneOf(ServerFileHeader existingHeader, TombstoneOptions options)
         {
             var metadata = existingHeader.FileMetadata;
             var appData = existingHeader.FileMetadata.AppData;
@@ -2329,7 +2331,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                     AppData = new AppFileMetaData
                     {
-                        UniqueId = null,
+                        // A tombstone deleted again keeps an id it kept: it stays taken until a hard delete
+                        UniqueId = options?.KeepUniqueId == true || metadata.FileState == FileState.Deleted ? appData.UniqueId : null,
                         Tags = appData.Tags,
                         FileType = appData.FileType,
                         DataType = appData.DataType,
@@ -2399,12 +2402,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <returns>The tombstone written; null when the delete failed</returns>
         private async Task<ServerFileHeader> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
-            WriteSecondDatabaseRowBase markComplete)
+            WriteSecondDatabaseRowBase markComplete, TombstoneOptions options)
         {
             var file = existingHeader.FileMetadata.File;
             var payloadsToDelete = existingHeader.FileMetadata.Payloads ?? [];
 
-            var deletedServerFileHeader = TombstoneOf(existingHeader);
+            var deletedServerFileHeader = TombstoneOf(existingHeader, options);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
 

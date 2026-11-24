@@ -7,6 +7,7 @@ using Odin.Core.Time;
 using Odin.Services.Drives;
 using Odin.Services.PublicPage;
 using Odin.Services.PublicPage.Posts;
+using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
 
 namespace Odin.Services.Tests.PublicPage;
 
@@ -97,5 +98,46 @@ public class HomebaseSsrServiceTests
         Assert.That(post.PayloadUrl("k", other.ToString()), Is.EqualTo($"{PayloadBase}&fileId={other}&key=k"));
         Assert.That(post.PayloadUrl("k", "not-a-guid"), Is.EqualTo($"{PayloadBase}&fileId={PostFileId}&key=k"));
         Assert.That(new ChannelPost { FileId = PostFileId }.PayloadUrl("k"), Is.Null);
+    }
+
+    // #2010: every value the profile pages and post links interpolate is encoded, and client-written URLs and slugs
+    // can't leave their attribute
+
+    [Test]
+    public void TheProfileHeader_IsEncoded()
+    {
+        var sb = new StringBuilder();
+        HomebaseSsrService.WriteProfileHeader(sb, new PersonSchema
+        {
+            Name = "<script>alert(1)</script>", Status = "a & b", BioSummary = "'><img src=x>"
+        });
+
+        var html = sb.ToString();
+        Assert.That(html, Does.Not.Contain("<script>"));
+        Assert.That(html, Does.Not.Contain("<img"));
+        Assert.That(html, Does.Contain("<h1>&lt;script&gt;alert(1)&lt;/script&gt;</h1>"));
+        Assert.That(html, Does.Contain("<h2>a &amp; b</h2>"));
+    }
+
+    [Test]
+    public void ALink_ToHttps_IsEncoded_AndAnyOtherSchemeIsTextOnly()
+    {
+        Assert.That(HomebaseSsrService.Link("https://x.test/?a=1&b='x", "site"),
+            Is.EqualTo("<a href='https://x.test/?a=1&amp;b=&#39;x'>site</a>"));
+        Assert.That(HomebaseSsrService.Link("javascript:alert(1)", "<b>me</b>"), Is.EqualTo("&lt;b&gt;me&lt;/b&gt;"));
+        Assert.That(HomebaseSsrService.Link("mailto:me@x.test", "mail"), Is.EqualTo("<a href='mailto:me@x.test'>mail</a>"));
+    }
+
+    [Test]
+    public void APostLink_EscapesTheSlugAsAPathSegment()
+    {
+        var link = HomebaseSsrService.PostLink("public", "a'b\"><script>/../x");
+        Assert.That(link, Does.Not.Contain("'").And.Not.Contain("\"").And.Not.Contain("<").And.Not.Contain("/../"));
+        Assert.That(HomebaseSsrService.PostLink("public", ".."), Does.EndWith("/public/%2E%2E"), "a dot-segment would resolve upwards");
+
+        var sb = new StringBuilder();
+        new HomebaseSsrService(null!, null!, null!, null!, NullLogger<HomebaseSsrService>.Instance).WriteChannelPostListBody(
+            "public", null!, sb, [new ChannelPost { Content = new PostContent { Caption = "t", Slug = "x'><script>" } }]);
+        Assert.That(sb.ToString(), Does.Not.Contain("<script>").And.Not.Contain("x'>"));
     }
 }

@@ -336,7 +336,7 @@ public class HomebasePublicPageService(
         // Open Graph attributes
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
-        b.Append($"<meta property='og:url' content='{GetHumanReadableVersion(httpContextAccessor.HttpContext)}'/>\n");
+        b.Append($"<meta property='og:url' content='{HttpUtility.HtmlEncode(GetHumanReadableVersion(httpContextAccessor.HttpContext))}'/>\n");
         b.Append($"<meta property='og:site_name' content='{title}'/>\n");
         b.Append($"<meta property='og:type' content='{siteType}'/>\n");
 
@@ -387,7 +387,7 @@ public class HomebasePublicPageService(
         }
 
         var title = $"{person?.Name ?? odinId} | {suffix}";
-        noScriptContentBuilder.AppendLine($"<a href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}'>");
+        noScriptContentBuilder.AppendLine($"<a href='{HttpUtility.HtmlEncode(GetDisplayUrlWithSsr(httpContextAccessor.HttpContext))}'>");
         noScriptContentBuilder.AppendLine(HttpUtility.HtmlEncode(title));
         noScriptContentBuilder.AppendLine("</a>");
 
@@ -407,9 +407,9 @@ public class HomebasePublicPageService(
         PersonSchema person, string siteType, string robotsTag, string noScriptContent, IOdinContext odinContext)
     {
         var builder = PrepareHeadBuilder(title, description, siteType);
-        builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-        builder.Append($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}' />\n");
-        builder.Append($"<link rel='canonical' href='{GetHumanReadableVersion(httpContextAccessor.HttpContext)}' />\n");
+        builder.Append($"<meta property='og:image' content='{HttpUtility.HtmlEncode(imageUrl)}'/>\n");
+        builder.Append($"<link rel='alternate' href='{HttpUtility.HtmlEncode(GetDisplayUrlWithSsr(httpContextAccessor.HttpContext))}' />\n");
+        builder.Append($"<link rel='canonical' href='{HttpUtility.HtmlEncode(GetHumanReadableVersion(httpContextAccessor.HttpContext))}' />\n");
         builder.AppendLine($"<meta name='robots' content='{robotsTag}' />");
 
         builder.Append(PrepareIdentityContent(person));
@@ -432,9 +432,9 @@ public class HomebasePublicPageService(
         var context = httpContextAccessor.HttpContext;
         string odinId = context.Request.Host.Host;
 
-        b.Append($"<meta property='profile:first_name' content='{person?.GivenName}'/>\n");
-        b.Append($"<meta property='profile:last_name' content='{person?.FamilyName}'/>\n");
-        b.Append($"<meta property='profile:username' content='{context.Request.Host}'/>\n");
+        b.Append($"<meta property='profile:first_name' content='{HttpUtility.HtmlEncode(person?.GivenName)}'/>\n");
+        b.Append($"<meta property='profile:last_name' content='{HttpUtility.HtmlEncode(person?.FamilyName)}'/>\n");
+        b.Append($"<meta property='profile:username' content='{HttpUtility.HtmlEncode(context.Request.Host.ToString())}'/>\n");
         b.Append($"<link rel='webfinger' href='{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}'/>\n");
         b.Append($"<link rel='did' href='{context.Request.Scheme}://{odinId}/.well-known/did.json'/>\n");
         b.Append("<script type='application/ld+json'>\n");

@@ -185,7 +185,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     await DeferItem(peerOutbox, fileItem, result.NextRun);
                 }
             }
-            catch (OperationCanceledException)
+            // Only a shutdown is retried at once; any other cancellation (an HttpClient timeout) is a failure for the back-off
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
 
@@ -200,25 +201,27 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 logger.LogError(fileReadException, "Source file not found {file} item (type: {itemType})", fileItem.File, fileItem.Type);
             }
-            catch (OdinOutboxProcessingException e)
-            {
-                await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
-
-                logger.LogError(e, "An outbox worker did not handle the outbox processing exception.  Action: Marking Failure" +
-                                   "item (type: {itemType}).  File:{file}\t Marker:{marker}",
-                    fileItem.Type,
-                    fileItem.File,
-                    fileItem.Marker);
-            }
             catch (Exception e)
             {
-                await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
+                // A failure the worker let escape, retried on the attempt back-off so it doesn't run through its
+                // attempts in a second (#1815); at once if the host is shutting down, which is what likely broke it
+                var nextRun = cancellationToken.IsCancellationRequested
+                    ? UnixTimeUtc.Now()
+                    : OutboxWorkerBase.BackoffNextRunTime(fileItem.AttemptCount);
+                await RescheduleItem(peerOutbox, fileItem, nextRun);
 
-                logger.LogError(e, "Unhandled exception occured while processing an outbox.  Action: Marking Failure." +
-                                   "item (type: {itemType}).  File:{file}\t Marker:{marker}",
-                    fileItem.Type,
-                    fileItem.File,
-                    fileItem.Marker);
+                if (e is OdinOutboxProcessingException processingException)
+                {
+                    logger.LogError(e, "An outbox worker did not handle the outbox processing exception ({status}).  Action: " +
+                                       "retrying item (type: {itemType}) to {recipient}.  File:{file}\t Marker:{marker}",
+                        processingException.TransferStatus, fileItem.Type, fileItem.Recipient, fileItem.File, fileItem.Marker);
+                }
+                else
+                {
+                    logger.LogError(e, "Unhandled exception occured while processing an outbox.  Action: retrying " +
+                                       "item (type: {itemType}) to {recipient}.  File:{file}\t Marker:{marker}",
+                        fileItem.Type, fileItem.Recipient, fileItem.File, fileItem.Marker);
+                }
             }
         }
 
