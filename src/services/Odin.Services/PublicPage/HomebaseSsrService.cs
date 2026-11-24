@@ -2,13 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
@@ -30,19 +27,13 @@ public class HomebaseSsrService(
     public void WriteHomeBodyContent(StringBuilder contentBuilder, PersonSchema person, IOdinContext odinContext)
     {
         var imageUrl = profileContentService.GetPublicImageUrl(odinContext);
-        contentBuilder.AppendLine($"<img src='{imageUrl}' width='600'/>");
-        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
-        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
-
-        if (person.BioSummary != null)
-        {
-            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
-        }
+        contentBuilder.AppendLine($"<img src='{E(imageUrl)}' width='600'/>");
+        WriteProfileHeader(contentBuilder, person);
 
         if (person.Bio != null)
         {
             contentBuilder.AppendLine($"<hr/>");
-            contentBuilder.AppendLine($"<p>Bio: {person.Bio}</p>");
+            contentBuilder.AppendLine($"<p>Bio: {E(person.Bio)}</p>");
         }
 
         CreateMenu(contentBuilder);
@@ -50,13 +41,7 @@ public class HomebaseSsrService(
 
     public async Task WriteConnectionsBodyContent(StringBuilder contentBuilder, PersonSchema person, IOdinContext odinContext)
     {
-        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
-        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
-
-        if (person.BioSummary != null)
-        {
-            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
-        }
+        WriteProfileHeader(contentBuilder, person);
 
         var count = Int32.MaxValue;
         if (odinContext.PermissionsContext?.HasPermission(PermissionKeys.ReadConnections) ?? false)
@@ -72,9 +57,9 @@ public class HomebaseSsrService(
                 var odinId = identity.OdinId;
                 var imageUrl = $"https://{odinId}/pub/image";
                 contentBuilder.AppendLine("<li>");
-                contentBuilder.AppendLine($"<img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" height=\"24\"" +
+                contentBuilder.AppendLine($"<img src=\"{E(imageUrl)}\" alt=\"Status\" width=\"24\" height=\"24\"" +
                                           $" style=\"vertical-align: middle; margin-right: 8px;\"/>");
-                contentBuilder.AppendLine($"<a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a>");
+                contentBuilder.AppendLine($"<a href='{E($"https://{odinId}/ssr")}'>{E(odinId)}</a>");
 
                 contentBuilder.AppendLine("  </li>");
             }
@@ -94,9 +79,9 @@ public class HomebaseSsrService(
                 var imageUrl = $"https://{odinId}/pub/image";
                 contentBuilder.AppendLine("  <li>");
 
-                contentBuilder.AppendLine($"<img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" " +
+                contentBuilder.AppendLine($"<img src=\"{E(imageUrl)}\" alt=\"Status\" width=\"24\" " +
                                           $"height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
-                contentBuilder.AppendLine($"<a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a>");
+                contentBuilder.AppendLine($"<a href='{E($"https://{odinId}/ssr")}'>{E(odinId)}</a>");
                 contentBuilder.AppendLine("  </li>");
             }
 
@@ -110,20 +95,14 @@ public class HomebaseSsrService(
     {
         var links = await profileContentService.LoadLinks();
 
-        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
-        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
-
-        if (person.BioSummary != null)
-        {
-            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
-        }
+        WriteProfileHeader(contentBuilder, person);
 
         contentBuilder.AppendLine("<h3>My Links</h3>");
         contentBuilder.AppendLine("<ul>");
         foreach (var link in links)
         {
             contentBuilder.AppendLine("  <li>");
-            contentBuilder.AppendLine($"    <a href='{link.Url}'>{WebUtility.HtmlEncode(link.Type)}</span>");
+            contentBuilder.AppendLine($"    {Link(link.Url, link.Type)}");
             contentBuilder.AppendLine("  </li>");
         }
 
@@ -133,8 +112,7 @@ public class HomebaseSsrService(
 
     public async Task<bool> WriteAboutBodyContent(StringBuilder contentBuilder, PersonSchema person, IOdinContext odinContext)
     {
-        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
-        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
+        WriteProfileHeader(contentBuilder, person, withSummary: false);
 
         var aboutSection = await profileContentService.LoadAboutSection(odinContext);
         if (null == aboutSection)
@@ -147,7 +125,7 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine("<h2>Status</h2>");
         foreach (var status in aboutSection.Status)
         {
-            contentBuilder.AppendLine($"<p>{status}</p>");
+            contentBuilder.AppendLine($"<p>{E(status)}</p>");
         }
 
         contentBuilder.AppendLine("<br/><hr/><br/>");
@@ -159,17 +137,12 @@ public class HomebaseSsrService(
             {
                 if (!string.IsNullOrEmpty(bio))
                 {
-                    var bodyHtml = PlateRichTextParser.Parse(HtmlSafe.ParseJson(bio));
+                    // An older bio is plain text, not JSON: ParseJson gives null for it, so it is shown encoded
+                    var bodyHtml = HtmlSafe.ParseJson(bio) is { } json ? PlateRichTextParser.Parse(json) : E(bio);
                     contentBuilder.AppendLine($"<div>");
                     contentBuilder.Append(bodyHtml);
                     contentBuilder.AppendLine($"</div>");
                 }
-            }
-            catch (JsonException) // this fallback is for older bios that have not been changed to json format.
-            {
-                contentBuilder.AppendLine($"<div>");
-                contentBuilder.Append(bio);
-                contentBuilder.AppendLine($"</div>");
             }
             catch (Exception e)
             {
@@ -187,7 +160,7 @@ public class HomebaseSsrService(
                 if (!string.IsNullOrEmpty(shortBio))
                 {
                     contentBuilder.AppendLine($"<p>");
-                    contentBuilder.Append(shortBio);
+                    contentBuilder.Append(E(shortBio));
                     contentBuilder.AppendLine($"</p>");
                 }
             }
@@ -202,8 +175,12 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine("<h2>Experience</h2>");
         foreach (var exp in aboutSection.Experience)
         {
-            contentBuilder.AppendLine($"<img src='{exp.ImageUrl}'/>");
-            contentBuilder.AppendLine($"<h3>{exp.Title}</h3>");
+            if (HtmlSafe.SafeUrl(exp.ImageUrl) is { } imageUrl)
+            {
+                contentBuilder.AppendLine($"<img src='{E(imageUrl)}'/>");
+            }
+
+            contentBuilder.AppendLine($"<h3>{E(exp.Title)}</h3>");
             if (!string.IsNullOrEmpty(exp.Description))
             {
                 var bodyHtml = PlateRichTextParser.Parse(HtmlSafe.ParseJson(exp.Description));
@@ -212,7 +189,7 @@ public class HomebaseSsrService(
                 contentBuilder.AppendLine($"</div>");
             }
 
-            contentBuilder.AppendLine($"<a href='{exp.Link}'>{exp.Link}</a>");
+            contentBuilder.AppendLine(Link(exp.Link, exp.Link));
             contentBuilder.AppendLine("<br/><hr/><br/>");
         }
 
@@ -275,7 +252,8 @@ public class HomebaseSsrService(
 
     public async Task WriteSitemap(StringBuilder contentBuilder, IOdinContext odinContext)
     {
-        string Page(string path) => new UriBuilder { Scheme = "https", Host = odinContext.Tenant, Path = path }.Uri.ToString();
+        // AbsoluteUri keeps an escaped segment escaped, which a <loc> needs (ToString() would unescape a slug's '&')
+        string Page(string path) => new UriBuilder { Scheme = "https", Host = odinContext.Tenant, Path = path }.Uri.AbsoluteUri;
 
         string Template(string loc, DateTime lastModified, string freq = "weekly")
         {
@@ -306,7 +284,7 @@ public class HomebaseSsrService(
             foreach (var channel in channels)
             {
                 var channelKey = channel.Slug;
-                contentBuilder.AppendLine(Template(Page($"/posts/{channelKey}"), lastModified));
+                contentBuilder.AppendLine(Template(Page(ChannelPath(channelKey)), lastModified));
                 var (idList, _) = await channelContentService.GetChannelPostIds(channelKey, odinContext, 1000);
 
                 foreach (var (id, modified) in idList)
@@ -332,7 +310,7 @@ public class HomebaseSsrService(
     {
         if (thisChannel != null)
         {
-            contentBuilder.AppendLine($"<h1>{HttpUtility.HtmlEncode(thisChannel.Name ?? "")}</h1>");
+            contentBuilder.AppendLine($"<h1>{E(thisChannel.Name ?? "")}</h1>");
         }
 
         foreach (var post in posts)
@@ -343,7 +321,7 @@ public class HomebaseSsrService(
                 continue;
             }
 
-            var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{content.Slug}");
+            var link = PostLink(channelKey, content.Slug);
 
             contentBuilder.AppendLine("<div>");
 
@@ -352,21 +330,21 @@ public class HomebaseSsrService(
             // Title with link
             if (title.Length > 0)
             {
-                contentBuilder.AppendLine($"  <h3><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(title)}</a></h3>");
+                contentBuilder.AppendLine($"  <h3><a href=\"{E(link)}\">{E(title)}</a></h3>");
             }
 
             // Abstract
             if (!string.IsNullOrWhiteSpace(content.Abstract))
             {
-                contentBuilder.AppendLine($"  <p>{HttpUtility.HtmlEncode(content.Abstract)}</p>");
+                contentBuilder.AppendLine($"  <p>{E(content.Abstract)}</p>");
             }
 
             // Image
             if (!string.IsNullOrWhiteSpace(post.ImageUrl) && title.Length > 0)
             {
-                contentBuilder.AppendLine($"<a href=\"{HttpUtility.HtmlEncode(link)}\">");
+                contentBuilder.AppendLine($"<a href=\"{E(link)}\">");
                 contentBuilder.AppendLine(
-                    $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(title)}\" />");
+                    $"  <img src=\"{E(post.ImageUrl)}\" alt=\"{E(title)}\" />");
                 contentBuilder.AppendLine("</a>");
             }
 
@@ -403,9 +381,9 @@ public class HomebaseSsrService(
                 !string.IsNullOrWhiteSpace(anovahPost.Content.Slug) &&
                 title.Length > 0)
             {
-                var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{anovahPost.Content.Slug}");
+                var link = PostLink(channelKey, anovahPost.Content.Slug);
                 contentBuilder.AppendLine(
-                    $"<li><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(title)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
+                    $"<li><a href=\"{E(link)}\">{E(title)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
             }
         }
 
@@ -419,8 +397,6 @@ public class HomebaseSsrService(
     /// </summary>
     internal void WritePostArticle(string channelKey, ChannelPost post, StringBuilder contentBuilder)
     {
-        static string E(string s) => HttpUtility.HtmlEncode(s ?? "");
-
         contentBuilder.AppendLine($"<h1>{E(MarkdownText.ToPlain(post.Content.Caption)).Replace("\n", "<br/>")}</h1>");
         if (!string.IsNullOrWhiteSpace(post.ImageUrl))
         {
@@ -486,7 +462,48 @@ public class HomebaseSsrService(
         }
     }
 
-    private static void CreateMenu(StringBuilder contentBuilder)
+    /// <summary>Encodes text or a quoted attribute value</summary>
+    private static string E(string s) => HtmlSafe.Enc(s);
+
+    /// <summary>The profile's name, status and, unless <paramref name="withSummary"/> is false, its summary</summary>
+    internal static void WriteProfileHeader(StringBuilder contentBuilder, PersonSchema person, bool withSummary = true)
+    {
+        // An identity with no public profile card has no person
+        if (person == null)
+        {
+            return;
+        }
+
+        contentBuilder.AppendLine($"<h1>{E(person.Name)}</h1>");
+        contentBuilder.AppendLine($"<h2>{E(person.Status)}</h2>");
+        if (withSummary && person.BioSummary != null)
+        {
+            contentBuilder.AppendLine($"<h3>Summary: {E(person.BioSummary)}</h3>");
+        }
+    }
+
+    /// <summary>A link to an http(s) or mailto URL the owner wrote; any other (javascript:, data:) is shown as its text only</summary>
+    internal static string Link(string url, string text) =>
+        HtmlSafe.SafeUrl(url, allowMailto: true) is { } safe ? $"<a href='{E(safe)}'>{E(text)}</a>" : E(text);
+
+    /// <summary>A channel's page, its client-written slug escaped as a path segment</summary>
+    internal static string ChannelLink(string channelKey) => SsrUrlHelper.ToSsrUrl(ChannelPath(channelKey));
+
+    /// <summary>A post's page: the channel and the client-written slug escaped as path segments</summary>
+    internal static string PostLink(string channelKey, string slug) =>
+        SsrUrlHelper.ToSsrUrl($"{ChannelPath(channelKey)}/{Segment(slug)}");
+
+    private static string ChannelPath(string channelKey) => $"/posts/{Segment(channelKey)}";
+
+    /// <summary>A path segment, escaped; "." and ".." too, which EscapeDataString leaves for a browser to resolve upwards</summary>
+    private static string Segment(string value) => (value ?? "") switch
+    {
+        "." => "%2E",
+        ".." => "%2E%2E",
+        var v => Uri.EscapeDataString(v)
+    };
+
+    internal static void CreateMenu(StringBuilder contentBuilder)
     {
         contentBuilder.AppendLine($"<ul>");
         contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
