@@ -53,7 +53,7 @@ public class HomebaseSsrController(
         var (head, person) = await BuildHeadSection(suffix: "Links");
         var contentBuilder = new StringBuilder();
         await ssrService.WriteLinksBodyContent(contentBuilder, person);
-        CreateMenu(contentBuilder);
+        HomebaseSsrService.CreateMenu(contentBuilder);
 
         await WriteContent(head, contentBuilder.ToString());
     }
@@ -84,7 +84,7 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<div>");
 
             // Channel name with link to /posts/{slug}
-            contentBuilder.AppendLine($"<h1><a href='{HttpUtility.HtmlEncode(SsrUrlHelper.ToSsrUrl($"/posts/{Uri.EscapeDataString(channel.Slug ?? "")}"))}'>" +
+            contentBuilder.AppendLine($"<h1><a href='{HttpUtility.HtmlEncode(HomebaseSsrService.ChannelLink(channel.Slug))}'>" +
                                       $"{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h1>");
 
             if (!string.IsNullOrWhiteSpace(channel.Description))
@@ -96,7 +96,7 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<hr/>");
         }
 
-        CreateMenu(contentBuilder);
+        HomebaseSsrService.CreateMenu(contentBuilder);
         await WriteContent(head, contentBuilder.ToString());
     }
 
@@ -179,16 +179,6 @@ public class HomebaseSsrController(
 
         var head = LayoutBuilder.BuildHeadContent(title, description, siteType, imageUrl, person, HttpContext, WebOdinContext, article);
         return (head.ToString(), person);
-    }
-
-    private static void CreateMenu(StringBuilder contentBuilder)
-    {
-        contentBuilder.AppendLine($"<ul>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("connections")}'>See my connections</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("about")}'>About me</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
-        contentBuilder.AppendLine($"</ul>");
     }
 
     private string DataOrNull(string data)

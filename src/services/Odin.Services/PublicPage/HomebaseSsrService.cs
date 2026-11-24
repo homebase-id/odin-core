@@ -2,11 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Odin.Services.Authorization.Permissions;
@@ -260,7 +258,8 @@ public class HomebaseSsrService(
 
     public async Task WriteSitemap(StringBuilder contentBuilder, IOdinContext odinContext)
     {
-        string Page(string path) => new UriBuilder { Scheme = "https", Host = odinContext.Tenant, Path = path }.Uri.ToString();
+        // AbsoluteUri keeps an escaped segment escaped, which a <loc> needs (ToString() would unescape a slug's '&')
+        string Page(string path) => new UriBuilder { Scheme = "https", Host = odinContext.Tenant, Path = path }.Uri.AbsoluteUri;
 
         string Template(string loc, DateTime lastModified, string freq = "weekly")
         {
@@ -291,7 +290,7 @@ public class HomebaseSsrService(
             foreach (var channel in channels)
             {
                 var channelKey = channel.Slug;
-                contentBuilder.AppendLine(Template(Page($"/posts/{channelKey}"), lastModified));
+                contentBuilder.AppendLine(Template(Page(ChannelPath(channelKey)), lastModified));
                 var (idList, _) = await channelContentService.GetChannelPostIds(channelKey, odinContext, 1000);
 
                 foreach (var (id, modified) in idList)
@@ -317,7 +316,7 @@ public class HomebaseSsrService(
     {
         if (thisChannel != null)
         {
-            contentBuilder.AppendLine($"<h1>{HttpUtility.HtmlEncode(thisChannel.Name ?? "")}</h1>");
+            contentBuilder.AppendLine($"<h1>{E(thisChannel.Name ?? "")}</h1>");
         }
 
         foreach (var post in posts)
@@ -337,21 +336,21 @@ public class HomebaseSsrService(
             // Title with link
             if (title.Length > 0)
             {
-                contentBuilder.AppendLine($"  <h3><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(title)}</a></h3>");
+                contentBuilder.AppendLine($"  <h3><a href=\"{E(link)}\">{E(title)}</a></h3>");
             }
 
             // Abstract
             if (!string.IsNullOrWhiteSpace(content.Abstract))
             {
-                contentBuilder.AppendLine($"  <p>{HttpUtility.HtmlEncode(content.Abstract)}</p>");
+                contentBuilder.AppendLine($"  <p>{E(content.Abstract)}</p>");
             }
 
             // Image
             if (!string.IsNullOrWhiteSpace(post.ImageUrl) && title.Length > 0)
             {
-                contentBuilder.AppendLine($"<a href=\"{HttpUtility.HtmlEncode(link)}\">");
+                contentBuilder.AppendLine($"<a href=\"{E(link)}\">");
                 contentBuilder.AppendLine(
-                    $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(title)}\" />");
+                    $"  <img src=\"{E(post.ImageUrl)}\" alt=\"{E(title)}\" />");
                 contentBuilder.AppendLine("</a>");
             }
 
@@ -390,7 +389,7 @@ public class HomebaseSsrService(
             {
                 var link = PostLink(channelKey, anovahPost.Content.Slug);
                 contentBuilder.AppendLine(
-                    $"<li><a href=\"{HttpUtility.HtmlEncode(link)}\">{HttpUtility.HtmlEncode(title)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
+                    $"<li><a href=\"{E(link)}\">{E(title)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
             }
         }
 
@@ -404,7 +403,6 @@ public class HomebaseSsrService(
     /// </summary>
     internal void WritePostArticle(string channelKey, ChannelPost post, StringBuilder contentBuilder)
     {
-
         contentBuilder.AppendLine($"<h1>{E(MarkdownText.ToPlain(post.Content.Caption)).Replace("\n", "<br/>")}</h1>");
         if (!string.IsNullOrWhiteSpace(post.ImageUrl))
         {
@@ -470,7 +468,7 @@ public class HomebaseSsrService(
         }
     }
 
-    /// <summary>Text or a quoted attribute value: every value in these pages goes through it (#2010)</summary>
+    /// <summary>Encodes text or a quoted attribute value</summary>
     private static string E(string s) => HtmlSafe.Enc(s);
 
     /// <summary>The profile's name, status and, unless <paramref name="withSummary"/> is false, its summary</summary>
@@ -488,11 +486,16 @@ public class HomebaseSsrService(
     internal static string Link(string url, string text) =>
         HtmlSafe.SafeUrl(url) is { } safe ? $"<a href='{E(safe)}'>{E(text)}</a>" : E(text);
 
+    /// <summary>A channel's page, its client-written slug escaped as a path segment</summary>
+    internal static string ChannelLink(string channelKey) => SsrUrlHelper.ToSsrUrl(ChannelPath(channelKey));
+
     /// <summary>A post's page: the channel and the client-written slug escaped as path segments</summary>
     internal static string PostLink(string channelKey, string slug) =>
-        SsrUrlHelper.ToSsrUrl($"/posts/{Uri.EscapeDataString(channelKey ?? "")}/{Uri.EscapeDataString(slug ?? "")}");
+        SsrUrlHelper.ToSsrUrl($"{ChannelPath(channelKey)}/{Uri.EscapeDataString(slug ?? "")}");
 
-    private static void CreateMenu(StringBuilder contentBuilder)
+    private static string ChannelPath(string channelKey) => $"/posts/{Uri.EscapeDataString(channelKey ?? "")}";
+
+    internal static void CreateMenu(StringBuilder contentBuilder)
     {
         contentBuilder.AppendLine($"<ul>");
         contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
