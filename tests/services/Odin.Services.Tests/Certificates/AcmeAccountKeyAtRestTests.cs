@@ -32,7 +32,9 @@ namespace Odin.Services.Tests.Certificates;
 /// </summary>
 public class AcmeAccountKeyAtRestTests
 {
-    private const string SettingsKey = "acme-account-staging-pem"; // ICertesAcme.IsProduction is false on a substitute
+    // ICertesAcme.IsProduction is false on a substitute
+    private const string SettingsKey = "acme-account-staging-pem";
+    private const string SealContext = "odin:acme-account-key:staging";
 
     private readonly byte[] _storageKey = RandomNumberGenerator.GetBytes(32);
     private string _tempDir = null!;
@@ -76,7 +78,7 @@ public class AcmeAccountKeyAtRestTests
 
         var stored = await ReadSettingAsync();
         Assert.That(stored, Does.Not.Contain("BEGIN"), "sealed on its first read");
-        Assert.That(SecretAtRest.Open(stored, _storageKey, SettingsKey), Is.EqualTo(keyPem));
+        Assert.That(SecretAtRest.Open(stored, _storageKey, SealContext), Is.EqualTo(keyPem));
 
         var again = await Service(_storageKey).LoadAccountAsync();
         Assert.That(again!.AccounKeyPem, Is.EqualTo(keyPem));
@@ -90,13 +92,13 @@ public class AcmeAccountKeyAtRestTests
 
         var account = await Service(_storageKey).LoadAccountAsync();
         Assert.That(account!.AccounKeyPem, Is.EqualTo(keyPem));
-        Assert.That(SecretAtRest.Open(await ReadSettingAsync(), _storageKey, SettingsKey), Is.EqualTo(keyPem));
+        Assert.That(SecretAtRest.Open(await ReadSettingAsync(), _storageKey, SealContext), Is.EqualTo(keyPem));
     }
 
     [Test]
     public async Task ASealedKeyTheStorageKeyCantOpen_IsAnError_NotNoAccount()
     {
-        await WriteSettingAsync(SecretAtRest.Seal(MakeKeyPem(), RandomNumberGenerator.GetBytes(32), SettingsKey));
+        await WriteSettingAsync(SecretAtRest.Seal(MakeKeyPem(), RandomNumberGenerator.GetBytes(32), SealContext));
         var refused = Assert.ThrowsAsync<AcmeAccountKeyUnreadableException>(() => Service(_storageKey).LoadAccountAsync());
         Assert.That(refused!.Message, Does.Contain(SettingsKey).And.Contain("CertificateRenewal:StorageKey"),
             "the error names the row and the setting to fix");
@@ -110,7 +112,7 @@ public class AcmeAccountKeyAtRestTests
 
         var stored = await ReadSettingAsync();
         Assert.That(stored, Does.Not.Contain("BEGIN"));
-        Assert.That(SecretAtRest.Open(stored, _storageKey, SettingsKey), Is.EqualTo(keyPem));
+        Assert.That(SecretAtRest.Open(stored, _storageKey, SealContext), Is.EqualTo(keyPem));
     }
 
     [Test]

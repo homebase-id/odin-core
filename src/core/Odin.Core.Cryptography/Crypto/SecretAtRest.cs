@@ -49,6 +49,7 @@ public static class SecretAtRest
         }
 
         using var key = new SensitiveByteArray(storageKey);
+        byte[]? plain = null;
         try
         {
             var parts = stored[Prefix.Length..].Split(':', 2);
@@ -59,14 +60,19 @@ public static class SecretAtRest
                 throw new FormatException("A sealed secret has a 12-byte nonce and a 16-byte tag");
             }
 
-            var plain = AesGcm.Decrypt(sealedBytes, key, nonce, Encoding.UTF8.GetBytes(context));
-            var secret = Encoding.UTF8.GetString(plain);
-            Array.Clear(plain);
-            return secret;
+            plain = AesGcm.Decrypt(sealedBytes, key, nonce, Encoding.UTF8.GetBytes(context));
+            return Encoding.UTF8.GetString(plain);
         }
         catch (Exception e) when (e is CryptographicException or FormatException or IndexOutOfRangeException)
         {
             throw new OdinSystemException($"The stored secret {context} can't be opened with this storage key", e);
+        }
+        finally
+        {
+            if (plain != null)
+            {
+                Array.Clear(plain);
+            }
         }
     }
 }

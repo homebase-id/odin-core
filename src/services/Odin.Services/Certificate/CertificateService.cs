@@ -39,6 +39,7 @@ public class CertificateService : ICertificateService
     private readonly IBackgroundServiceNotifier<UpdateCertificatesBackgroundService> _issuanceNotifier;
     private readonly string _accountKey;
     private readonly byte[] _storageKey;
+    private readonly string _accountKeySealContext;
 
     //
     // A domain that just failed to issue is not going to succeed on the next TLS handshake a
@@ -118,6 +119,10 @@ public class CertificateService : ICertificateService
         _accountKey = _certesAcme.IsProduction ?
             "acme-account-prod-pem" :
             "acme-account-staging-pem";
+
+        // What the sealed key is bound to: fixed, so renaming the row later doesn't lock it, and a prod key copied into
+        // the staging row doesn't open there
+        _accountKeySealContext = _certesAcme.IsProduction ? "odin:acme-account-key:prod" : "odin:acme-account-key:staging";
     }
 
     //
@@ -637,13 +642,14 @@ public class CertificateService : ICertificateService
 
         try
         {
-            return new AcmeAccount { AccounKeyPem = SecretAtRest.Open(settings.value, _storageKey, _accountKey) };
+            return new AcmeAccount { AccounKeyPem = SecretAtRest.Open(settings.value, _storageKey, _accountKeySealContext) };
         }
         catch (OdinSystemException e)
         {
             throw new AcmeAccountKeyUnreadableException(
-                $"The ACME account key (system setting {_accountKey}) can't be opened with CertificateRenewal:StorageKey. " +
-                "Restore the key that sealed it, or delete the row to register a new ACME account", e);
+                $"The ACME account key (system setting {_accountKey}) can't be read: {e.Message}. If " +
+                "CertificateRenewal:StorageKey changed, restore the key that sealed it; otherwise delete the row to register " +
+                "a new ACME account", e);
         }
     }
 
@@ -657,7 +663,7 @@ public class CertificateService : ICertificateService
         await tableSettings.UpsertAsync(new SettingsRecord
         {
             key = _accountKey,
-            value = SecretAtRest.Seal(account.AccounKeyPem, _storageKey, _accountKey),
+            value = SecretAtRest.Seal(account.AccounKeyPem, _storageKey, _accountKeySealContext),
         });
     }
 
