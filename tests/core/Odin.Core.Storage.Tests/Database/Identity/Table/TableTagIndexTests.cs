@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
@@ -11,6 +12,44 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     
     public class TableTagIndexTests : IocTestBase
     {
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        // #1961: reconciling writes only what differs; an unchanged tag keeps its row (its rowId)
+        public async Task ReconcileRowsTouchesOnlyWhatChanged(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveTagIndex = scope.Resolve<TableDriveTagIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fileId = Guid.NewGuid();
+            var (a, b, c) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+            async Task<Dictionary<Guid, long>> RowIdsAsync()
+            {
+                var (rows, _) = await tblDriveTagIndex.PagingByRowIdAsync(100, null);
+                return rows.Where(r => r.fileId == fileId).ToDictionary(r => r.tagId, r => r.rowId);
+            }
+
+            await tblDriveTagIndex.ReconcileRowsAsync(driveId, fileId, [a, b]);
+            var first = await RowIdsAsync();
+            Assert.That(first.Keys, Is.EquivalentTo(new[] { a, b }));
+
+            await tblDriveTagIndex.ReconcileRowsAsync(driveId, fileId, [b, a]);
+            Assert.That(await RowIdsAsync(), Is.EquivalentTo(first), "the same tags: no row rewritten");
+
+            await tblDriveTagIndex.ReconcileRowsAsync(driveId, fileId, [b, c, c]);
+            var second = await RowIdsAsync();
+            Assert.That(second.Keys, Is.EquivalentTo(new[] { b, c }));
+            Assert.That(second[b], Is.EqualTo(first[b]), "a tag that stays keeps its row");
+
+            await tblDriveTagIndex.ReconcileRowsAsync(driveId, fileId, null);
+            Assert.That(await RowIdsAsync(), Is.Empty, "null is no tags");
+        }
+
         [Test]
         [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS

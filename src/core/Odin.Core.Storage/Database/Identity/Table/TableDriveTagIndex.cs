@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -45,6 +46,33 @@ public class TableDriveTagIndex(
         var item = new DriveTagIndexRecord() { identityId = odinIdentity, driveId = driveId, fileId = fileId };
 
         foreach (var tagId in tagIdList)
+        {
+            item.tagId = tagId;
+            await base.InsertAsync(item);
+        }
+
+        tx.Commit();
+    }
+
+    /// <summary>
+    /// Brings the file's tag rows to <paramref name="tagIdList"/> (null is none), writing only what differs: a header
+    /// write whose tags didn't change touches no row (#1961).
+    /// </summary>
+    internal async Task ReconcileRowsAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
+    {
+        var wanted = tagIdList?.ToHashSet() ?? [];
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var tx = await cn.BeginStackedTransactionAsync();
+
+        var existing = await GetAsync(driveId, fileId);
+        foreach (var tagId in existing.Where(t => !wanted.Contains(t)))
+        {
+            await base.DeleteAsync(odinIdentity, driveId, fileId, tagId);
+        }
+
+        var item = new DriveTagIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId };
+        foreach (var tagId in wanted.Except(existing))
         {
             item.tagId = tagId;
             await base.InsertAsync(item);
