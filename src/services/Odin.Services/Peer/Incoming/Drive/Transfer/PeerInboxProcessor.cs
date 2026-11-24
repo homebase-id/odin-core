@@ -281,16 +281,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (OdinClientException oce)
             {
-                if (oce.ErrorCode == OdinClientErrorCode.ExistingFileWithUniqueId)
+                // A global transit id clash answered ExistingFileWithUniqueId until #2085: the same log, and the same end
+                if (oce.ErrorCode is OdinClientErrorCode.ExistingFileWithUniqueId or OdinClientErrorCode.ExistingFileWithGlobalTransitId)
                 {
                     logger.LogInformation(oce,
-                        "Processing Inbox -> UniqueId Conflict: " +
+                        "Processing Inbox -> UniqueId Conflict ({errorCode}): " +
                         "\nSender: {sender}. " +
                         "\nInbox InstructionType: {instructionType}. " +
                         "\nFile:{f}. " +
                         "\nInbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
                         "\nPopStamp (hex): {marker} for drive (hex): {driveId}  " +
                         "\nAction: Marking Complete",
+                        oce.ErrorCode,
                         inboxItem.Sender,
                         inboxItem.InstructionType,
                         file,
