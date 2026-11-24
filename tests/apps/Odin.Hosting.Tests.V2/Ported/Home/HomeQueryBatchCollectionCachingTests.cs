@@ -1,4 +1,3 @@
-#if DEBUG
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,10 +26,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Home;
 /// <remarks>
 /// Checked port.
 /// <list type="bullet">
-/// <item><c>#if DEBUG</c> is carried verbatim from the original. <c>HomeCachingService.CacheMiss</c>
-/// and <c>ResetCacheStats</c> only exist in a Debug build, so the whole file compiles away in
-/// Release — which is why these three cases never run in the CI Release build either.</item>
-/// <item>No caller matrix in the original and none here — the endpoint is anonymous.</item>
+/// <item><c>#if DEBUG</c> is carried from the original, now around the invalidation test only:
+/// <c>HomeCachingService.CacheMiss</c> and <c>ResetCacheStats</c> only exist in a Debug build, so
+/// that case never runs in the CI Release build. The rest run in both.</item>
+/// <item>The endpoint accepts any YouAuth caller and always answers as an anonymous visitor (#2060);
+/// <c>ALoggedInCallerGetsWhatAnAnonymousVisitorMayRead</c> is the one case with another caller.</item>
 /// <item>The original pinned Pippin; nothing in the assertions names an identity, so this uses the
 /// fixture default.</item>
 /// <item><b>Carried hazard:</b> <c>HomeCachingService.CacheMiss</c> is a <i>process-wide static</i>,
@@ -145,6 +145,7 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
             Is.EqualTo(new[] { publicFile.File.FileId }), "the guest's call must not fill the cache with their own view");
     }
 
+#if DEBUG
     [Test]
     public Task CanInvalidateCache_ByAddingFileToChannel() => AssertQueryIsCachedUntilAsync(
         (owner, drives) => UploadStandardRandomFileHeadersUsingOwnerApi(
@@ -173,6 +174,7 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
         await QueryData(drives.ToArray());
         Assert.That(HomeCachingService.CacheMiss, Is.EqualTo(2), "cache miss should have increased");
     }
+#endif
 
     private sealed record SeededDrive(TargetDrive Drive, UploadResult UploadResult, UploadFileMetadata Metadata);
 
@@ -298,4 +300,3 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
         }
     }
 }
-#endif
