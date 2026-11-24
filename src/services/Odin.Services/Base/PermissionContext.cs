@@ -21,10 +21,12 @@ namespace Odin.Services.Base
         public SensitiveByteArray SharedSecretKey { get; private set; }
 
         /// <summary>
-        /// Reads every public drive without its grant there (<see cref="ReadsAsPublic"/>): a context built with the
-        /// public-drive grants, as every caller but a narrowed one is (anonymous visitors, signed-in and connected
-        /// identities, guests, apps), and the CDN.  A context built narrower (a peer's direct-read token, a follower) is
-        /// asked for the drive's Read on a public drive as on any other (#2130).
+        /// Reads every public drive without its grant there (<see cref="ReadsAsPublic"/>): set by the builders of the
+        /// contexts that hold the public-drive grants (ExchangeGrantService with the anonymous drives: connections,
+        /// YouAuth domains, apps, home guests; the anonymous V1 and V2 handlers; public transit; link preview) and by the
+        /// CDN's.  The owner's needs none (All on every drive), nor the server's (System passes every drive).  Any other
+        /// context, a narrowed one such as a peer's direct-read token or the Shamir and feed-writer contexts, is asked
+        /// for the drive's Read on a public drive as on any other (#2130).  A new full caller's builder must set it.
         /// </summary>
         public bool ReadsPublicDrives { get; }
         internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
