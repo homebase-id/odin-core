@@ -1937,50 +1937,67 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
+        /// <remarks>
+        /// Two calls for one file can race (#1724): both read the header, the first saves, and the second's save then
+        /// names a local version that is gone.  The loser reads the header again and judges it afresh: a read time
+        /// already at or past its own means there is nothing left to do; one behind it is written once more.
+        /// </remarks>
         public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext, UnixTimeUtc? timestamp = null)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderForWriting(file, odinContext);
-            if (null == header)
-            {
-                throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
-            }
-
-            var existingLocalAppData = header.FileMetadata.LocalAppData;
-
-            // If no timestamp provided and ReadTime is already set, no update needed
-            if (!timestamp.HasValue && existingLocalAppData?.ReadTime != null)
-            {
-                return false;
-            }
 
             var now = UnixTimeUtc.Now();
             var effectiveReadTime = timestamp.HasValue
                 ? (timestamp.Value < now ? timestamp.Value : now)
                 : now;
 
-            if (existingLocalAppData?.ReadTime != null && existingLocalAppData.ReadTime.Value >= effectiveReadTime)
+            for (var attempt = 1; ; attempt++)
             {
-                return false;
+                var header = await GetServerFileHeaderForWriting(file, odinContext);
+                if (null == header)
+                {
+                    throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
+                }
+
+                var existingLocalAppData = header.FileMetadata.LocalAppData;
+
+                // If no timestamp provided and ReadTime is already set, no update needed
+                if (!timestamp.HasValue && existingLocalAppData?.ReadTime != null)
+                {
+                    return false;
+                }
+
+                if (existingLocalAppData?.ReadTime != null && existingLocalAppData.ReadTime.Value >= effectiveReadTime)
+                {
+                    return false;
+                }
+
+                var newVersionTag = DriveFileUtility.CreateVersionTag();
+                var mergedMetadata = new LocalAppMetadata
+                {
+                    VersionTag = existingLocalAppData?.VersionTag ?? Guid.Empty,
+                    Iv = existingLocalAppData?.Iv,
+                    Content = existingLocalAppData?.Content,
+                    Tags = existingLocalAppData?.Tags ?? [],
+                    ReadTime = effectiveReadTime,
+                    LocalReactions = existingLocalAppData?.LocalReactions,
+                };
+
+                mergedMetadata.Validate();
+
+                try
+                {
+                    await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
+                    break;
+                }
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1)
+                {
+                    _logger.LogDebug("Local read time for file {file} raced another write; reading it again", file);
+                }
             }
-
-            var newVersionTag = DriveFileUtility.CreateVersionTag();
-            var mergedMetadata = new LocalAppMetadata
-            {
-                VersionTag = existingLocalAppData?.VersionTag ?? Guid.Empty,
-                Iv = existingLocalAppData?.Iv,
-                Content = existingLocalAppData?.Content,
-                Tags = existingLocalAppData?.Tags ?? [],
-                ReadTime = effectiveReadTime,
-                LocalReactions = existingLocalAppData?.LocalReactions,
-            };
-
-            mergedMetadata.Validate();
-
-            await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
 
             try
             {
