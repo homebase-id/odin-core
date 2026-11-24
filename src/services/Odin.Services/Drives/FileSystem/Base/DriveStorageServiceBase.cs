@@ -1946,9 +1946,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-
             var now = UnixTimeUtc.Now();
             var effectiveReadTime = timestamp.HasValue
                 ? (timestamp.Value < now ? timestamp.Value : now)
@@ -1956,6 +1953,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             for (var attempt = 1; ; attempt++)
             {
+                // Also asserts the drive isn't archived and the caller may write to it
                 var header = await GetServerFileHeaderForWriting(file, odinContext);
                 if (null == header)
                 {
@@ -1964,13 +1962,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 var existingLocalAppData = header.FileMetadata.LocalAppData;
 
-                // If no timestamp provided and ReadTime is already set, no update needed
-                if (!timestamp.HasValue && existingLocalAppData?.ReadTime != null)
-                {
-                    return false;
-                }
-
-                if (existingLocalAppData?.ReadTime != null && existingLocalAppData.ReadTime.Value >= effectiveReadTime)
+                // Already read: with no timestamp, any read time will do; with one, a time at or past it
+                if (existingLocalAppData?.ReadTime is { } readTime && (!timestamp.HasValue || readTime >= effectiveReadTime))
                 {
                     return false;
                 }

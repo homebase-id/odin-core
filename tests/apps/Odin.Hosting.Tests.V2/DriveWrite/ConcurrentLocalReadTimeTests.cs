@@ -1,81 +1,81 @@
 #nullable enable
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Standard;
 
 namespace Odin.Hosting.Tests.V2.DriveWrite;
 
 /// <summary>
-/// Concurrent read-time updates for one file (#1724): a client that fires two read receipts at once used to lose one,
-/// whose save named a local version the other had just replaced.  The loser now reads the file again and judges it
-/// afresh, so no call fails and the latest read time is kept.
+/// Concurrent read-time updates for one file (#1724; see <c>DriveStorageServiceBase.UpdateLocalReadTime</c>): no call
+/// fails, and the latest read time is kept.
 /// </summary>
 [TestFixture]
 public class ConcurrentLocalReadTimeTests : V2Fixture
 {
-    private const int Calls = 8;
-
     [Test]
     public async Task ConcurrentCallsWithoutATimestamp_AllSucceed_AndOneWrites()
     {
-        var (owner, file) = await SeedFileAsync();
+        var (tenant, context, file) = await SeedFileAsync();
 
-        var results = await RunConcurrentlyAsync(owner, file, _ => null);
+        var results = await RunConcurrentlyAsync(tenant, context, file, new UnixTimeUtc?[8]);
 
         Assert.That(results.Count(written => written), Is.EqualTo(1), "one call marks the file read; the rest find it read");
-        Assert.That(await ReadTimeAsync(owner, file), Is.Not.Null);
+        Assert.That(await ReadTimeAsync(tenant, context, file), Is.Not.Null);
     }
 
     [Test]
     public async Task TwoConcurrentCallsWithTimestamps_BothSucceed_AndTheLaterTimeIsKept()
     {
-        var (owner, file) = await SeedFileAsync();
+        const int rounds = 8;
+        var (tenant, context, file) = await SeedFileAsync();
         var earlier = UnixTimeUtc.Now().AddSeconds(-60);
-        var later = earlier.AddSeconds(30);
 
-        for (var round = 0; round < Calls; round++)
+        for (var round = 0; round < rounds; round++)
         {
-            var (a, b) = (earlier.AddMilliseconds(round * 2), later.AddMilliseconds(round * 2));
-            await RunConcurrentlyAsync(owner, file, i => i == 0 ? a : b, calls: 2);
-            Assert.That(await ReadTimeAsync(owner, file), Is.EqualTo(b), $"round {round}: the later read time must win");
+            var a = earlier.AddMilliseconds(round * 2);
+            var b = a.AddSeconds(30);
+            await RunConcurrentlyAsync(tenant, context, file, a, b);
+            Assert.That(await ReadTimeAsync(tenant, context, file), Is.EqualTo(b), $"round {round}: the later read time must win");
         }
     }
 
-    private async Task<(OwnerSession Owner, InternalDriveFileId File)> SeedFileAsync()
+    private async Task<(ILifetimeScope Tenant, IOdinContext Context, InternalDriveFileId File)> SeedFileAsync()
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (_, owner) = await SetupCallerWithOwner(spec);
         var seeded = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "read me");
-        return (owner, new InternalDriveFileId(spec.TargetDrive.Alias, seeded.FileId));
+        var (tenant, context) = await MigrationContextAsync(owner);
+        return (tenant, context, new InternalDriveFileId(spec.TargetDrive.Alias, seeded.FileId));
     }
 
-    /// <summary>Each call in its own scope, as concurrent requests are: a scope's connection is not for parallel use.</summary>
-    private async Task<bool[]> RunConcurrentlyAsync(OwnerSession owner, InternalDriveFileId file, Func<int, UnixTimeUtc?> timestamp,
-        int calls = Calls)
+    /// <summary>
+    /// One call per timestamp, all released at once, each in its own scope as concurrent requests are: a scope's
+    /// connection is not for parallel use.
+    /// </summary>
+    private static async Task<bool[]> RunConcurrentlyAsync(ILifetimeScope tenant, IOdinContext context, InternalDriveFileId file,
+        params UnixTimeUtc?[] timestamps)
     {
-        var (tenant, context) = await MigrationContextAsync(owner);
-        using var start = new System.Threading.ManualResetEventSlim(false);
-        var tasks = Enumerable.Range(0, calls).Select(i => Task.Run(async () =>
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = timestamps.Select(async timestamp =>
         {
             await using var scope = tenant.BeginLifetimeScope();
             var fs = scope.Resolve<StandardFileSystem>();
-            start.Wait();
-            return await fs.Storage.UpdateLocalReadTime(file, context, timestamp(i));
-        })).ToArray();
+            await start.Task;
+            return await fs.Storage.UpdateLocalReadTime(file, context, timestamp);
+        }).ToArray();
 
-        start.Set();
-        return await Task.WhenAll(tasks);
+        start.SetResult();
+        return await Task.WhenAll(calls);
     }
 
-    private async Task<UnixTimeUtc?> ReadTimeAsync(OwnerSession owner, InternalDriveFileId file)
+    private static async Task<UnixTimeUtc?> ReadTimeAsync(ILifetimeScope tenant, IOdinContext context, InternalDriveFileId file)
     {
-        var (tenant, context) = await MigrationContextAsync(owner);
         await using var scope = tenant.BeginLifetimeScope();
         var header = await scope.Resolve<StandardFileSystem>().Storage.GetServerFileHeader(file, context);
         return header.FileMetadata.LocalAppData?.ReadTime;
