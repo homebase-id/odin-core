@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Exceptions;
 using Odin.Core.Logging;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
@@ -98,7 +97,20 @@ public class AcmeAccountKeyAtRestTests
     public async Task ASealedKeyTheStorageKeyCantOpen_IsAnError_NotNoAccount()
     {
         await WriteSettingAsync(SecretAtRest.Seal(MakeKeyPem(), RandomNumberGenerator.GetBytes(32), SettingsKey));
-        Assert.ThrowsAsync<OdinSystemException>(() => Service(_storageKey).LoadAccountAsync());
+        var refused = Assert.ThrowsAsync<AcmeAccountKeyUnreadableException>(() => Service(_storageKey).LoadAccountAsync());
+        Assert.That(refused!.Message, Does.Contain(SettingsKey).And.Contain("CertificateRenewal:StorageKey"),
+            "the error names the row and the setting to fix");
+    }
+
+    [Test]
+    public async Task ASavedAccount_IsStoredSealed()
+    {
+        var keyPem = MakeKeyPem();
+        await Service(_storageKey).SaveAccountAsync(new AcmeAccount { AccounKeyPem = keyPem });
+
+        var stored = await ReadSettingAsync();
+        Assert.That(stored, Does.Not.Contain("BEGIN"));
+        Assert.That(SecretAtRest.Open(stored, _storageKey, SettingsKey), Is.EqualTo(keyPem));
     }
 
     [Test]

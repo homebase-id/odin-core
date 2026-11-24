@@ -1,5 +1,6 @@
 using System;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -476,7 +477,8 @@ public class CertificateService : ICertificateService
             // reaching the CA no longer costs 2 seconds, it costs the whole backoff window.
             // Nothing about a failed TCP connection says this domain is unhealthy.
             //
-            var isTransient = e is AcmeTransientException or HttpRequestException ||
+            // So is an account key this server can't open: the CA was never asked, so its spend schedule is the wrong one
+            var isTransient = e is AcmeTransientException or HttpRequestException or AcmeAccountKeyUnreadableException ||
                               e.InnerException is HttpRequestException;
 
             await NoteFailureAsync(domain, error,
@@ -633,12 +635,21 @@ public class CertificateService : ICertificateService
             return plain;
         }
 
-        return new AcmeAccount { AccounKeyPem = SecretAtRest.Open(settings.value, _storageKey, _accountKey) };
+        try
+        {
+            return new AcmeAccount { AccounKeyPem = SecretAtRest.Open(settings.value, _storageKey, _accountKey) };
+        }
+        catch (OdinSystemException e)
+        {
+            throw new AcmeAccountKeyUnreadableException(
+                $"The ACME account key (system setting {_accountKey}) can't be opened with CertificateRenewal:StorageKey. " +
+                "Restore the key that sealed it, or delete the row to register a new ACME account", e);
+        }
     }
 
     //
 
-    private async Task SaveAccountAsync(AcmeAccount account)
+    internal async Task SaveAccountAsync(AcmeAccount account)
     {
         using var scope = _serviceProvider.CreateScope();
         var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
@@ -701,3 +712,6 @@ public class CertificateService : ICertificateService
     //
 
 }
+
+/// <summary>The stored ACME account key can't be opened with this server's storage key (#1748).</summary>
+public class AcmeAccountKeyUnreadableException(string message, Exception inner) : OdinSystemException(message, inner);
