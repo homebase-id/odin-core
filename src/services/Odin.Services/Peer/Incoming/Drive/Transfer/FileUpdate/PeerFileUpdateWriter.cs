@@ -68,8 +68,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
 
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-            // A peer's change of an existing copy; a new copy is a first delivery, whatever the sender's header says (#2065)
-            incomingMetadata.TransitUpdated = existingHeader == null ? 0 : UnixTimeUtc.Now().milliseconds;
+            // A new copy is a first delivery, whatever the sender's header says; a change of an existing one is moved by
+            // UpdateBatchAsync (#2065)
+            incomingMetadata.TransitUpdated = 0;
             incomingMetadata!.SenderOdinId = sender;
 
             var request = instructionSet.Request;
@@ -146,7 +147,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, existingHeader.FileMetadata.File, manifest, writeContext, markComplete, sourceArea: sourceArea);
+                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, existingHeader.FileMetadata.File, manifest, writeContext,
+                    markComplete, sourceArea: sourceArea, changedByPeer: true);
                 
                 logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - success: {success} committed payload count {pc}",
                     success,

@@ -226,14 +226,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             List<PayloadDescriptor> payloads = [];
             await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile", async () =>
             {
-                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
                 //note: we also update the key header because it might have been changed by the sender
 
                 // OverwriteFile copies no payloads for metadata whose payloads are remote, and deletes the replaced ones
                 // per the stored header (#2108)
                 (success, payloads) = await fs.Storage.OverwriteFile(sourceFile, targetFile, keyHeader, metadata, serverMetadata,
                     ignorePayload: false,
-                    odinContext, markComplete, sourceArea: sourceArea, useThisVersionTag: versionTag);
+                    odinContext, markComplete, sourceArea: sourceArea, useThisVersionTag: versionTag,
+                    changedByPeer: true); // a sender's send again moves TransitUpdated (#2065)
             });
 
             return (success, payloads);

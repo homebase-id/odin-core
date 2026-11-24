@@ -1095,7 +1095,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             InternalDriveFileId originFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete,
-            StagingArea sourceArea, Guid? useThisVersionTag = null)
+            StagingArea sourceArea, Guid? useThisVersionTag = null, bool changedByPeer = false)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
@@ -1121,7 +1121,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             ZkDriveFiles.AssertMayReplace(existingServerHeader, keyHeader, odinContext);
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
-            KeepStoredTransitUpdatedUnlessSet(existingServerHeader.FileMetadata, newMetadata);
+            SetTransitUpdated(existingServerHeader.FileMetadata, newMetadata, changedByPeer);
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
             newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created,
@@ -1489,7 +1489,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             BatchUpdateManifest manifest,
             IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete,
-            StagingArea sourceArea)
+            StagingArea sourceArea,
+            bool changedByPeer = false)
         {
             bool success = false;
 
@@ -1522,7 +1523,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
                     await OverwriteMetadataInternal(manifest.KeyHeader, header, manifest.FileMetadata,
-                        manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+                        manifest.ServerMetadata, odinContext, manifest.NewVersionTag, changedByPeer);
 
                     _logger.LogDebug("{method} -> markComplete {message}",
                         nameof(UpdateBatchAsync),
@@ -2827,21 +2828,19 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// TransitUpdated is when a file was last changed over transit by a peer: a sender's send again (PeerFileWriter) or a
-        /// peer's update (PeerFileUpdateWriter, a member's edit included) sets it, and the overwrites here keep the stored
-        /// one for every other write (#2065).  The feed drive's replace (FeedWriter) doesn't come through here
+        /// TransitUpdated is when a file was last changed over transit by a peer, whoever the peer is: a sender's send again
+        /// (PeerFileWriter) or a peer's update (PeerFileUpdateWriter, a member's edit included) says so with
+        /// <paramref name="changedByPeer"/>.  Every other write, the owner's and its apps', keeps the stored one, whatever
+        /// the new metadata holds (#2065).  The feed drive's replace (FeedWriter) doesn't come through here
         /// </summary>
-        private static void KeepStoredTransitUpdatedUnlessSet(FileMetadata stored, FileMetadata newMetadata)
+        private static void SetTransitUpdated(FileMetadata stored, FileMetadata newMetadata, bool changedByPeer)
         {
-            if (newMetadata.TransitUpdated.milliseconds == 0)
-            {
-                newMetadata.TransitUpdated = stored.TransitUpdated;
-            }
+            newMetadata.TransitUpdated = changedByPeer ? UnixTimeUtc.Now() : stored.TransitUpdated;
         }
 
         private async Task OverwriteMetadataInternal(KeyHeader newKeyHeader, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
-            IOdinContext odinContext, Guid? useThisVersionTag = null)
+            IOdinContext odinContext, Guid? useThisVersionTag = null, bool changedByPeer = false)
         {
             if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeader?.Iv))
             {
@@ -2869,7 +2868,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             }
 
-            KeepStoredTransitUpdatedUnlessSet(existingServerHeader.FileMetadata, newMetadata);
+            SetTransitUpdated(existingServerHeader.FileMetadata, newMetadata, changedByPeer);
 
             ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 

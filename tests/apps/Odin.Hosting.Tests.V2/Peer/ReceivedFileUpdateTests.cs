@@ -65,7 +65,7 @@ public class ReceivedFileUpdateTests : V2Fixture
     }
 
     // #2065: TransitUpdated is when the file was last changed over transit by a peer.  A sender's update moves it, and
-    // the owner's own update keeps it
+    // the owner's own update and overwrite keep it
     [Test]
     public async Task SendersUpdate_MovesTransitUpdated_AndOwnersUpdateKeepsIt()
     {
@@ -108,6 +108,18 @@ public class ReceivedFileUpdateTests : V2Fixture
         var after = await FindAsync(frodo, drive, globalTransitId);
         Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo("changed by frodo"));
         Assert.That(after.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated), "the owner's update keeps it");
+
+        // The owner's overwrite of the whole file keeps it too
+        var overwrite = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        overwrite.AppData.Content = "overwritten by frodo";
+        overwrite.VersionTag = after.FileMetadata.VersionTag;
+        var overwritten = await frodo.V1.Drive.UploadNewMetadata(drive, overwrite, new TransitOptions(), overwriteFileId: after.FileId);
+        Assert.That(overwritten.IsSuccessStatusCode, Is.True, overwritten.Error?.Content);
+
+        var afterOverwrite = await FindAsync(frodo, drive, globalTransitId);
+        Assert.That(afterOverwrite.FileMetadata.AppData.Content, Is.EqualTo("overwritten by frodo"));
+        Assert.That(afterOverwrite.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated),
+            "the owner's overwrite keeps it");
     }
 
     private static async Task<SharedSecretEncryptedFileHeader> FindAsync(OwnerSession owner, TargetDrive drive,
