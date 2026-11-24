@@ -17,8 +17,17 @@ public static class SecretAtRest
 
     public static string Seal(string secret, byte[] storageKey)
     {
-        var (iv, cipherText) = AesGcm.Encrypt(Encoding.UTF8.GetBytes(secret), new SensitiveByteArray(storageKey));
-        return $"{Prefix}{Convert.ToHexString(iv)}:{Convert.ToHexString(cipherText)}";
+        using var key = new SensitiveByteArray(storageKey);
+        var plain = Encoding.UTF8.GetBytes(secret);
+        try
+        {
+            var (iv, cipherText) = AesGcm.Encrypt(plain, key);
+            return $"{Prefix}{Convert.ToHexString(iv)}:{Convert.ToHexString(cipherText)}";
+        }
+        finally
+        {
+            Array.Clear(plain);
+        }
     }
 
     /// <summary>The secret; a value in no known scheme, or one the key doesn't open, is an error.</summary>
@@ -29,13 +38,16 @@ public static class SecretAtRest
             throw new OdinSystemException("The stored secret is in no scheme this server knows");
         }
 
+        using var key = new SensitiveByteArray(storageKey);
         try
         {
             var parts = stored[Prefix.Length..].Split(':', 2);
-            var plain = AesGcm.Decrypt(Convert.FromHexString(parts[1]), new SensitiveByteArray(storageKey), Convert.FromHexString(parts[0]));
-            return Encoding.UTF8.GetString(plain);
+            var plain = AesGcm.Decrypt(Convert.FromHexString(parts[1]), key, Convert.FromHexString(parts[0]));
+            var secret = Encoding.UTF8.GetString(plain);
+            Array.Clear(plain);
+            return secret;
         }
-        catch (Exception e) when (e is CryptographicException or FormatException or IndexOutOfRangeException)
+        catch (Exception e) when (e is CryptographicException or FormatException or IndexOutOfRangeException or ArgumentException)
         {
             throw new OdinSystemException("The stored secret can't be opened with this storage key", e);
         }

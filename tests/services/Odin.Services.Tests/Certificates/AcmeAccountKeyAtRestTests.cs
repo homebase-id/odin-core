@@ -84,6 +84,17 @@ public class AcmeAccountKeyAtRestTests
     }
 
     [Test]
+    public async Task APlainPemWithLeadingWhitespace_IsStillReadAsPlain()
+    {
+        var keyPem = "\n" + MakeKeyPem();
+        await WriteSettingAsync(keyPem);
+
+        var account = await Service(_storageKey).LoadAccountAsync();
+        Assert.That(account!.AccounKeyPem, Is.EqualTo(keyPem));
+        Assert.That(SecretAtRest.Open(await ReadSettingAsync(), _storageKey), Is.EqualTo(keyPem));
+    }
+
+    [Test]
     public async Task ASealedKeyTheStorageKeyCantOpen_IsAnError_NotNoAccount()
     {
         await WriteSettingAsync(SecretAtRest.Seal(MakeKeyPem(), RandomNumberGenerator.GetBytes(32)));

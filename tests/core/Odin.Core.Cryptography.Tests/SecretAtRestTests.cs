@@ -32,6 +32,8 @@ public class SecretAtRestTests
     [TestCase("garbage")]
     [TestCase("aes-gcm:zz:zz")]
     [TestCase("aes-gcm:00112233")]
+    [TestCase("aes-gcm:00:00")]
+    [TestCase("aes-gcm:00112233445566778899AABBCCDDEEFF:")]
     [TestCase(Secret)]
     public void AValueInNoKnownScheme_IsRefused(string stored)
     {

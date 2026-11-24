@@ -616,11 +616,20 @@ public class CertificateService : ICertificateService
 
         // Kept as plain PEM before #1748: sealed on its first read, with no new account and no manual step.  A sealed one
         // the storage key can't open throws: read as no account, it would be replaced by a new one
-        if (settings.value.StartsWith("-----BEGIN", StringComparison.Ordinal))
+        if (settings.value.TrimStart('\uFEFF', ' ', '\t', '\r', '\n').StartsWith("-----BEGIN", StringComparison.Ordinal))
         {
             var plain = new AcmeAccount { AccounKeyPem = settings.value };
-            await SaveAccountAsync(plain);
-            _logger.LogInformation("Encrypted the stored ACME account key ({key})", _accountKey);
+            try
+            {
+                await SaveAccountAsync(plain);
+                _logger.LogInformation("Encrypted the stored ACME account key ({key})", _accountKey);
+            }
+            catch (Exception e)
+            {
+                // The key just read still works: sealing it can wait for a later read, the order shouldn't
+                _logger.LogWarning(e, "Could not encrypt the stored ACME account key ({key}); will try on a later read", _accountKey);
+            }
+
             return plain;
         }
 
