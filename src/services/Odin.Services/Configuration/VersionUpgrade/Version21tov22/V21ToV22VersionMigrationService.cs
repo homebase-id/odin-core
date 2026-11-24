@@ -21,15 +21,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
     /// channel's content is what the CDN is for.
     /// </para>
     /// <para>
-    /// Only channel drives that allow anonymous reads: the CDN reads as <c>System</c> and so passes every file's
-    /// ACL (docs/file-access.md), so turning it on for a connections-only channel would hand the CDN files the
-    /// owner shared with connections only.  An anonymous drive is reachable by anyone anyway
-    /// (docs/security-model.md, the drive options), so nothing new is exposed.  A zero-knowledge drive never
-    /// allows anonymous reads, so none is picked.
-    /// </para>
-    /// <para>
-    /// Turn-on only: re-running it changes nothing, and a drive the owner turns the CDN off on later stays off,
-    /// since this runs once per identity.
+    /// Only channel drives that allow anonymous reads, which is what Public Posts, seeded CDN-on, already is.  The CDN
+    /// reads as <c>System</c> and so passes every file's ACL (docs/file-access.md): on these drives it reaches what it
+    /// reaches on Public Posts today, a file with a narrower ACL included.  A connections-only channel is left off, and a
+    /// zero-knowledge drive never allows anonymous reads.  Idempotent; a later opt-out by the owner is not undone.
     /// </para>
     /// </remarks>
     public class V21ToV22VersionMigrationService(
