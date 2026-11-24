@@ -26,6 +26,8 @@ using Odin.Core.X509;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Apps;
+using Odin.Services.Authorization;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
@@ -51,7 +53,8 @@ public class PushNotificationService(
     PeerOutbox peerOutbox,
     IMediator mediator,
     ILifetimeScope scope,
-    TableKeyTwoValueCached twoKeyValue)
+    TableKeyTwoValueCached twoKeyValue,
+    ClientRegistrationStorage clientRegistrationStorage)
     : INotificationHandler<ConnectionRequestAcceptedNotification>,
         INotificationHandler<ConnectionRequestReceivedNotification>,
         INotificationHandler<ShamirPasswordRecoverySufficientShardsCollectedNotification>,
@@ -233,6 +236,7 @@ public class PushNotificationService(
         {
             if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
+                await FillAppIdAsync(subscription);
                 var forSubscriber = WebPushContentFor(subscription, content);
                 if (forSubscriber != null)
                 {
@@ -249,6 +253,26 @@ public class PushNotificationService(
         }
 
         await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// A subscription made before the app was kept (#2006): its key is the app client's access registration when an app
+    /// made it, so the app is found there, once, and kept.  The owner console's key is no app client, so it stays null.
+    /// Before the pushes go out in parallel: it uses this scope's connection.
+    /// </summary>
+    internal async Task FillAppIdAsync(PushNotificationSubscription subscription)
+    {
+        if (subscription.AppId != null)
+        {
+            return;
+        }
+
+        var (client, row) = await clientRegistrationStorage.GetWithRowAsync<AppClientRegistration>(subscription.AccessRegistrationId);
+        if (row?.catType == AppClientRegistration.CatType && client?.AppId?.Value is { } appId)
+        {
+            subscription.AppId = appId;
+            await DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, subscription.AccessRegistrationId, DeviceStorageDataType, subscription);
+        }
     }
 
     /// <summary>

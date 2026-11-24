@@ -42,13 +42,25 @@ public class WebPushPerAppTests : V2Fixture
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
 
             var (scope, context) = await MigrationContextAsync(owner);
-            var subscriptions = await scope.Resolve<PushNotificationService>().GetAllSubscriptionsAsync(context);
-            Assert.That(subscriptions.Single(s => s.FriendlyName == "journal").AppId, Is.EqualTo(app.AppId));
+            var service = scope.Resolve<PushNotificationService>();
+            var subscription = (await service.GetAllSubscriptionsAsync(context)).Single(s => s.FriendlyName == "journal");
+            Assert.That(subscription.AppId, Is.EqualTo(app.AppId));
+
+            // As one made before the app was kept: found again from its app client's access registration
+            subscription.AppId = null;
+            await service.FillAppIdAsync(subscription);
+            Assert.That(subscription.AppId, Is.EqualTo(app.AppId));
+
+            // A key that is no app client (the owner console's) stays null: every app's pushes
+            var ownerConsoles = new PushNotificationSubscription { AccessRegistrationId = Guid.NewGuid() };
+            await service.FillAppIdAsync(ownerConsoles);
+            Assert.That(ownerConsoles.AppId, Is.Null);
         }
         finally
         {
-            // A subscription left behind would be pushed to by a later fixture, whose log check fails on the error
-            await push.UnsubscribeAll();
+            // A subscription left behind would be pushed to by a later fixture, whose log check fails on the error.
+            // Unsubscribe, not unsubscribeAll, which needs the master key
+            Assert.That((await push.Unsubscribe()).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }
     }
 }

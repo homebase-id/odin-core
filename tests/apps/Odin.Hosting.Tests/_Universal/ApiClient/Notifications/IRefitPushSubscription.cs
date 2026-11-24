@@ -20,6 +20,9 @@ public interface IRefitPushSubscription
     [Get(RootPath + "/subscription")]
     Task<ApiResponse<RedactedPushNotificationSubscription>> GetSubscription();
 
+    [Post(RootPath + "/unsubscribe")]
+    Task<ApiResponse<HttpContent>> Unsubscribe();
+
     [Post(RootPath + "/unsubscribeAll")]
     Task<ApiResponse<HttpContent>> UnsubscribeAll();
 }
