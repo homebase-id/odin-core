@@ -29,6 +29,15 @@ public class TableDriveMainIndex(
     ILogger<TableDriveMainIndex> logger)
     : TableDriveMainIndexCRUD(scopedConnectionFactory)
 {
+    /// <summary>
+    /// What names the unique index on globalTransitId in a clash's error
+    /// (<see cref="Exceptions.OdinDatabaseException.IsUniqueConstraintViolationOn"/>), and no other index of the table.
+    /// Only this much of the column survives Postgres's naming: a migration keeps the table it replaces under its old
+    /// name, constraints and all, so a later one's names are cut further and numbered, as
+    /// "drivemainindexmigrationsv2026_identityid_driveid_globaltra_key1" (seen on Postgres 16).
+    /// </summary>
+    public const string GlobalTransitIdIndexMarker = "global";
+
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
     internal async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId)
