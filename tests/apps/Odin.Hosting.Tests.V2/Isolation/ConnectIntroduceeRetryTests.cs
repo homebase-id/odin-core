@@ -2,12 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
@@ -43,23 +41,11 @@ public class ConnectIntroduceeRetryTests : V2Fixture
     [Test]
     public async Task UnreachableRecipient_IsRetriedOnABackoff_NotImmediately()
     {
-        var (outbox, processor, tblOutbox) = Resolve();
-        await EnqueueConnectIntroduceeAsync(outbox);
+        var tenant = Host.GetTenantScope(Identities.Frodo);
+        await EnqueueConnectIntroduceeAsync(OutboxBackoff.Resolve(tenant).Outbox);
 
-        await processor.DrainAsync(maxRetryPasses: 0);
-
-        var item = await GetItemAsync(outbox);
-        Assert.That(item, Is.Not.Null, "one failed attempt must not settle the item");
-        Assert.That(item!.AttemptCount, Is.EqualTo(1));
-
-        var nextRun = await tblOutbox.NextScheduledItemAsync(SystemDriveConstants.TransientTempDrive.Alias);
-        Assert.That(nextRun, Is.Not.Null);
-        Assert.That(nextRun!.Value.milliseconds, Is.GreaterThan(UnixTimeUtc.Now().AddSeconds(5).milliseconds),
-            "the retry must be parked behind the backoff, not rescheduled for now");
-
-        await processor.DrainAsync(maxRetryPasses: 0);
-        Assert.That((await GetItemAsync(outbox))!.AttemptCount, Is.EqualTo(1),
-            "an item behind its backoff must not be attempted again");
+        await OutboxBackoff.AssertFailedOnceAndParkedAsync(tenant, SystemDriveConstants.TransientTempDrive.Alias,
+            Unreachable.ToHashId(), Unreachable);
 
         Assert.That(WarningsContaining("ConnectIntroducee to"), Is.Not.Empty,
             "each failed attempt should say why, at Warning");
@@ -68,7 +54,7 @@ public class ConnectIntroduceeRetryTests : V2Fixture
     [Test]
     public async Task UnreachableRecipient_SettlesWhenAttemptsRunOut()
     {
-        var (outbox, processor, _) = Resolve();
+        var (outbox, processor, _) = OutboxBackoff.Resolve(Host.GetTenantScope(Identities.Frodo));
         await EnqueueConnectIntroduceeAsync(outbox);
 
         // Each retry pass brings the backed-off item forward, so this runs it until it settles.
@@ -77,13 +63,6 @@ public class ConnectIntroduceeRetryTests : V2Fixture
         Assert.That(await GetItemAsync(outbox), Is.Null, "an exhausted item must leave the outbox");
         Assert.That(WarningsContaining("gave up"), Has.Count.EqualTo(1),
             "giving up on an introduction should be said once, at Warning");
-    }
-
-    private (PeerOutbox, PeerOutboxProcessorBackgroundService, TableOutbox) Resolve()
-    {
-        var scope = Host.GetTenantScope(Identities.Frodo);
-        return (scope.Resolve<PeerOutbox>(), scope.Resolve<PeerOutboxProcessorBackgroundService>(),
-            scope.Resolve<TableOutbox>());
     }
 
     private static Task EnqueueConnectIntroduceeAsync(PeerOutbox outbox)
