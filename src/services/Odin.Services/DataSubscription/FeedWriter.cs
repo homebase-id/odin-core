@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -63,7 +64,6 @@ public class FeedWriter(
         FileMetadata fileMetadata,
         IOdinContext odinContext,
         OdinId expectedSender,
-        bool changedByPeer,
         KeyHeader keyHeader = null)
     {
         var targetFile = new InternalDriveFileId()
@@ -108,6 +108,7 @@ public class FeedWriter(
         }
 
         var localVersionTag = header.FileMetadata.VersionTag;
+        var stored = header.FileMetadata;
         header.FileMetadata = fileMetadata; //overwrite with incoming info
         fileMetadata.VersionTag = localVersionTag; // keep this identity's version tag
 
@@ -115,7 +116,8 @@ public class FeedWriter(
         // comes from multiple channel drives from many different identities so there could be a clash
         header.FileMetadata.AppData.UniqueId = null;
 
-        await _fileSystem.Storage.UpdateActiveFileHeader(targetFile, header, odinContext, raiseEvent: true, changedByPeer: changedByPeer);
+        await _fileSystem.Storage.UpdateActiveFileHeader(targetFile, header, odinContext, raiseEvent: true,
+            changedByPeer: SendersContentDiffers(stored, fileMetadata));
         if (header.FileMetadata.ReactionPreview == null)
         {
             var drive = await driveManager.GetDriveAsync(targetFile.DriveId);
@@ -126,6 +128,23 @@ public class FeedWriter(
             await _fileSystem.Storage.UpdateReactionSummary(targetFile, header.FileMetadata.ReactionPreview, odinContext);
         }
     }
+
+    /// <summary>
+    /// Whether a replace carries a change the sender made to the post itself, which moves TransitUpdated. A sender pushes
+    /// an item again for a reaction or a local-only write on its copy, and a follower's catch-up sync rewrites every item;
+    /// none of those changes what is compared here
+    /// </summary>
+    private static bool SendersContentDiffers(FileMetadata stored, FileMetadata incoming) =>
+        SendersContentOf(stored) != SendersContentOf(incoming);
+
+    private static string SendersContentOf(FileMetadata m) => OdinSystemSerializer.Serialize(new
+    {
+        m.AppData,
+        m.Payloads,
+        m.IsEncrypted,
+        m.ReferencedFile,
+        m.DataSource
+    });
 
     public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext)
     {

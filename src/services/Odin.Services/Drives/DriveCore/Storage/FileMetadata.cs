@@ -92,8 +92,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// When the file was last changed over transit by a peer, whoever the peer: a sender's send again, a peer's update
         /// (a member's edit included) or a followed identity's change of a feed item.  0 for a file never changed that way,
         /// a new file included.  The storage layer sets it, and only for a write whose caller says it is a peer's change
-        /// (changedByPeer); every other write keeps it, the owner's, its apps', the system's and a follower's catch-up sync
-        /// of the feed (#2065)
+        /// (changedByPeer); every other write keeps it, the owner's, its apps' and the system's.  On the feed drive a push
+        /// or a catch-up sync counts only when it changes the post itself, not for a reaction or a sync that brings nothing
+        /// new (FeedWriter) (#2065)
         /// </summary>
         public UnixTimeUtc TransitUpdated { get; set; }
 

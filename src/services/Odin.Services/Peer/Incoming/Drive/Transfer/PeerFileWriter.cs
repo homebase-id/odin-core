@@ -371,7 +371,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 newMetadata,
                 odinContext,
                 expectedSender: (OdinId)newMetadata.SenderOdinId,
-                changedByPeer: true,
                 keyHeader: keyHeader);
 
             logger.LogDebug("{method} -> markComplete {message}", 

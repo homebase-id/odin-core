@@ -123,23 +123,16 @@ public class ReceivedFileUpdateTests : V2Fixture
             "the owner's overwrite keeps it");
     }
 
-    // #2065 on the feed drive: a followed identity's new post arrives with no TransitUpdated, its edit moves it, and the
-    // follower's own catch-up sync, which rewrites every item, keeps it
+    // #2065 on the feed drive: a followed identity's new post arrives with no TransitUpdated and its edit moves it. A
+    // reaction pushes the item again, and the follower's catch-up sync rewrites every item: neither changes the post, so
+    // neither moves it
     [Test]
-    public async Task FollowedIdentitysEdit_MovesTransitUpdated_AndTheFollowersSyncKeepsIt()
+    public async Task FollowedIdentitysEdit_MovesTransitUpdated_AndAReactionOrASyncKeepsIt()
     {
         const int fileType = 20651;
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
-
-        // Anonymous reads, so the follower's sync can query the channel without a connection
-        var channel = await DataSubscriptionScenario.CreateChannelDriveAsync(frodo, allowAnonymousReads: true);
-        await DataSubscriptionScenario.FollowAsync(sam, frodo);
-        var query = DataSubscriptionScenario.FeedQueryByFileType(fileType);
-
-        var upload = await DataSubscriptionScenario.UploadStandardUnencryptedFileToChannelAsync(frodo, channel, "first", fileType);
-        await frodo.Sync.DrainOutboxAsync();
-        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+        var (channel, upload, query) = await FollowedPostAsync(frodo, sam, fileType);
 
         var delivered = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "first", upload);
         Assert.That(delivered.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(0), "a new feed item is no change");
@@ -153,13 +146,62 @@ public class ReceivedFileUpdateTests : V2Fixture
         var transitUpdated = edited.FileMetadata.TransitUpdated.milliseconds;
         Assert.That(transitUpdated, Is.GreaterThanOrEqualTo(beforeTheEdit), "the followed identity's edit moves it");
 
+        var react = await frodo.Drives.Reactions.AddReactionAsync(channel.Alias, upload.File.FileId, ":heart:");
+        Assert.That(react.IsSuccessStatusCode, Is.True, react.Error?.Content);
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+
+        var reacted = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "edited", upload);
+        Assert.That(reacted.FileMetadata.ReactionPreview?.Reactions, Is.Not.Empty, "arrange: the reaction should reach the feed");
+        Assert.That(reacted.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated), "a reaction keeps it");
+
         var sync = await sam.Followers.SynchronizeFeedHistoryAsync(frodo.Identity);
         Assert.That(sync.IsSuccessStatusCode, Is.True, $"sync-feed-history returned {sync.StatusCode}");
 
         var synced = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "edited", upload);
-        Assert.That(synced.FileMetadata.Updated.milliseconds, Is.GreaterThan(edited.FileMetadata.Updated.milliseconds),
+        Assert.That(synced.FileMetadata.Updated.milliseconds, Is.GreaterThan(reacted.FileMetadata.Updated.milliseconds),
             "arrange: the sync should have rewritten the item");
         Assert.That(synced.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated), "the sync keeps it");
+    }
+
+    // #2065: an edit the follower's feed missed, which its catch-up sync then brings, moves TransitUpdated as a push would
+    [Test]
+    public async Task AnEditTheSyncBrings_MovesTransitUpdated()
+    {
+        const int fileType = 20652;
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var (_, upload, query) = await FollowedPostAsync(frodo, sam, fileType);
+
+        // Sam isn't following when Frodo edits, so no push reaches the feed; following again, Sam's sync brings the edit
+        var unfollow = await sam.V1.Follower.UnfollowIdentity(frodo.Identity);
+        Assert.That(unfollow.IsSuccessStatusCode, Is.True, $"unfollow returned {unfollow.StatusCode}");
+        var beforeTheEdit = UnixTimeUtc.Now().milliseconds;
+        await DataSubscriptionScenario.OverwriteStandardFileAsync(frodo, upload.File, "edited", fileType, upload.NewVersionTag);
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+        await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "first", upload);
+
+        await DataSubscriptionScenario.FollowAsync(sam, frodo);
+        var sync = await sam.Followers.SynchronizeFeedHistoryAsync(frodo.Identity);
+        Assert.That(sync.IsSuccessStatusCode, Is.True, $"sync-feed-history returned {sync.StatusCode}");
+
+        var synced = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "edited", upload);
+        Assert.That(synced.FileMetadata.TransitUpdated.milliseconds, Is.GreaterThanOrEqualTo(beforeTheEdit),
+            "the edit the sync brought moves it");
+    }
+
+    /// <summary>Frodo's post on an anonymous channel (so Sam's sync can query it unconnected), on Sam's feed</summary>
+    private static async Task<(TargetDrive channel, UploadResult upload, QueryBatchRequest query)> FollowedPostAsync(
+        OwnerSession frodo, OwnerSession sam, int fileType)
+    {
+        var channel = await DataSubscriptionScenario.CreateChannelDriveAsync(frodo, allowAnonymousReads: true);
+        await DataSubscriptionScenario.FollowAsync(sam, frodo);
+
+        var upload = await DataSubscriptionScenario.UploadStandardUnencryptedFileToChannelAsync(frodo, channel, "first", fileType);
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+        return (channel, upload, DataSubscriptionScenario.FeedQueryByFileType(fileType));
     }
 
     private static async Task<SharedSecretEncryptedFileHeader> FindAsync(OwnerSession owner, TargetDrive drive,
