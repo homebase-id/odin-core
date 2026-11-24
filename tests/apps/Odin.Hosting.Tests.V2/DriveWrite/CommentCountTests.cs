@@ -7,7 +7,6 @@ using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests.V2.DriveWrite;
 
@@ -31,7 +30,7 @@ public class CommentCountTests : V2Fixture
             .UploadNewMetadata(spec.TargetDrive.Alias, metadata);
         Assert.That(comment.StatusCode, Is.EqualTo(HttpStatusCode.OK), comment.Error?.Content);
 
-        var header = await owner.Drives.Reader.GetFileHeaderAsync(spec.TargetDrive.Alias, post.FileId);
-        Assert.That(header.Content!.FileMetadata.ReactionPreview?.TotalCommentCount, Is.EqualTo(1));
+        var header = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, post.FileId);
+        Assert.That(header.FileMetadata.ReactionPreview?.TotalCommentCount, Is.EqualTo(1));
     }
 }

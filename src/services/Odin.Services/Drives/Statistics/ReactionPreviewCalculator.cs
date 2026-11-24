@@ -50,8 +50,7 @@ public class ReactionPreviewCalculator(
             return;
         }
 
-        // The comment's count changes as a reaction's does: in one read inside storage, asking drive React, Comment or
-        // Write, not the read rule (#2070)
+        // Not the read rule: the summary changes in one read inside storage, as a reaction's does (#2070)
         var (fs, fileId) = await fileSystemResolver.ResolveFileSystem(referencedFile, odinContext);
         if (null == fs || null == fileId)
         {
@@ -110,14 +109,8 @@ public class ReactionPreviewCalculator(
             return; 
         }
         
-        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
-        var shouldSkip = len > CommentPreview.MaxContentLength;
-        if (shouldSkip)
+        if (TooLongForPreview(updatedFileHeader))
         {
-            logger.LogWarning("Skipping adding comment to comment preview due to max " +
-                              "size.  Comment content Size: {len}.  Max Preview: {max}",
-                len, CommentPreview.MaxContentLength);
-
             return;
         }
 
@@ -155,14 +148,8 @@ public class ReactionPreviewCalculator(
             return;
         }
         
-        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
-        var shouldSkip = len > CommentPreview.MaxContentLength;
-        if (shouldSkip)
+        if (TooLongForPreview(updatedFileHeader))
         {
-            logger.LogWarning("Skipping adding comment to comment preview due to max " +
-                              "size.  Comment content Size: {len}.  Max Preview: {max}",
-                len, CommentPreview.MaxContentLength);
-
             return;
         }
 
@@ -177,6 +164,20 @@ public class ReactionPreviewCalculator(
             Content = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.Content,
             Reactions = new List<ReactionContentPreview>()
         });
+    }
+
+    private bool TooLongForPreview(ServerFileHeader updatedFileHeader)
+    {
+        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
+        if (len <= CommentPreview.MaxContentLength)
+        {
+            return false;
+        }
+
+        logger.LogWarning("Skipping adding comment to comment preview due to max " +
+                          "size.  Comment content Size: {len}.  Max Preview: {max}",
+            len, CommentPreview.MaxContentLength);
+        return true;
     }
 
     public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
