@@ -89,9 +89,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public UnixTimeUtc TransitCreated { get; set; }
 
         /// <summary>
-        /// When the file was last changed over transit by a peer (a sender's send again or a peer's update, a member's
-        /// edit included, or a followed identity's change of a feed item); 0 for a file never changed that way.  The owner's,
-        /// its apps' and the system's writes never change it, a follower's catch-up sync of the feed included (#2065)
+        /// When the file was last changed over transit by a peer, whoever the peer: a sender's send again, a peer's update
+        /// (a member's edit included) or a followed identity's change of a feed item.  0 for a file never changed that way,
+        /// a new file included.  The storage layer sets it, and only for a write whose caller says it is a peer's change
+        /// (changedByPeer); every other write keeps it, the owner's, its apps', the system's and a follower's catch-up sync
+        /// of the feed (#2065)
         /// </summary>
         public UnixTimeUtc TransitUpdated { get; set; }
 

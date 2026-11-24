@@ -319,7 +319,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header,
             IOdinContext odinContext,
-            bool raiseEvent = false, bool ignoreFeedDistribution = false, bool changedByPeer = false)
+            bool raiseEvent, bool changedByPeer)
         {
             if (!header.IsValid())
             {
@@ -363,7 +363,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //HACKed in for Feed drive -> Should become a data subscription check
             if (raiseEvent)
             {
-                await PublishFileChangedAsync(targetFile, header, odinContext, ignoreFeedDistribution: ignoreFeedDistribution);
+                await PublishFileChangedAsync(targetFile, header, odinContext);
             }
         }
 
@@ -387,9 +387,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //TODO: need to encrypt the metadata parts
             metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
             metadata.FileState = FileState.Active;
-            // A new file, a peer's first delivery or a new feed item included, has not been changed over transit, whatever the
-            // metadata says (#2065)
-            metadata.TransitUpdated = 0;
+            metadata.TransitUpdated = 0; // a new file has not been changed over transit (FileMetadata.TransitUpdated)
 
             await WriteFileHeaderInternal(header, odinContext, useThisVersionTag); // sets the header.FileMetadata.Created/Updated
 
@@ -1480,12 +1478,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        /// <param name="changedByPeer">A peer's change, which moves TransitUpdated (<see cref="SetTransitUpdated"/>)</param>
+        /// <param name="changedByPeer">A peer's change: see <see cref="FileMetadata.TransitUpdated"/></param>
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
             bool raiseEvent = false, bool changedByPeer = false)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
-            await UpdateActiveFileHeaderInternal(targetFile, header, odinContext, raiseEvent, changedByPeer: changedByPeer);
+            await UpdateActiveFileHeaderInternal(targetFile, header, odinContext, raiseEvent, changedByPeer);
         }
 
 
@@ -2833,11 +2831,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// TransitUpdated is when a file was last changed over transit by a peer, whoever the peer is: a sender's send again
-        /// (PeerFileWriter) or a peer's update (PeerFileUpdateWriter, a member's edit included) says so with
-        /// <paramref name="changedByPeer"/>, as does a peer's change of a feed item (FeedWriter).  Every other write, the
-        /// owner's, its apps' and the system's, keeps the stored one, whatever the new metadata holds, and a new file has none
-        /// (WriteNewFileHeader) (#2065)
+        /// Moves <see cref="FileMetadata.TransitUpdated"/> to now on a peer's change, and otherwise keeps the stored one,
+        /// whatever the new metadata holds
         /// </summary>
         private static void SetTransitUpdated(FileMetadata stored, FileMetadata newMetadata, bool changedByPeer)
         {
