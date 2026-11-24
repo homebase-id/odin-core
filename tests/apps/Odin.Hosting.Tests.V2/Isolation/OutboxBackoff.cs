@@ -25,6 +25,7 @@ internal static class OutboxBackoff
     {
         var (outbox, processor, table) = Resolve(tenant);
 
+        var started = UnixTimeUtc.Now();
         await processor.DrainAsync(maxRetryPasses: 0);
 
         var item = await outbox.GetItemAsync(driveId, fileId, recipient);
@@ -33,7 +34,7 @@ internal static class OutboxBackoff
 
         var row = await table.GetAsync(driveId, fileId, recipient.DomainName);
         Assert.That(row, Is.Not.Null);
-        Assert.That(row!.nextRunTime.milliseconds, Is.GreaterThan(UnixTimeUtc.Now().AddSeconds(5).milliseconds),
+        Assert.That(row!.nextRunTime.milliseconds, Is.GreaterThanOrEqualTo(started.AddSeconds(9).milliseconds),
             "the retry must be parked behind the back-off, not rescheduled for now");
 
         await processor.DrainAsync(maxRetryPasses: 0);
