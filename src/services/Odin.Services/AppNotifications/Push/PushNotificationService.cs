@@ -112,6 +112,15 @@ public class PushNotificationService(
         await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
     }
 
+    /// <summary>
+    /// For a push running in parallel with the others (PushAsync): its own scope, as this scope's connection is shared
+    /// </summary>
+    private async Task RemoveDeviceInOwnScopeAsync(PushNotificationSubscription subscription, IOdinContext odinContext)
+    {
+        await using var dbScope = scope.BeginLifetimeScope();
+        await RemoveDeviceAsync(dbScope.Resolve<TableKeyTwoValueCached>(), subscription.AccessRegistrationId, odinContext);
+    }
+
     /// <summary>Keeps the subscription but forgets its PushKit token; the next Ring goes out as an alert until the app re-registers one.</summary>
     private static async Task ClearVoipTokenAsync(TableKeyTwoValueCached twoKeyValue, PushNotificationSubscription subscription)
     {
@@ -231,12 +240,17 @@ public class PushNotificationService(
         var subscriptions = await GetAllSubscriptionsAsync(odinContext);
         var keys = await keyService.GetEccNotificationsKeysAsync();
 
+        // Every app first, one at a time: the lookups use this scope's connection, which the pushes below share in parallel
+        foreach (var subscription in subscriptions.Where(sub => string.IsNullOrEmpty(sub.FirebaseDeviceToken)))
+        {
+            await FillAppIdAsync(subscription);
+        }
+
         var tasks = new List<Task>();
         foreach (var subscription in subscriptions)
         {
             if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
-                await FillAppIdAsync(subscription);
                 var forSubscriber = WebPushContentFor(subscription, content);
                 if (forSubscriber != null)
                 {
@@ -256,9 +270,10 @@ public class PushNotificationService(
     }
 
     /// <summary>
-    /// A subscription made before the app was kept (#2006): its key is the app client's access registration when an app
-    /// made it, so the app is found there, once, and kept.  The owner console's key is no app client, so it stays null.
-    /// Before the pushes go out in parallel: it uses this scope's connection.
+    /// A subscription made before the app was kept (#2006): when an app made it, its key is that app client's access
+    /// registration, so the app is found there and kept, and the lookup isn't made again for it.  The owner console's key
+    /// is no app client: its subscriptions stay null, looked up on every push.  A failed lookup leaves it null, so the push
+    /// still goes out (as before this was kept).
     /// </summary>
     internal async Task FillAppIdAsync(PushNotificationSubscription subscription)
     {
@@ -267,11 +282,28 @@ public class PushNotificationService(
             return;
         }
 
-        var (client, row) = await clientRegistrationStorage.GetWithRowAsync<AppClientRegistration>(subscription.AccessRegistrationId);
-        if (row?.catType == AppClientRegistration.CatType && client?.AppId?.Value is { } appId)
+        try
         {
+            var (client, row) = await clientRegistrationStorage.GetWithRowAsync<AppClientRegistration>(subscription.AccessRegistrationId);
+            if (row?.catType != AppClientRegistration.CatType || client?.AppId?.Value is not { } appId)
+            {
+                return;
+            }
+
             subscription.AppId = appId;
-            await DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, subscription.AccessRegistrationId, DeviceStorageDataType, subscription);
+
+            // Read again before writing: the device may have subscribed again, or unsubscribed, since this push read it
+            var stored = await DeviceSubscriptionStorage.GetAsync<PushNotificationSubscription>(twoKeyValue, subscription.AccessRegistrationId);
+            if (stored is { AppId: null } && stored.Endpoint == subscription.Endpoint)
+            {
+                stored.AppId = appId;
+                await DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, stored.AccessRegistrationId, DeviceStorageDataType, stored);
+            }
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogWarning(e, "Could not find the app of push subscription {subscription}; it gets every app's pushes",
+                subscription.AccessRegistrationId);
         }
     }
 
@@ -312,7 +344,7 @@ public class PushNotificationService(
         {
             if (exception.Message.StartsWith("Subscription no longer valid", true, CultureInfo.InvariantCulture))
             {
-                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
+                await RemoveDeviceInOwnScopeAsync(subscription, odinContext);
                 logger.LogInformation(
                     "Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
@@ -322,7 +354,7 @@ public class PushNotificationService(
 
             if (exception.Message.StartsWith("Received unexpected response code: 403", true, CultureInfo.InvariantCulture))
             {
-                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
+                await RemoveDeviceInOwnScopeAsync(subscription, odinContext);
                 logger.LogInformation(
                     "Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
@@ -336,7 +368,7 @@ public class PushNotificationService(
                     "Received BadRequest WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
 
-                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
+                await RemoveDeviceInOwnScopeAsync(subscription, odinContext);
             }
 
             logger.LogError(exception, "Failed sending web push notification {exception}.  remote status code: {code}. content: {content}",

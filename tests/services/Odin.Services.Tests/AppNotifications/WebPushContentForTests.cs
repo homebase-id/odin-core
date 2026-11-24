@@ -32,7 +32,7 @@ public class WebPushContentForTests
     }
 
     [Test]
-    public void TheOwnerConsolesSubscription_AndAnOlderOne_GetEverything()
+    public void ASubscriptionWithNoApp_TheOwnerConsoles_GetsEverything()
     {
         var content = Content(Chat, Journal);
         Assert.That(PushNotificationService.WebPushContentFor(new PushNotificationSubscription { AppId = null }, content), Is.SameAs(content));
