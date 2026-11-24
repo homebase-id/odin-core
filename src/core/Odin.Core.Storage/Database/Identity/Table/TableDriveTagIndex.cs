@@ -71,11 +71,12 @@ public class TableDriveTagIndex(
             await base.DeleteAsync(odinIdentity, driveId, fileId, tagId);
         }
 
+        // TryInsert, as the ACL rows are: a row added meanwhile by another writer is no conflict
         var item = new DriveTagIndexRecord { identityId = odinIdentity, driveId = driveId, fileId = fileId };
         foreach (var tagId in wanted.Except(existing))
         {
             item.tagId = tagId;
-            await base.InsertAsync(item);
+            await base.TryInsertAsync(item);
         }
 
         tx.Commit();
