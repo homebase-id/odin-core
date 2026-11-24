@@ -5,9 +5,13 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Configuration.VersionUpgrade.Version21tov22;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 
 namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 
@@ -46,5 +50,28 @@ public class PublicChannelCdnMigrationTests : V2Fixture
         Assert.That((await frodo.Admin.GetDrive(WellKnownAppDrives.PublicPostsChannelDrive)).AllowCdn, Is.True);
 
         Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
+    }
+
+    [Test]
+    public async Task AZeroKnowledgeChannelDriveWithAnonymousReadsFromBeforeTheCheck_IsSkipped_NotAnUpgradeFailure()
+    {
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
+        var drive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        await frodo.Admin.CreateDrive(drive, "private channel", allowAnonymousReads: false, sharingModel: DriveSharingModel.Private,
+            zkKeys: ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey).Request);
+
+        // What a drive set before the settings check (2026-11-05) can hold: anonymous reads on a zero-knowledge drive
+        var (scope, ctx) = await MigrationContextAsync(frodo);
+        var db = scope.Resolve<IdentityDatabase>();
+        var record = await db.DrivesCached.GetAsync(drive.Alias);
+        var details = OdinSystemSerializer.Deserialize<StorageDriveDetails>(record!.detailsJson)!;
+        details.AllowAnonymousReads = true;
+        record.detailsJson = OdinSystemSerializer.Serialize(details);
+        await db.DrivesCached.UpsertAsync(record);
+
+        var migration = scope.Resolve<V21ToV22VersionMigrationService>();
+        Assert.DoesNotThrowAsync(() => migration.EnableCdnOnPublicChannelDrivesAsync(ctx, CancellationToken.None));
+        Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
+        Assert.That((await frodo.Admin.GetDrive(drive)).AllowCdn, Is.False);
     }
 }

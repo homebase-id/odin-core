@@ -23,8 +23,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
     /// <para>
     /// Only channel drives that allow anonymous reads, which is what Public Posts, seeded CDN-on, already is.  The CDN
     /// reads as <c>System</c> and so passes every file's ACL (docs/file-access.md): on these drives it reaches what it
-    /// reaches on Public Posts today, a file with a narrower ACL included.  A connections-only channel is left off, and a
-    /// zero-knowledge drive never allows anonymous reads.  Idempotent; a later opt-out by the owner is not undone.
+    /// reaches on Public Posts today, a file with a narrower ACL included.  A connections-only channel and a zero-knowledge
+    /// drive are left off.
+    /// </para>
+    /// <para>
+    /// <c>AllowCdn</c> can't tell "never set" from "turned off", so a public channel the owner had turned the CDN off on
+    /// is turned back on.  Idempotent; an opt-out after the upgrade is not undone.
     /// </para>
     /// </remarks>
     public class V21ToV22VersionMigrationService(
@@ -62,7 +66,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
         private async Task<List<StorageDrive>> PublicChannelDrivesWithoutCdnAsync(IOdinContext odinContext)
         {
             var channels = await driveManager.GetDrivesAsync(SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
-            return channels.Results.Where(d => d.AllowAnonymousReads && !d.IsCdnEnabled()).ToList();
+            // Never a zero-knowledge drive: one may still carry anonymous reads from before the settings were checked
+            // (2026-11-05), but the CDN setter refuses it, which would hold the identity at v21, and the CDN never reads one
+            return channels.Results.Where(d => d.AllowAnonymousReads && !d.IsZeroKnowledge && !d.IsCdnEnabled()).ToList();
         }
     }
 }
