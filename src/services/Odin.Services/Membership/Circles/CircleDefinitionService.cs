@@ -38,7 +38,8 @@ namespace Odin.Services.Membership.Circles
     public class CircleDefinitionService(
         IDriveManager driveManager,
         IdentityDatabase db,
-        LegacyDefinitionStore legacyStore)
+        LegacyDefinitionStore legacyStore,
+        OdinContextCache odinContextCache)
     {
 
         public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)
@@ -329,7 +330,10 @@ namespace Odin.Services.Membership.Circles
 
         /// <summary>
         /// The only writer of <see cref="CircleDefinition.Disabled"/>; <see cref="UpdateAsync"/> keeps
-        /// the stored value.
+        /// the stored value.  Resets the cached peer contexts, which hold their enabled circles: without it a
+        /// disable reaches a member, and an enable returns their access, only when theirs expires, up to an hour
+        /// later (#2054).  Not for use inside a transaction: the reset is immediate, so a context rebuilt before the
+        /// commit would read the old row (a caller holding one would make the reset a post-commit action).
         /// </summary>
         public async Task SetDisabledAsync(GuidId circleId, bool disabled)
         {
@@ -342,6 +346,7 @@ namespace Odin.Services.Membership.Circles
             circle.Disabled = disabled;
             circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
             await db.CircleCached.UpsertAsync(ToRecord(circle));
+            await odinContextCache.ResetAsync();
         }
 
         public async Task<bool> IsEnabledAsync(GuidId circleId)

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Query;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
@@ -26,8 +27,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 /// </summary>
 /// <remarks>
 /// Peer permission contexts are cached by token for up to an hour.  Before the cache was reset on a single add,
-/// a bulk add, a revoke or a completed queued enrollment, a member removed from a circle kept reading what it
-/// shared for that long, and one added after a recent call did not see the circle.
+/// a bulk add, a revoke, a completed queued enrollment, a disable or an enable (#2054), a member removed from a
+/// circle (or of a disabled one) kept reading what it shared for that long, and one added after a recent call (or
+/// to a circle enabled since) did not see the circle.
 /// </remarks>
 [TestFixture]
 public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
@@ -90,6 +92,42 @@ public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
 
         Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.True,
             "once his queued enrollment completes, Sam must see what the circle shares on his very next call");
+    }
+
+    [Test]
+    public async Task DisablingTheCircle_EndsWhatItShared_OnTheMembersNextCall()
+    {
+        var (frodo, sam, circleId, fileType, uniqueId) = await ArrangeAsync();
+        var grant = await frodo.Connections.GrantCircle(circleId, sam.Identity);
+        Assert.That(grant.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"arrange: grant failed: {grant.StatusCode}");
+
+        // Sam calls first, so his context is cached with the circle in it
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.True, "precondition: a member sees the card");
+
+        var disable = await frodo.RefitFor<IRefitOwnerCircleDefinition>().DisableCircleDefinition(circleId);
+        Assert.That(disable.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"disable failed: {disable.StatusCode}");
+
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.False,
+            "a disabled circle grants nothing: Sam must not see what it shares on his very next call (#2054)");
+    }
+
+    [Test]
+    public async Task EnablingTheCircle_ReturnsWhatItShares_OnTheMembersNextCall()
+    {
+        var (frodo, sam, circleId, fileType, uniqueId) = await ArrangeAsync();
+        var grant = await frodo.Connections.GrantCircle(circleId, sam.Identity);
+        Assert.That(grant.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"arrange: grant failed: {grant.StatusCode}");
+        var disable = await frodo.RefitFor<IRefitOwnerCircleDefinition>().DisableCircleDefinition(circleId);
+        Assert.That(disable.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"arrange: disable failed: {disable.StatusCode}");
+
+        // Sam calls while it is disabled, so his context is cached without the circle
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.False, "precondition: disabled, it grants nothing");
+
+        var enable = await frodo.RefitFor<IRefitOwnerCircleDefinition>().EnableCircleDefinition(circleId);
+        Assert.That(enable.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"enable failed: {enable.StatusCode}");
+
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.True,
+            "enabled again, Sam must see what the circle shares on his very next call (#2054)");
     }
 
     /// <summary>
