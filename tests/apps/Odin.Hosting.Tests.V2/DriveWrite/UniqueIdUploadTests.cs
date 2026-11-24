@@ -56,6 +56,26 @@ public class UniqueIdUploadTests : V2Fixture
         Assert.That(staged, Is.Empty, $"the refused upload left files in the upload folder: {string.Join(", ", staged)}");
     }
 
+    [Test]
+    public async Task ATombstoneThatKeptItsUniqueIdRefusesBeforeThePayloadIsRead()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        var uniqueId = Guid.NewGuid();
+        var first = await Create(owner, spec.TargetDrive, uniqueId, SamplePayloadDefinitions.GetPayloadDefinition1());
+        Assert.That(first.IsSuccessStatusCode, Is.True, $"actual {first.StatusCode}: {first.Error?.Content}");
+        var delete = await owner.Drives.Writer.SoftDeleteFile(spec.TargetDrive.Alias, first.Content!.FileId,
+            tombstone: new TombstoneOptions { KeepUniqueId = true });
+        Assert.That(delete.IsSuccessStatusCode, Is.True, $"actual {delete.StatusCode}: {delete.Error?.Content}");
+
+        // As above: read first, this payload would be refused with PayloadHashMismatch instead
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.Content = "not the bytes that were hashed".ToUtf8ByteArray();
+
+        var refused = await Create(owner, spec.TargetDrive, uniqueId, payload);
+        DriveAsserts.AssertRejected(refused, OdinClientErrorCode.ExistingFileWithUniqueId);
+    }
+
     private static Task<Refit.ApiResponse<CreateFileResult>> Create(OwnerSession owner, TargetDrive drive, Guid uniqueId,
         TestPayloadDefinition payload)
     {
