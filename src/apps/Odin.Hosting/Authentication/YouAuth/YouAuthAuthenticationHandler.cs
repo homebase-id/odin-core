@@ -15,12 +15,9 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
@@ -214,8 +211,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             var tenantContext = this.Context.RequestServices.GetRequiredService<TenantContext>();
-            odinContext.Caller = AnonymousPermissions.Caller();
-            odinContext.SetPermissionContext(AnonymousPermissions.Create(anonymousDrives.Results, tenantContext.Settings));
+            AnonymousPermissions.Apply(odinContext, anonymousDrives.Results, tenantContext.Settings);
 
             var claims = new[]
             {

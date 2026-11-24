@@ -24,11 +24,8 @@ using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Hosting.UnifiedV2.Authentication
@@ -272,8 +269,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             }
 
             var tenantContext = httpContext.RequestServices.GetRequiredService<TenantContext>();
-            odinContext.Caller = AnonymousPermissions.Caller();
-            odinContext.SetPermissionContext(AnonymousPermissions.Create(anonymousDrives.Results, tenantContext.Settings));
+            AnonymousPermissions.Apply(odinContext, anonymousDrives.Results, tenantContext.Settings);
 
             var claims = new[]
             {

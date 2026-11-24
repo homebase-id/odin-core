@@ -17,7 +17,18 @@ public static class AnonymousPermissions
 {
     public static CallerContext Caller() => new(odinId: null, securityLevel: SecurityGroupType.Anonymous, masterKey: null);
 
-    public static PermissionContext Create(IEnumerable<StorageDrive> anonymousDrives, TenantSettings settings)
+    /// <summary>
+    /// Makes <paramref name="odinContext"/> an anonymous visitor's: its caller and its permissions
+    /// </summary>
+    public static void Apply(IOdinContext odinContext, IEnumerable<StorageDrive> anonymousDrives, TenantSettings settings)
+    {
+        odinContext.Caller = Caller();
+        odinContext.SetPermissionContext(Create(anonymousDrives, settings));
+    }
+
+    /// <param name="useTransitRead">False only for a link preview, which has never been given it</param>
+    public static PermissionContext Create(IEnumerable<StorageDrive> anonymousDrives, TenantSettings settings,
+        bool useTransitRead = true)
     {
         var anonDriveGrants = anonymousDrives.Select(d => new DriveGrant()
         {
@@ -41,7 +52,10 @@ public static class AnonymousPermissions
             anonPerms.Add(PermissionKeys.ReadWhoIFollow);
         }
 
-        anonPerms.Add(PermissionKeys.UseTransitRead);
+        if (useTransitRead)
+        {
+            anonPerms.Add(PermissionKeys.UseTransitRead);
+        }
 
         var permissionGroupMap = new Dictionary<string, PermissionGroup>
         {

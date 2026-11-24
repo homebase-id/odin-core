@@ -83,15 +83,12 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// </summary>
         private async Task<IOdinContext> CreateAnonymousContextAsync(IOdinContext odinContext)
         {
-            var anonymousContext = new OdinContext
-            {
-                Tenant = odinContext.Tenant,
-                Caller = AnonymousPermissions.Caller()
-            };
+            var anonymousContext = new OdinContext { Tenant = odinContext.Tenant };
             anonymousContext.SetApiVersion(odinContext.ApiVersion);
 
+            // Read with no caller, so archived drives are left out, as for the YouAuth scheme's anonymous visitor
             var anonymousDrives = await _driveManager.GetAnonymousDrivesAsync(PageOptions.All, anonymousContext);
-            anonymousContext.SetPermissionContext(AnonymousPermissions.Create(anonymousDrives.Results, _tenantContext.Settings));
+            AnonymousPermissions.Apply(anonymousContext, anonymousDrives.Results, _tenantContext.Settings);
             return anonymousContext;
         }
 
