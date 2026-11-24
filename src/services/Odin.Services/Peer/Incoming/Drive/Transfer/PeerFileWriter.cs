@@ -219,7 +219,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task<(bool success, List<PayloadDescriptor> payloads)> UpdateExistingFile(IDriveFileSystem fs,
             InternalDriveFileId sourceFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
+            FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext,
             StagingArea sourceArea, WriteSecondDatabaseRowBase markComplete, Guid versionTag)
         {
             bool success = false;
@@ -229,8 +229,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
                 //note: we also update the key header because it might have been changed by the sender
 
+                // OverwriteFile copies no payloads for metadata whose payloads are remote, and deletes the replaced ones
+                // per the stored header (#2108)
                 (success, payloads) = await fs.Storage.OverwriteFile(sourceFile, targetFile, keyHeader, metadata, serverMetadata,
-                    ignorePayloads,
+                    ignorePayload: false,
                     odinContext, markComplete, sourceArea: sourceArea, useThisVersionTag: versionTag);
             });
 
@@ -307,7 +309,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //note: we also update the key header because it might have been changed by the sender
             VersionTagWritten = versionTag;
-            return await UpdateExistingFile(fs, file, stored.FileMetadata.File, keyHeader, newMetadata, serverMetadata, ignorePayloads,
+            return await UpdateExistingFile(fs, file, stored.FileMetadata.File, keyHeader, newMetadata, serverMetadata,
                 writeContext, sourceArea, markComplete, versionTag);
         }
 
