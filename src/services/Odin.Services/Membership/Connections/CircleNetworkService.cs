@@ -2241,14 +2241,15 @@ namespace Odin.Services.Membership.Connections
                     // stored record, not this copy, so refetch after either: saving the stale copy below would put
                     // the weak token back.  A token that can't be opened is left as it is, as the reconcile did
                     // before it upgraded tokens, instead of failing every member and the app's update with it.  The
-                    // same key failures the key store key upgrade tolerates, and deliberately no catch-all: a database
-                    // or programming fault stays one (and on Postgres would abort the shared transaction anyway)
+                    // same key failures the key store key upgrade tolerates, and a malformed token's (ByteArrayUtil.Split
+                    // throws ArgumentException); deliberately no catch-all: a database or programming fault stays one
+                    // (and on Postgres would abort the shared transaction anyway)
                     bool tokenUpgraded;
                     try
                     {
                         tokenUpgraded = await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
                     }
-                    catch (Exception e) when (e is OdinSecurityException or CryptographicException)
+                    catch (Exception e) when (e is OdinSecurityException or CryptographicException or ArgumentException)
                     {
                         logger.LogWarning(e, "ReconcileAuthorizedCircles: could not upgrade the token of {identity}; " +
                                              "left as it is", odinId);
@@ -2286,9 +2287,11 @@ namespace Odin.Services.Membership.Connections
                     }
                     catch (Exception e) when (e is OdinSecurityException or CryptographicException)
                     {
+                        var hadGrant = appCircleGrantDictionary.Remove(circleId);
                         logger.LogWarning(e, "ReconcileAuthorizedCircles: the peer key of {identity} can't be opened; " +
-                                             "removing its app grant for circle {circleId}", odinId, circleId);
-                        if (appCircleGrantDictionary.Remove(circleId))
+                                             "skipping its app grant for circle {circleId}{removed}", odinId, circleId,
+                            hadGrant ? ", and removing the one it held" : "");
+                        if (hadGrant)
                         {
                             icr.PeerKeyStore.AppGrants[appKey] = appCircleGrantDictionary;
                             await this.SaveIcrAsync(icr, odinContext);

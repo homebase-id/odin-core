@@ -9,6 +9,7 @@ using Odin.Core.Cryptography.Data;
 using Autofac;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.Api;
@@ -279,7 +280,8 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 2);
         await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
         await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
-        AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2);
+        var grantsBefore = GrantsAsJson(AppCircleGrantsFor(
+            await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2));
 
         // The circle-member grant names a drive the identity doesn't have: the grant can't be minted for anyone, so
         // re-granting the circle that stays fails after the revoke of the other one took Sam's grant for it away.
@@ -294,8 +296,13 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var app = await GetAppRegistration(frodoOwnerClient, setup.App.AppId);
         Assert.That(app.AuthorizedCircles, Is.EquivalentTo(setup.CircleIds),
             "the registration's save is rolled back with the failed reconcile");
-        AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2);
+        var grantsAfter = GrantsAsJson(AppCircleGrantsFor(
+            await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2));
+        Assert.That(grantsAfter, Is.EqualTo(grantsBefore), "Sam's grants are the ones he held, not re-minted ones");
     }
+
+    private static string GrantsAsJson(IEnumerable<RedactedAppCircleGrant> grants) =>
+        OdinSystemSerializer.Serialize(grants.OrderBy(g => g.CircleId.ToString()).ToList());
 
     /// <summary>
     /// A member whose peer key the master key doesn't open is skipped, as one that still needs its key upgrade is,
