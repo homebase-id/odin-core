@@ -5,7 +5,6 @@ using Odin.Core.Identity;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
@@ -39,10 +38,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// the post's original sender changes it, and only to one no wider (#2002).  Elsewhere, and for a comment, which
         /// takes its file's, the one chosen.
         /// </summary>
-        public static AccessControlList ForChange(StorageDrive drive, FileSystemType fileSystemType, AccessControlList incoming,
-            ServerFileHeader stored, OdinId sender)
+        public static AccessControlList ForChange(FileSystemType fileSystemType, bool isCollaborationChannel,
+            AccessControlList incoming, ServerFileHeader stored, OdinId sender)
         {
-            if (fileSystemType == FileSystemType.Comment || !drive.IsCollaborationDrive())
+            if (fileSystemType == FileSystemType.Comment || !isCollaborationChannel)
             {
                 return incoming;
             }

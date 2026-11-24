@@ -124,22 +124,26 @@ namespace Odin.Services.Authorization.Acl
                 return true;
             }
 
-            if (RequiredSecurityGroup < other.RequiredSecurityGroup)
+            // Every caller at this ACL's group reaches the other's, on the ladder the ACL check uses
+            if (!DriveAclAuthorizationService.ReachesGroup(other.RequiredSecurityGroup, RequiredSecurityGroup))
             {
                 return false;
             }
 
             var otherCircles = other.GetRequiredCircles().ToHashSet();
-            var otherIdentities = other.GetRequiredIdentities().ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (otherCircles.Count == 0 && otherIdentities.Count == 0)
+            if (otherCircles.Count == 0 && !other.GetRequiredIdentities().Any())
             {
                 return true;
             }
 
-            var circles = GetRequiredCircles().ToList();
-            var identities = GetRequiredIdentities().ToList();
-            return (circles.Count > 0 || identities.Count > 0) &&
-                   circles.All(otherCircles.Contains) && identities.All(otherIdentities.Contains);
+            var otherIdentities = other.GetRequiredIdentities().Where(OdinId.IsValid).Select(id => ((OdinId)id).DomainName)
+                .ToHashSet();
+
+            var circles = GetRequiredCircles();
+            var identities = GetRequiredIdentities();
+            return (circles.Any() || identities.Any()) &&
+                   circles.All(otherCircles.Contains) &&
+                   identities.All(id => OdinId.IsValid(id) && otherIdentities.Contains(((OdinId)id).DomainName));
         }
 
         public void Validate()

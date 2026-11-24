@@ -68,7 +68,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
             else if (existingHeader != null)
             {
-                targetAcl = IncomingFileAcl.ForChange(drive, fileSystemType, targetAcl, existingHeader, sender);
+                targetAcl = IncomingFileAcl.ForChange(fileSystemType, isCollaborationChannel, targetAcl, existingHeader, sender);
             }
 
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
