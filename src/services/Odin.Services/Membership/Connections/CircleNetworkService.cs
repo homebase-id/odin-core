@@ -88,7 +88,7 @@ namespace Odin.Services.Membership.Connections
 
             // the peer's token has the key store key in scope - convert any pending
             // deposited grants so they apply to this very request
-            if (await TryConvertDepositedGrantsAtPeerAuthAsync(icr, remoteIcrToken, odinContext))
+            if (await TryConvertDepositedGrantsAtPeerAuthAsync(icr, icr.PeerKeyStore!.PeerClientKey, remoteIcrToken, odinContext))
             {
                 // saving clears the in-memory grant collections (they live in sibling tables);
                 // re-fetch so this request's permission context sees the converted grants
@@ -170,6 +170,13 @@ namespace Odin.Services.Membership.Connections
             if (!IsLiveConnection(icr))
             {
                 return null;
+            }
+
+            // The token opens the connection's key store key too, so an app's deposit for this member converts here,
+            // as on the relay, and this very read sees the circle
+            if (await TryConvertDepositedGrantsAtPeerAuthAsync(icr, accessReg, authToken, odinContext))
+            {
+                icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
             }
 
             // The token's own half of its key opens the shared secret: what proves it is the token the subscriber was given
@@ -3043,8 +3050,10 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Opportunistic deposit conversion at peer CAT auth — the peer's token reconstructs the
-        /// key store key, which is exactly the "next accessed with the key in scope" moment.
+        /// Opportunistic deposit conversion at peer auth — the peer's token, through
+        /// <paramref name="accessReg"/> (the connection's own peer key, or a peer-notification
+        /// subscriber token's, which wraps the same key store key), reconstructs the key store key,
+        /// which is exactly the "next accessed with the key in scope" moment.
         /// Never fails the auth path. Also fans out AppCircleGrants for the converted circles, via
         /// <see cref="NoStorageKeySource"/> since there is no master key here: any drive grant that
         /// doesn't need Read (the common case -- e.g. Chat's Write|React grants) comes out fully
@@ -3054,7 +3063,7 @@ namespace Odin.Services.Membership.Connections
         /// introduction/auto-connect accepts.
         /// </summary>
         private async Task<bool> TryConvertDepositedGrantsAtPeerAuthAsync(IdentityConnectionRegistration icr,
-            ClientAuthenticationToken remoteIcrToken, IOdinContext odinContext)
+            ServerHalfOfClientKey accessReg, ClientAuthenticationToken remoteIcrToken, IOdinContext odinContext)
         {
             if (!(icr.PeerKeyStore?.HasPendingDeposits ?? false))
             {
@@ -3063,7 +3072,7 @@ namespace Odin.Services.Membership.Connections
 
             try
             {
-                var (keyStoreKey, sharedSecret) = icr.PeerKeyStore.PeerClientKey.DecryptUsingClientAuthenticationToken(remoteIcrToken);
+                var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(remoteIcrToken);
                 try
                 {
                     var convertedCircleIds = await ConvertDepositedGrantsAsync(icr.PeerKeyStore, keyStoreKey, odinContext);

@@ -22,8 +22,9 @@ what's still open — superseding the plan doc's "not yet built" / "undecided" m
   + `DepositedGrants` (`PeerKeyStore.cs`, `DepositedGrant.cs`). An app deposits a sealed
   grant via `CreateDepositedGrantAsync`; it converts into a real `CircleGrant` (and the
   app-implied `AppCircleGrant`s, via the shared `FanOutAppCircleGrantsAsync`) the moment
-  the Peer Key is next in scope — owner grant touch, or the peer's own server
-  authenticating any transit call.
+  the Peer Key is next in scope — owner grant touch, the peer's own server
+  authenticating any transit call, or the peer's device reading straight from this
+  server with its peer-notification token (`TryCreatePeerSubscriberReadContextAsync`).
 
 **The policy question is answered in code**, even though the plan doc still marks it
 undecided: deposits are all-or-nothing. Any single drive in the target circle that the

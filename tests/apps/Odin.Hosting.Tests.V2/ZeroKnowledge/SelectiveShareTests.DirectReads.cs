@@ -18,10 +18,13 @@ using Odin.Hosting.UnifiedV2.Drive.Shares;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.Shares;
 using Odin.Services.Peer.AppNotification;
 using Odin.Services.Peer.Encryption;
 using Refit;
@@ -107,6 +110,48 @@ public partial class SelectiveShareTests
         // His cached context held the circle's grant on the drive; leaving it must reach the next read
         await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
             $"{UnifiedApiRouteConstants.DrivesRoot}/{s.Drive.Alias}/files/{fileId}/payload/{payload.Key}", "out of the circle that grants him the drive");
+    }
+
+    [Test]
+    public async Task AMembersPeerTokenReadsStraightAwayOnceAnAppAddsHimToACircle()
+    {
+        var s = await ArrangeAsync();
+
+        // A circle of the app that also grants Read on a drive the server opens: that grant carries a storage key, so
+        // the app, without the owner's master key, can only deposit Sam's membership
+        await s.Frodo.Admin.SetAppGrants(s.App.AppId, new PermissionSetGrantRequest
+        {
+            Drives =
+            [
+                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = s.Drive, Permission = DrivePermission.All } },
+                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = MeshDrive, Permission = DrivePermission.Read } }
+            ],
+            PermissionSet = new PermissionSet()
+        });
+        var circleId = Guid.NewGuid();
+        var circleGrant = s.ReadWriteGrant(DriveShareService.ShareBits);
+        circleGrant.Drives = [..circleGrant.Drives!, new DriveGrantRequest
+        {
+            PermissionedDrive = new PermissionedDrive { Drive = MeshDrive, Permission = DrivePermission.Read }
+        }];
+        await s.Frodo.Admin.CreateCircle(circleId, "the app's mixed circle", circleGrant, s.App.AppId);
+        await s.SetShareKeyAsync(circleId);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var (fileId, _, _) = await s.UploadClientLockedAsync(payload);
+        var write = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read, lockedFileKey: LockedFileKey(), circleId: circleId)]
+        });
+        Assert.That(write.StatusCode, Is.EqualTo(HttpStatusCode.OK), write.Error?.Content);
+
+        // The token his server fetched earlier, for the socket; then the app adds him, and nothing goes through his own
+        // server to convert the deposit
+        var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
+        await AppCircles.AddMemberAsync(s.App, circleId, Identities.Sam);
+
+        await PayloadBytesAsync(direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key),
+            "his first read straight from Frodo's server after the app's add");
     }
 
     [Test]
