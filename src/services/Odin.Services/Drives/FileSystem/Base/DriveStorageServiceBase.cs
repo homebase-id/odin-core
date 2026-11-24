@@ -2833,9 +2833,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// TransitUpdated is when a file was last changed over transit by a peer, whoever the peer is: a sender's send again
         /// (PeerFileWriter) or a peer's update (PeerFileUpdateWriter, a member's edit included) says so with
-        /// <paramref name="changedByPeer"/>.  Every other write, the owner's and its apps', keeps the stored one, whatever
-        /// the new metadata holds, and a new file has none (CommitNewFile) (#2065).  The feed drive's replace (FeedWriter)
-        /// doesn't come through here
+        /// <paramref name="changedByPeer"/>.  Every other overwrite and update here, the owner's and its apps', keeps the
+        /// stored one, whatever the new metadata holds, and a new file has none (CommitNewFile) (#2065).  A header written
+        /// whole (UpdateActiveFileHeader, WriteNewFileHeader, the feed drive's FeedWriter) doesn't come through here
         /// </summary>
         private static void SetTransitUpdated(FileMetadata stored, FileMetadata newMetadata, bool changedByPeer)
         {
