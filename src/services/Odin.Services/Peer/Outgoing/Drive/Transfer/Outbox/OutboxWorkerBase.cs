@@ -53,9 +53,9 @@ public abstract class OutboxWorkerBase(
 
     /// <summary>
     /// Runs <paramref name="send"/> and turns an <see cref="OdinOutboxProcessingException"/> into the
-    /// scheduling decision from <see cref="HandleOutboxProcessingException"/>. Without this, the processor's
-    /// last-resort catch reschedules the item at "now" and it spins through its attempts in seconds; a
-    /// recipient that is paused or out of quota is waited out instead.
+    /// scheduling decision from <see cref="HandleOutboxProcessingException"/>: a give-up, a recoverable retry, or a
+    /// recipient that is paused or out of quota waited out (its Retry-After). Without this, the processor's last-resort
+    /// catch only spends an attempt on the generic back-off.
     /// </summary>
     protected async Task<OutboxProcessingResult> SendHandledAsync(
         Func<IOdinContext, CancellationToken, Task<OutboxProcessingResult>> send,
@@ -225,13 +225,17 @@ public abstract class OutboxWorkerBase(
     }
 
     /// <summary>
-    /// Next run for a retry, backing off with the item's attempt count: 10 s steps for the first five
-    /// attempts, 30 s steps after that.
+    /// Next run for a retry, backing off with the item's attempt count (counted before this attempt, at least 1):
+    /// 10 s steps up to five, 30 s steps after that, so 10, 10, 20, 30, 40, 50, 180 s...
     /// </summary>
-    protected UnixTimeUtc CalculateBackoffNextRunTime()
-    {
-        return UnixTimeUtc.Now().AddSeconds(CalculateSecondsDelay(FileItem.AttemptCount));
-    }
+    protected UnixTimeUtc CalculateBackoffNextRunTime() => BackoffNextRunTime(FileItem.AttemptCount);
+
+    /// <summary>
+    /// <see cref="CalculateBackoffNextRunTime"/> for an item's attempt count, for the processor too: a failure a worker
+    /// lets escape is retried on the same back-off, not at once (#1815).
+    /// </summary>
+    public static UnixTimeUtc BackoffNextRunTime(int attemptCount) =>
+        UnixTimeUtc.Now().AddSeconds(CalculateSecondsDelay(attemptCount));
 
     protected async Task<(Stream metadataStream,
             StreamPart metadataStreamPart,
@@ -412,7 +416,7 @@ public abstract class OutboxWorkerBase(
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
     }
 
-    private int CalculateSecondsDelay(int attemptNumber)
+    private static int CalculateSecondsDelay(int attemptNumber)
     {
         int baseDelaySeconds = 10;
 
