@@ -539,7 +539,7 @@ namespace Odin.Services.Authorization.Apps
             {
                 if (appReg.ZkMasterKeyEncryptedAppKey != null)
                 {
-                    throw new OdinClientException($"App {appReg.AppId} already has a zero-knowledge key", OdinClientErrorCode.ZkAppKeyAlreadySet);
+                    throw ZkAppKeyAlreadySet(appReg.AppId);
                 }
 
                 appReg.ZkMasterKeyEncryptedAppKey = request.ZkMasterKeyEncryptedAppKey;
@@ -808,11 +808,11 @@ namespace Odin.Services.Authorization.Apps
         private async Task<AppRegistration?> GetAppRegistrationInternalAsync(GuidId appId)
         {
             var record = await db.AppRegistrations.GetAsync(appId);
-            if (record != null)
-            {
-                return FromRecord(record);
-            }
+            return record != null ? FromRecord(record) : await GetLegacyAppRegistrationAsync(appId);
+        }
 
+        private async Task<AppRegistration?> GetLegacyAppRegistrationAsync(GuidId appId)
+        {
             // Pre-v13 only.  After the move a missing row means the app was deleted, and the blob copy
             // it left behind must not answer for it -- LegacyDefinitionStore says why the gate is the
             // version and not the miss.
@@ -958,21 +958,20 @@ namespace Odin.Services.Authorization.Apps
 
             // The app's first zero-knowledge key: only over the row it was checked against, so of two first-time saves
             // at once the second can't replace the key the first set (#2043)
-            if (setsZkKeyOver is { } modified)
+            while (setsZkKeyOver is { } modified)
             {
-                if (!await db.AppRegistrations.UpdateIfUnmodifiedAsync(record, modified))
+                if (await db.AppRegistrations.UpdateIfUnmodifiedAsync(record, modified))
                 {
-                    if ((await GetAppRegistrationInternalAsync(appReg.AppId))?.ZkMasterKeyEncryptedAppKey != null)
-                    {
-                        throw new OdinClientException($"App {appReg.AppId} already has a zero-knowledge key",
-                            OdinClientErrorCode.ZkAppKeyAlreadySet);
-                    }
-
-                    // Another change in between, and still no key: check again over that one
-                    await SaveAsync(appReg);
+                    return;
                 }
 
-                return;
+                if ((await GetAppRegistrationInternalAsync(appReg.AppId))?.ZkMasterKeyEncryptedAppKey != null)
+                {
+                    throw ZkAppKeyAlreadySet(appReg.AppId);
+                }
+
+                // Another change in between, and still no key: check again over that one
+                setsZkKeyOver = await AssertKeepsKeysAsync(appReg);
             }
 
             if (await db.AppRegistrations.UpdateAsync(record) == 0 &&
@@ -994,7 +993,7 @@ namespace Odin.Services.Authorization.Apps
         private async Task<UnixTimeUtc?> AssertKeepsKeysAsync(AppRegistration appReg)
         {
             var row = await db.AppRegistrations.GetAsync(appReg.AppId);
-            var stored = (row != null ? FromRecord(row) : await GetAppRegistrationInternalAsync(appReg.AppId))
+            var stored = (row != null ? FromRecord(row) : await GetLegacyAppRegistrationAsync(appReg.AppId))
                          ?? throw new OdinSystemException($"App {appReg.AppId} isn't registered; a change never registers it");
 
             if (!SymmetricKeyEncryptedAes.AreSame(stored.AppKeyStore?.MasterKeyEncryptedKeyStoreKey,
@@ -1015,6 +1014,9 @@ namespace Odin.Services.Authorization.Apps
 
         private static OdinClientException AlreadyRegistered(Guid appId) =>
             new($"App {appId} is already registered", OdinClientErrorCode.AppAlreadyRegistered);
+
+        private static OdinClientException ZkAppKeyAlreadySet(Guid appId) =>
+            new($"App {appId} already has a zero-knowledge key", OdinClientErrorCode.ZkAppKeyAlreadySet);
 
         internal static AppRegistrationsRecord ToRecord(AppRegistration appReg)
         {

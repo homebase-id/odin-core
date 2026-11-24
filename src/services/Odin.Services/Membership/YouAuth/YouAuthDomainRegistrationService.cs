@@ -487,30 +487,36 @@ namespace Odin.Services.Membership.YouAuth
         private async Task<bool> SaveRegistrationAsync(YouAuthDomainRegistration registration, IOdinContext odinContext,
             bool isNew = false)
         {
-            var isConnected = (await circleNetworkService.GetIcrAsync((OdinId)registration.Domain.DomainName, odinContext,
-                tryUpgradeEncryption: false)).IsConnected();
+            // The status only, not the whole connection with its grants
+            var connection = await db.ConnectionsCached.GetAsync((OdinId)registration.Domain.DomainName);
+            var isConnected = connection?.status == (int)ConnectionStatus.Connected;
 
             await using var tx = await db.BeginStackedTransactionAsync();
 
-            await circleMembershipService.ReconcileMemberCirclesAsync(registration.Domain, DomainType.YouAuth,
-                isConnected ? new Dictionary<Guid, CircleGrant>() : registration.CircleGrants);
+            if (isConnected)
+            {
+                await circleMembershipService.DeleteMemberFromAllCirclesAsync(registration.Domain, DomainType.YouAuth);
+            }
+            else
+            {
+                await circleMembershipService.ReconcileMemberCirclesAsync(registration.Domain, DomainType.YouAuth,
+                    registration.CircleGrants);
+            }
 
             //clear them here so we don't have two locations
             registration.CircleGrants.Clear();
 
-            if (isNew)
+            var key = GetDomainKey(registration.Domain);
+            if (isNew && !await DomainStorage.TryInsertAsync(db.KeyThreeValueCached, key, GuidId.Empty, DomainRegistrationDataType,
+                    registration))
             {
-                if (!await DomainStorage.TryInsertAsync(db.KeyThreeValueCached, GetDomainKey(registration.Domain), GuidId.Empty,
-                        DomainRegistrationDataType, registration))
-                {
-                    return false;
-                }
+                // Not committed, so the circle rows above are undone too
+                return false;
             }
-            else
+
+            if (!isNew)
             {
-                await DomainStorage.UpsertAsync(db.KeyThreeValueCached, GetDomainKey(registration.Domain), GuidId.Empty,
-                    DomainRegistrationDataType,
-                    registration);
+                await DomainStorage.UpsertAsync(db.KeyThreeValueCached, key, GuidId.Empty, DomainRegistrationDataType, registration);
             }
 
             tx.Commit();

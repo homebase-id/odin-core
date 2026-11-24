@@ -164,30 +164,24 @@ public class CircleMembershipService(
     /// Makes a domain's membership rows of one type match its circle grants: rows of circles no longer granted
     /// are deleted, the rest written with the current grant when it differs from the row's.  A kept row keeps
     /// the member's sealed share key (docs/selective-share-plan.md), which a delete and re-insert would take.  A
-    /// circle whose row for this name is held by the other domain type is left alone, unless
-    /// <paramref name="deleteOtherType"/>: then every row of the other type is deleted first.
+    /// circle whose row for this name is held by the other domain type is left alone.
     /// </summary>
     public async Task ReconcileMemberCirclesAsync(AsciiDomainName domainName, DomainType domainType,
-        IReadOnlyDictionary<Guid, CircleGrant> circleGrants, bool deleteOtherType = false)
+        IReadOnlyDictionary<Guid, CircleGrant> circleGrants)
     {
         var memberId = OdinId.ToHashId(domainName);
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        // Each row of this name: its own type's to keep or delete, the other type's to leave alone (or delete)
+        // Each row of this name: its own type's to keep or delete, the other type's to leave alone
         var existing = new Dictionary<Guid, (bool OwnType, byte[] Data)>();
         foreach (var row in await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId))
         {
             var ownType = CircleMemberStorageData.From(row).DomainType == domainType;
-            if (ownType ? !circleGrants.ContainsKey(row.circleId) : deleteOtherType)
+            existing[row.circleId] = (ownType, row.data);
+            if (ownType && !circleGrants.ContainsKey(row.circleId))
             {
                 await db.CircleMemberCached.DeleteAsync(row.circleId, memberId);
-                if (!ownType)
-                {
-                    continue;
-                }
             }
-
-            existing[row.circleId] = (ownType, row.data);
         }
 
         foreach (var (circleId, circleGrant) in circleGrants)
