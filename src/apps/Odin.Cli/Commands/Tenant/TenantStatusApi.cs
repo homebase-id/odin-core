@@ -58,6 +58,16 @@ internal static class TenantStatusApi
 
     //
 
+    public static async Task<TenantStatusState> ResumeAsync(HttpClient httpClient, string domain)
+    {
+        var response = await httpClient.PostAsync($"tenants/{domain}/resume", null);
+        await EnsureSuccessAsync(response, domain);
+        return OdinSystemSerializer.Deserialize<TenantStatusState>(await response.Content.ReadAsStringAsync()) ??
+               throw new Exception($"{response.RequestMessage?.RequestUri}: empty response");
+    }
+
+    //
+
     public static void WriteChange(string domain, TenantStatusState previous, TenantStatus status, DisabledReason? reason)
     {
         AnsiConsole.MarkupLineInterpolated($"{domain}: {Describe(status, reason)} (was {Describe(previous.Status, previous.DisabledReason)})");

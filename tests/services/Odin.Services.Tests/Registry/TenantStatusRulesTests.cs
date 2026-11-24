@@ -239,4 +239,32 @@ public class TenantStatusRulesTests
         Assert.That(movedAway, Is.EqualTo(new[] { (TenantStatus.Disabled, (DisabledReason?)DisabledReason.Moved) }),
             string.Join(", ", movedAway));
     }
+
+    // Resume (#1846): a temporary hold ends; a disabled copy is refused with how to re-enable it
+
+    [TestCase(TenantStatus.Active)]
+    [TestCase(TenantStatus.OutOfQuota)]
+    [TestCase(TenantStatus.Paused)]
+    public void ResumeEndsATemporaryHold(TenantStatus from)
+    {
+        Assert.DoesNotThrow(() => TenantStatusRules.Validate(from, null, TenantStatus.Active, null, resume: true));
+    }
+
+    [TestCase(DisabledReason.Admin, "set-status")]
+    [TestCase(DisabledReason.PendingDeletion, "set-status")]
+    [TestCase(DisabledReason.Moved, "unlock-moved")]
+    public void ResumeRefusesADisabledCopy_AndSaysHowToReEnableIt(DisabledReason reason, string how)
+    {
+        var refused = Assert.Throws<OdinClientException>(() =>
+            TenantStatusRules.Validate(TenantStatus.Disabled, reason, TenantStatus.Active, null, resume: true));
+        Assert.That(refused!.Message, Does.Contain(how));
+    }
+
+    [TestCase(TenantStatus.Paused)]
+    [TestCase(TenantStatus.OutOfQuota)]
+    public void ResumeOnlySetsActive(TenantStatus to)
+    {
+        Assert.Throws<OdinClientException>(() =>
+            TenantStatusRules.Validate(TenantStatus.Paused, null, to, null, resume: true));
+    }
 }

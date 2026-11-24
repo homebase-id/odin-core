@@ -162,8 +162,12 @@ public static class TenantStatusRules
     /// The operator's explicit request to take a copy disabled as moved back to paused (rolling a move back). It allows
     /// that transition and no other.
     /// </param>
+    /// <param name="resume">
+    /// The operator's request to end a temporary hold (paused, out of quota) and set active. A disabled identity is refused:
+    /// re-enabling it is a deliberate set-status (#1846).
+    /// </param>
     public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason,
-        bool unlockMoved = false)
+        bool unlockMoved = false, bool resume = false)
     {
         if (!Enum.IsDefined(toStatus))
         {
@@ -189,6 +193,30 @@ public static class TenantStatusRules
         // moved until it is deleted, or an operator unlocks it on purpose: to paused, which serves nothing until
         // DNS points back here and it is resumed.
         var isMoved = HasMovedAway(fromStatus, fromReason);
+        if (resume)
+        {
+            if (toStatus != TenantStatus.Active)
+            {
+                throw new OdinClientException("Resuming sets an identity active");
+            }
+
+            if (isMoved)
+            {
+                throw new OdinClientException(
+                    "This identity has moved to another host; resuming doesn't re-enable it. To roll the move back, " +
+                    "unlock it to paused on purpose (odin-admin tenant unlock-moved), then resume it");
+            }
+
+            if (fromStatus == TenantStatus.Disabled)
+            {
+                throw new OdinClientException(
+                    $"This identity is disabled ({fromReason}); resuming is for a paused or out-of-quota one. To re-enable " +
+                    "it on purpose, set it active (odin-admin tenant set-status <tenant> active)");
+            }
+
+            return;
+        }
+
         if (unlockMoved)
         {
             if (!isMoved || toStatus != TenantStatus.Paused)

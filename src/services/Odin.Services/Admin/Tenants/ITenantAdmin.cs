@@ -25,6 +25,9 @@ public interface ITenantAdmin
     /// <summary>Takes a copy disabled as moved back to paused (rolling a move back); see <see cref="IIdentityRegistry.UnlockMovedAsync"/></summary>
     Task<TenantStatusState?> UnlockMovedAsync(string domain);
 
+    /// <summary>Ends a temporary hold and sets active; refuses a disabled copy. See <see cref="IIdentityRegistry.ResumeAsync"/></summary>
+    Task<TenantStatusState?> ResumeTenantAsync(string domain);
+
     /// <summary>
     /// Sets the tenant's plan and, when given, its quota and public web presence (docs/hosting-plans.md). Returns what
     /// it had before, or null if the tenant does not exist. Throws <see cref="Odin.Core.Exceptions.OdinClientException"/>
