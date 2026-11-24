@@ -140,7 +140,7 @@ public partial class SelectiveShareTests
         await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
             $"{UnifiedApiRouteConstants.Capi}/validate/{s.Sam.Identity}", "a route outside the drives", refused: false);
 
-        // A public drive: its file reads skip the drive's grant, so the token must not reach it at all
+        // A public drive: the token holds no grant there, so it must not reach a Connected file on it (#2130)
         var publicDrive = TargetDrive.NewTargetDrive();
         await s.Frodo.Admin.CreateDrive(publicDrive, "public", allowAnonymousReads: true);
         var plain = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();

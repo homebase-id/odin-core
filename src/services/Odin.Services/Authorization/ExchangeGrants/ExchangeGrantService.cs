@@ -164,7 +164,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
             var permissionCtx = new PermissionContext(
                 permissionGroupMap,
                 sharedSecretKey: sharedSecret,
-                keyStoreKey: grantKeyStoreKey
+                keyStoreKey: grantKeyStoreKey,
+                readsPublicDrives: includeAnonymousDrives
             );
 
             return permissionCtx;

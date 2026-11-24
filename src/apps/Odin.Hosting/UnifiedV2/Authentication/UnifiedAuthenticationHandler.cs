@@ -309,7 +309,8 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             odinContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
-                    sharedSecretKey: null
+                    sharedSecretKey: null,
+                    readsPublicDrives: true
                 ));
 
             var claims = new[]

@@ -88,7 +88,9 @@ public class CdnAuthPathHandler : IAuthPathHandler
         odinContext.SetPermissionContext(
             new PermissionContext(
                 permissionGroupMap,
-                sharedSecretKey: null
+                sharedSecretKey: null,
+                // The CDN reaches every public drive's payloads too, not only the CDN-enabled ones (StorageDrive.IsCdnEnabled)
+                readsPublicDrives: true
             ));
 
         return AuthHandlerResult.Success();

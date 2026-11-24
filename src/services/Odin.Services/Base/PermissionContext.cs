@@ -19,6 +19,14 @@ namespace Odin.Services.Base
         private readonly bool _isSystem = false;
         private readonly SensitiveByteArray _keyStoreKey;
         public SensitiveByteArray SharedSecretKey { get; private set; }
+
+        /// <summary>
+        /// Reads every public drive without its grant there (<see cref="ReadsAsPublic"/>): a context built with the
+        /// public-drive grants, as every caller but a narrowed one is (anonymous visitors, signed-in and connected
+        /// identities, guests, apps), and the CDN.  A context built narrower (a peer's direct-read token, a follower) is
+        /// asked for the drive's Read on a public drive as on any other (#2130).
+        /// </summary>
+        public bool ReadsPublicDrives { get; }
         internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
 
         internal string Stats
@@ -35,17 +43,20 @@ namespace Odin.Services.Base
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
             bool isSystem = false,
-            SensitiveByteArray keyStoreKey = null)
+            SensitiveByteArray keyStoreKey = null,
+            bool readsPublicDrives = false)
         {
             SharedSecretKey = sharedSecretKey;
             PermissionGroups = permissionGroups ?? new Dictionary<string, PermissionGroup>();
             _isSystem = isSystem;
             _keyStoreKey = keyStoreKey;
+            ReadsPublicDrives = readsPublicDrives;
         }
 
         public PermissionContext(PermissionContext other)
         {
             _isSystem = other._isSystem;
+            ReadsPublicDrives = other.ReadsPublicDrives;
             _keyStoreKey = other._keyStoreKey?.Clone();
             SharedSecretKey = other.SharedSecretKey?.Clone();
             PermissionGroups = new Dictionary<string, PermissionGroup>();
@@ -214,6 +225,24 @@ namespace Odin.Services.Base
             if (!this.HasDrivePermission(driveId, DrivePermission.Write))
             {
                 throw new OdinSecurityException($"Unauthorized to write to drive [{driveId}]");
+            }
+        }
+
+        /// <summary>
+        /// Whether the file reads skip the drive's Read for this context: on a public drive, for a context built with
+        /// the public-drive grants (<see cref="ReadsPublicDrives"/>).  The file's ACL is asked either way.
+        /// </summary>
+        public bool ReadsAsPublic(StorageDrive drive) => drive.AllowAnonymousReads && ReadsPublicDrives;
+
+        /// <summary>
+        /// The drive-level read rule: Read on the drive, unless the drive is public and this context reads it as public
+        /// (<see cref="ReadsAsPublic"/>).
+        /// </summary>
+        public void AssertCanReadDrive(StorageDrive drive)
+        {
+            if (!ReadsAsPublic(drive))
+            {
+                AssertCanReadDrive(drive.Id);
             }
         }
 
