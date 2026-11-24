@@ -85,6 +85,7 @@ public class PushNotificationService(
         //TODO: validate expiration time
 
         subscription.AccessRegistrationId = GetDeviceKey(odinContext);
+        subscription.AppId = odinContext.Caller.HasMasterKey ? null : odinContext.Caller.OdinClientContext?.AppId?.Value;
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
         await DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, subscription.AccessRegistrationId, DeviceStorageDataType, subscription);
@@ -232,7 +233,11 @@ public class PushNotificationService(
         {
             if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
-                tasks.Add(WebPushAsync(subscription, keys, content, odinContext, cancellationToken));
+                var forSubscriber = WebPushContentFor(subscription, content);
+                if (forSubscriber != null)
+                {
+                    tasks.Add(WebPushAsync(subscription, keys, forSubscriber, odinContext, cancellationToken));
+                }
             }
             else
             {
@@ -244,6 +249,23 @@ public class PushNotificationService(
         }
 
         await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// What a web push subscription is sent of <paramref name="content"/>: an app's subscription only that app's payloads,
+    /// so its service worker neither shows nor reads another app's pushes (#2006); the owner console's, and one made before
+    /// the app was kept, every payload.  Null when nothing is left to send.
+    /// </summary>
+    internal static PushNotificationContent WebPushContentFor(PushNotificationSubscription subscription,
+        PushNotificationContent content)
+    {
+        if (subscription.AppId == null)
+        {
+            return content;
+        }
+
+        var payloads = content.Payloads.Where(p => p.Options?.AppId == subscription.AppId).ToList();
+        return payloads.Count == 0 ? null : new PushNotificationContent { Payloads = payloads };
     }
 
     private async Task WebPushAsync(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content,
