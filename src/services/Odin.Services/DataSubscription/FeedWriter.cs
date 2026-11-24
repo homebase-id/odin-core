@@ -132,7 +132,9 @@ public class FeedWriter(
     /// <summary>
     /// Whether a replace carries a change the sender made to the post itself, which moves TransitUpdated. A sender pushes
     /// an item again for a reaction or a local-only write on its copy, and a follower's catch-up sync rewrites every item;
-    /// none of those changes what is compared here. Archival status is left out: the follower may set it on its own copy
+    /// none of those changes what is compared here. Archival status is left out: the follower may set it on its own copy,
+    /// which the next replace overwrites, and comparing it would count that as the sender's edit; a sender's own archival
+    /// change doesn't move it either
     /// </summary>
     private static bool SendersContentDiffers(FileMetadata stored, FileMetadata incoming) =>
         SendersContentOf(stored) != SendersContentOf(incoming);
