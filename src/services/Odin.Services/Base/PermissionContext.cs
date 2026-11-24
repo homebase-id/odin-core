@@ -232,7 +232,7 @@ namespace Odin.Services.Base
         /// Whether the file reads skip the drive's Read for this context: on a public drive, for a context built with
         /// the public-drive grants (<see cref="ReadsPublicDrives"/>).  The file's ACL is asked either way.
         /// </summary>
-        public bool ReadsAsPublic(StorageDrive drive) => drive.AllowAnonymousReads && ReadsPublicDrives;
+        private bool ReadsAsPublic(StorageDrive drive) => drive.AllowAnonymousReads && ReadsPublicDrives;
 
         /// <summary>
         /// The drive-level read rule: Read on the drive, unless the drive is public and this context reads it as public
@@ -243,6 +243,18 @@ namespace Odin.Services.Base
             if (!ReadsAsPublic(drive))
             {
                 AssertCanReadDrive(drive.Id);
+            }
+        }
+
+        /// <summary>
+        /// <see cref="AssertCanReadDrive(StorageDrive)"/>, with <paramref name="orPermission"/> (Write, Comment) doing as well
+        /// as Read
+        /// </summary>
+        public void AssertCanReadOrWriteDrive(StorageDrive drive, DrivePermission orPermission)
+        {
+            if (!ReadsAsPublic(drive))
+            {
+                AssertHasAtLeastOneDrivePermission(drive.Id, DrivePermission.Read, orPermission);
             }
         }
 

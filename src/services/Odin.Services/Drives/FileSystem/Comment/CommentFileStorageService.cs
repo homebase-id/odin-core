@@ -45,11 +45,7 @@ public class CommentFileStorageService(
         fileExpiryScheduler,
         payloadMoveArrivals)
 {
-    public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
-    {
-        var drive = await DriveManager.GetDriveAsync(driveId, true);
-        odinContext.PermissionsContext.AssertCanReadDrive(drive);
-    }
+    protected override DrivePermission ReadOrWritePermission => DrivePermission.Comment;
 
     public override async Task AssertCanWriteToDrive(Guid driveId, IOdinContext odinContext)
     {
@@ -89,22 +85,6 @@ public class CommentFileStorageService(
         }
 
         return true;
-    }
-
-    public override async Task AssertCanReadOrWriteToDriveAsync(Guid driveId, IOdinContext odinContext)
-    {
-        var drive = await DriveManager.GetDriveAsync(driveId, true);
-        var pc = odinContext.PermissionsContext;
-        if (!pc.ReadsAsPublic(drive))
-        {
-            var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Comment) ||
-                                 pc.HasDrivePermission(driveId, DrivePermission.Read);
-
-            if (!hasPermissions)
-            {
-                throw new OdinSecurityException($"Unauthorized to read or write drive [{driveId}]");
-            }
-        }
     }
 
     public override FileSystemType GetFileSystemType()
