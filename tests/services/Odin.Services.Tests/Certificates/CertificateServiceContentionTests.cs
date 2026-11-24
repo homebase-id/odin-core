@@ -50,7 +50,8 @@ public class CertificateServiceContentionTests
             new AcmeAccountConfig(),
             Substitute.For<IServiceProvider>(),
             new OdinConfiguration(),
-            Substitute.For<IBackgroundServiceNotifier<UpdateCertificatesBackgroundService>>());
+            Substitute.For<IBackgroundServiceNotifier<UpdateCertificatesBackgroundService>>(),
+            new CertificateStorageKey(new byte[32]));
     }
 
     //

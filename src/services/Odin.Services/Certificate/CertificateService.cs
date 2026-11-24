@@ -36,6 +36,7 @@ public class CertificateService : ICertificateService
     private readonly OdinConfiguration _configuration;
     private readonly IBackgroundServiceNotifier<UpdateCertificatesBackgroundService> _issuanceNotifier;
     private readonly string _accountKey;
+    private readonly byte[] _storageKey;
 
     //
     // A domain that just failed to issue is not going to succeed on the next TLS handshake a
@@ -98,8 +99,10 @@ public class CertificateService : ICertificateService
         AcmeAccountConfig accountConfig,
         IServiceProvider serviceProvider,
         OdinConfiguration configuration,
-        IBackgroundServiceNotifier<UpdateCertificatesBackgroundService> issuanceNotifier)
+        IBackgroundServiceNotifier<UpdateCertificatesBackgroundService> issuanceNotifier,
+        CertificateStorageKey storageKey)
     {
+        _storageKey = storageKey.StorageKey;
         _issuanceNotifier = issuanceNotifier;
         _logger = logger;
         _nodeLock = nodeLock;
@@ -605,9 +608,21 @@ public class CertificateService : ICertificateService
         var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
 
         var settings = await tableSettings.GetAsync(_accountKey);
-        return settings == null || string.IsNullOrEmpty(settings.value)
-            ? null
-            : new AcmeAccount { AccounKeyPem = settings.value };
+        if (settings == null || string.IsNullOrEmpty(settings.value))
+        {
+            return null;
+        }
+
+        var (keyPem, wasPlain) = AcmeAccountKeyAtRest.Open(settings.value, _storageKey);
+        var account = new AcmeAccount { AccounKeyPem = keyPem };
+        if (wasPlain)
+        {
+            // Kept as plain PEM before #1748: sealed on its first read, with no new account and no manual step
+            await SaveAccountAsync(account);
+            _logger.LogInformation("Encrypted the stored ACME account key ({key})", _accountKey);
+        }
+
+        return account;
     }
 
     //
@@ -620,7 +635,7 @@ public class CertificateService : ICertificateService
         await tableSettings.UpsertAsync(new SettingsRecord
         {
             key = _accountKey,
-            value = account.AccounKeyPem,
+            value = AcmeAccountKeyAtRest.Seal(account.AccounKeyPem, _storageKey),
         });
     }
 
