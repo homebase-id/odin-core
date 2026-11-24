@@ -2210,7 +2210,7 @@ namespace Odin.Services.Membership.Connections
                         // take away then
                         var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                         if (icr.PeerKeyStore?.AppGrants.TryGetValue(appKey, out var appCircleGrants) == true &&
-                            appCircleGrants.Remove(circleId))
+                            appCircleGrants?.Remove(circleId) == true)
                         {
                             await this.SaveIcrAsync(icr, odinContext);
                         }
@@ -2239,14 +2239,16 @@ namespace Odin.Services.Membership.Connections
 
                     // The same upgrades UpdateCircleDefinitionAsync runs before re-granting (#2000). Both write the
                     // stored record, not this copy, so refetch after either: saving the stale copy below would put
-                    // the weak token back.  A token that can't be upgraded is left as it is, as the reconcile did
-                    // before it upgraded tokens, instead of failing every member and the app's update with it
+                    // the weak token back.  A token that can't be opened is left as it is, as the reconcile did
+                    // before it upgraded tokens, instead of failing every member and the app's update with it.  The
+                    // same key failures the key store key upgrade tolerates, and deliberately no catch-all: a database
+                    // or programming fault stays one (and on Postgres would abort the shared transaction anyway)
                     bool tokenUpgraded;
                     try
                     {
                         tokenUpgraded = await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
                     }
-                    catch (Exception e) when (e is not OperationCanceledException)
+                    catch (Exception e) when (e is OdinSecurityException or CryptographicException)
                     {
                         logger.LogWarning(e, "ReconcileAuthorizedCircles: could not upgrade the token of {identity}; " +
                                              "left as it is", odinId);
@@ -2273,7 +2275,21 @@ namespace Odin.Services.Membership.Connections
                         appCircleGrantDictionary = new Dictionary<Guid, AppCircleGrant>();
                     }
 
-                    var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                    // A peer key the master key doesn't open is skipped like one that still needs its upgrade: the
+                    // save and this reconcile roll back together (#2000), so failing here would block every change of
+                    // the app's circles for one member's record, the V19ToV20 upgrade's included
+                    SensitiveByteArray keyStoreKey;
+                    try
+                    {
+                        keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                    }
+                    catch (Exception e) when (e is OdinSecurityException or CryptographicException)
+                    {
+                        logger.LogWarning(e, "ReconcileAuthorizedCircles: the peer key of {identity} can't be opened; " +
+                                             "skipping its app grant for circle {circleId}", odinId, circleId);
+                        continue;
+                    }
+
                     var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId,
                         new MasterKeyStorageKeySource(masterKey));
                     appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;

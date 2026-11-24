@@ -281,18 +281,47 @@ public class CircleNetworkServiceAppTests : V2Fixture
         await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
         AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2);
 
-        // Sam's peer key can't be opened with the master key, so re-granting the circle that stays fails on him
-        // after the revoke of the other one has taken his grant for it away
-        await SealPeerKeyToAnotherKeyAsync(frodoOwnerClient, samOwnerClient.Identity);
+        // The circle-member grant names a drive the identity doesn't have: the grant can't be minted for anyone, so
+        // re-granting the circle that stays fails after the revoke of the other one took Sam's grant for it away.
+        // (The update checks the circles it adds before the save, not the grant's drives: they are first asked when
+        // the grant is minted, in the reconcile.)
+        var grantOnAMissingDrive = CircleDriveGrant(TargetDrive.NewTargetDrive());
 
         var refused = Assert.CatchAsync<Refit.ApiException>(() => UpdateAppAuthorizedCircles(frodoOwnerClient,
-            setup.App.AppId, [setup.ChatFriendsCircleId], setup.App.CircleMemberPermissionSetGrantRequest), "the reconcile fails");
-        Assert.That(refused!.Content, Does.Contain("Key hash did not match"), "failed on Sam's peer key, not elsewhere");
+            setup.App.AppId, [setup.ChatFriendsCircleId], grantOnAMissingDrive), "the reconcile fails");
+        Assert.That(refused!.Content, Does.Contain("\"invalidDrive\""), "failed minting the grant, not elsewhere");
 
         var app = await GetAppRegistration(frodoOwnerClient, setup.App.AppId);
         Assert.That(app.AuthorizedCircles, Is.EquivalentTo(setup.CircleIds),
             "the registration's save is rolled back with the failed reconcile");
         AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2);
+    }
+
+    /// <summary>
+    /// A member whose peer key the master key doesn't open is skipped, as one that still needs its key upgrade is:
+    /// with the save and the reconcile rolled back together (#2000), failing on it would block every change of the
+    /// app's circles for one member's record.
+    /// </summary>
+    [Test]
+    public async Task AMemberWhosePeerKeyCantBeOpened_IsSkipped_AndTheUpdateGoesThrough()
+    {
+        var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
+        var samOwnerClient = await LoginAsOwner(Identities.Sam);
+
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 2);
+        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
+        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
+
+        await SealPeerKeyToAnotherKeyAsync(frodoOwnerClient, samOwnerClient.Identity);
+
+        await UpdateAppAuthorizedCircles(frodoOwnerClient, setup.App.AppId, [setup.ChatFriendsCircleId],
+            setup.App.CircleMemberPermissionSetGrantRequest);
+
+        var app = await GetAppRegistration(frodoOwnerClient, setup.App.AppId);
+        Assert.That(app.AuthorizedCircles, Is.EquivalentTo(new[] { setup.ChatFriendsCircleId }));
+        var grants = AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App,
+            expectedCount: 1);
+        AssertAppCircleGrant(grants, setup.ChatFriendsCircleId, setup.App);
     }
 
     /// <summary>
