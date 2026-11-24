@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Cryptography.Data;
 using Autofac;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -266,42 +267,78 @@ public class CircleNetworkServiceAppTests : V2Fixture
 
     /// <summary>
     /// #2000: the registration is saved and reconciled in one stacked transaction, so a reconcile that fails leaves
-    /// the app authorizing the circles it did before. Before, the save was committed first, and the app was left
-    /// authorizing circles whose members never got (or never lost) the grant.
+    /// the app authorizing the circles it did before, and its members' grants as they were. Before, the save was
+    /// committed first, and the app was left authorizing circles whose members never got (or never lost) the grant.
     /// </summary>
     [Test]
-    public async Task AFailedReconcile_LeavesTheAuthorizedCirclesAsTheyWere()
+    public async Task AFailedReconcile_LeavesTheAuthorizedCirclesAndGrantsAsTheyWere()
     {
         var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
-        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 1);
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 2);
         await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
         await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
-        Assert.That((await GetAppRegistration(frodoOwnerClient, setup.App.AppId)).AuthorizedCircles,
-            Is.EquivalentTo(setup.CircleIds), "precondition: the app authorizes the circle");
+        AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2);
 
-        // The reconcile fails on Sam: still in the circle, but with no connection record to change
-        await DropConnectionRecordAsync(frodoOwnerClient, samOwnerClient.Identity);
-        // Logged by the exception middleware as "{message}", which renders the message quoted
-        ExpectErrorLogEvent("\"Object reference not set to an instance of an object");
+        // Sam's peer key can't be opened with the master key, so re-granting the circle that stays fails on him
+        // after the revoke of the other one has taken his grant for it away
+        await SealPeerKeyToAnotherKeyAsync(frodoOwnerClient, samOwnerClient.Identity);
 
-        Assert.CatchAsync<Refit.ApiException>(() => UpdateAppAuthorizedCircles(frodoOwnerClient, setup.App.AppId,
-            new List<Guid>(), setup.App.CircleMemberPermissionSetGrantRequest), "the reconcile fails");
+        var refused = Assert.CatchAsync<Refit.ApiException>(() => UpdateAppAuthorizedCircles(frodoOwnerClient,
+            setup.App.AppId, [setup.ChatFriendsCircleId], setup.App.CircleMemberPermissionSetGrantRequest), "the reconcile fails");
+        Assert.That(refused!.Content, Does.Contain("Key hash did not match"), "failed on Sam's peer key, not elsewhere");
 
         var app = await GetAppRegistration(frodoOwnerClient, setup.App.AppId);
         Assert.That(app.AuthorizedCircles, Is.EquivalentTo(setup.CircleIds),
             "the registration's save is rolled back with the failed reconcile");
+        AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2);
+    }
+
+    /// <summary>
+    /// A circle member with no connection record (a membership row it outlived) has nothing to grant or revoke, so
+    /// it doesn't block a change of the app's circles. With the save and the reconcile rolled back together (#2000),
+    /// failing on it would block every such change.
+    /// </summary>
+    [Test]
+    public async Task AMemberWithNoConnectionRecord_DoesNotBlockChangingTheAuthorizedCircles()
+    {
+        var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
+        var samOwnerClient = await LoginAsOwner(Identities.Sam);
+
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 2);
+        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
+        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
+
+        await DropConnectionRecordAsync(frodoOwnerClient, samOwnerClient.Identity);
+
+        await UpdateAppAuthorizedCircles(frodoOwnerClient, setup.App.AppId, [setup.ChatFriendsCircleId],
+            setup.App.CircleMemberPermissionSetGrantRequest);
+
+        var app = await GetAppRegistration(frodoOwnerClient, setup.App.AppId);
+        Assert.That(app.AuthorizedCircles, Is.EquivalentTo(new[] { setup.ChatFriendsCircleId }));
     }
 
     /// <summary>
     /// Deletes the connection record of <paramref name="member"/> on <paramref name="owner"/>'s identity, leaving
-    /// their circle membership, so anything that walks the circle's members and changes their record fails on them
+    /// their circle membership: a membership row the connection record no longer backs
     /// </summary>
     private static async Task DropConnectionRecordAsync(OwnerSession owner, OdinId member)
     {
         await using var scope = owner.Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
         await scope.Resolve<IdentityDatabase>().ConnectionsCached.DeleteAsync(member);
+    }
+
+    /// <summary>
+    /// Replaces <paramref name="member"/>'s master-key-encrypted peer key with one sealed to a random key, so
+    /// opening it with the owner's master key fails
+    /// </summary>
+    private static async Task SealPeerKeyToAnotherKeyAsync(OwnerSession owner, OdinId member)
+    {
+        await using var scope = owner.Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
+        var anotherKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+        await scope.Resolve<CircleNetworkStorage>().UpdateKeyStoreKeyAsync(member, ConnectionStatus.Connected,
+            new SymmetricKeyEncryptedAes(anotherKey));
     }
 
     /// <summary>

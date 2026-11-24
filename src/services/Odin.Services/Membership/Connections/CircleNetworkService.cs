@@ -2206,9 +2206,10 @@ namespace Odin.Services.Membership.Connections
                     foreach (var odinId in members)
                     {
                         // A member may hold no grant for the app, e.g. after an earlier reconcile failed or skipped
-                        // it (#2000): nothing to take away then
+                        // it (#2000), or have no connection record at all (a membership row it outlived): nothing to
+                        // take away then
                         var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                        if (icr.PeerKeyStore.AppGrants.TryGetValue(appKey, out var appCircleGrants) &&
+                        if (icr.PeerKeyStore?.AppGrants.TryGetValue(appKey, out var appCircleGrants) == true &&
                             appCircleGrants.Remove(circleId))
                         {
                             await this.SaveIcrAsync(icr, odinContext);
@@ -2226,10 +2227,32 @@ namespace Odin.Services.Membership.Connections
                 {
                     var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
+                    // A membership row the connection record no longer backs has nothing to grant to. Skipped: the
+                    // save and this reconcile now roll back together (#2000), so failing here would block every
+                    // change of the app's circles, the V19ToV20 upgrade's included
+                    if (icr.PeerKeyStore == null)
+                    {
+                        logger.LogWarning("ReconcileAuthorizedCircles: {identity} is in circle {circleId} but has no " +
+                                          "connection record; skipping its app grant", odinId, circleId);
+                        continue;
+                    }
+
                     // The same upgrades UpdateCircleDefinitionAsync runs before re-granting (#2000). Both write the
                     // stored record, not this copy, so refetch after either: saving the stale copy below would put
-                    // the weak token back
-                    var tokenUpgraded = await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                    // the weak token back.  A token that can't be upgraded is left as it is, as the reconcile did
+                    // before it upgraded tokens, instead of failing every member and the app's update with it
+                    bool tokenUpgraded;
+                    try
+                    {
+                        tokenUpgraded = await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        logger.LogWarning(e, "ReconcileAuthorizedCircles: could not upgrade the token of {identity}; " +
+                                             "left as it is", odinId);
+                        tokenUpgraded = false;
+                    }
+
                     if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext) || tokenUpgraded)
                     {
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
