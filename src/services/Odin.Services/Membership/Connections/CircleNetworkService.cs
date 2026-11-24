@@ -2277,7 +2277,8 @@ namespace Odin.Services.Membership.Connections
 
                     // A peer key the master key doesn't open is skipped like one that still needs its upgrade: the
                     // save and this reconcile roll back together (#2000), so failing here would block every change of
-                    // the app's circles for one member's record, the V19ToV20 upgrade's included
+                    // the app's circles for one member's record, the V19ToV20 upgrade's included.  Its grant for the
+                    // circle goes: one minted under the app's previous grant must not outlive a narrowed one
                     SensitiveByteArray keyStoreKey;
                     try
                     {
@@ -2286,14 +2287,26 @@ namespace Odin.Services.Membership.Connections
                     catch (Exception e) when (e is OdinSecurityException or CryptographicException)
                     {
                         logger.LogWarning(e, "ReconcileAuthorizedCircles: the peer key of {identity} can't be opened; " +
-                                             "skipping its app grant for circle {circleId}", odinId, circleId);
+                                             "removing its app grant for circle {circleId}", odinId, circleId);
+                        if (appCircleGrantDictionary.Remove(circleId))
+                        {
+                            icr.PeerKeyStore.AppGrants[appKey] = appCircleGrantDictionary;
+                            await this.SaveIcrAsync(icr, odinContext);
+                        }
+
                         continue;
                     }
 
-                    var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId,
-                        new MasterKeyStorageKeySource(masterKey));
-                    appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
-                    keyStoreKey.Wipe();
+                    try
+                    {
+                        var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId,
+                            new MasterKeyStorageKeySource(masterKey));
+                        appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
+                    }
+                    finally
+                    {
+                        keyStoreKey.Wipe();
+                    }
 
                     icr.PeerKeyStore.AppGrants[appKey] = appCircleGrantDictionary;
                     await this.SaveIcrAsync(icr, odinContext);

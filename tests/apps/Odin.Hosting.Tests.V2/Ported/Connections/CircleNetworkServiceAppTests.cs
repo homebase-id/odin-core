@@ -298,12 +298,13 @@ public class CircleNetworkServiceAppTests : V2Fixture
     }
 
     /// <summary>
-    /// A member whose peer key the master key doesn't open is skipped, as one that still needs its key upgrade is:
-    /// with the save and the reconcile rolled back together (#2000), failing on it would block every change of the
+    /// A member whose peer key the master key doesn't open is skipped, as one that still needs its key upgrade is,
+    /// and loses its grant for the circle: one minted under the app's previous grant must not outlive the update.
+    /// With the save and the reconcile rolled back together (#2000), failing on it would block every change of the
     /// app's circles for one member's record.
     /// </summary>
     [Test]
-    public async Task AMemberWhosePeerKeyCantBeOpened_IsSkipped_AndTheUpdateGoesThrough()
+    public async Task AMemberWhosePeerKeyCantBeOpened_LosesItsGrant_AndTheUpdateGoesThrough()
     {
         var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
@@ -311,6 +312,7 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 2);
         await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
         await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
+        AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App, expectedCount: 2);
 
         await SealPeerKeyToAnotherKeyAsync(frodoOwnerClient, samOwnerClient.Identity);
 
@@ -319,9 +321,9 @@ public class CircleNetworkServiceAppTests : V2Fixture
 
         var app = await GetAppRegistration(frodoOwnerClient, setup.App.AppId);
         Assert.That(app.AuthorizedCircles, Is.EquivalentTo(new[] { setup.ChatFriendsCircleId }));
-        var grants = AppCircleGrantsFor(await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity), setup.App,
-            expectedCount: 1);
-        AssertAppCircleGrant(grants, setup.ChatFriendsCircleId, setup.App);
+        var appGrants = (await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity)).AccessGrant.AppGrants;
+        Assert.That(appGrants.TryGetValue(setup.App.AppId.Value, out var samsGrants) ? samsGrants : [], Is.Empty,
+            "the revoked circle's grant went with the revoke, the kept circle's with the skip");
     }
 
     /// <summary>
