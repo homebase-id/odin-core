@@ -416,7 +416,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
         TransitOptions transitOptions = null,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard,
+        Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -432,6 +433,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             StorageOptions = new()
             {
                 Drive = targetDrive,
+                OverwriteFileId = overwriteFileId
             },
             TransitOptions = transitOptions ?? new TransitOptions()
             {
