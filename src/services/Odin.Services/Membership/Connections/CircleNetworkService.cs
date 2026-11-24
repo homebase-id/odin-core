@@ -172,16 +172,16 @@ namespace Odin.Services.Membership.Connections
                 return null;
             }
 
+            // The token's own half of its key opens the shared secret: what proves it is the token the subscriber was given
+            var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
+            keyStoreKey?.Wipe();
+
             // The token opens the connection's key store key too, so an app's deposit for this member converts here,
             // as on the relay, and this very read sees the circle
             if (await TryConvertDepositedGrantsAtPeerAuthAsync(icr, accessReg, authToken, odinContext))
             {
                 icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
             }
-
-            // The token's own half of its key opens the shared secret: what proves it is the token the subscriber was given
-            var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
-            keyStoreKey?.Wipe();
 
             var (connectionGrants, enabledCircles) = await ConnectionGrantsAsync(icr, applyAppCircleGrants: true, odinContext);
             var readable = connectionGrants.Values
@@ -3080,6 +3080,10 @@ namespace Odin.Services.Membership.Connections
                     await FanOutAppCircleGrantsAsync(icr, keyStoreKey, convertedCircleIds, NoStorageKeySource.Instance, odinContext);
 
                     await this.SaveIcrAsync(icr, odinContext);
+
+                    // As on an enrollment: the member's contexts cached on other paths (the same token's socket, say)
+                    // were built without the converted circles
+                    await odinContextCache.ResetAsync();
 
                     foreach (var convertedCircleId in convertedCircleIds)
                     {

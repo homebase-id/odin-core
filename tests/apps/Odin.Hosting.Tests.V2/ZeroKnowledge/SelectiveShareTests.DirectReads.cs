@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -25,6 +26,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Shares;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.AppNotification;
 using Odin.Services.Peer.Encryption;
 using Refit;
@@ -139,6 +141,9 @@ public partial class SelectiveShareTests
         // server to convert the deposit
         var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
         await AppCircles.AddMemberAsync(s.App, circleId, Identities.Sam);
+        var pending = (await Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<CircleNetworkStorage>().GetAsync(s.Sam.Identity))!.PeerKeyStore;
+        Assert.That((pending.DepositedGrants.Any(d => d.CircleId == circleId), pending.CircleGrants.ContainsKey(circleId)), Is.EqualTo((true, false)),
+            "precondition: the app's add deposited the grant, unconverted");
 
         await PayloadBytesAsync(direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key),
             "his first read straight from Frodo's server after the app's add");
