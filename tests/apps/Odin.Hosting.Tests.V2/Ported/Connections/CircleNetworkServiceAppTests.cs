@@ -265,6 +265,46 @@ public class CircleNetworkServiceAppTests : V2Fixture
     }
 
     /// <summary>
+    /// #2000: the registration is saved and reconciled in one stacked transaction, so a reconcile that fails leaves
+    /// the app authorizing the circles it did before. Before, the save was committed first, and the app was left
+    /// authorizing circles whose members never got (or never lost) the grant.
+    /// </summary>
+    [Test]
+    public async Task AFailedReconcile_LeavesTheAuthorizedCirclesAsTheyWere()
+    {
+        var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
+        var samOwnerClient = await LoginAsOwner(Identities.Sam);
+
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 1);
+        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
+        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
+        Assert.That((await GetAppRegistration(frodoOwnerClient, setup.App.AppId)).AuthorizedCircles,
+            Is.EquivalentTo(setup.CircleIds), "precondition: the app authorizes the circle");
+
+        // The reconcile fails on Sam: still in the circle, but with no connection record to change
+        await DropConnectionRecordAsync(frodoOwnerClient, samOwnerClient.Identity);
+        // Logged by the exception middleware as "{message}", which renders the message quoted
+        ExpectErrorLogEvent("\"Object reference not set to an instance of an object");
+
+        Assert.CatchAsync<Refit.ApiException>(() => UpdateAppAuthorizedCircles(frodoOwnerClient, setup.App.AppId,
+            new List<Guid>(), setup.App.CircleMemberPermissionSetGrantRequest), "the reconcile fails");
+
+        var app = await GetAppRegistration(frodoOwnerClient, setup.App.AppId);
+        Assert.That(app.AuthorizedCircles, Is.EquivalentTo(setup.CircleIds),
+            "the registration's save is rolled back with the failed reconcile");
+    }
+
+    /// <summary>
+    /// Deletes the connection record of <paramref name="member"/> on <paramref name="owner"/>'s identity, leaving
+    /// their circle membership, so anything that walks the circle's members and changes their record fails on them
+    /// </summary>
+    private static async Task DropConnectionRecordAsync(OwnerSession owner, OdinId member)
+    {
+        await using var scope = owner.Host.GetTenantScope(owner.Identity.DomainName).BeginLifetimeScope();
+        await scope.Resolve<IdentityDatabase>().ConnectionsCached.DeleteAsync(member);
+    }
+
+    /// <summary>
     /// Deletes every app grant <paramref name="member"/> holds on <paramref name="owner"/>'s identity, leaving the
     /// circle membership: the state a reconcile that failed or skipped the member leaves behind.
     /// </summary>
