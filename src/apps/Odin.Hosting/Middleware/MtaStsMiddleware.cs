@@ -46,7 +46,7 @@ public sealed class MtaStsMiddleware(RequestDelegate next, OdinConfiguration con
         {
             context.Response.StatusCode = StatusCodes.Status200OK;
             context.Response.ContentType = "text/plain";
-            await context.Response.WriteAsync(MtaStsPolicy.Build(tenantMail.MxNodes));
+            await context.Response.WriteAsync(MtaStsPolicy.Build(tenantMail));
             return;
         }
 

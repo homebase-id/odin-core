@@ -61,7 +61,12 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet.AssertIsValid();
-        OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, allowEmpty: true, odinContext.Tenant);
+        // Before anything is stored: a peer update committed to the transient drive first stayed behind (#2155)
+        var sending = instructionSet.Recipients is { Count: > 0 };
+        if (sending)
+        {
+            PeerOutgoingTransferService.AssertMaySendTo(instructionSet.Recipients, odinContext.Tenant, odinContext);
+        }
 
         instructionSet.Manifest.ResetPayloadUiDs();
 
@@ -89,13 +94,30 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 FileId = fileId.GetValueOrDefault()
             };
 
+            // Before anything is stored: a file with no global transit id can't be sent, and the update was
+            // committed before the send found that out (#2160). A missing file is left to the update to report.
+            FileIdentifier peerTarget = null;
+            if (sending)
+            {
+                var header = await FileSystem.Storage.GetServerFileHeader(file, odinContext);
+                peerTarget = new FileIdentifier
+                {
+                    GlobalTransitId = header?.FileMetadata.GlobalTransitId,
+                    TargetDrive = instructionSet.File.TargetDrive
+                };
+                if (header != null)
+                {
+                    peerTarget.AssertIsValidPeerTarget();
+                }
+            }
+
             this.Package = new FileUpdatePackage(file)
             {
                 InstructionSet = instructionSet,
-                FileSystemType = fileSystemType
+                FileSystemType = fileSystemType,
+                PeerTarget = peerTarget
             };
 
-            await Task.CompletedTask;
             return;
         }
 
@@ -114,7 +136,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             this.Package = new FileUpdatePackage(file)
             {
                 InstructionSet = instructionSet,
-                FileSystemType = fileSystemType
+                FileSystemType = fileSystemType,
+                PeerTarget = instructionSet.File
             };
             return;
         }
@@ -263,14 +286,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
             var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
 
-            var recipientStatus = await ProcessTransitInstructions(Package,
-                new FileIdentifier()
-                {
-                    GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId,
-                    TargetDrive = Package.InstructionSet.File.TargetDrive
-                },
-                keyHeader,
-                odinContext);
+            var recipientStatus = await ProcessTransitInstructions(Package, Package.PeerTarget, keyHeader, odinContext);
 
             return new FileUpdateResult
             {
@@ -310,8 +326,9 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false,
                 odinContext, sourceArea: StagingArea.Upload);
 
-            var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext,
-                expectedVersionTag);
+            var recipientStatus = await _peerOutgoingTransferService.SendFromTransientDriveAsync(Package.InternalFile, FileSystem,
+                () => ProcessTransitInstructions(Package, Package.PeerTarget, keyHeader, odinContext, expectedVersionTag),
+                odinContext);
 
             return new FileUpdateResult()
             {
@@ -421,7 +438,6 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
         if (recipients?.Any() ?? false)
         {
-            OdinValidationUtils.AssertValidRecipientList(recipients);
             targetFile.AssertIsValidPeerTarget();
 
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(

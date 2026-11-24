@@ -190,6 +190,45 @@ gh run watch <run-id> --repo homebase-id/odin-core --exit-status
   - `host-deploy-image-to-environment.yml` deploys a given image to bleeding edge, sandbox or production.
 - `start_choice=true` starts the container after the deploy. Every release so far has used `true`.
 
+## Simplify, then code review
+
+Before opening a PR that changes real code, run both passes, always in this order, each started with exactly
+this prompt (`<target>` is the branch, the PR or the commit range):
+
+```
+/simplify <target>. Follow SIMPLIFY.md.
+/code-review high --max-findings 15 <target>. Check the diff against CODE_REVIEW.md.
+```
+
+Read [`SIMPLIFY.md`](SIMPLIFY.md) and [`CODE_REVIEW.md`](CODE_REVIEW.md) before their passes: what each
+looks for, what it may fix, and its commit. Each pass ends in a commit of its own with its counts, even one
+that changes nothing; the weekly team data reads them.
+
+A PR changes real code when `scripts/pass-stats.py <base>...HEAD`, after `git fetch origin`, reports any
+line added or removed; `<base>` is `origin/` and the PR's base branch: `origin/main`, or for a stacked PR
+the branch below. Real code is source, build and config files, not docs, tests, translations, resources or
+comments. A PR that changes none skips both passes, and its description says so in one line.
+
+## Opening a PR
+
+One PR solves one problem. Unrelated fixes are separate PRs, however small; no "Small fixes: …" grab-bags. If the title needs "and" or a list to say what the PR does, it is probably two PRs. Two issues share a PR only when the same change fixes both.
+
+End the description with this block, one line each, before the attribution lines. The weekly team data reads it.
+
+```
+Type: feature | fix | refactor | speed-up | docs | tests
+Part of: #<tracking issue>
+Fixes a problem from: #<merged PR>
+Verified: <what ran: unit tests, integration tests, a local host run, bleeding edge>
+```
+
+Leave out `Part of` when there is no tracking issue, and `Fixes a problem from` unless the PR fixes something a merged PR got wrong. `Verified` names what actually ran, not what CI will run.
+
+## Filing issues
+
+- An issue about something a merged PR got wrong starts with "Found after #<PR>" and gets the `post-merge` label.
+- When a fix doesn't hold, reopen its issue with "Still broken: …" instead of filing a new one.
+
 ## Reporting findings
 
 When reporting a bug, review finding, or any analysis of this codebase, explicitly separate what was verified by reading code/tests from what was inferred or assumed. If a conclusion depends on an assumption about behavior outside this repo (external scripts, ops/ansible playbooks, infra config, runtime environment, etc.) or on unverified reasoning, say so directly in the same sentence as the claim -- do not state inferred conclusions as confirmed facts.

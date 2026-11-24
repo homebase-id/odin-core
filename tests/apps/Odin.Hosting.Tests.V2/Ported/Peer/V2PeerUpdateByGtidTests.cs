@@ -268,16 +268,21 @@ public class V2PeerUpdateByGtidTests : V2Fixture
 
         var first = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var second = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
-        var payloads = new List<TestPayloadDefinition> { first, second };
 
-        var response = await pippin.V1.PeerDirect.TransferNewFile(drive, metadata, [frodo.Identity], null,
+        return (pippin, frodo, drive, await TransferAsync(pippin, frodo, drive, metadata, [first, second]), first, second);
+    }
+
+    /// <summary>A file <paramref name="sender"/> sends to <paramref name="recipient"/>'s drive, delivered; returns its global transit id</summary>
+    internal static async Task<Guid> TransferAsync(OwnerSession sender, OwnerSession recipient, TargetDrive drive,
+        UploadFileMetadata metadata, List<TestPayloadDefinition> payloads)
+    {
+        var response = await sender.V1.PeerDirect.TransferNewFile(drive, metadata, [recipient.Identity], null,
             new UploadManifest { PayloadDescriptors = payloads.ToPayloadDescriptorList().ToList() }, payloads);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
 
-        await pippin.Sync.DrainOutboxAsync();
-        await frodo.Sync.ProcessInboxAsync(drive, int.MaxValue);
-
-        return (pippin, frodo, drive, response.Content!.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, first, second);
+        await sender.Sync.DrainOutboxAsync();
+        await recipient.Sync.ProcessInboxAsync(drive, int.MaxValue);
+        return response.Content!.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
     }
 
     internal static async Task<ApiResponse<UpdateFileResult>> UpdateAsync(IV2Caller caller, Odin.Core.Identity.OdinId recipient,

@@ -83,7 +83,7 @@ namespace Odin.Hosting.Middleware
 
                 logger.LogDebug(e, "Security exception thrown");
 
-                await HandleExceptionAsync(context, new ForbiddenException(message, e.ErrorCode, inner: e));
+                await HandleExceptionAsync(context, new ForbiddenException(message, e.ErrorCode, inner: e) { Extensions = e.Extensions });
             }
             catch (Exception ex)
             {

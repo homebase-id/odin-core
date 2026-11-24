@@ -56,3 +56,5 @@ TestResults/
 
 # Scratch worktrees created for background agents; never part of the tree.
 .claude/worktrees/
+
+__pycache__/
