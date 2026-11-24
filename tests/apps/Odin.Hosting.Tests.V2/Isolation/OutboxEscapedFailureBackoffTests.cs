@@ -2,12 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -34,13 +31,10 @@ public class OutboxEscapedFailureBackoffTests : V2Fixture
     [Test]
     public async Task AnEscapedFailure_IsRetriedOnTheBackoff_NotImmediately()
     {
-        var scope = Host.GetTenantScope(Identities.Frodo);
-        var (outbox, processor, table) =
-            (scope.Resolve<PeerOutbox>(), scope.Resolve<PeerOutboxProcessorBackgroundService>(), scope.Resolve<TableOutbox>());
-
+        var tenant = Host.GetTenantScope(Identities.Frodo);
         var file = new InternalDriveFileId { DriveId = Guid.NewGuid(), FileId = Guid.NewGuid() };
         var frodo = new OdinId(Identities.Frodo);
-        await outbox.AddItemAsync(new OutboxFileItem
+        await OutboxBackoff.Resolve(tenant).Outbox.AddItemAsync(new OutboxFileItem
         {
             Recipient = frodo,
             Priority = 100,
@@ -49,19 +43,6 @@ public class OutboxEscapedFailureBackoffTests : V2Fixture
             State = new OutboxItemState { Data = "{ not json".ToUtf8ByteArray() }
         });
 
-        await processor.DrainAsync(maxRetryPasses: 0);
-
-        var item = await outbox.GetItemAsync(file.DriveId, file.FileId, frodo);
-        Assert.That(item, Is.Not.Null, "one failed attempt must not settle the item");
-        Assert.That(item!.AttemptCount, Is.EqualTo(1));
-
-        var nextRun = await table.NextScheduledItemAsync(file.DriveId);
-        Assert.That(nextRun, Is.Not.Null);
-        Assert.That(nextRun!.Value.milliseconds, Is.GreaterThan(UnixTimeUtc.Now().AddSeconds(5).milliseconds),
-            "the retry must be parked behind the back-off, not rescheduled for now");
-
-        await processor.DrainAsync(maxRetryPasses: 0);
-        Assert.That((await outbox.GetItemAsync(file.DriveId, file.FileId, frodo))!.AttemptCount, Is.EqualTo(1),
-            "an item behind its back-off must not be attempted again");
+        await OutboxBackoff.AssertFailedOnceAndParkedAsync(tenant, file.DriveId, file.FileId, frodo);
     }
 }
