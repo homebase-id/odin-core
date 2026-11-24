@@ -160,7 +160,7 @@ Later:
 | `IsReadonly` | documented "owner only, in owner auth". **No write path reads it** (grep) **(V)**, so it's not enforced |
 | `IsArchived` | non-owner callers are refused (`AssertDriveIsNotArchived`) |
 | `WriteOnlyKeyPair` | per-drive ECC-384 key: seal a deposit without being able to read; private half under the storage key. Its public half is served to any identity, with whether the asker may write (`CallerMayWrite`); a deposit still needs Write |
-| Attribute `IsCollaborativeChannel` | marks the drive as a **community channel** (`IsCollaborationDrive`): members may change each other's posts, and posts keep the sender's ACL, and a member's change keeps the post's ([file-access.md](file-access.md#drives-marked-as-a-community-channel)) |
+| Attribute `IsCollaborativeChannel` | marks the drive as a **community channel** (`IsCollaborationDrive`): members may change each other's posts, and posts keep the sender's ACL, and a member's change keeps the post's, except its original sender's to one no wider ([file-access.md](file-access.md#drives-marked-as-a-community-channel)) |
 
 - System drives (`BuiltinDrives.Protected`) can't be deleted **(V)**.
 - **A zero-knowledge drive allows neither anonymous reads, the CDN nor subscriptions,** and may not be marked as a

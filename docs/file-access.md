@@ -281,7 +281,8 @@ node clears its own (`OdinContextCache.ResetAsync`) **(V)**. A peer notification
   is the recipient owner's alone, not every connection's (#2002) **(V, tested)**.
 - **The recipient's copy gets a required group of `Owner`**, except: a comment, new or updated, takes the ACL of the
   file it comments on, on every drive (`IncomingFileAcl`, from `PeerFileWriter` and `PeerFileUpdateWriter`), a new
-  post on a drive marked as a community channel keeps the sender's ACL (`PeerFileWriter`), and a member's update of
+  post on a drive marked as a community channel keeps the sender's ACL (`PeerFileWriter`, and `PeerFileUpdateWriter`
+  when an update names a post the channel doesn't have), and a member's update of
   a standard file on a Private Share drive keeps the file's own ACL (`PeerFileUpdateWriter`) **(V)**.
 - **A change of a stored post on a community channel**, an update or a file sent again, keeps the post's ACL: only
   its original sender changes it, and only to one no wider (`IncomingFileAcl.ForChange`,
