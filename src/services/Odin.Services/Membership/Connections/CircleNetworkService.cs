@@ -2229,9 +2229,8 @@ namespace Odin.Services.Membership.Connections
                     // The same upgrades UpdateCircleDefinitionAsync runs before re-granting (#2000). Both write the
                     // stored record, not this copy, so refetch after either: saving the stale copy below would put
                     // the weak token back
-                    var tokenNeededUpgrade = icr.TemporaryWeakClientAccessToken != null && icr.EncryptedClientAccessToken == null;
-                    await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
-                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext) || tokenNeededUpgrade)
+                    var tokenUpgraded = await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext) || tokenUpgraded)
                     {
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                     }
@@ -3408,7 +3407,9 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        public async Task UpgradeTokenEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        /// <returns>True when the upgrade wrote the stored record (not <paramref name="identity"/>), so a caller about to
+        /// save its copy must refetch it first</returns>
+        public async Task<bool> UpgradeTokenEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
         {
             if (identity.TemporaryWeakClientAccessToken != null && identity.EncryptedClientAccessToken == null)
             {
@@ -3419,7 +3420,7 @@ namespace Odin.Services.Membership.Connections
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey(failIfNotFound: false);
                 if (rawIcrKey == null)
                 {
-                    return;
+                    return false;
                 }
 
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
@@ -3438,14 +3439,17 @@ namespace Odin.Services.Membership.Connections
                     logger.LogWarning(e,
                         "Not upgrading ICR Token Encryption for {id}: its temporary token was sealed to a key " +
                         "this identity no longer holds. Left as-is", identity.OdinId);
-                    return;
+                    return false;
                 }
 
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
 
                 await circleNetworkStorage.UpdateClientAccessTokenAsync(identity.OdinId, identity.Status, encryptedCat);
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>
