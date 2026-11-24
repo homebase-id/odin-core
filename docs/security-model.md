@@ -420,8 +420,8 @@ serverMetadata
   `modified` (`updated`), but leave `versionTag` alone (`TableDriveMainIndex`) **(V)**:
   - **`localAppData`** has **its own `versionTag`**, checked by compare-and-set on `hdrLocalVersionTag`. It's for
     client-side sync only and is never propagated to peers. A normal header write doesn't overwrite it;
-  - **`reactionPreview`** (`UpdateReactionSummary`; a reaction added or deleted changes it in one read inside storage,
-    `ChangeReactionSummary`, from all three `ReactionPreviewCalculator` reaction handlers) doesn't advance the file's `versionTag`. A header write carries the
+  - **`reactionPreview`** (`UpdateReactionSummary`; a reaction or comment added, changed or deleted changes it in one
+    read inside storage, `ChangeReactionSummary`, from every `ReactionPreviewCalculator` handler) doesn't advance the file's `versionTag`. A header write carries the
     existing summary forward, so an edit doesn't wipe the reactions;
   - **`transferHistory`** (`UpdateTransferHistory`) doesn't either.
 - So a client that caches by `versionTag` alone misses reaction, read-receipt and local-data changes. It has to watch
