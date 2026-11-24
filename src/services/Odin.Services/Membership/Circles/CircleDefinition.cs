@@ -99,6 +99,11 @@ namespace Odin.Services.Membership.Circles
         /// </summary>
         public PermissionSet Permissions { get; set; }
 
+        /// <summary>Whether a grant here carries Read on <paramref name="drive"/>.</summary>
+        public bool GrantsRead(TargetDrive drive) =>
+            DriveGrants?.Any(g => g.PermissionedDrive.Drive == drive &&
+                                  g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)) ?? false;
+
         public bool Equals(CircleDefinition other)
         {
             if (ReferenceEquals(null, other)) return false;

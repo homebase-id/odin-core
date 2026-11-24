@@ -1,11 +1,11 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
@@ -100,16 +100,10 @@ public class FeedCircleChannelReadTests : V2Fixture
         Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
     }
 
-    private static async Task<TargetDrive> CreateFeedChannelDriveAsync(OwnerSession owner)
-    {
-        var drive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        await owner.Admin.CreateDrive(drive, "A custom channel", allowAnonymousReads: true, allowSubscriptions: true,
-            appId: SystemAppConstants.FeedAppId, driveSlug: new OdinSlug($"ch{Guid.NewGuid():N}"[..14]),
-            driveTypeSlug: BuiltinDrives.ChannelDriveTypeSlug);
-        return drive;
-    }
+    private static Task<TargetDrive> CreateFeedChannelDriveAsync(OwnerSession owner) =>
+        DataSubscriptionScenario.CreateChannelDriveAsync(owner, allowAnonymousReads: true, appId: SystemAppConstants.FeedAppId);
 
-    private static async Task<System.Collections.Generic.List<TargetDrive>> GrantedDrivesAsync(ILifetimeScope scope)
+    private static async Task<List<TargetDrive>> GrantedDrivesAsync(ILifetimeScope scope)
     {
         var def = await scope.Resolve<CircleDefinitionService>().GetCircleAsync(Feed);
         return def!.DriveGrants.Select(g => g.PermissionedDrive.Drive).ToList();

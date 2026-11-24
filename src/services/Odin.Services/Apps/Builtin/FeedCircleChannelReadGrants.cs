@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -14,7 +13,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 
-namespace Odin.Services.DataSubscription;
+namespace Odin.Services.Apps.Builtin;
 
 /// <summary>
 /// Keeps the Feed circle holding Read, with the storage key, on every channel drive the Feed app owns (#1956).
@@ -44,7 +43,7 @@ public class FeedCircleChannelReadGrants(
     CircleNetworkService circleNetworkService,
     IDriveManager driveManager) : INotificationHandler<DriveDefinitionAddedNotification>
 {
-    public static bool IsFeedChannelDrive(StorageDrive drive) =>
+    private static bool IsFeedChannelDrive(StorageDrive drive) =>
         drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType &&
         drive.AppId == BuiltinCircles.FeedCircle.AppId &&
         !drive.IsZeroKnowledge;
@@ -122,6 +121,5 @@ public class FeedCircleChannelReadGrants(
     }
 
     private static List<TargetDrive> Missing(CircleDefinition def, List<TargetDrive> drives) =>
-        drives.Where(drive => !(def.DriveGrants ?? []).Any(g =>
-            g.PermissionedDrive.Drive == drive && g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read))).ToList();
+        drives.Where(drive => !def.GrantsRead(drive)).ToList();
 }

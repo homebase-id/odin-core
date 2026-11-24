@@ -58,11 +58,12 @@ internal static class DataSubscriptionScenario
         OwnerSession owner,
         bool allowAnonymousReads = false,
         string name = "A Channel Drive",
-        Dictionary<string, string> attributes = null)
+        Dictionary<string, string> attributes = null,
+        Guid? appId = null)
     {
         var channelDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
         await owner.Admin.CreateDrive(channelDrive, name, allowAnonymousReads: allowAnonymousReads,
-            ownerOnly: false, allowSubscriptions: true, attributes: attributes);
+            ownerOnly: false, allowSubscriptions: true, attributes: attributes, appId: appId);
         return channelDrive;
     }
 

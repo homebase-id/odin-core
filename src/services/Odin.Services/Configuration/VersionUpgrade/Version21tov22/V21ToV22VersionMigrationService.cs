@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
-using Odin.Services.DataSubscription;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
 {

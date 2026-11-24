@@ -107,7 +107,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
                     continue;
                 }
 
-                if (GrantsRead(def, drive))
+                if (def.GrantsRead(drive))
                 {
                     continue;
                 }
@@ -196,7 +196,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
                     continue;
                 }
 
-                if (!GrantsRead(def, drive))
+                if (!def.GrantsRead(drive))
                 {
                     throw new OdinSystemException($"Circle {circle.Name} does not grant Read on {drive.Alias}");
                 }
@@ -236,13 +236,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
                     }
                 }
             }
-        }
-
-        private static bool GrantsRead(CircleDefinition def, TargetDrive drive)
-        {
-            return def.DriveGrants?.Any(g =>
-                g.PermissionedDrive.Drive == drive &&
-                g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)) ?? false;
         }
     }
 }
