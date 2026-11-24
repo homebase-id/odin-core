@@ -77,7 +77,7 @@ public class AcmeAccountKeyAtRestTests
 
         var stored = await ReadSettingAsync();
         Assert.That(stored, Does.Not.Contain("BEGIN"), "sealed on its first read");
-        Assert.That(SecretAtRest.Open(stored, _storageKey), Is.EqualTo(keyPem));
+        Assert.That(SecretAtRest.Open(stored, _storageKey, SettingsKey), Is.EqualTo(keyPem));
 
         var again = await Service(_storageKey).LoadAccountAsync();
         Assert.That(again!.AccounKeyPem, Is.EqualTo(keyPem));
@@ -91,13 +91,13 @@ public class AcmeAccountKeyAtRestTests
 
         var account = await Service(_storageKey).LoadAccountAsync();
         Assert.That(account!.AccounKeyPem, Is.EqualTo(keyPem));
-        Assert.That(SecretAtRest.Open(await ReadSettingAsync(), _storageKey), Is.EqualTo(keyPem));
+        Assert.That(SecretAtRest.Open(await ReadSettingAsync(), _storageKey, SettingsKey), Is.EqualTo(keyPem));
     }
 
     [Test]
     public async Task ASealedKeyTheStorageKeyCantOpen_IsAnError_NotNoAccount()
     {
-        await WriteSettingAsync(SecretAtRest.Seal(MakeKeyPem(), RandomNumberGenerator.GetBytes(32)));
+        await WriteSettingAsync(SecretAtRest.Seal(MakeKeyPem(), RandomNumberGenerator.GetBytes(32), SettingsKey));
         Assert.ThrowsAsync<OdinSystemException>(() => Service(_storageKey).LoadAccountAsync());
     }
 

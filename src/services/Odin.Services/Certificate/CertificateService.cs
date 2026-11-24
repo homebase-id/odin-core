@@ -633,7 +633,7 @@ public class CertificateService : ICertificateService
             return plain;
         }
 
-        return new AcmeAccount { AccounKeyPem = SecretAtRest.Open(settings.value, _storageKey) };
+        return new AcmeAccount { AccounKeyPem = SecretAtRest.Open(settings.value, _storageKey, _accountKey) };
     }
 
     //
@@ -646,7 +646,7 @@ public class CertificateService : ICertificateService
         await tableSettings.UpsertAsync(new SettingsRecord
         {
             key = _accountKey,
-            value = SecretAtRest.Seal(account.AccounKeyPem, _storageKey),
+            value = SecretAtRest.Seal(account.AccounKeyPem, _storageKey, _accountKey),
         });
     }
 
