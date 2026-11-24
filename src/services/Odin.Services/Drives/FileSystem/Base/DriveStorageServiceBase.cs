@@ -2331,7 +2331,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                     AppData = new AppFileMetaData
                     {
-                        UniqueId = options?.KeepUniqueId == true ? appData.UniqueId : null,
+                        // A tombstone deleted again keeps an id it kept: it stays taken until a hard delete
+                        UniqueId = options?.KeepUniqueId == true || metadata.FileState == FileState.Deleted ? appData.UniqueId : null,
                         Tags = appData.Tags,
                         FileType = appData.FileType,
                         DataType = appData.DataType,

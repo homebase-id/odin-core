@@ -53,6 +53,41 @@ public class SoftDeleteKeepUniqueIdTests : V2Fixture
         await AssertTombstoneAsync(owner, drive, uniqueId, file.FileId, keepUniqueId == true);
     }
 
+    [Test]
+    public async Task DeletingATombstoneAgainKeepsAnIdItKept()
+    {
+        var (owner, drive, uniqueId, file) = await SeedAsync();
+        var keep = await owner.Drives.Writer.SoftDeleteFile(drive.Alias, file.FileId, tombstone: Options(true));
+        Assert.That(keep.StatusCode, Is.EqualTo(HttpStatusCode.OK), keep.Error?.Content);
+
+        // e.g. a delete for me, then for everyone, which names no options
+        var again = await owner.Drives.Writer.SoftDeleteFile(drive.Alias, file.FileId);
+        var batch = await owner.Drives.Writer.SoftDeleteBatch(drive.Alias,
+            new SoftDeleteBatchRequestV2 { Files = [SoftDeleteBatchTests.File(file.FileId)] });
+
+        Assert.That((again.StatusCode, batch.StatusCode), Is.EqualTo((HttpStatusCode.OK, HttpStatusCode.OK)),
+            again.Error?.Content ?? batch.Error?.Content);
+        await AssertTombstoneAsync(owner, drive, uniqueId, file.FileId, kept: true);
+    }
+
+    [Test]
+    public async Task AHardDeleteFreesAKeptId()
+    {
+        var (owner, drive, uniqueId, file) = await SeedAsync();
+        var keep = await owner.Drives.Writer.SoftDeleteFile(drive.Alias, file.FileId, tombstone: Options(true));
+        Assert.That(keep.StatusCode, Is.EqualTo(HttpStatusCode.OK), keep.Error?.Content);
+        var tombstone = await AppFileUploads.HeaderAsync(owner, drive, file.FileId);
+
+        var hardDelete = await owner.Drives.Writer.HardDeleteBatch(drive.Alias, new HardDeleteBatchRequestV2
+        {
+            Files = [new FileVersionTagV2 { FileId = file.FileId, VersionTag = tombstone.FileMetadata.VersionTag }]
+        });
+
+        Assert.That(hardDelete.StatusCode, Is.EqualTo(HttpStatusCode.OK), hardDelete.Error?.Content);
+        Assert.That(hardDelete.Content!.Results.Single().ErrorCode, Is.Null);
+        await AssertTombstoneAsync(owner, drive, uniqueId, file.FileId, kept: false);
+    }
+
     /// <summary>Null leaves the tombstone options out of the request</summary>
     private static TombstoneOptions Options(bool? keepUniqueId) =>
         keepUniqueId.HasValue ? new TombstoneOptions { KeepUniqueId = keepUniqueId.Value } : null;
