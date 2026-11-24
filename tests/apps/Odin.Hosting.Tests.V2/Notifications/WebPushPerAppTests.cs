@@ -2,7 +2,6 @@
 using System;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
@@ -12,7 +11,7 @@ using Odin.Hosting.Tests;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
-using Refit;
+using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 
 namespace Odin.Hosting.Tests.V2.Notifications;
 
@@ -23,12 +22,6 @@ namespace Odin.Hosting.Tests.V2.Notifications;
 [TestFixture]
 public class WebPushPerAppTests : V2Fixture
 {
-    public interface IRefitWebPushSubscribe
-    {
-        [Post("/notify/push/subscribe")]
-        Task<ApiResponse<HttpContent>> Subscribe([Body] PushNotificationSubscribeDeviceRequest request);
-    }
-
     [Test]
     public async Task AnAppsWebPushSubscription_RemembersTheApp()
     {
@@ -38,16 +31,24 @@ public class WebPushPerAppTests : V2Fixture
         var app = await AppSession.SetupAsync(owner, drive, DrivePermission.Write, [PermissionKeys.SendPushNotifications]);
 
         var client = app.Factory.CreateHttpClient(app.Identity, out var sharedSecret);
-        var response = await RefitCreator.RestServiceFor<IRefitWebPushSubscribe>(client, sharedSecret).Subscribe(
-            new PushNotificationSubscribeDeviceRequest
+        var push = RefitCreator.RestServiceFor<IRefitPushSubscription>(client, sharedSecret);
+        try
+        {
+            var response = await push.Subscribe(new PushNotificationSubscribeDeviceRequest
             {
                 FriendlyName = "journal", Endpoint = "https://push.example/endpoint", ExpirationTime = "",
                 Auth = "auth", P256DH = "p256dh"
             });
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
 
-        var (scope, context) = await MigrationContextAsync(owner);
-        var subscriptions = await scope.Resolve<PushNotificationService>().GetAllSubscriptionsAsync(context);
-        Assert.That(subscriptions.Single(s => s.FriendlyName == "journal").AppId, Is.EqualTo(app.AppId));
+            var (scope, context) = await MigrationContextAsync(owner);
+            var subscriptions = await scope.Resolve<PushNotificationService>().GetAllSubscriptionsAsync(context);
+            Assert.That(subscriptions.Single(s => s.FriendlyName == "journal").AppId, Is.EqualTo(app.AppId));
+        }
+        finally
+        {
+            // A subscription left behind would be pushed to by a later fixture, whose log check fails on the error
+            await push.UnsubscribeAll();
+        }
     }
 }

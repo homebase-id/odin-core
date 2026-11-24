@@ -10,7 +10,8 @@ public class PushNotificationSubscription
     /// <summary>
     /// The app that subscribed: a web push goes to it with that app's payloads only (#2006). Null for the owner
     /// console, and for a subscription made before this was kept, which get every app's pushes. Set by the server from
-    /// the caller, never taken from the request.
+    /// the caller, never taken from the request.  Kept on a Firebase subscription too but not used there: the native app
+    /// is one shell for several apps, and shows all their pushes.
     /// </summary>
     public Guid? AppId { get; set; }
 

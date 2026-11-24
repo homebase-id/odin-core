@@ -252,9 +252,8 @@ public class PushNotificationService(
     }
 
     /// <summary>
-    /// What a web push subscription is sent of <paramref name="content"/>: an app's subscription only that app's payloads,
-    /// so its service worker neither shows nor reads another app's pushes (#2006); the owner console's, and one made before
-    /// the app was kept, every payload.  Null when nothing is left to send.
+    /// The payloads of <paramref name="content"/> for a web push subscription (see
+    /// <see cref="PushNotificationSubscription.AppId"/>); null when none is left to send.
     /// </summary>
     internal static PushNotificationContent WebPushContentFor(PushNotificationSubscription subscription,
         PushNotificationContent content)
