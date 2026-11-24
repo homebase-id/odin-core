@@ -213,47 +213,9 @@ namespace Odin.Hosting.Authentication.YouAuth
                     OdinClientErrorCode.NotInitialized);
             }
 
-            var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
-            {
-                DriveId = d.Id,
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = d.TargetDriveInfo,
-                    Permission = DrivePermission.Read
-                }
-            }).ToList();
-
             var tenantContext = this.Context.RequestServices.GetRequiredService<TenantContext>();
-            var anonPerms = new List<int>();
-
-            if (tenantContext.Settings.AnonymousVisitorsCanViewConnections)
-            {
-                anonPerms.Add(PermissionKeys.ReadConnections);
-            }
-
-            if (tenantContext.Settings.AnonymousVisitorsCanViewWhoIFollow)
-            {
-                anonPerms.Add(PermissionKeys.ReadWhoIFollow);
-            }
-
-            anonPerms.Add(PermissionKeys.UseTransitRead);
-
-            var permissionGroupMap = new Dictionary<string, PermissionGroup>
-            {
-                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },
-            };
-
-            odinContext.Caller = new CallerContext(
-                odinId: null,
-                securityLevel: SecurityGroupType.Anonymous,
-                masterKey: null
-            );
-
-            odinContext.SetPermissionContext(
-                new PermissionContext(
-                    permissionGroupMap,
-                    sharedSecretKey: null
-                ));
+            odinContext.Caller = AnonymousPermissions.Caller();
+            odinContext.SetPermissionContext(AnonymousPermissions.Create(anonymousDrives.Results, tenantContext.Settings));
 
             var claims = new[]
             {

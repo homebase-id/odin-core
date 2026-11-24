@@ -103,6 +103,48 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
         }
     }
 
+    /// <summary>
+    /// The cache is shared by every caller, so a logged-in caller who misses first must not fill it with what
+    /// only they may read: they, and every anonymous visitor after them, get the anonymous view (#2060).
+    /// </summary>
+    [Test]
+    public async Task ALoggedInCallerGetsWhatAnAnonymousVisitorMayRead()
+    {
+        var owner = await LoginAsOwner();
+        var drive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        await owner.Admin.CreateDrive(drive, "Channel Drive", allowAnonymousReads: true);
+        var (publicFile, _) = await UploadStandardRandomFileHeadersUsingOwnerApi(owner, drive, AccessControlList.Anonymous);
+
+        var guest = await GuestSession.SetupAsync(owner, drive, DrivePermission.Read);
+        await UploadStandardRandomFileHeadersUsingOwnerApi(owner, drive, new AccessControlList
+        {
+            RequiredSecurityGroup = SecurityGroupType.Authenticated,
+            CircleIdList = [guest.CircleId]
+        });
+
+        var request = new QueryBatchCollectionRequest
+        {
+            Queries =
+            [
+                new CollectionQueryParamSection
+                {
+                    Name = "posts",
+                    QueryParams = new FileQueryParamsV1 { TargetDrive = drive, FileType = [HomeCachingService.PostFileType] }
+                }
+            ]
+        };
+
+        // The guest first, so their call is the one that misses
+        var guestResponse = await guest.RefitFor<IRefitHomeDriveQuery>().QueryBatchCollection(request);
+        Assert.That(guestResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(guestResponse.Content!.Results.Single().SearchResults.Select(h => h.FileId),
+            Is.EqualTo(new[] { publicFile.File.FileId }), "the guest should get only the anonymous view");
+
+        var anonymousResult = await QueryBatchCollectionAsync(request.Queries.ToList());
+        Assert.That(anonymousResult.Results.Single().SearchResults.Select(h => h.FileId),
+            Is.EqualTo(new[] { publicFile.File.FileId }), "the guest's call must not fill the cache with their own view");
+    }
+
     [Test]
     public Task CanInvalidateCache_ByAddingFileToChannel() => AssertQueryIsCachedUntilAsync(
         (owner, drives) => UploadStandardRandomFileHeadersUsingOwnerApi(
