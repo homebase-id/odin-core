@@ -66,6 +66,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     targetAcl = existingAcl;
                 }
             }
+            else if (existingHeader != null)
+            {
+                targetAcl = IncomingFileAcl.ForChange(drive, fileSystemType, targetAcl, existingHeader, sender);
+            }
 
             incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
             incomingMetadata!.SenderOdinId = sender;

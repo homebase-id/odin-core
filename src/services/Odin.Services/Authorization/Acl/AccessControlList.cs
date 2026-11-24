@@ -92,6 +92,56 @@ namespace Odin.Services.Authorization.Acl
             return (IEnumerable<string>)this.OdinIdList ?? Array.Empty<string>();
         }
 
+        /// <summary>
+        /// The ACL a copy sent to a peer carries: without its named identities, so a recipient never learns who else was
+        /// named.  Leaving them out never widens it: one that named identities and no circles lets in no one but the
+        /// recipient's owner instead (docs/file-access.md, "Copies sent to others").
+        /// </summary>
+        public AccessControlList RedactedForRecipient()
+        {
+            if (GetRequiredIdentities().Any() && !GetRequiredCircles().Any())
+            {
+                return OwnerOnly;
+            }
+
+            return new AccessControlList
+            {
+                RequiredSecurityGroup = RequiredSecurityGroup,
+                CircleIdList = CircleIdList?.ToList(),
+                OdinIdList = OdinIdList == null ? null : []
+            };
+        }
+
+        /// <summary>
+        /// Whether every caller this ACL lets in <paramref name="other"/> lets in too: its required group is no lower, and
+        /// when <paramref name="other"/> names circles or identities, it names some, and only ones <paramref name="other"/>
+        /// names.
+        /// </summary>
+        public bool IsNoWiderThan(AccessControlList other)
+        {
+            if (RequiredSecurityGroup == SecurityGroupType.Owner)
+            {
+                return true;
+            }
+
+            if (RequiredSecurityGroup < other.RequiredSecurityGroup)
+            {
+                return false;
+            }
+
+            var otherCircles = other.GetRequiredCircles().ToHashSet();
+            var otherIdentities = other.GetRequiredIdentities().ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (otherCircles.Count == 0 && otherIdentities.Count == 0)
+            {
+                return true;
+            }
+
+            var circles = GetRequiredCircles().ToList();
+            var identities = GetRequiredIdentities().ToList();
+            return (circles.Count > 0 || identities.Count > 0) &&
+                   circles.All(otherCircles.Contains) && identities.All(otherIdentities.Contains);
+        }
+
         public void Validate()
         {
             if (RequiredSecurityGroup == SecurityGroupType.Anonymous || RequiredSecurityGroup == SecurityGroupType.Owner)

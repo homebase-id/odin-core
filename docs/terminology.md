@@ -56,7 +56,8 @@ drive changes it only by conversion (`Drives.SharingModel`) **(V)**.
 may carry it: a zero-knowledge drive, Private or Private Share, refuses it at creation, conversion and when its
 attributes change (`DriveSettings.AssertFit`, `FitForConversion`, `AssertChangeFits`) **(V)**. On a drive marked as a community channel:
 
-- **A member's post keeps the sender's ACL**, so other members see it; on other drives a peer's new file lands
+- **A member's post keeps the sender's ACL**, so other members see it, and a member's change of it keeps its ACL
+  (only its sender narrows it); on other drives a peer's new file lands
   owner-only, except a comment, which takes its file's ACL, and on a Private Share drive a file a member sends with
   shares (`PeerFileWriter`) **(V)**.
 - **A member who may read a post may change it**, naming its version tag (`SentFileChanges.ContextForChangeAsync`)

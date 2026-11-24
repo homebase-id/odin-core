@@ -181,4 +181,44 @@ public class AclDecisionTests
         var stored = OdinSystemSerializer.Deserialize<ServerMetadataDto>($"{{\"accessControlList\":{aclJson}}}");
         Assert.DoesNotThrow(() => stored!.AccessControlList.Validate(), "a stored header with no names still validates");
     }
+
+    [Test]
+    public void ACopySentToAPeerNeverNamesIdentities_AndIsNeverWiderForIt()
+    {
+        // Only identities named: without them it would let in every connection, so the copy is the owner's alone (#2002)
+        var onlySam = Named(SecurityGroupType.Connected, [], Sam).RedactedForRecipient();
+        Assert.That(onlySam.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Owner));
+        Assert.That(onlySam.GetRequiredIdentities(), Is.Empty);
+
+        // Circles named too: without the identities it lets in fewer, so it keeps its group and circles
+        var friendsOrSam = Named(SecurityGroupType.Connected, [Friends], Sam);
+        var redacted = friendsOrSam.RedactedForRecipient();
+        Assert.That(redacted.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+        Assert.That(redacted.CircleIdList, Is.EqualTo(new[] { Friends }));
+        Assert.That(redacted.GetRequiredIdentities(), Is.Empty);
+        Assert.That(friendsOrSam.OdinIdList, Is.EqualTo(new[] { Sam.DomainName }), "the stored ACL is left alone");
+
+        var connected = AccessControlList.Connected.RedactedForRecipient();
+        Assert.That(connected.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+    }
+
+    [Test]
+    public void AnAclIsNoWiderThanAnotherWhenItLetsInNoOneTheOtherDoesNot()
+    {
+        var onlySam = Named(SecurityGroupType.Connected, [], Sam);
+        var friends = Acl(SecurityGroupType.Connected, Friends);
+
+        Assert.That(AccessControlList.OwnerOnly.IsNoWiderThan(onlySam), Is.True);
+        Assert.That(AccessControlList.Connected.IsNoWiderThan(AccessControlList.Connected), Is.True);
+        Assert.That(AccessControlList.Connected.IsNoWiderThan(AccessControlList.Authenticated), Is.True);
+        Assert.That(friends.IsNoWiderThan(AccessControlList.Connected), Is.True);
+        Assert.That(onlySam.IsNoWiderThan(Named(SecurityGroupType.Connected, [Friends], Sam, Pippin)), Is.True);
+
+        Assert.That(AccessControlList.Anonymous.IsNoWiderThan(AccessControlList.Connected), Is.False);
+        Assert.That(AccessControlList.Authenticated.IsNoWiderThan(AccessControlList.Connected), Is.False);
+        Assert.That(AccessControlList.Connected.IsNoWiderThan(onlySam), Is.False);
+        Assert.That(AccessControlList.Connected.IsNoWiderThan(AccessControlList.OwnerOnly), Is.False);
+        Assert.That(friends.IsNoWiderThan(onlySam), Is.False);
+        Assert.That(Named(SecurityGroupType.Connected, [], Merry).IsNoWiderThan(onlySam), Is.False);
+    }
 }
