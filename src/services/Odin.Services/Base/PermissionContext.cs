@@ -259,7 +259,8 @@ namespace Odin.Services.Base
         }
 
         /// <summary>
-        /// Determines if the current request can write to the specified drive
+        /// Determines if the current request holds Read on the specified drive, public or not: no public-drive skip, which
+        /// only the read rule's <see cref="AssertCanReadDrive(StorageDrive)"/> makes
         /// </summary>
         public void AssertCanReadDrive(Guid driveId)
         {

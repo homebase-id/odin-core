@@ -13,6 +13,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.FileSystem.Standard;
 
 namespace Odin.Hosting.Tests.V2.DriveRead;
@@ -53,6 +54,34 @@ public class PublicDriveNarrowedCallerTests : V2Fixture
         Assert.That(header?.FileMetadata.File.FileId, Is.EqualTo(file.FileId), "the file's Connected ACL lets a connected caller in");
     }
 
+    /// <summary>
+    /// The read-or-write step (file exists, resolving a file's system) asks the same: Read, or the file system's own
+    /// permission besides it, Write on the standard one and Comment on the comment one
+    /// </summary>
+    [Test]
+    public async Task TheReadOrWriteStepAsksANarrowedCallerForTheFileSystemsOwnPermissionOnAPublicDrive()
+    {
+        var (file, tenant) = await SeedConnectedFileOnAPublicDriveAsync();
+        await using var scope = tenant.BeginLifetimeScope();
+        var standard = scope.Resolve<StandardFileSystem>().Storage;
+        var comment = scope.Resolve<CommentFileSystem>().Storage;
+
+        var none = ConnectedContext(readsPublicDrives: false);
+        Assert.ThrowsAsync<OdinSecurityException>(() => standard.FileExists(file, none), "standard, no grant");
+        Assert.ThrowsAsync<OdinSecurityException>(() => comment.FileExists(file, none), "comment, no grant");
+
+        var commentOnly = ConnectedContext(readsPublicDrives: false, file.DriveId, DrivePermission.Comment);
+        Assert.ThrowsAsync<OdinSecurityException>(() => standard.FileExists(file, commentOnly), "standard, Comment only");
+        Assert.DoesNotThrowAsync(() => comment.FileExists(file, commentOnly), "comment, Comment only");
+
+        var writeOnly = ConnectedContext(readsPublicDrives: false, file.DriveId, DrivePermission.Write);
+        Assert.That(await standard.FileExists(file, writeOnly), Is.True, "standard, Write only");
+        Assert.ThrowsAsync<OdinSecurityException>(() => comment.FileExists(file, writeOnly), "comment, Write only");
+
+        var full = ConnectedContext(readsPublicDrives: true);
+        Assert.That(await standard.FileExists(file, full), Is.True, "standard, built with the public-drive grants");
+    }
+
     private async Task<(InternalDriveFileId File, ILifetimeScope Tenant)> SeedConnectedFileOnAPublicDriveAsync()
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
@@ -62,16 +91,18 @@ public class PublicDriveNarrowedCallerTests : V2Fixture
     }
 
     /// <summary>
-    /// A reviewed connected caller holding Read on some other drive only: a narrowed context such as #2127's direct-read
-    /// token, or, with <paramref name="readsPublicDrives"/>, one built as the public-drive callers are.
+    /// A reviewed connected caller holding Read on some other drive, or <paramref name="permission"/> on
+    /// <paramref name="driveId"/>: a narrowed context such as #2127's direct-read token, or, with
+    /// <paramref name="readsPublicDrives"/>, one built as the public-drive callers are.
     /// </summary>
-    private static OdinContext ConnectedContext(bool readsPublicDrives)
+    private static OdinContext ConnectedContext(bool readsPublicDrives, Guid? driveId = null,
+        DrivePermission permission = DrivePermission.Read)
     {
-        var otherDrive = TargetDrive.NewTargetDrive();
+        var drive = driveId is { } id ? new TargetDrive { Alias = id, Type = Guid.NewGuid() } : TargetDrive.NewTargetDrive();
         var grant = new DriveGrant
         {
-            DriveId = otherDrive.Alias,
-            PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read }
+            DriveId = drive.Alias,
+            PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = permission }
         };
 
         var context = new OdinContext

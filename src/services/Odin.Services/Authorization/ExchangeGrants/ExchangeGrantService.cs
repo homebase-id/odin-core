@@ -165,7 +165,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 permissionGroupMap,
                 sharedSecretKey: sharedSecret,
                 keyStoreKey: grantKeyStoreKey,
-                readsPublicDrives: includeAnonymousDrives
+                readsPublicDrives: includeAnonymousDrives && anonymousDrivePermission.HasFlag(DrivePermission.Read)
             );
 
             return permissionCtx;
