@@ -1,4 +1,5 @@
 using System;
+using Odin.Core.Cryptography.Crypto;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -405,8 +406,8 @@ public class CertificateService : ICertificateService
                     if (account == null)
                     {
                         account = await _certesAcme.CreateAccountAsync(_accountConfig.AcmeContactEmail, cancellationToken);
+                        await SaveAccountAsync(account);
                     }
-                    await SaveAccountAsync(account);
                 }
             }
 
@@ -602,7 +603,7 @@ public class CertificateService : ICertificateService
 
     //
 
-    private async Task<AcmeAccount?> LoadAccountAsync()
+    internal async Task<AcmeAccount?> LoadAccountAsync()
     {
         using var scope = _serviceProvider.CreateScope();
         var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
@@ -613,16 +614,17 @@ public class CertificateService : ICertificateService
             return null;
         }
 
-        var (keyPem, wasPlain) = AcmeAccountKeyAtRest.Open(settings.value, _storageKey);
-        var account = new AcmeAccount { AccounKeyPem = keyPem };
-        if (wasPlain)
+        // Kept as plain PEM before #1748: sealed on its first read, with no new account and no manual step.  A sealed one
+        // the storage key can't open throws: read as no account, it would be replaced by a new one
+        if (settings.value.StartsWith("-----BEGIN", StringComparison.Ordinal))
         {
-            // Kept as plain PEM before #1748: sealed on its first read, with no new account and no manual step
-            await SaveAccountAsync(account);
+            var plain = new AcmeAccount { AccounKeyPem = settings.value };
+            await SaveAccountAsync(plain);
             _logger.LogInformation("Encrypted the stored ACME account key ({key})", _accountKey);
+            return plain;
         }
 
-        return account;
+        return new AcmeAccount { AccounKeyPem = SecretAtRest.Open(settings.value, _storageKey) };
     }
 
     //
@@ -635,7 +637,7 @@ public class CertificateService : ICertificateService
         await tableSettings.UpsertAsync(new SettingsRecord
         {
             key = _accountKey,
-            value = AcmeAccountKeyAtRest.Seal(account.AccounKeyPem, _storageKey),
+            value = SecretAtRest.Seal(account.AccounKeyPem, _storageKey),
         });
     }
 
