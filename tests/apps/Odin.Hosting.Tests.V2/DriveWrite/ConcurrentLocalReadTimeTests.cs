@@ -30,15 +30,28 @@ public class ConcurrentLocalReadTimeTests : V2Fixture
     }
 
     [Test]
+    public async Task ManyConcurrentCallsWithTimestamps_AllSucceed_AndTheLatestTimeIsKept()
+    {
+        var (tenant, context, file) = await SeedFileAsync();
+        var start = UnixTimeUtc.Now().AddSeconds(-3600);
+        var timestamps = Enumerable.Range(0, 8).Select(i => (UnixTimeUtc?)start.AddSeconds(i * 10)).ToArray();
+
+        await RunConcurrentlyAsync(tenant, context, file, timestamps);
+
+        Assert.That(await ReadTimeAsync(tenant, context, file), Is.EqualTo(timestamps[^1]), "the latest read time must win");
+    }
+
+    [Test]
     public async Task TwoConcurrentCallsWithTimestamps_BothSucceed_AndTheLaterTimeIsKept()
     {
         const int rounds = 8;
         var (tenant, context, file) = await SeedFileAsync();
-        var earlier = UnixTimeUtc.Now().AddSeconds(-60);
+        var start = UnixTimeUtc.Now().AddSeconds(-3600);
 
         for (var round = 0; round < rounds; round++)
         {
-            var a = earlier.AddMilliseconds(round * 2);
+            // Both past the round before's, so both may write and every round races; both in the past, so neither is clamped
+            var a = start.AddSeconds(round * 60);
             var b = a.AddSeconds(30);
             await RunConcurrentlyAsync(tenant, context, file, a, b);
             Assert.That(await ReadTimeAsync(tenant, context, file), Is.EqualTo(b), $"round {round}: the later read time must win");

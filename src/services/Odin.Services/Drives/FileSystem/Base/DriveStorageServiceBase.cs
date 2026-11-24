@@ -1938,9 +1938,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <remarks>
-        /// Two calls for one file can race (#1724): both read the header, the first saves, and the second's save then
-        /// names a local version that is gone.  The loser reads the header again and judges it afresh: a read time
-        /// already at or past its own means there is nothing left to do; one behind it is written once more.
+        /// Calls for one file can race (#1724): each reads the header, one saves, and the others' saves then name a local
+        /// version that is gone.  A loser reads the header again and judges it afresh: a read time already at or past its
+        /// own means there is nothing left to do; one behind it is written again.  Each round either ends or a later time
+        /// was written, so the rounds run out only under sustained contention.
         /// </remarks>
         public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext, UnixTimeUtc? timestamp = null)
         {
@@ -1951,10 +1952,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ? (timestamp.Value < now ? timestamp.Value : now)
                 : now;
 
+            // Each lost round means another call wrote a later time, so this bounds the callers racing at once, not time
+            const int maxAttempts = 10;
             for (var attempt = 1; ; attempt++)
             {
                 // Also asserts the drive isn't archived and the caller may write to it
-                var header = await GetServerFileHeaderForWriting(file, odinContext);
+                var header = await GetHeaderForReadTimeAsync(file, odinContext, pastTheCache: attempt > 1);
                 if (null == header)
                 {
                     throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
@@ -1986,7 +1989,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
                     break;
                 }
-                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt == 1)
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt < maxAttempts)
                 {
                     _logger.LogDebug("Local read time for file {file} raced another write; reading it again", file);
                 }
@@ -2003,6 +2006,23 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// The header for <see cref="UpdateLocalReadTime"/>.  A retry reads it in a transaction, which reads past the
+        /// cache: the write it lost to drops the cached header only after it commits, so the cache may still hold the
+        /// version that was refused.
+        /// </summary>
+        private async Task<ServerFileHeader> GetHeaderForReadTimeAsync(InternalDriveFileId file, IOdinContext odinContext,
+            bool pastTheCache)
+        {
+            if (!pastTheCache)
+            {
+                return await GetServerFileHeaderForWriting(file, odinContext);
+            }
+
+            await using var tx = await db.BeginStackedTransactionAsync();
+            return await GetServerFileHeaderForWriting(file, odinContext);
         }
 
         public async Task UpdateLocalReactionsAsync(InternalDriveFileId file, List<string> localReactions,
