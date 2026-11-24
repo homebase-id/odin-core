@@ -200,9 +200,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 logger.LogError(fileReadException, "Source file not found {file} item (type: {itemType})", fileItem.File, fileItem.Type);
             }
+            // A failure the worker let escape: retried on the attempt back-off, so it doesn't run through its attempts in
+            // a second (#1815).  A cancellation above is a shutdown, retried at once
             catch (OdinOutboxProcessingException e)
             {
-                await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
+                await RescheduleItem(peerOutbox, fileItem, OutboxWorkerBase.BackoffNextRunTime(fileItem.AttemptCount));
 
                 logger.LogError(e, "An outbox worker did not handle the outbox processing exception.  Action: Marking Failure" +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -212,7 +214,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
+                await RescheduleItem(peerOutbox, fileItem, OutboxWorkerBase.BackoffNextRunTime(fileItem.AttemptCount));
 
                 logger.LogError(e, "Unhandled exception occured while processing an outbox.  Action: Marking Failure." +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",

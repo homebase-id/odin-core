@@ -228,10 +228,14 @@ public abstract class OutboxWorkerBase(
     /// Next run for a retry, backing off with the item's attempt count: 10 s steps for the first five
     /// attempts, 30 s steps after that.
     /// </summary>
-    protected UnixTimeUtc CalculateBackoffNextRunTime()
-    {
-        return UnixTimeUtc.Now().AddSeconds(CalculateSecondsDelay(FileItem.AttemptCount));
-    }
+    protected UnixTimeUtc CalculateBackoffNextRunTime() => BackoffNextRunTime(FileItem.AttemptCount);
+
+    /// <summary>
+    /// <see cref="CalculateBackoffNextRunTime"/> for an item's attempt count, for the processor too: a failure a worker
+    /// lets escape is retried on the same back-off, not at once (#1815).
+    /// </summary>
+    public static UnixTimeUtc BackoffNextRunTime(int attemptCount) =>
+        UnixTimeUtc.Now().AddSeconds(CalculateSecondsDelay(attemptCount));
 
     protected async Task<(Stream metadataStream,
             StreamPart metadataStreamPart,
@@ -412,7 +416,7 @@ public abstract class OutboxWorkerBase(
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
     }
 
-    private int CalculateSecondsDelay(int attemptNumber)
+    private static int CalculateSecondsDelay(int attemptNumber)
     {
         int baseDelaySeconds = 10;
 
