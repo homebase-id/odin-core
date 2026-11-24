@@ -672,8 +672,9 @@ namespace Odin.Services.DataSubscription.Follower
                         newFileMetadata.GlobalTransitId.GetValueOrDefault(),
                         newFileMetadata.AppData.UniqueId.GetValueOrDefault());
 
+                    // A catch-up sync replaces every item, changed or not: it is no change of the item (#2065)
                     await feedWriter.ReplaceFileMetadataOnFeedDrive(existingFile.FileId, newFileMetadata, odinContext,
-                        expectedSender: identityIFollow);
+                        expectedSender: identityIFollow, changedByPeer: false);
                 }
             }
             catch (Exception e)

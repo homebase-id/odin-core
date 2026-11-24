@@ -63,6 +63,7 @@ public class FeedWriter(
         FileMetadata fileMetadata,
         IOdinContext odinContext,
         OdinId expectedSender,
+        bool changedByPeer,
         KeyHeader keyHeader = null)
     {
         var targetFile = new InternalDriveFileId()
@@ -114,7 +115,7 @@ public class FeedWriter(
         // comes from multiple channel drives from many different identities so there could be a clash
         header.FileMetadata.AppData.UniqueId = null;
 
-        await _fileSystem.Storage.UpdateActiveFileHeader(targetFile, header, odinContext, raiseEvent: true);
+        await _fileSystem.Storage.UpdateActiveFileHeader(targetFile, header, odinContext, raiseEvent: true, changedByPeer: changedByPeer);
         if (header.FileMetadata.ReactionPreview == null)
         {
             var drive = await driveManager.GetDriveAsync(targetFile.DriveId);

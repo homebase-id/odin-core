@@ -107,7 +107,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     // perform update
                     request.FileMetadata.SenderOdinId = sender;
                     await feedWriter.ReplaceFileMetadataOnFeedDrive(file.Value.FileId, request.FileMetadata, newContext,
-                        expectedSender: sender);
+                        expectedSender: sender, changedByPeer: true);
                 }
             }
 

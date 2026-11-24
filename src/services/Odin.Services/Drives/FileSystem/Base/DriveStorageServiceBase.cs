@@ -319,7 +319,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header,
             IOdinContext odinContext,
-            bool raiseEvent = false, bool ignoreFeedDistribution = false)
+            bool raiseEvent = false, bool ignoreFeedDistribution = false, bool changedByPeer = false)
         {
             if (!header.IsValid())
             {
@@ -353,6 +353,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
             metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
+            SetTransitUpdated(existingHeader.FileMetadata, metadata, changedByPeer);
             ApplyShortenOnlyTtl(existingHeader.FileMetadata, metadata);
 
             // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
@@ -386,6 +387,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             //TODO: need to encrypt the metadata parts
             metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
             metadata.FileState = FileState.Active;
+            // A new file, a peer's first delivery or a new feed item included, has not been changed over transit, whatever the
+            // metadata says (#2065)
+            metadata.TransitUpdated = 0;
 
             await WriteFileHeaderInternal(header, odinContext, useThisVersionTag); // sets the header.FileMetadata.Created/Updated
 
@@ -1040,9 +1044,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             // db and this stops conflicts if someone passes in useThisVersionTag 
             newMetadata.VersionTag = null;
 
-            // A new file, a peer's first delivery included, has not been changed over transit, whatever the metadata says (#2065)
-            newMetadata.TransitUpdated = 0;
-
             var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
             bool success = false;
 
@@ -1479,11 +1480,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
+        /// <param name="changedByPeer">A peer's change, which moves TransitUpdated (<see cref="SetTransitUpdated"/>)</param>
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            bool raiseEvent = false)
+            bool raiseEvent = false, bool changedByPeer = false)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
-            await UpdateActiveFileHeaderInternal(targetFile, header, odinContext, raiseEvent);
+            await UpdateActiveFileHeaderInternal(targetFile, header, odinContext, raiseEvent, changedByPeer: changedByPeer);
         }
 
 
@@ -2833,9 +2835,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// TransitUpdated is when a file was last changed over transit by a peer, whoever the peer is: a sender's send again
         /// (PeerFileWriter) or a peer's update (PeerFileUpdateWriter, a member's edit included) says so with
-        /// <paramref name="changedByPeer"/>.  Every other overwrite and update here, the owner's and its apps', keeps the
-        /// stored one, whatever the new metadata holds, and a new file has none (CommitNewFile) (#2065).  A header written
-        /// whole (UpdateActiveFileHeader, WriteNewFileHeader, the feed drive's FeedWriter) doesn't come through here
+        /// <paramref name="changedByPeer"/>, as does a peer's change of a feed item (FeedWriter).  Every other write, the
+        /// owner's, its apps' and the system's, keeps the stored one, whatever the new metadata holds, and a new file has none
+        /// (WriteNewFileHeader) (#2065)
         /// </summary>
         private static void SetTransitUpdated(FileMetadata stored, FileMetadata newMetadata, bool changedByPeer)
         {
