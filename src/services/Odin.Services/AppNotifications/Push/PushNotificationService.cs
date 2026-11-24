@@ -112,6 +112,10 @@ public class PushNotificationService(
         await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
     }
 
+    /// <summary>Stores <paramref name="subscription"/> as it is, under its key</summary>
+    internal Task SaveSubscriptionAsync(PushNotificationSubscription subscription) =>
+        DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, subscription.AccessRegistrationId, DeviceStorageDataType, subscription);
+
     /// <summary>
     /// For a push running in parallel with the others (PushAsync): its own scope, as this scope's connection is shared
     /// </summary>
@@ -292,12 +296,13 @@ public class PushNotificationService(
 
             subscription.AppId = appId;
 
-            // Read again before writing: the device may have subscribed again, or unsubscribed, since this push read it
+            // Read again before writing: the device may have subscribed again, or unsubscribed, since this push read it.
+            // Not atomic: an unsubscribe between this read and the write would be undone, once, for an older subscription
             var stored = await DeviceSubscriptionStorage.GetAsync<PushNotificationSubscription>(twoKeyValue, subscription.AccessRegistrationId);
             if (stored is { AppId: null } && stored.Endpoint == subscription.Endpoint)
             {
                 stored.AppId = appId;
-                await DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, stored.AccessRegistrationId, DeviceStorageDataType, stored);
+                await SaveSubscriptionAsync(stored);
             }
         }
         catch (Exception e) when (e is not OperationCanceledException)

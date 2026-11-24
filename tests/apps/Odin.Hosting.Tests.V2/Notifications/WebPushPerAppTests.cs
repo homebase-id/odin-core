@@ -46,10 +46,15 @@ public class WebPushPerAppTests : V2Fixture
             var subscription = (await service.GetAllSubscriptionsAsync(context)).Single(s => s.FriendlyName == "journal");
             Assert.That(subscription.AppId, Is.EqualTo(app.AppId));
 
-            // As one made before the app was kept: found again from its app client's access registration
+            // As one made before the app was kept: found again from its app client's access registration, and stored
             subscription.AppId = null;
-            await service.FillAppIdAsync(subscription);
-            Assert.That(subscription.AppId, Is.EqualTo(app.AppId));
+            await service.SaveSubscriptionAsync(subscription);
+            var older = (await service.GetAllSubscriptionsAsync(context)).Single(s => s.FriendlyName == "journal");
+            Assert.That(older.AppId, Is.Null, "precondition: stored as before the app was kept");
+            await service.FillAppIdAsync(older);
+            Assert.That(older.AppId, Is.EqualTo(app.AppId));
+            Assert.That((await service.GetAllSubscriptionsAsync(context)).Single(s => s.FriendlyName == "journal").AppId,
+                Is.EqualTo(app.AppId), "the app is kept, so the lookup isn't made again");
 
             // A key that is no app client (the owner console's) stays null: every app's pushes
             var ownerConsoles = new PushNotificationSubscription { AccessRegistrationId = Guid.NewGuid() };
