@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Base;
@@ -87,9 +88,11 @@ public class ConcurrentLocalReadTimeTests : V2Fixture
         return await Task.WhenAll(calls);
     }
 
+    /// <summary>The stored read time, read in a transaction so it comes from the database, not the cache.</summary>
     private static async Task<UnixTimeUtc?> ReadTimeAsync(ILifetimeScope tenant, IOdinContext context, InternalDriveFileId file)
     {
         await using var scope = tenant.BeginLifetimeScope();
+        await using var tx = await scope.Resolve<IdentityDatabase>().BeginStackedTransactionAsync();
         var header = await scope.Resolve<StandardFileSystem>().Storage.GetServerFileHeader(file, context);
         return header.FileMetadata.LocalAppData?.ReadTime;
     }

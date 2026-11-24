@@ -1940,8 +1940,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <remarks>
         /// Calls for one file can race (#1724): each reads the header, one saves, and the others' saves then name a local
         /// version that is gone.  A loser reads the header again and judges it afresh: a read time already at or past its
-        /// own means there is nothing left to do; one behind it is written again.  Each round either ends or a later time
-        /// was written, so the rounds run out only under sustained contention.
+        /// own means there is nothing left to do; one behind it is written again.  A lost round means another local-metadata
+        /// write landed (a read time, reactions, tags, content), so the rounds run out only under sustained contention.
         /// </remarks>
         public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext, UnixTimeUtc? timestamp = null)
         {
@@ -1952,7 +1952,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ? (timestamp.Value < now ? timestamp.Value : now)
                 : now;
 
-            // Each lost round means another call wrote a later time, so this bounds the callers racing at once, not time
+            // Each lost round means another local-metadata write landed: this bounds the writers racing at once, not time
             const int maxAttempts = 10;
             for (var attempt = 1; ; attempt++)
             {
@@ -2021,8 +2021,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return await GetServerFileHeaderForWriting(file, odinContext);
             }
 
+            // Committed: the read may convert a deposit, which is a write
             await using var tx = await db.BeginStackedTransactionAsync();
-            return await GetServerFileHeaderForWriting(file, odinContext);
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            tx.Commit();
+            return header;
         }
 
         public async Task UpdateLocalReactionsAsync(InternalDriveFileId file, List<string> localReactions,
