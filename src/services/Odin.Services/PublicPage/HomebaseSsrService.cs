@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
@@ -138,17 +137,12 @@ public class HomebaseSsrService(
             {
                 if (!string.IsNullOrEmpty(bio))
                 {
-                    var bodyHtml = PlateRichTextParser.Parse(HtmlSafe.ParseJson(bio));
+                    // An older bio is plain text, not JSON: ParseJson gives null for it, so it is shown encoded
+                    var bodyHtml = HtmlSafe.ParseJson(bio) is { } json ? PlateRichTextParser.Parse(json) : E(bio);
                     contentBuilder.AppendLine($"<div>");
                     contentBuilder.Append(bodyHtml);
                     contentBuilder.AppendLine($"</div>");
                 }
-            }
-            catch (JsonException) // this fallback is for older bios that have not been changed to json format.
-            {
-                contentBuilder.AppendLine($"<div>");
-                contentBuilder.Append(E(bio));
-                contentBuilder.AppendLine($"</div>");
             }
             catch (Exception e)
             {
@@ -474,6 +468,12 @@ public class HomebaseSsrService(
     /// <summary>The profile's name, status and, unless <paramref name="withSummary"/> is false, its summary</summary>
     internal static void WriteProfileHeader(StringBuilder contentBuilder, PersonSchema person, bool withSummary = true)
     {
+        // An identity with no public profile card has no person
+        if (person == null)
+        {
+            return;
+        }
+
         contentBuilder.AppendLine($"<h1>{E(person.Name)}</h1>");
         contentBuilder.AppendLine($"<h2>{E(person.Status)}</h2>");
         if (withSummary && person.BioSummary != null)
@@ -482,18 +482,26 @@ public class HomebaseSsrService(
         }
     }
 
-    /// <summary>A link to an http(s) URL the owner wrote; any other (javascript:, data:) is shown as its text only</summary>
+    /// <summary>A link to an http(s) or mailto URL the owner wrote; any other (javascript:, data:) is shown as its text only</summary>
     internal static string Link(string url, string text) =>
-        HtmlSafe.SafeUrl(url) is { } safe ? $"<a href='{E(safe)}'>{E(text)}</a>" : E(text);
+        HtmlSafe.SafeUrl(url, allowMailto: true) is { } safe ? $"<a href='{E(safe)}'>{E(text)}</a>" : E(text);
 
     /// <summary>A channel's page, its client-written slug escaped as a path segment</summary>
     internal static string ChannelLink(string channelKey) => SsrUrlHelper.ToSsrUrl(ChannelPath(channelKey));
 
     /// <summary>A post's page: the channel and the client-written slug escaped as path segments</summary>
     internal static string PostLink(string channelKey, string slug) =>
-        SsrUrlHelper.ToSsrUrl($"{ChannelPath(channelKey)}/{Uri.EscapeDataString(slug ?? "")}");
+        SsrUrlHelper.ToSsrUrl($"{ChannelPath(channelKey)}/{Segment(slug)}");
 
-    private static string ChannelPath(string channelKey) => $"/posts/{Uri.EscapeDataString(channelKey ?? "")}";
+    private static string ChannelPath(string channelKey) => $"/posts/{Segment(channelKey)}";
+
+    /// <summary>A path segment, escaped; "." and ".." too, which EscapeDataString leaves for a browser to resolve upwards</summary>
+    private static string Segment(string value) => (value ?? "") switch
+    {
+        "." => "%2E",
+        ".." => "%2E%2E",
+        var v => Uri.EscapeDataString(v)
+    };
 
     internal static void CreateMenu(StringBuilder contentBuilder)
     {

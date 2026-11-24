@@ -125,6 +125,7 @@ public class HomebaseSsrServiceTests
         Assert.That(HomebaseSsrService.Link("https://x.test/?a=1&b='x", "site"),
             Is.EqualTo("<a href='https://x.test/?a=1&amp;b=&#39;x'>site</a>"));
         Assert.That(HomebaseSsrService.Link("javascript:alert(1)", "<b>me</b>"), Is.EqualTo("&lt;b&gt;me&lt;/b&gt;"));
+        Assert.That(HomebaseSsrService.Link("mailto:me@x.test", "mail"), Is.EqualTo("<a href='mailto:me@x.test'>mail</a>"));
     }
 
     [Test]
@@ -132,6 +133,7 @@ public class HomebaseSsrServiceTests
     {
         var link = HomebaseSsrService.PostLink("public", "a'b\"><script>/../x");
         Assert.That(link, Does.Not.Contain("'").And.Not.Contain("\"").And.Not.Contain("<").And.Not.Contain("/../"));
+        Assert.That(HomebaseSsrService.PostLink("public", ".."), Does.EndWith("/public/%2E%2E"), "a dot-segment would resolve upwards");
 
         var sb = new StringBuilder();
         new HomebaseSsrService(null!, null!, null!, null!, NullLogger<HomebaseSsrService>.Instance).WriteChannelPostListBody(

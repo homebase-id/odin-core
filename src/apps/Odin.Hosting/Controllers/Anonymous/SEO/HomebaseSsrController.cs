@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -53,7 +52,6 @@ public class HomebaseSsrController(
         var (head, person) = await BuildHeadSection(suffix: "Links");
         var contentBuilder = new StringBuilder();
         await ssrService.WriteLinksBodyContent(contentBuilder, person);
-        HomebaseSsrService.CreateMenu(contentBuilder);
 
         await WriteContent(head, contentBuilder.ToString());
     }
