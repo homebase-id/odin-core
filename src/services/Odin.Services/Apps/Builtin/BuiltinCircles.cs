@@ -83,6 +83,7 @@ public static class BuiltinCircles
     };
 
     // --- Feed ---
+    // Read on every other channel drive the Feed app owns is added as each is made (FeedCircleChannelReadGrants).
     public static readonly CircleDefinition FeedCircle = new()
     {
         Id = Guid.Parse("cb29850cd326480b9c91deb0fbf061d7"),

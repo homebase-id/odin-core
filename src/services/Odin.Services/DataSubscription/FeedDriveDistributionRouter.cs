@@ -413,7 +413,8 @@ namespace Odin.Services.DataSubscription
 
             // An encrypted post's payload is fetched from this identity and needs the drive's storage key, so
             // only followers holding keyed Read on the post's drive go this way.  This was membership of the
-            // Confirmed Connections circle until it retired (#1809).  Sequential: the checks share the
+            // Confirmed Connections circle until it retired (#1809); the Feed circle holds it on every channel drive
+            // (FeedCircleChannelReadGrants), and any circle the owner grants it to.  Sequential: the checks share the
             // request's database connection.  The ACL goes first: for a public post it reads nothing.
             var connectedFollowers = new List<OdinId>();
             foreach (var follower in followers)

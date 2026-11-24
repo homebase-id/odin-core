@@ -272,7 +272,9 @@ node clears its own (`OdinContextCache.ResetAsync`) **(V)**. A peer notification
 
 - **Feed:** a file goes to the followers the ACL lets in, judged from each follower's connection
   (`IdentityHasPermissionAsync`); an encrypted post only to those who can also decrypt the drive
-  (`FeedDriveDistributionRouter`) **(V)**.
+  (`FeedDriveDistributionRouter`) **(V)**. The Feed circle holds Read with the storage key on every channel drive the Feed
+  app owns, a new one from its creation and the ones before from the v21 → v22 upgrade (`FeedCircleChannelReadGrants`), so
+  a Feed member gets each encrypted post its ACL lets them see **(V, tested)**.
 - **Direct sends** (`TransitOptions.Recipients`) aren't checked against the ACL: the sender names the recipients
   (`PeerOutgoingTransferService.CreateOutboxItems`) **(V)**.
 - **A sent copy carries the ACL without its named identities**, so a recipient never learns who else was named
