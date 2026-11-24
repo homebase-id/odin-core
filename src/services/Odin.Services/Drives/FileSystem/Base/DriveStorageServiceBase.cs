@@ -1040,6 +1040,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             // db and this stops conflicts if someone passes in useThisVersionTag 
             newMetadata.VersionTag = null;
 
+            // A new file, a peer's first delivery included, has not been changed over transit, whatever the metadata says (#2065)
+            newMetadata.TransitUpdated = 0;
+
             var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
             bool success = false;
 
@@ -2831,7 +2834,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// TransitUpdated is when a file was last changed over transit by a peer, whoever the peer is: a sender's send again
         /// (PeerFileWriter) or a peer's update (PeerFileUpdateWriter, a member's edit included) says so with
         /// <paramref name="changedByPeer"/>.  Every other write, the owner's and its apps', keeps the stored one, whatever
-        /// the new metadata holds (#2065).  The feed drive's replace (FeedWriter) doesn't come through here
+        /// the new metadata holds, and a new file has none (CommitNewFile) (#2065).  The feed drive's replace (FeedWriter)
+        /// doesn't come through here
         /// </summary>
         private static void SetTransitUpdated(FileMetadata stored, FileMetadata newMetadata, bool changedByPeer)
         {

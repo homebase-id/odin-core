@@ -200,7 +200,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var ms = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter WriteNewFile", async () =>
             {
                 metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                metadata.TransitUpdated = 0; // a first delivery is no change, whatever the sender's header says (#2065)
                 // Its sender's write, which their next change goes by (docs/file-access.md, "Changing a file you sent")
                 var versionTag = DriveFileUtility.CreateVersionTag();
                 serverMetadata.SendersWrite = SentFileChanges.SendersWriteOf((OdinId)metadata.SenderOdinId, metadata.VersionTag.GetValueOrDefault(),
@@ -233,7 +232,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 (success, payloads) = await fs.Storage.OverwriteFile(sourceFile, targetFile, keyHeader, metadata, serverMetadata,
                     ignorePayload: false,
                     odinContext, markComplete, sourceArea: sourceArea, useThisVersionTag: versionTag,
-                    changedByPeer: true); // a sender's send again moves TransitUpdated (#2065)
+                    changedByPeer: true);
             });
 
             return (success, payloads);

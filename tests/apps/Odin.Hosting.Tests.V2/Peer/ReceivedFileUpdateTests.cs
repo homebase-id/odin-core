@@ -67,7 +67,7 @@ public class ReceivedFileUpdateTests : V2Fixture
     // #2065: TransitUpdated is when the file was last changed over transit by a peer.  A sender's update moves it, and
     // the owner's own update and overwrite keep it
     [Test]
-    public async Task SendersUpdate_MovesTransitUpdated_AndOwnersUpdateKeepsIt()
+    public async Task SendersUpdate_MovesTransitUpdated_AndOwnersWritesKeepIt()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
