@@ -3063,7 +3063,7 @@ namespace Odin.Services.Membership.Connections
         /// introduction/auto-connect accepts.
         /// </summary>
         private async Task<bool> TryConvertDepositedGrantsAtPeerAuthAsync(IdentityConnectionRegistration icr,
-            ServerHalfOfClientKey accessReg, ClientAuthenticationToken remoteIcrToken, IOdinContext odinContext)
+            ServerHalfOfClientKey accessReg, ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
             if (!(icr.PeerKeyStore?.HasPendingDeposits ?? false))
             {
@@ -3072,7 +3072,7 @@ namespace Odin.Services.Membership.Connections
 
             try
             {
-                var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(remoteIcrToken);
+                var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
                 try
                 {
                     var convertedCircleIds = await ConvertDepositedGrantsAsync(icr.PeerKeyStore, keyStoreKey, odinContext);

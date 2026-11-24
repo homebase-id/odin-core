@@ -119,23 +119,13 @@ public partial class SelectiveShareTests
 
         // A circle of the app that also grants Read on a drive the server opens: that grant carries a storage key, so
         // the app, without the owner's master key, can only deposit Sam's membership
+        var meshRead = new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = MeshDrive, Permission = DrivePermission.Read } };
         await s.Frodo.Admin.SetAppGrants(s.App.AppId, new PermissionSetGrantRequest
         {
-            Drives =
-            [
-                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = s.Drive, Permission = DrivePermission.All } },
-                new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = MeshDrive, Permission = DrivePermission.Read } }
-            ],
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = s.Drive, Permission = DrivePermission.All } }, meshRead],
             PermissionSet = new PermissionSet()
         });
-        var circleId = Guid.NewGuid();
-        var circleGrant = s.ReadWriteGrant(DriveShareService.ShareBits);
-        circleGrant.Drives = [..circleGrant.Drives!, new DriveGrantRequest
-        {
-            PermissionedDrive = new PermissionedDrive { Drive = MeshDrive, Permission = DrivePermission.Read }
-        }];
-        await s.Frodo.Admin.CreateCircle(circleId, "the app's mixed circle", circleGrant, s.App.AppId);
-        await s.SetShareKeyAsync(circleId);
+        var circleId = await s.CircleWithKeyAsync(DriveShareService.ShareBits, meshRead);
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
         var (fileId, _, _) = await s.UploadClientLockedAsync(payload);
