@@ -31,9 +31,9 @@ internal static class OutboxBackoff
         Assert.That(item, Is.Not.Null, "one failed attempt must not settle the item");
         Assert.That(item!.AttemptCount, Is.EqualTo(1));
 
-        var nextRun = await table.NextScheduledItemAsync(driveId);
-        Assert.That(nextRun, Is.Not.Null);
-        Assert.That(nextRun!.Value.milliseconds, Is.GreaterThan(UnixTimeUtc.Now().AddSeconds(5).milliseconds),
+        var row = await table.GetAsync(driveId, fileId, recipient.DomainName);
+        Assert.That(row, Is.Not.Null);
+        Assert.That(row!.nextRunTime.milliseconds, Is.GreaterThan(UnixTimeUtc.Now().AddSeconds(5).milliseconds),
             "the retry must be parked behind the back-off, not rescheduled for now");
 
         await processor.DrainAsync(maxRetryPasses: 0);

@@ -53,9 +53,9 @@ public abstract class OutboxWorkerBase(
 
     /// <summary>
     /// Runs <paramref name="send"/> and turns an <see cref="OdinOutboxProcessingException"/> into the
-    /// scheduling decision from <see cref="HandleOutboxProcessingException"/>. Without this, the processor's
-    /// last-resort catch reschedules the item at "now" and it spins through its attempts in seconds; a
-    /// recipient that is paused or out of quota is waited out instead.
+    /// scheduling decision from <see cref="HandleOutboxProcessingException"/>: a give-up, a recoverable retry, or a
+    /// recipient that is paused or out of quota waited out (its Retry-After). Without this, the processor's last-resort
+    /// catch only spends an attempt on the generic back-off.
     /// </summary>
     protected async Task<OutboxProcessingResult> SendHandledAsync(
         Func<IOdinContext, CancellationToken, Task<OutboxProcessingResult>> send,

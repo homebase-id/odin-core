@@ -2,12 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;

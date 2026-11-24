@@ -185,7 +185,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     await DeferItem(peerOutbox, fileItem, result.NextRun);
                 }
             }
-            catch (OperationCanceledException)
+            // Only a shutdown is retried at once; any other cancellation (an HttpClient timeout) is a failure for the back-off
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
 
