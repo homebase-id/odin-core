@@ -35,8 +35,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// The ACL <paramref name="sender"/>'s change of <paramref name="stored"/> leaves it with, given the one
         /// <see cref="ForIncomingFileAsync"/> chose.  On a community channel a post keeps its stored ACL: the sender's copy
         /// carries no named identities, and a member's app could name any group, so taking it would widen the post.  Only
-        /// the post's original sender changes it, and only to one no wider (#2002).  Elsewhere, and for a comment, which
-        /// takes its file's, the one chosen.
+        /// the post's original sender changes it, and only to one no wider (#2002); one it doesn't take is dropped, not
+        /// refused, so the change's content still lands.  Elsewhere, and for a comment, which takes its file's, the one chosen.
         /// </summary>
         public static AccessControlList ForChange(FileSystemType fileSystemType, bool isCollaborationChannel,
             AccessControlList incoming, ServerFileHeader stored, OdinId sender)
@@ -47,10 +47,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             var storedAcl = stored.ServerMetadata.AccessControlList ?? AccessControlList.OwnerOnly;
-            return SharedSecretEncryptedFileHeader.IsOriginalSender(stored.FileMetadata.SenderOdinId, sender) &&
-                   incoming.IsNoWiderThan(storedAcl)
-                ? incoming
-                : storedAcl;
+            if (!SharedSecretEncryptedFileHeader.IsOriginalSender(stored.FileMetadata.SenderOdinId, sender) ||
+                !incoming.IsNoWiderThan(storedAcl))
+            {
+                return storedAcl;
+            }
+
+            // Owner and Anonymous name no circles or identities (AccessControlList.Validate): store none a peer sent
+            return incoming.RequiredSecurityGroup is SecurityGroupType.Owner or SecurityGroupType.Anonymous
+                ? new AccessControlList { RequiredSecurityGroup = incoming.RequiredSecurityGroup }
+                : incoming;
         }
 
         public static async Task<AccessControlList> ResetAclForComment(FileSystemResolver fileSystemResolver,

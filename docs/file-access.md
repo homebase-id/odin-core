@@ -280,13 +280,15 @@ node clears its own (`OdinContextCache.ResetAsync`) **(V)**. A peer notification
   **(V)**. Leaving them out never widens it: an ACL that named identities and no circles goes as `Owner`, so the copy
   is the recipient owner's alone, not every connection's (#2002) **(V, tested)**.
 - **The recipient's copy gets a required group of `Owner`**, except: a comment, new or updated, takes the ACL of the
-  file it comments on, on every drive (`IncomingFileAcl`, from `PeerFileWriter` and `PeerFileUpdateWriter`), a
-  drive marked as a community channel keeps the sender's ACL (`PeerFileWriter`), and a member's update of a standard
-  file on a Private Share drive keeps the file's own ACL (`PeerFileUpdateWriter`) **(V)**. A change of a stored post
-  on a community channel, an update or a file sent again, keeps the post's ACL; only its original sender changes it,
-  and only to one no wider (`IncomingFileAcl.ForChange`, `AccessControlList.IsNoWiderThan`; #2002) **(V, tested)**. On a Private Share drive a
-  member's update never creates a file: one with no stored file to update, standard or comment, is refused
-  (`PeerFileUpdateWriter`) **(V)**.
+  file it comments on, on every drive (`IncomingFileAcl`, from `PeerFileWriter` and `PeerFileUpdateWriter`), a new
+  post on a drive marked as a community channel keeps the sender's ACL (`PeerFileWriter`), and a member's update of
+  a standard file on a Private Share drive keeps the file's own ACL (`PeerFileUpdateWriter`) **(V)**.
+- **A change of a stored post on a community channel**, an update or a file sent again, keeps the post's ACL: only
+  its original sender changes it, and only to one no wider (`IncomingFileAcl.ForChange`,
+  `AccessControlList.IsNoWiderThan`; #2002) **(V, tested)**. An ACL it doesn't take is dropped, not refused: the
+  change's content still lands. Only the channel's owner widens a post again.
+- **On a Private Share drive a member's update never creates a file**: one with no stored file to update, standard
+  or comment, is refused (`PeerFileUpdateWriter`) **(V)**.
 - **A zero-knowledge drive sends nothing** (`ZkDriveFiles.AssertNotSent`) **(V)**.
 
 ## Special cases
@@ -349,8 +351,8 @@ app, by the feed app for channels members post to, and on the built-in Lists dri
 2. a peer's delete takes the direct soft-delete path, and only the post's original sender may delete it
    (`PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync`). Whether only the original sender is meant
    is Not decided (#2067);
-3. an incoming file keeps the sender's ACL instead of `Owner` (`PeerFileWriter`, `PeerFileUpdateWriter`); a change
-   of a stored post keeps its ACL, except its original sender's to one no wider (`IncomingFileAcl.ForChange`);
+3. an incoming new post keeps the sender's ACL instead of `Owner` (`PeerFileWriter`, `PeerFileUpdateWriter`); a
+   change of a stored post keeps its ACL, except its original sender's to one no wider (`IncomingFileAcl.ForChange`);
 4. files received from others are distributed on to the members (`AllowDistribution`,
    `FeedDriveDistributionRouter.ShouldDistribute`);
 5. an upload may name recipients for app notifications (`FileSystemStreamWriterBase`).
