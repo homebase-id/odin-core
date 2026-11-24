@@ -82,13 +82,15 @@ public abstract class OutboxWorkerBase(
             e.GlobalTransitId,
             e.TransferStatus);
 
-        if (IsGiveUp(e.TransferStatus))
-        {
-            return await GiveUpAsync(odinContext, e);
-        }
-
         switch (e.TransferStatus)
         {
+            case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
+            case LatestTransferStatus.UnknownServerError:
+            case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
+            case LatestTransferStatus.RecipientIdentityReturnedVersionTagMismatch:
+            case LatestTransferStatus.RecipientIdentityReturnedInvalidKeyHeader:
+            case LatestTransferStatus.SendingServerTooManyAttempts:
+                return await GiveUpAsync(odinContext, e);
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
             case LatestTransferStatus.RecipientIdentityOutOfStorage:
@@ -221,18 +223,6 @@ public abstract class OutboxWorkerBase(
                 return UnixTimeUtc.Now().AddSeconds(30);
         }
     }
-
-    /// <summary>
-    /// A status retrying won't change: the item is given up on at once, by a worker or, for a failure a worker let
-    /// escape, by the processor.
-    /// </summary>
-    public static bool IsGiveUp(LatestTransferStatus status) => status is
-        LatestTransferStatus.RecipientIdentityReturnedAccessDenied or
-        LatestTransferStatus.UnknownServerError or
-        LatestTransferStatus.RecipientIdentityReturnedBadRequest or
-        LatestTransferStatus.RecipientIdentityReturnedVersionTagMismatch or
-        LatestTransferStatus.RecipientIdentityReturnedInvalidKeyHeader or
-        LatestTransferStatus.SendingServerTooManyAttempts;
 
     /// <summary>
     /// Next run for a retry, backing off with the item's attempt count (counted before this attempt, at least 1):

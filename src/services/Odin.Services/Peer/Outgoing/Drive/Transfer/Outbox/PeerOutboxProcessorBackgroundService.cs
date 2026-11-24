@@ -201,19 +201,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 logger.LogError(fileReadException, "Source file not found {file} item (type: {itemType})", fileItem.File, fileItem.Type);
             }
-            catch (OdinOutboxProcessingException e) when (OutboxWorkerBase.IsGiveUp(e.TransferStatus))
-            {
-                // A status retrying won't change, which the worker's own handling would have given up on at once: a push
-                // that failed for one device would otherwise be pushed again to the others on every retry
-                await PeerSendResultNotification.PublishAsync(childScope.Resolve<IMediator>(), logger, fileItem,
-                    e.TransferStatus, willRetry: false, versionTag: null);
-                await peerOutbox.MarkCompleteAsync(fileItem.Marker);
-                await CleanupIfTransientItem(childScope, fileItem, odinContext);
-
-                logger.LogError(e, "An outbox worker did not handle the outbox processing exception ({status}).  Action: " +
-                                   "giving up on item (type: {itemType}) to {recipient}.  File:{file}\t Marker:{marker}",
-                    e.TransferStatus, fileItem.Type, fileItem.Recipient, fileItem.File, fileItem.Marker);
-            }
             catch (Exception e)
             {
                 // A failure the worker let escape, retried on the attempt back-off so it doesn't run through its
