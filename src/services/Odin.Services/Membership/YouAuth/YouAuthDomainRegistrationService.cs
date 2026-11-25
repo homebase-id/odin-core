@@ -70,7 +70,8 @@ namespace Odin.Services.Membership.YouAuth
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
             }
 
-            if (null != await this.GetDomainRegistrationInternalAsync(new AsciiDomainName(request.Domain)))
+            var domain = new AsciiDomainName(request.Domain);
+            if (null != await this.GetDomainRegistrationInternalAsync(domain))
             {
                 return null;
             }

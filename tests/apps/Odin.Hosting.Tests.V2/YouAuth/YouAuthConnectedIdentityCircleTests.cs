@@ -38,8 +38,13 @@ public class YouAuthConnectedIdentityCircleTests : V2Fixture
 
         await ConnectAsync(frodo, sam, circleId);
 
-        await frodo.Admin.RegisterYouAuthDomain(new AsciiDomainName(sam.Identity.DomainName),
-            new List<GuidId> { circleId, otherCircleId });
+        // Registered, and saved again, it leaves the connection's rows alone
+        var domain = new AsciiDomainName(sam.Identity.DomainName);
+        await frodo.Admin.RegisterYouAuthDomain(domain, new List<GuidId> { circleId, otherCircleId });
+        var svc = frodo.RefitFor<IRefitYouAuthDomainRegistration>();
+        Assert.That((await svc.RevokeDomain(new GetYouAuthDomainRequest { Domain = domain.DomainName })).IsSuccessStatusCode, Is.True);
+        Assert.That((await svc.RemoveDomainRevocation(new GetYouAuthDomainRequest { Domain = domain.DomainName })).IsSuccessStatusCode,
+            Is.True);
 
         await AssertSamIsInCircleOnlyAsTheConnectionAsync(frodo, sam, circleId);
         Assert.That(await MembersAsync(frodo, otherCircleId), Is.Empty,
