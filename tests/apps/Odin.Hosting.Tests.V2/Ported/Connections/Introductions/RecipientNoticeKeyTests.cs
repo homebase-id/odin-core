@@ -94,6 +94,34 @@ public class RecipientNoticeKeyTests : V2Fixture
             "one pending introduction per person");
     }
 
+    [Test]
+    public async Task ARowQueuedUnderTheOldSharedKey_IsDroppedOnlyWhenItIsAnIntroductionNotice()
+    {
+        var sam = (OdinId)Identities.Sam;
+        var merry = (OdinId)Identities.Merry;
+        await using var scope = Host.GetTenantScope(Identities.Frodo).BeginLifetimeScope();
+        var outbox = scope.Resolve<PeerOutbox>();
+        await outbox.AddItemAsync(LegacyNotice(OutboxItemType.ConnectIntroducee, sam), useUpsert: true);
+        await outbox.AddItemAsync(LegacyNotice(OutboxItemType.BreakConnectionRequest, merry), useUpsert: true);
+
+        await outbox.RemoveIntroductionNoticesAsync(sam);
+        await outbox.RemoveIntroductionNoticesAsync(merry);
+
+        Assert.That(await QueuedNoticeTypesAsync(sam), Is.Empty, "a connect queued before #1824 is still dropped");
+        Assert.That(await QueuedNoticeTypesAsync(merry), Is.EqualTo(new[] { (int)OutboxItemType.BreakConnectionRequest }),
+            "a disconnect queued before #1824 stays");
+    }
+
+    /// <summary>A notice as it was queued before #1824: on the recipient's hash, whatever its type</summary>
+    private static OutboxFileItem LegacyNotice(OutboxItemType type, OdinId recipient) => new()
+    {
+        Recipient = recipient,
+        Priority = 50,
+        Type = type,
+        File = new InternalDriveFileId { DriveId = SystemDriveConstants.TransientTempDrive.Alias, FileId = recipient.ToHashId() },
+        State = new OutboxItemState { Data = [] }
+    };
+
     /// <summary>Merry is connected to Frodo and Sam, who are not connected to each other</summary>
     private async Task<(OwnerSession Frodo, OwnerSession Sam)> MerryIntroducesFrodoAndSamLaterAsync()
     {
