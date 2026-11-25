@@ -20,7 +20,8 @@ namespace Odin.Hosting.Tests.V2.DriveWrite;
 /// alone lets them add files, not change existing ones (#2026).  A full overwrite (NewFileOrOverwrite) always asked for
 /// it as it locks a key header; a metadata-only overwrite, the update endpoint and a payload's upload now ask for it
 /// outright.  Only a zero-knowledge drive, which has no storage key to ask for, skips it.  The owner's file is
-/// readable by the guest (anonymous ACL), so the read rule alone would let each of these through.
+/// readable by the guest (anonymous ACL), so the read rule alone would let each of these through.  These pin what the
+/// API answers a guest: the writer's check refuses before a full overwrite reaches its key header.
 /// </summary>
 [TestFixture]
 public class OverwriteNeedsTheStorageKeyTests : V2Fixture
