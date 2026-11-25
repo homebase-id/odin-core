@@ -213,7 +213,7 @@ comments. A PR that changes none skips both passes, and its description says so 
 
 One PR solves one problem. Unrelated fixes are separate PRs, however small; no "Small fixes: …" grab-bags. If the title needs "and" or a list to say what the PR does, it is probably two PRs. Two issues share a PR only when the same change fixes both.
 
-Start the description with a `Crux:` line: the `file:line` and the one line of code that makes the change work, plus why, in one sentence. After opening the PR, print two bullets on screen: the PR title followed by its bare full URL, then that same crux line.
+Start the description with a `Core change:` line: the `file:line` and the one line of code that makes the change work, plus why, in one sentence. After opening the PR, print two bullets on screen: the PR title followed by its bare full URL, then that same core change line.
 
 End the description with this block, one line each, before the attribution lines. The weekly team data reads it.
 
