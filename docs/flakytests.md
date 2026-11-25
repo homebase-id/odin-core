@@ -1141,10 +1141,12 @@ node's service provider, and StackExchange.Redis throws while closing the connec
 test's. FusionCache's `RedisBackplane` disposes the multiplexer it is handed when it unsubscribes, on a thread-pool
 thread (`RedisBackplane.Disconnect`, `RedisBackplane.cs:88` in FusionCache 2.1.0), while the container disposes the
 same `IConnectionMultiplexer` singleton; the two closes race inside StackExchange.Redis. Seen with a proxy counting the
-multiplexer's closes: `Dispose` from the backplane plus `DisposeAsync` from the container. `RedisCache` (the L2) does not
-dispose it. Production wires Redis the same way, so it closed the connection twice at shutdown there too.
+multiplexer's closes: `Dispose` from the backplane plus `DisposeAsync` from the container. That proxy can't see a close
+made through `IDatabase.Multiplexer` (the real multiplexer), so whether `RedisCache` (the L2) ever closes it, on a
+force-reconnect say, is not known; it didn't in this test. Production wires Redis the same way, so it closed the
+connection twice at shutdown there too.
 
-**Fixed** on branch `flaky-redis-teardown-2069`: the backplane gets the shared connection through
+**Fixed** by the PR for #2069: the backplane gets the shared connection through
 `BorrowedConnectionMultiplexer.Lend` (`FusionCacheWrapperExtensions.AddCoreCacheServices`), which passes every call on
 except the close and dispose ones, so the container closes it once. `SharedRedisConnectionDisposeTests` checks that, and
 fails without the fix (two closes). Both classes then passed 12 of 12 runs in a row locally. Remove this entry if CI

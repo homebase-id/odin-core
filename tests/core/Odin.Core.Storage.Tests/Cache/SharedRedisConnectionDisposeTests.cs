@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -57,8 +58,13 @@ public class SharedRedisConnectionDisposeTests
         var connection = (CloseCountingMultiplexer)(object)provider.GetRequiredService<IConnectionMultiplexer>();
         await provider.DisposeAsync();
 
-        // The backplane unsubscribes on a thread-pool thread: give it the time it took before the fix
-        await Task.Delay(TimeSpan.FromSeconds(1));
+        // The backplane unsubscribes on a thread-pool thread, so a second close would come late: wait for one, with room
+        // to spare on a slow runner (before the fix it came within a second)
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (connection.Closes.Length < 2 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(100));
+        }
 
         Assert.That(connection.Closes, Is.EqualTo(new[] { nameof(IAsyncDisposable.DisposeAsync) }),
             "only the container's dispose closes the shared connection");
@@ -87,7 +93,16 @@ public class SharedRedisConnectionDisposeTests
                 _closes.Enqueue(method.Name);
             }
 
-            return method.Invoke(_inner, args);
+            try
+            {
+                return method.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException e) when (e.InnerException != null)
+            {
+                // The cache handles the multiplexer's own exceptions, as in production, not reflection's wrapper
+                ExceptionDispatchInfo.Throw(e.InnerException);
+                throw;
+            }
         }
     }
 }
