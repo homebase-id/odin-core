@@ -951,11 +951,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// overwrite's key header always did (<see cref="OverwriteFile"/>): drive Write alone lets a caller without it (a
         /// guest on a public drive) add files, not change existing ones, their own included (#2026).  Owner callers, the owner's apps included, are the owner acting and skip it; a peer's change has its
         /// own rule (docs/file-access.md, "Changing a file you sent"); a zero-knowledge drive has no storage key to ask for.
-        /// A payload's delete doesn't ask it: a guest with Write deleting one on the V2 route is tested as allowed.
+        /// Comments keep their own rules (docs/security-model.md, section 6), so the comment file system doesn't ask it; nor
+        /// does the delete-payload route: a guest with Write deleting a payload there is tested as allowed.
         /// </summary>
         public async Task AssertLocalCallerMayReplaceAsync(Guid driveId, IOdinContext odinContext)
         {
-            if (odinContext.Caller.IsOwner || odinContext.Caller.IsSystem)
+            if (DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller) || GetFileSystemType() == FileSystemType.Comment)
             {
                 return;
             }

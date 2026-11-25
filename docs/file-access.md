@@ -103,8 +103,8 @@ the page comes back short.
   files but can't change existing ones, their own included
   (`DriveStorageServiceBase.AssertLocalCallerMayReplaceAsync`; #2026) **(V, tested for the standard file system's
   overwrites, update and payload upload)**. Owner callers, the owner's apps included, skip it (a full overwrite's key
-  header still needs the key); a peer's change follows "Changing a file you sent" instead; a delete (of the file or, on
-  the V2 route, tested, of a payload), an archival-status change and local app metadata don't ask it **(V)**. Private Share drives add one
+  header still needs the key), as do comments, which keep their own rules ("Special cases"); a peer's change follows "Changing a file you sent" instead; a delete (of the file, or of a
+  payload through the delete-payload route, tested), an archival-status change and local app metadata don't ask it **(V)**. Private Share drives add one
   ("With Private Share").
 - **The new ACL's checks** (`AccessControlList.Validate`, through upload and update validation and
   `ServerFileHeader.Validate`) **(V)**:
