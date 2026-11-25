@@ -345,7 +345,8 @@ public sealed partial class OdinHost : IAsyncDisposable
     {
         Set("Database__Type", "sqlite");
         Set("Redis__Enabled", "false");
-        Set("S3PayloadStorage__Enabled", "false");
+        Set("S3Storage__Enabled", "false");
+        Set("S3Payload__Enabled", "false");
     }
 
     /// <summary>
