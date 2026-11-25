@@ -257,6 +257,9 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
+            // Before the unique id probe, so a caller who may not replace the file learns nothing of other files' ids
+            await FileSystem.Storage.AssertLocalCallerMayReplaceAsync(Package.InternalFile.DriveId, odinContext);
+
             // Loaded at most once, and only when one of the checks below needs it
             ServerFileHeader loadedHeader = null;
             async Task<ServerFileHeader> ExistingFileHeader() =>

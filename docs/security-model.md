@@ -146,6 +146,8 @@ Later:
 | `ConditionalTemporalRead` 16 | read only recently modified files, only via the temporal API; not part of `ReadWrite`/`All` |
 
 - **Write-only is cryptographic**: a writer never holds the storage key **(V, plan doc)**. Example: Chat.
+- **Write without the storage key adds files, it doesn't change them** on a Server Share drive: an outside caller's
+  overwrite, update or payload upload needs the key ([file-access.md](file-access.md), "Writing"; #2026) **(V, tested)**.
 
 ### Drive options (`StorageDriveDetails`) **(V)**
 

@@ -948,6 +948,32 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
+        /// A local caller's write that changes an existing file's content (an overwrite, metadata-only or full, an update, a
+        /// payload's upload) on a Server Share drive needs the drive's storage key, encrypted file or not, as a full
+        /// overwrite's key header always did (<see cref="OverwriteFile"/>): drive Write alone lets a caller without it (a
+        /// guest on a public drive) add files, not change existing ones, their own included (#2026).  Owner callers, the owner's apps included, are the owner acting and skip it; a peer's change has its
+        /// own rule (docs/file-access.md, "Changing a file you sent"); a zero-knowledge drive has no storage key to ask for.
+        /// Comments keep their own rules (docs/security-model.md, section 6), so the comment file system doesn't ask it; nor
+        /// does the delete-payload route: a guest with Write deleting a payload there is tested as allowed.
+        /// </summary>
+        public async Task AssertLocalCallerMayReplaceAsync(Guid driveId, IOdinContext odinContext)
+        {
+            if (DriveAclAuthorizationService.PassesEveryAcl(odinContext.Caller) || GetFileSystemType() == FileSystemType.Comment)
+            {
+                return;
+            }
+
+            var drive = await DriveManager.GetDriveAsync(driveId);
+            if (drive.IsZeroKnowledge)
+            {
+                return;
+            }
+
+            using var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+            drive.AssertValidStorageKey(storageKey);
+        }
+
+        /// <summary>
         /// Refuses with <see cref="OdinClientErrorCode.VersionTagMismatch"/> unless <paramref name="header"/> is at
         /// <paramref name="expectedVersionTag"/> (no tag, no check).  A write that rebuilds a header it read must call it:
         /// the write itself checks only the caller's tag against the row, so a header read at another version (a stale
@@ -1247,6 +1273,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
+            await AssertLocalCallerMayReplaceAsync(targetFile.DriveId, odinContext);
 
             AssertActiveForUpdate(existingServerHeader);
             // The payloads replaced below are the ones this header lists

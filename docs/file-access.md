@@ -97,7 +97,17 @@ the page comes back short.
 - **Update, overwrite, delete:** the drive isn't archived, drive `Write`, then **the existing header is loaded through
   steps 3 to 5**, so the writer must also pass the read rule (`GetServerFileHeaderForWriting`,
   `SoftDeleteLongTermFile`) **(V)**. There is no per-file write permission: drive `Write` plus passing the read rule is
-  the whole rule **(V)**. Private Share drives add one ("With Private Share").
+  the whole rule **(V)**, with one more on a Server Share drive: **an outside caller's write that changes an existing
+  file's content (an overwrite, full or metadata-only, an update, a payload's upload) needs the drive's storage key,
+  encrypted file or not**, so a caller with `Write` but no storage key (a guest on a public drive) adds files but
+  can't change existing ones, their own included (`DriveStorageServiceBase.AssertLocalCallerMayReplaceAsync`; #2026)
+  **(V, tested for the standard file system's overwrites, update and payload upload)**. Owner callers, the owner's
+  apps included, skip it (a full overwrite's key header still needs the key), as do comments, which keep their own
+  rules ("Special cases"); a peer's change follows "Changing a file you sent" instead. A delete (of the file, or of a
+  payload through the delete-payload route, tested), an archival-status change and local app metadata don't ask it
+  **(V)**; whether `Write` without the key should still delete or archive a file it can't change is open (#2026's
+  PR). Private Share drives add one
+  ("With Private Share").
 - **The new ACL's checks** (`AccessControlList.Validate`, through upload and update validation and
   `ServerFileHeader.Validate`) **(V)**:
   - a required group of `Anonymous` or `Owner` with named circles or identities is refused;
