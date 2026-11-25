@@ -49,8 +49,18 @@ namespace Odin.Services.Membership.YouAuth
         public async Task<RedactedYouAuthDomainRegistration> RegisterDomainAsync(YouAuthDomainRegistrationRequest request,
             IOdinContext odinContext)
         {
-            odinContext.Caller.AssertHasMasterKey();
+            return await TryRegisterDomainAsync(request, odinContext) ?? throw new OdinClientException("Domain already registered");
+        }
 
+        /// <summary>
+        /// <see cref="RegisterDomainAsync"/>, or null when the domain is registered already, by an earlier call or one
+        /// running at the same time: the write is insert-only, so the key store key the first one made, and every
+        /// client minted from it, stays.
+        /// </summary>
+        public async Task<RedactedYouAuthDomainRegistration?> TryRegisterDomainAsync(YouAuthDomainRegistrationRequest request,
+            IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
 
             OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
             OdinValidationUtils.AssertNotNullOrEmpty(request.Domain, nameof(request.Domain));
@@ -60,9 +70,10 @@ namespace Odin.Services.Membership.YouAuth
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
             }
 
-            if (null != await this.GetDomainRegistrationInternalAsync(new AsciiDomainName(request.Domain)))
+            var domain = new AsciiDomainName(request.Domain);
+            if (null != await this.GetDomainRegistrationInternalAsync(domain))
             {
-                throw new OdinClientException("Domain already registered");
+                return null;
             }
 
             var masterKey = odinContext.Caller.GetMasterKey();
@@ -84,7 +95,10 @@ namespace Odin.Services.Membership.YouAuth
                 ConsentRequirements = request.ConsentRequirements
             };
 
-            await SaveRegistrationAsync(reg, odinContext);
+            if (!await SaveRegistrationAsync(reg, odinContext, isNew: true))
+            {
+                return null;
+            }
 
             return reg.Redacted();
         }
@@ -113,18 +127,20 @@ namespace Odin.Services.Membership.YouAuth
                     throw new OdinClientException($"{domain} not registered");
                 }
 
-                await RegisterDomainAsync(request, odinContext);
-                reg = await GetDomainRegistrationInternalAsync(domain);
+                // A consent page and a sign-in at once both get here; the one registering second uses the first's
+                await TryRegisterDomainAsync(request, odinContext);
+                reg = await GetDomainRegistrationInternalAsync(domain)
+                      ?? throw new OdinClientException($"{domain} not registered");
             }
 
-            if (publishedName != null && reg!.Name != publishedName)
+            if (publishedName != null && reg.Name != publishedName)
             {
                 reg.Name = publishedName;
                 await SaveRegistrationAsync(reg, odinContext);
             }
 
             var masterKey = odinContext.Caller.GetMasterKey();
-            var keyStoreKey = reg!.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
+            var keyStoreKey = reg.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var (accessRegistration, cat) = await exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.YouAuth);
 
             // The stored registration's consent, not the request's: the owner's choice is on the
@@ -474,7 +490,10 @@ namespace Odin.Services.Membership.YouAuth
         /// circle means a YouAuth grant can never take over the connection's (#2043).  Any other domain's rows are
         /// matched to its grants, leaving alone a circle whose row an identity holds.
         /// </summary>
-        private async Task SaveRegistrationAsync(YouAuthDomainRegistration registration, IOdinContext odinContext)
+        /// <param name="isNew">Insert-only: nothing is written when the domain is registered already</param>
+        /// <returns>False when <paramref name="isNew"/> and the domain was registered already.</returns>
+        private async Task<bool> SaveRegistrationAsync(YouAuthDomainRegistration registration, IOdinContext odinContext,
+            bool isNew = false)
         {
             var isConnected = await IsConnectedIdentityAsync(registration.Domain);
             var circleGrants = new Dictionary<Guid, CircleGrant>(registration.CircleGrants);
@@ -484,8 +503,20 @@ namespace Odin.Services.Membership.YouAuth
 
             await using var tx = await db.BeginStackedTransactionAsync();
 
-            await DomainStorage.UpsertAsync(db.KeyThreeValueCached, GetDomainKey(registration.Domain), GuidId.Empty,
-                DomainRegistrationDataType, registration);
+            // The registration first, so a domain registered already returns before any circle row is written
+            var key = GetDomainKey(registration.Domain);
+            if (isNew)
+            {
+                if (!await DomainStorage.TryInsertAsync(db.KeyThreeValueCached, key, GuidId.Empty, DomainRegistrationDataType,
+                        registration))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                await DomainStorage.UpsertAsync(db.KeyThreeValueCached, key, GuidId.Empty, DomainRegistrationDataType, registration);
+            }
 
             if (isConnected)
             {
@@ -497,6 +528,7 @@ namespace Odin.Services.Membership.YouAuth
             }
 
             tx.Commit();
+            return true;
         }
 
         /// <summary>Whether the domain is a connected identity: the connection's status only, not its grants.</summary>

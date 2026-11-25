@@ -89,6 +89,18 @@ public class TableKeyThreeValueCached(TableKeyThreeValue table, IIdentityTransac
 
     //
 
+    /// <summary>Inserts <paramref name="item"/> only when nothing is stored under its key1.</summary>
+    /// <returns>False when something already was; it is left as it was.</returns>
+    public async Task<bool> TryInsertAsync(KeyThreeValueRecord item)
+    {
+        var result = await table.TryInsertAsync(item);
+
+        // Also when it lost: a miss cached before the other insert must not answer the re-read that follows
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
 
     public async Task<int> DeleteAsync(byte[] key1)
     {
