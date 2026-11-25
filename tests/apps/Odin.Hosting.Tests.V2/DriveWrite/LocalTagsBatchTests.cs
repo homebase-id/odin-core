@@ -5,7 +5,9 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage;
 using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Apps;
@@ -139,6 +141,29 @@ public class LocalTagsBatchTests : V2Fixture
         Assert.That(responses.Select(r => r.Content!.Results.Single().ErrorCode), Is.All.Null,
             "a change without a local version tag is read and written again until it gets in");
         Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, file), Is.EquivalentTo(tags), "no change lost another's tag");
+    }
+
+    [Test]
+    public async Task TaggingACommentLeavesItsPostAlone()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        var post = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "post");
+        var comments = new DriveWriterV2Client(owner.Identity, owner.Factory, FileSystemType.Comment);
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 101, "a comment", AccessControlList.Anonymous);
+        metadata.ReferencedFile = new GlobalTransitIdFileIdentifier { GlobalTransitId = post.GlobalTransitId!.Value, TargetDrive = spec.TargetDrive };
+        var comment = await comments.CreateNewUnencryptedFile(spec.TargetDrive.Alias, metadata, new UploadManifest { PayloadDescriptors = [] }, []);
+        Assert.That(comment.IsSuccessStatusCode, Is.True, $"comment upload failed: {comment.StatusCode} {comment.Error?.Content}");
+        var before = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, post.FileId);
+
+        var response = await comments.UpdateLocalTagsBatch(spec.TargetDrive.Alias, Batch([Favorite], [], (comment.Content!.FileId, null)));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        Assert.That(response.Content!.Results.Single().ErrorCode, Is.Null);
+        var after = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, post.FileId);
+        Assert.That((after.FileMetadata.Updated.milliseconds, after.FileMetadata.VersionTag),
+            Is.EqualTo((before.FileMetadata.Updated.milliseconds, before.FileMetadata.VersionTag)),
+            "local data changes no reaction preview, so the post is not written");
     }
 
     [Test]

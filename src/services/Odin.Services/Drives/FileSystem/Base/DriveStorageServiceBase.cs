@@ -1938,11 +1938,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                     continue;
                 }
 
-                // Hard deleted since the write: nothing is left to tell anyone about
-                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext)
+                // Hard deleted, or hidden from the caller, since the write: answered as the first read would
+                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext, aclDeniedAsMissing: true)
                                     ?? throw new OdinClientException("No such file", OdinClientErrorCode.FileNotFound);
-                // Local data never leaves the identity, so a feed or a channel's members have nothing to receive
-                await PublishFileChangedAsync(file, updatedHeader, odinContext, ignoreFeedDistribution: true);
+                // Local data never leaves the identity and is in no reaction preview: a feed, a channel's members or a
+                // comment's post have nothing to receive
+                await PublishFileChangedAsync(file, updatedHeader, odinContext, ignoreFeedDistribution: true,
+                    ignoreReactionPreviewCalculation: true);
                 return (newVersionTag, UpdatedAfterOwnWrites(file, updatedHeader.FileMetadata.Updated, odinContext));
             }
         }
