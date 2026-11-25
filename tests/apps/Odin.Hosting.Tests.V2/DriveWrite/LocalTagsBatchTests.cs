@@ -167,6 +167,23 @@ public class LocalTagsBatchTests : V2Fixture
     }
 
     [Test]
+    public async Task AnArchivedDriveRefusesEachFileToAnAppButNotToTheOwner()
+    {
+        var spec = CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "on an archived drive");
+        await owner.Admin.SetArchiveFlag(spec.TargetDrive, archived: true);
+
+        var app = await caller.Drives.Writer.UpdateLocalTagsBatch(spec.TargetDrive.Alias, Batch([Favorite], [], (file.FileId, null)));
+        var asOwner = await owner.Drives.Writer.UpdateLocalTagsBatch(spec.TargetDrive.Alias, Batch([Kept], [], (file.FileId, null)));
+
+        Assert.That((app.StatusCode, asOwner.StatusCode), Is.EqualTo((HttpStatusCode.OK, HttpStatusCode.OK)), app.Error?.Content ?? asOwner.Error?.Content);
+        Assert.That((app.Content!.Results.Single().ErrorCode, asOwner.Content!.Results.Single().ErrorCode),
+            Is.EqualTo(((OdinClientErrorCode?)OdinClientErrorCode.InvalidDrive, (OdinClientErrorCode?)null)));
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, file), Is.EqualTo(new[] { Kept }));
+    }
+
+    [Test]
     public async Task OneBadFileDoesNotBlockTheRest()
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());

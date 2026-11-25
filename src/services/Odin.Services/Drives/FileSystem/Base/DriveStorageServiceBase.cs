@@ -1935,6 +1935,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch &&
                                                     !expectedLocalVersionTag.HasValue && attempt < LocalTagChangeAttempts)
                 {
+                    // The winner's cache eviction runs after its commit (and on other nodes later still): a re-read at
+                    // once can find its old header and lose to no one
+                    await Task.Delay(TimeSpan.FromMilliseconds(10 * attempt));
                     continue;
                 }
 
@@ -1970,8 +1973,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
             // DriveFileUtility.AssertValidLocalAppContentLength(newContent); REPLACED WITH mergedMetadata.Validate();
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
@@ -2012,8 +2013,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
@@ -2071,8 +2070,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
