@@ -144,7 +144,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, existingHeader.FileMetadata.File, manifest, writeContext, markComplete, sourceArea: sourceArea);
+                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, existingHeader.FileMetadata.File, manifest, writeContext,
+                    markComplete, sourceArea: sourceArea, changedByPeer: true);
                 
                 logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - success: {success} committed payload count {pc}",
                     success,
