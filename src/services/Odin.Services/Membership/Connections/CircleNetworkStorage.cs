@@ -64,6 +64,13 @@ public class CircleNetworkStorage
 
         await using var tx = await _db.BeginStackedTransactionAsync();
 
+        // A connected identity holds no YouAuth rows (#2043): its sign-in uses the connection's circles, so what its
+        // YouAuth registration held goes, and can't keep the connection out of a circle.
+        if (icr.IsConnected())
+        {
+            await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.YouAuth);
+        }
+
         // Reconcile circle grants in the table, keeping each kept row's sealed share key
         await _circleMembershipService.ReconcileMemberCirclesAsync(icr.OdinId, DomainType.Identity,
             icr.PeerKeyStore?.CircleGrants ?? []);

@@ -319,6 +319,12 @@ namespace Odin.Services.Membership.YouAuth
                     OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
+            if (await IsConnectedIdentityAsync(registration.Domain))
+            {
+                throw new OdinClientException($"{domainName} is a connected identity; grant the circle to the connection",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
@@ -461,42 +467,41 @@ namespace Odin.Services.Membership.YouAuth
             return GuidId.FromString(domainName.DomainName);
         }
 
+        /// <summary>
+        /// Writes the registration and its circle rows.  A domain that is a connected identity gets no circle rows of its
+        /// own: an identity is an identity, so its sign-in uses the connection's circles
+        /// (<see cref="CircleNetworkService.TryCreateConnectedYouAuthContextAsync"/>), and one row per identity per
+        /// circle means a YouAuth grant can never take over the connection's (#2043).  Any other domain's rows are
+        /// matched to its grants, leaving alone a circle whose row an identity holds.
+        /// </summary>
         private async Task SaveRegistrationAsync(YouAuthDomainRegistration registration, IOdinContext odinContext)
         {
-            var domain = new OdinId(registration.Domain);
-
-            await using var tx = await db.BeginStackedTransactionAsync();
-
-            //TODO: this is causing an issue where in the circles are also deleted for the ICR 
-            // 
-            await circleMembershipService.DeleteMemberFromAllCirclesAsync(registration.Domain, DomainType.YouAuth);
-
-            foreach (var (circleId, circleGrant) in registration.CircleGrants)
-            {
-                var circleMembers = (await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext))
-                    .Where(d => d.DomainType == DomainType.YouAuth);
-                var isMember = circleMembers.Any(d =>
-                    OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
-
-                if (!isMember)
-                {
-                    //
-                    // BUG - this method calls upsert which will overwrite a circle membership
-                    // from the DomainType.Identity when it is granted to the DomainType.youauth
-                    //
-                    await circleMembershipService.AddCircleMemberAsync(circleId, domain, circleGrant, DomainType.YouAuth);
-                }
-            }
+            var isConnected = await IsConnectedIdentityAsync(registration.Domain);
+            var circleGrants = new Dictionary<Guid, CircleGrant>(registration.CircleGrants);
 
             //clear them here so we don't have two locations
             registration.CircleGrants.Clear();
 
+            await using var tx = await db.BeginStackedTransactionAsync();
+
             await DomainStorage.UpsertAsync(db.KeyThreeValueCached, GetDomainKey(registration.Domain), GuidId.Empty,
-                DomainRegistrationDataType,
-                registration);
+                DomainRegistrationDataType, registration);
+
+            if (isConnected)
+            {
+                await circleMembershipService.DeleteMemberFromAllCirclesAsync(registration.Domain, DomainType.YouAuth);
+            }
+            else
+            {
+                await circleMembershipService.ReconcileMemberCirclesAsync(registration.Domain, DomainType.YouAuth, circleGrants);
+            }
 
             tx.Commit();
         }
+
+        /// <summary>Whether the domain is a connected identity: the connection's status only, not its grants.</summary>
+        private async Task<bool> IsConnectedIdentityAsync(AsciiDomainName domain) =>
+            (await db.ConnectionsCached.GetAsync((OdinId)domain.DomainName))?.status == (int)ConnectionStatus.Connected;
 
         private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomainAsync(
             ClientAuthenticationToken authToken,
