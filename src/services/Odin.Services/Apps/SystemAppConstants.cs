@@ -155,10 +155,12 @@ public static class SystemAppConstants
             },
             new()
             {
+                // Read only: contact writes go through ContactService (ManageContacts), which keeps
+                // the per-app data a direct drive write would wipe (#1614).
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = WellKnownAppDrives.ContactDrive,
-                    Permission = DrivePermission.ReadWrite
+                    Permission = DrivePermission.Read
                 }
             },
             new()
@@ -256,11 +258,12 @@ public static class SystemAppConstants
             },
             new()
             {
-                // Contact Drive
+                // Contact Drive. Read only: contact writes go through ContactService, which keeps the
+                // per-app data a direct drive write would wipe (#1614).
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = WellKnownAppDrives.ContactDrive,
-                    Permission = DrivePermission.ReadWrite
+                    Permission = DrivePermission.Read
                 }
             },
             new()

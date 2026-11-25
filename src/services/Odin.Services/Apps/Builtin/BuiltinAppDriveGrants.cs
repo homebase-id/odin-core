@@ -29,7 +29,7 @@ public static class BuiltinAppDriveGrants
         new(SystemAppConstants.ChatAppId, WellKnownAppDrives.FeedDrive, DrivePermission.ReadWrite),
         new(SystemAppConstants.ChatAppId, WellKnownAppDrives.ChatDrive, DrivePermission.ReadWrite),
         new(SystemAppConstants.ChatAppId, WellKnownAppDrives.ListsDrive, DrivePermission.ReadWrite),
-        new(SystemAppConstants.ChatAppId, WellKnownAppDrives.ContactDrive, DrivePermission.ReadWrite),
+        new(SystemAppConstants.ChatAppId, WellKnownAppDrives.ContactDrive, DrivePermission.Read),
         new(SystemAppConstants.ChatAppId, WellKnownAppDrives.ProfileDrive, DrivePermission.ReadWrite),
         new(SystemAppConstants.ChatAppId, WellKnownAppDrives.MomentsDrive, DrivePermission.ReadWrite),
         new(SystemAppConstants.ChatAppId, WellKnownAppDrives.StickerDrive, DrivePermission.ReadWrite),
@@ -39,11 +39,11 @@ public static class BuiltinAppDriveGrants
         new(SystemAppConstants.FeedAppId, WellKnownAppDrives.FeedDrive, DrivePermission.ReadWrite),
         new(SystemAppConstants.FeedAppId, WellKnownAppDrives.ProfileDrive, DrivePermission.Read),
         new(SystemAppConstants.FeedAppId, WellKnownAppDrives.HomePageConfigDrive, DrivePermission.Read),
-        new(SystemAppConstants.FeedAppId, WellKnownAppDrives.ContactDrive, DrivePermission.ReadWrite),
+        new(SystemAppConstants.FeedAppId, WellKnownAppDrives.ContactDrive, DrivePermission.Read),
         new(SystemAppConstants.FeedAppId, WellKnownAppDrives.PublicPostsChannelDrive, DrivePermission.ReadWrite),
 
         new(SystemAppConstants.MailAppId, WellKnownAppDrives.MailDrive, DrivePermission.ReadWrite),
-        new(SystemAppConstants.MailAppId, WellKnownAppDrives.ContactDrive, DrivePermission.ReadWrite),
+        new(SystemAppConstants.MailAppId, WellKnownAppDrives.ContactDrive, DrivePermission.Read),
         new(SystemAppConstants.MailAppId, WellKnownAppDrives.ProfileDrive, DrivePermission.Read),
         new(SystemAppConstants.MailAppId, WellKnownAppDrives.StickerDrive, DrivePermission.ReadWrite),
 

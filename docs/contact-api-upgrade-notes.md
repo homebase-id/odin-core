@@ -31,14 +31,12 @@
 
 - [ ] **"Chat drive" vs "contact drive" wording.** The request said apps with the *chat drive* need
   `ManageContacts`; the feature is really about apps that **write the contact drive**. We granted it
-  to **Chat + Mail** (both have `ContactDrive ReadWrite`). Mail has no chat-drive grant — confirm
+  to every app with `ContactDrive` Write at v9 (Chat, Mail, and Feed). Mail has no chat-drive grant — confirm
   Mail is intended to be included (it should be; it manages contacts).
-- [ ] **Downgrade `ContactDrive` `ReadWrite` → `Read`?** The plan's end state is apps read the drive
-  directly and write only through the API. We did **not** downgrade existing grants (migration only
-  *adds* the permission), and the `SystemAppConstants` defaults still grant `ReadWrite`. Until that's
-  downgraded, apps can still write the drive directly and bypass the API (there is no write-lockdown —
-  Part D was dropped). Decide if/when to flip defaults to `Read` and migrate existing grants, and
-  sequence it with the odin-js client migration.
+- [x] **Downgrade `ContactDrive` `ReadWrite` → `Read`?** Done in v21 → v22 (#1614): the `SystemAppConstants`
+  defaults (Chat, Feed) and the migration (Chat, Feed, and Mail, which nothing registers any more) give them `Read` on the ContactDrive, so their tokens can no longer
+  write it directly. Keys were not touched: Feed holds `ManageContacts` only where v9 gave it, and the Contacts
+  app still holds `ReadWrite`.
 - [ ] **Storage-key dependency for app writes.** `ContactService` encrypts content at rest with the
   drive storage key. `OdinContextUpgrades.UpgradeToByPassAclCheck` grants the *write permission* but
   **no storage key** — so an app can only write contacts if it already holds a grant on the
@@ -67,10 +65,11 @@
 - [ ] **odin-js client migration (separate plan).** Clients must (a) write contacts via
   `/api/v2/contacts` instead of direct drive upload, and (b) read connection status from the live
   `Relationship`/`CircleNetworkService` rather than the dropped stored `source` field. Sequence this
-  with any `ReadWrite → Read` downgrade so old and new clients don't break mid-rollout.
-- [ ] **Validation breadth.** `ValidateUpgradeAsync` only checks contact-writing apps got the key. If
-  we later decide the migration should also downgrade grants, extend validation to assert the new
-  grant shape.
+  with any `ReadWrite → Read` downgrade so old and new clients don't break mid-rollout. As of v22 (#1614),
+  odin-js and chat-kmp main write contacts (create, update, delete, image) only through `/api/v2/contacts`;
+  both still *request* ContactDrive Write, so their missing-permissions prompts must stop asking for it.
+- [x] **Validation breadth.** v9's `ValidateUpgradeAsync` only checks contact-writing apps got the key; the
+  downgrade's grant shape is checked by `V21ToV22VersionMigrationService.ValidateUpgradeAsync` (#1614).
 - [ ] **`VersionUpgradeTests`.** The existing integration test forces failure at v4 (TestMode) and
   asserts version 4 — unaffected by adding the v9 step. If we add a test that runs the full ladder,
   update the expected terminal version to 9.
