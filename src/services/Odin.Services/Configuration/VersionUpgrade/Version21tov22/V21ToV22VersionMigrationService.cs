@@ -62,13 +62,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
                     .Select(g => new DriveGrantRequest
                     {
                         PermissionedDrive = g.PermissionedDrive.Drive == WellKnownAppDrives.ContactDrive
-                            ? new PermissionedDrive { Drive = g.PermissionedDrive.Drive, Permission = DrivePermission.Read }
+                            ? new PermissionedDrive { Drive = WellKnownAppDrives.ContactDrive, Permission = DrivePermission.Read }
                             : g.PermissionedDrive
                     })
                     .ToList();
 
-                var keys = new List<int>(app.Grant.PermissionSet?.Keys ?? []);
-                if (app.AppId == SystemAppConstants.FeedAppId && !keys.Contains(PermissionKeys.ManageContacts))
+                var keys = (app.Grant.PermissionSet?.Keys ?? []).ToHashSet();
+                if (app.AppId == SystemAppConstants.FeedAppId)
                 {
                     keys.Add(PermissionKeys.ManageContacts);
                 }

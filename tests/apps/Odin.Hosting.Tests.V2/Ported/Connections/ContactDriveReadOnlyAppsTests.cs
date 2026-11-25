@@ -64,8 +64,8 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
         var apps = scope.Resolve<AppRegistrationService>();
 
         // A v21 identity: Chat and Feed write the drive, Feed has no ManageContacts, and an old Mail registration.
-        await RewindAsync(apps, SystemAppConstants.ChatAppId, ctx, dropManageContacts: false);
-        await RewindAsync(apps, SystemAppConstants.FeedAppId, ctx, dropManageContacts: true);
+        await RewindAsync(apps, SystemAppConstants.ChatAppId, ctx);
+        await RewindAsync(apps, SystemAppConstants.FeedAppId, ctx);
         await owner.Admin.RegisterApp(SystemAppConstants.MailAppId, new PermissionSetGrantRequest
         {
             Drives = [Grant(ContactDrive, DrivePermission.ReadWrite | DrivePermission.React)],
@@ -97,8 +97,9 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
     }
 
     /// <summary>Puts a provisioned app back to its v21 grant: ReadWrite on the ContactDrive, and for Feed no ManageContacts.</summary>
-    private static async Task RewindAsync(AppRegistrationService apps, Guid appId, IOdinContext ctx, bool dropManageContacts)
+    private static async Task RewindAsync(AppRegistrationService apps, Guid appId, IOdinContext ctx)
     {
+        var dropManageContacts = appId == SystemAppConstants.FeedAppId;
         var app = await apps.GetAppRegistration(appId, ctx);
         Assert.That(ContactPermission(app!), Is.EqualTo(DrivePermission.Read), "precondition: a new identity's app holds Read");
 
