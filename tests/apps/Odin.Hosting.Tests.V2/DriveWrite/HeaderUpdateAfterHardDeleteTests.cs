@@ -43,4 +43,30 @@ public class HeaderUpdateAfterHardDeleteTests : V2Fixture
 
         Assert.That(await storage.GetServerFileHeader(file, context), Is.Null, "the hard-deleted file is not recreated");
     }
+
+    /// <summary>
+    /// The same through a change path: UpdateActiveFileHeader (DeletePayload, contacts, profile attributes, the feed) wrote
+    /// a header whose file was gone as a new file
+    /// </summary>
+    [Test]
+    public async Task AnActiveHeaderUpdateAfterAHardDeleteIsRefused_AndTheFileStaysGone()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        var seeded = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "to be purged");
+        var file = new InternalDriveFileId(spec.TargetDrive.Alias, seeded.FileId);
+
+        var (tenant, context) = await MigrationContextAsync(owner);
+        await using var scope = tenant.BeginLifetimeScope();
+        var storage = scope.Resolve<StandardFileSystem>().Storage;
+
+        var header = await storage.GetServerFileHeaderForWriting(file, context);
+        await storage.HardDeleteLongTermFile(file, context);
+
+        header.FileMetadata.AppData.Content = "changed after the delete";
+        var refused = Assert.ThrowsAsync<OdinClientException>(() => storage.UpdateActiveFileHeader(file, header, context));
+        Assert.That(refused!.ErrorCode, Is.EqualTo(OdinClientErrorCode.FileNotFound), refused.Message);
+
+        Assert.That(await storage.GetServerFileHeader(file, context), Is.Null, "the hard-deleted file is not recreated");
+    }
 }

@@ -330,12 +330,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
-            //short circuit
-            var fileExists = await FileExists(targetFile, odinContext);
-            if (!fileExists)
+            // Every caller passes a header it read: a file gone since was hard-deleted (a purge, the expiry job), and
+            // writing the header as a new file would bring it back, payloads whose bytes are gone included (#1963)
+            if (!await FileExists(targetFile, odinContext))
             {
-                await WriteNewFileHeader(targetFile, header, odinContext, raiseEvent);
-                return;
+                throw new OdinClientException($"No such file {targetFile.FileId}", OdinClientErrorCode.FileNotFound);
             }
 
             var metadata = header.FileMetadata;
