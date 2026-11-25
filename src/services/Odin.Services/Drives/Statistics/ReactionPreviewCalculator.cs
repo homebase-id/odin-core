@@ -50,52 +50,35 @@ public class ReactionPreviewCalculator(
             return;
         }
 
-        //look up the fileId by  updatedFileHeader.FileMetadata.ReferencedFile.GlobalTransitId
+        // Not the read rule: the summary changes in one read inside storage, as a reaction's does (#2070)
         var (fs, fileId) = await fileSystemResolver.ResolveFileSystem(referencedFile, odinContext);
         if (null == fs || null == fileId)
         {
-            //TODO: consider if we log this or just ignore it
             return;
         }
 
-        // var targetFile = new InternalDriveFileId()
-        // {
-        //     DriveId = referenceFileDriveId,
-        //     FileId = fileId
-        // };
-
-        // var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
-        var referenceFileDriveId = referencedFile.TargetDrive.Alias;
-        var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId,
-            referencedFile.GlobalTransitId, odinContext);
-        var referencedFileReactionPreview = referencedFileHeader.FileMetadata.ReactionPreview ?? new ReactionSummary();
-
-        if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
+        await fs.Storage.ChangeReactionSummary(fileId.Value, stored =>
         {
-            HandleFileAdded(updatedFileHeader, ref referencedFileReactionPreview, odinContext);
-        }
-
-        if (notification.DriveNotificationType == DriveNotificationType.FileModified)
-        {
-            HandleFileModified(updatedFileHeader, ref referencedFileReactionPreview, odinContext);
-        }
-
-        if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
-        {
-            HandleFileDeleted(updatedFileHeader, ref referencedFileReactionPreview);
-        }
-
-        await fs.Storage.UpdateReactionSummary(new InternalDriveFileId()
+            var preview = stored ?? new ReactionSummary();
+            switch (notification.DriveNotificationType)
             {
-                FileId = referencedFileHeader.FileId,
-                DriveId = referenceFileDriveId
-            },
-            referencedFileReactionPreview,
-            odinContext);
+                case DriveNotificationType.FileAdded:
+                    HandleFileAdded(updatedFileHeader, preview, odinContext);
+                    break;
+                case DriveNotificationType.FileModified:
+                    HandleFileModified(updatedFileHeader, preview, odinContext);
+                    break;
+                case DriveNotificationType.FileDeleted:
+                    HandleFileDeleted(updatedFileHeader, preview);
+                    break;
+            }
+
+            return preview;
+        }, odinContext);
     }
 
     private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
-        ref ReactionSummary targetFileReactionPreview)
+        ReactionSummary targetFileReactionPreview)
     {
         if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
         {
@@ -117,7 +100,7 @@ public class ReactionPreviewCalculator(
     }
 
     private void HandleFileModified(ServerFileHeader updatedFileHeader,
-        ref ReactionSummary targetFileReactionPreview, IOdinContext odinContext)
+        ReactionSummary targetFileReactionPreview, IOdinContext odinContext)
     {
         if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
         {
@@ -126,14 +109,8 @@ public class ReactionPreviewCalculator(
             return; 
         }
         
-        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
-        var shouldSkip = len > CommentPreview.MaxContentLength;
-        if (shouldSkip)
+        if (TooLongForPreview(updatedFileHeader))
         {
-            logger.LogWarning("Skipping adding comment to comment preview due to max " +
-                              "size.  Comment content Size: {len}.  Max Preview: {max}",
-                len, CommentPreview.MaxContentLength);
-
             return;
         }
 
@@ -153,7 +130,7 @@ public class ReactionPreviewCalculator(
         }
     }
 
-    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview,
+    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ReactionSummary targetFileReactionPreview,
         IOdinContext odinContext)
     {
         if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
@@ -171,14 +148,8 @@ public class ReactionPreviewCalculator(
             return;
         }
         
-        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
-        var shouldSkip = len > CommentPreview.MaxContentLength;
-        if (shouldSkip)
+        if (TooLongForPreview(updatedFileHeader))
         {
-            logger.LogWarning("Skipping adding comment to comment preview due to max " +
-                              "size.  Comment content Size: {len}.  Max Preview: {max}",
-                len, CommentPreview.MaxContentLength);
-
             return;
         }
 
@@ -193,6 +164,20 @@ public class ReactionPreviewCalculator(
             Content = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.Content,
             Reactions = new List<ReactionContentPreview>()
         });
+    }
+
+    private bool TooLongForPreview(ServerFileHeader updatedFileHeader)
+    {
+        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
+        if (len <= CommentPreview.MaxContentLength)
+        {
+            return false;
+        }
+
+        logger.LogWarning("Skipping adding comment to comment preview due to max " +
+                          "size.  Comment content Size: {len}.  Max Preview: {max}",
+            len, CommentPreview.MaxContentLength);
+        return true;
     }
 
     public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)

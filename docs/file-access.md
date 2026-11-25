@@ -297,7 +297,9 @@ node clears its own (`OdinContextCache.ResetAsync`) **(V)**. A peer notification
   drive the members who may read; on a Private Share drive through shares ("With Private Share"); on a Private
   drive only owner callers: any other caller's comment, new or an update, is refused, a local upload (a guest or
   YouAuth caller) as well as a peer's (`CommentFileStorageService.AssertCanWriteToDrive` / `CanWriteToDrive`) **(V,
-  tested for a peer who may read the file and holds `Comment`)**.
+  tested for a peer who may read the file and holds `Comment`)**. A comment's count on its file is changed as a
+  reaction's is, in one read inside storage without the read rule (`ChangeReactionSummary`, from
+  `ReactionPreviewCalculator`'s comment handler) **(V, tested for a new comment, #2070)**.
 - **Reactions** need drive `React` and never pass the read rule, locally or from a peer: a peer's reaction finds the
   file by global transit id with a drive check only (`ResolveFileId`) **(V)**. On a zero-knowledge drive it is applied
   at once, the file, a standard file or a comment, found in the request's file system without the read rule by drive
