@@ -1,13 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
+using Odin.Services.Authorization;
 using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.PublicPage;
@@ -52,35 +48,7 @@ public class LinkPreviewAuthenticationService(IDriveManager driveManager, Tenant
             return (null, null);
         }
 
-        var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
-        {
-            DriveId = d.Id,
-            PermissionedDrive = new PermissionedDrive()
-            {
-                Drive = d.TargetDriveInfo,
-                Permission = DrivePermission.Read
-            }
-        }).ToList();
-
-        var anonPerms = new List<int>();
-        if (tenantContext.Settings.AnonymousVisitorsCanViewConnections)
-        {
-            anonPerms.Add(PermissionKeys.ReadConnections);
-        }
-
-        if (tenantContext.Settings.AnonymousVisitorsCanViewWhoIFollow)
-        {
-            anonPerms.Add(PermissionKeys.ReadWhoIFollow);
-        }
-
-        var permissionGroupMap = new Dictionary<string, PermissionGroup>
-        {
-            { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },
-        };
-
-        var callerContext = new CallerContext(default, null, SecurityGroupType.Anonymous);
-        var pc = new PermissionContext(permissionGroupMap, sharedSecretKey: null, readsPublicDrives: true);
-
-        return (callerContext, pc);
+        return (AnonymousPermissions.Caller(),
+            AnonymousPermissions.Create(anonymousDrives.Results, tenantContext.Settings, useTransitRead: false));
     }
 }
