@@ -66,6 +66,24 @@ public class YouAuthConnectedIdentityCircleTests : V2Fixture
             "the YouAuth registration kept a circle row once the domain was a connection");
     }
 
+    [Test]
+    public async Task GrantingACircleToAConnectedIdentitysYouAuthDomainIsRefused()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var circleId = await CreateCircleAsync(frodo);
+        var otherCircleId = await CreateCircleAsync(frodo);
+
+        await ConnectAsync(frodo, sam, circleId);
+        await frodo.Admin.RegisterYouAuthDomain(new AsciiDomainName(sam.Identity.DomainName));
+
+        var grant = await frodo.RefitFor<IRefitYouAuthDomainRegistration>()
+            .GrantCircle(new GrantYouAuthDomainCircleRequest { Domain = sam.Identity.DomainName, CircleId = otherCircleId });
+
+        Assert.That(grant.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the grant was taken and dropped without a word");
+        Assert.That(await MembersAsync(frodo, otherCircleId), Is.Empty);
+    }
+
     private async Task AssertSamIsInCircleOnlyAsTheConnectionAsync(OwnerSession frodo, OwnerSession sam, Guid circleId)
     {
         var members = await MembersAsync(frodo, circleId);

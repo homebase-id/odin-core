@@ -57,7 +57,7 @@ namespace Odin.Services.Membership.YouAuth
         /// running at the same time: the write is insert-only, so the key store key the first one made, and every
         /// client minted from it, stays.
         /// </summary>
-        private async Task<RedactedYouAuthDomainRegistration?> TryRegisterDomainAsync(YouAuthDomainRegistrationRequest request,
+        public async Task<RedactedYouAuthDomainRegistration?> TryRegisterDomainAsync(YouAuthDomainRegistrationRequest request,
             IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
@@ -128,17 +128,18 @@ namespace Odin.Services.Membership.YouAuth
 
                 // A consent page and a sign-in at once both get here; the one registering second uses the first's
                 await TryRegisterDomainAsync(request, odinContext);
-                reg = await GetDomainRegistrationInternalAsync(domain);
+                reg = await GetDomainRegistrationInternalAsync(domain)
+                      ?? throw new OdinClientException($"{domain} not registered");
             }
 
-            if (publishedName != null && reg!.Name != publishedName)
+            if (publishedName != null && reg.Name != publishedName)
             {
                 reg.Name = publishedName;
                 await SaveRegistrationAsync(reg, odinContext);
             }
 
             var masterKey = odinContext.Caller.GetMasterKey();
-            var keyStoreKey = reg!.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
+            var keyStoreKey = reg.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var (accessRegistration, cat) = await exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.YouAuth);
 
             // The stored registration's consent, not the request's: the owner's choice is on the
@@ -333,6 +334,12 @@ namespace Odin.Services.Membership.YouAuth
                     OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
+            if (await IsConnectedIdentityAsync(registration.Domain))
+            {
+                throw new OdinClientException($"{domainName} is a connected identity; grant the circle to the connection",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
@@ -487,11 +494,28 @@ namespace Odin.Services.Membership.YouAuth
         private async Task<bool> SaveRegistrationAsync(YouAuthDomainRegistration registration, IOdinContext odinContext,
             bool isNew = false)
         {
-            // The status only, not the whole connection with its grants
-            var connection = await db.ConnectionsCached.GetAsync((OdinId)registration.Domain.DomainName);
-            var isConnected = connection?.status == (int)ConnectionStatus.Connected;
+            var isConnected = await IsConnectedIdentityAsync(registration.Domain);
+            var circleGrants = new Dictionary<Guid, CircleGrant>(registration.CircleGrants);
+
+            //clear them here so we don't have two locations
+            registration.CircleGrants.Clear();
 
             await using var tx = await db.BeginStackedTransactionAsync();
+
+            // The registration first, so a domain registered already returns before any circle row is written
+            var key = GetDomainKey(registration.Domain);
+            if (isNew)
+            {
+                if (!await DomainStorage.TryInsertAsync(db.KeyThreeValueCached, key, GuidId.Empty, DomainRegistrationDataType,
+                        registration))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                await DomainStorage.UpsertAsync(db.KeyThreeValueCached, key, GuidId.Empty, DomainRegistrationDataType, registration);
+            }
 
             if (isConnected)
             {
@@ -499,29 +523,16 @@ namespace Odin.Services.Membership.YouAuth
             }
             else
             {
-                await circleMembershipService.ReconcileMemberCirclesAsync(registration.Domain, DomainType.YouAuth,
-                    registration.CircleGrants);
-            }
-
-            //clear them here so we don't have two locations
-            registration.CircleGrants.Clear();
-
-            var key = GetDomainKey(registration.Domain);
-            if (isNew && !await DomainStorage.TryInsertAsync(db.KeyThreeValueCached, key, GuidId.Empty, DomainRegistrationDataType,
-                    registration))
-            {
-                // Not committed, so the circle rows above are undone too
-                return false;
-            }
-
-            if (!isNew)
-            {
-                await DomainStorage.UpsertAsync(db.KeyThreeValueCached, key, GuidId.Empty, DomainRegistrationDataType, registration);
+                await circleMembershipService.ReconcileMemberCirclesAsync(registration.Domain, DomainType.YouAuth, circleGrants);
             }
 
             tx.Commit();
             return true;
         }
+
+        /// <summary>Whether the domain is a connected identity: the connection's status only, not its grants.</summary>
+        private async Task<bool> IsConnectedIdentityAsync(AsciiDomainName domain) =>
+            (await db.ConnectionsCached.GetAsync((OdinId)domain.DomainName))?.status == (int)ConnectionStatus.Connected;
 
         private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomainAsync(
             ClientAuthenticationToken authToken,

@@ -94,11 +94,9 @@ public class TableKeyThreeValueCached(TableKeyThreeValue table, IIdentityTransac
     public async Task<bool> TryInsertAsync(KeyThreeValueRecord item)
     {
         var result = await table.TryInsertAsync(item);
-        if (result)
-        {
-            await Cache.InvalidateAllAsync();
-        }
 
+        // Also when it lost: a miss cached before the other insert must not answer the re-read that follows
+        await Cache.InvalidateAllAsync();
         return result;
     }
 
