@@ -563,7 +563,7 @@ they turn out wrong:
 - **Peer reactions skip the read rule:** asked in #2058 (may be deliberate, #1977).
 - **Only a post's original sender may delete it** on a drive marked as a community channel
   (`PeerDriveIncomingTransferService.AcceptDeleteLinkedFileRequestAsync`): whether that is intended is open (#2067).
-- **The anonymous home-page cache** runs as its first caller: hardening asked in #2060.
+- **The anonymous home-page cache** is built as an anonymous visitor whoever asks (#2060).
 - **`QueryModifiedAsync` ignores its `MaxDate`:** obsolete, V1 only; left alone (file-access.md, "Kept, retiring,
   retired").
 - **An anonymous caller's query has no SQL row condition** (`DriveQuery.GetAcl` returns null for an empty list); the
