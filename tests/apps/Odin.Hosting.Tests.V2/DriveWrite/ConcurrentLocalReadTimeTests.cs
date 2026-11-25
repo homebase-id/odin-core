@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
@@ -57,6 +58,53 @@ public class ConcurrentLocalReadTimeTests : V2Fixture
             await RunConcurrentlyAsync(tenant, context, file, a, b);
             Assert.That(await ReadTimeAsync(tenant, context, file), Is.EqualTo(b), $"round {round}: the later read time must win");
         }
+    }
+
+    /// <summary>
+    /// The window a racing loser retries in: the winner has committed, but drops the cached header only in a post-commit
+    /// action, so the cache still holds the local version the loser lost on.  The loser runs in a post-commit action
+    /// queued ahead of the winner's, so the whole call is in that window: a retry read from the cache loses on every round.
+    /// </summary>
+    [Test]
+    public async Task ALoserRetryingBeforeTheWinnersCacheEviction_ReadsPastTheCache_AndWrites()
+    {
+        var (tenant, context, file) = await SeedFileAsync();
+        var start = UnixTimeUtc.Now().AddSeconds(-3600);
+        var winnerTime = start;
+        var loserTime = start.AddSeconds(30);
+
+        // The cache holds the header with no read time
+        await using (var primeScope = tenant.BeginLifetimeScope())
+        {
+            Assert.That((await primeScope.Resolve<StandardFileSystem>().Storage.GetServerFileHeaderForWriting(file, context))
+                .FileMetadata.LocalAppData?.ReadTime, Is.Null);
+        }
+
+        bool? loserWrote = null;
+        Exception? loserFailure = null;
+        await using (var winnerScope = tenant.BeginLifetimeScope())
+        {
+            await using var tx = await winnerScope.Resolve<IdentityDatabase>().BeginStackedTransactionAsync();
+            tx.AddPostCommitAction(async () =>
+            {
+                await using var loserScope = tenant.BeginLifetimeScope();
+                try
+                {
+                    loserWrote = await loserScope.Resolve<StandardFileSystem>().Storage.UpdateLocalReadTime(file, context, loserTime);
+                }
+                catch (Exception e)
+                {
+                    loserFailure = e;
+                }
+            });
+
+            Assert.That(await winnerScope.Resolve<StandardFileSystem>().Storage.UpdateLocalReadTime(file, context, winnerTime), Is.True);
+            tx.Commit();
+        }
+
+        Assert.That(loserFailure, Is.Null, "the loser's retry must read the winner's header, not the cached one");
+        Assert.That(loserWrote, Is.True, "the loser's later read time is behind no one's: it writes");
+        Assert.That(await ReadTimeAsync(tenant, context, file), Is.EqualTo(loserTime));
     }
 
     private async Task<(ILifetimeScope Tenant, IOdinContext Context, InternalDriveFileId File)> SeedFileAsync()
