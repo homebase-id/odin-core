@@ -11,7 +11,6 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Configuration.VersionUpgrade.Version21tov22;
-using Odin.Core;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
@@ -71,16 +70,21 @@ public class FeedCircleChannelReadTests : V2Fixture
     }
 
     [Test]
-    public async Task AChannelDriveAdoptedByTheFeedApp_IsGranted()
+    public async Task AChangeToAChannelDrive_LeavesTheOwnersFeedCircleAsItIs()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var (scope, ctx) = await MigrationContextAsync(frodo);
-        var channel = await DataSubscriptionScenario.CreateChannelDriveAsync(frodo);
+        var channel = await CreateFeedChannelDriveAsync(frodo);
 
-        await scope.Resolve<IDriveManager>().SetDriveOwningAppAsync(channel.Alias, SystemAppConstants.FeedAppId,
-            new OdinSlug("adopted"), BuiltinDrives.ChannelDriveTypeSlug, ctx);
+        // The owner takes the channel's Read off the Feed circle; a later setting change must not put it back.
+        var definitions = scope.Resolve<CircleDefinitionService>();
+        var def = await definitions.GetCircleAsync(Feed);
+        def!.DriveGrants = def.DriveGrants.Where(g => g.PermissionedDrive.Drive != channel).ToList();
+        await scope.Resolve<CircleNetworkService>().UpdateCircleDefinitionAsync(def, ctx);
 
-        Assert.That(await GrantedDrivesAsync(scope), Does.Contain(channel));
+        await scope.Resolve<IDriveManager>().SetDriveAllowCdnAsync(channel.Alias, true, ctx);
+
+        Assert.That(await GrantedDrivesAsync(scope), Does.Not.Contain(channel));
     }
 
     [Test]

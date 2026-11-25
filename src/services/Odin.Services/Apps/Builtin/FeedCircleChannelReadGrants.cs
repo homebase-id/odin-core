@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core;
+using Odin.Core.Storage.Database.Identity;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -29,7 +30,7 @@ namespace Odin.Services.Apps.Builtin;
 /// <para>
 /// The Feed circle already holds it on Public Posts (<see cref="BuiltinCircles.FeedCircle"/>); this gives it the same on
 /// every other channel.  Each post's ACL still decides who gets it and who may read it: the grant only lets a member
-/// decrypt a post the ACL already lets them see.  A channel drive is granted when it is created or changed, from the owner
+/// decrypt a post the ACL already lets them see.  A channel drive is granted when it is created, from the owner
 /// console, which holds the master key re-minting the members' grants needs; an existing one by the v21 → v22 upgrade.
 /// </para>
 /// <para>
@@ -42,7 +43,8 @@ public class FeedCircleChannelReadGrants(
     ILogger<FeedCircleChannelReadGrants> logger,
     CircleDefinitionService circleDefinitionService,
     CircleNetworkService circleNetworkService,
-    IDriveManager driveManager) : INotificationHandler<DriveDefinitionAddedNotification>
+    IDriveManager driveManager,
+    IdentityDatabase db) : INotificationHandler<DriveDefinitionAddedNotification>
 {
     private static bool IsFeedChannelDrive(StorageDrive drive) =>
         drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType &&
@@ -51,24 +53,28 @@ public class FeedCircleChannelReadGrants(
         !drive.OwnerOnly;
 
     /// <summary>
-    /// On a channel drive's creation, and on any later change to it -- a drive handed to the Feed app, or one a
-    /// failed grant left out, is granted then.  A change made without the master key waits for one made with it.
+    /// On a channel drive's creation only: a later change to the drive leaves the Feed circle as the owner has it, so
+    /// Read the owner took off stays off.
     /// </summary>
     public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
     {
-        if (!IsFeedChannelDrive(notification.Drive) || !notification.OdinContext.Caller.HasMasterKey)
+        if (!notification.IsNewDrive || !IsFeedChannelDrive(notification.Drive) ||
+            !notification.OdinContext.Caller.HasMasterKey)
         {
             return;
         }
 
         try
         {
+            // All or nothing: the re-mint saves each member before the definition, which the grant rules may refuse
+            await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
             await GrantReadAsync([notification.Drive.TargetDriveInfo], notification.OdinContext);
+            tx.Commit();
         }
         catch (Exception e)
         {
-            // The drive is stored already; failing its creation over the grant would leave a drive the owner was told
-            // isn't there.  The next change to it, or the upgrade, tries again.
+            // The drive is stored already; failing its creation over the grant would tell the owner it isn't there,
+            // and a retry would be refused as a duplicate.  The owner can still grant it by hand.
             logger.LogError(e, "Granting the Feed circle Read on channel drive {drive} failed", notification.Drive.Id);
         }
     }
