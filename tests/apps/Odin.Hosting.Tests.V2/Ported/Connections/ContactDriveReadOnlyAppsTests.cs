@@ -46,8 +46,7 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
 
         var upload = await app.Drives.Writer.UploadNewMetadata(ContactDrive.Alias,
             SampleMetadataData.Create(fileType: ContactService.ContactFileType));
-        Assert.That(upload.IsSuccessStatusCode, Is.False,
-            $"a direct upload to the ContactDrive should be refused, got {upload.StatusCode}");
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "a direct upload to the ContactDrive is refused");
 
         var create = await new V2ContactsClient(app.Identity, app.Factory).CreateAsync(new CreateContactRequest
         {
@@ -63,7 +62,7 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
         var (scope, ctx) = await MigrationContextAsync(owner);
         var apps = scope.Resolve<AppRegistrationService>();
 
-        // A v21 identity: Chat and Feed write the drive, Feed has no ManageContacts, and an old Mail registration.
+        // A v21 identity: Chat and Feed write the drive, Feed has no ManageContacts, and an old Mail registration, revoked.
         await RewindAsync(apps, SystemAppConstants.ChatAppId, ctx);
         await RewindAsync(apps, SystemAppConstants.FeedAppId, ctx);
         await owner.Admin.RegisterApp(SystemAppConstants.MailAppId, new PermissionSetGrantRequest
@@ -71,6 +70,7 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
             Drives = [Grant(ContactDrive, DrivePermission.ReadWrite | DrivePermission.React)],
             PermissionSet = new PermissionSet(PermissionKeys.ManageContacts)
         });
+        await apps.RevokeAppAsync(SystemAppConstants.MailAppId, ctx);
         var chatBefore = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
 
         var migration = scope.Resolve<V21ToV22VersionMigrationService>();
@@ -94,6 +94,7 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
 
         var mail = await apps.GetAppRegistration(SystemAppConstants.MailAppId, ctx);
         Assert.That(ContactPermission(mail!), Is.EqualTo(DrivePermission.Read), "React goes with Write");
+        Assert.That(mail!.IsRevoked, Is.True, "a revoked app is rewritten, and stays revoked");
     }
 
     /// <summary>Puts a provisioned app back to its v21 grant: ReadWrite on the ContactDrive, and for Feed no ManageContacts.</summary>

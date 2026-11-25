@@ -94,7 +94,8 @@ public static class BuiltinApps
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.UseTransitRead,
                 PermissionKeys.PublishStaticContent,
-                PermissionKeys.SendPushNotifications)),
+                PermissionKeys.SendPushNotifications,
+                PermissionKeys.ManageContacts)),
 
         new(SystemAppConstants.HomePageAppId, "HomePage", (OdinSlug)"homepage",
             Drives: [BuiltinDrives.HomePageConfigDrive],

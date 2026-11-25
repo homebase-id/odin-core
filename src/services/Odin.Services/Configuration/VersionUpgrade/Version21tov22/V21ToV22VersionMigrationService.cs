@@ -32,8 +32,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
     /// ManageContacts because it held ContactDrive Write, but an identity made since has neither, so it is added.
     /// </para>
     /// <para>
-    /// Every other grant and key is kept as it is.  A revoked app is skipped: rebuilding its grant would
-    /// un-revoke it.
+    /// Every other grant and key is kept as it is.  A revoked app is rewritten too, so it is right if the owner
+    /// allows it again, and revoked again after: rebuilding its grant clears the flag.
     /// </para>
     /// </remarks>
     public class V21ToV22VersionMigrationService(
@@ -42,6 +42,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
     {
         private static readonly Guid[] ReadOnlyContactApps =
             [SystemAppConstants.ChatAppId, SystemAppConstants.FeedAppId, SystemAppConstants.MailAppId];
+
+        // ReadWrite carries React and Comment too, and a comment is a write; Read is all a contact needs.
+        private const DrivePermission ContactWrites = DrivePermission.Write | DrivePermission.WriteReactionsAndComments;
 
         public async Task LockContactDriveToReadAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -59,12 +62,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
                 logger.LogInformation("Locking app {appName} ({appId}) to Read on the ContactDrive", app.Name, app.AppId);
 
                 var drives = app.Grant.DriveGrants
-                    .Select(g => new DriveGrantRequest
-                    {
-                        PermissionedDrive = g.PermissionedDrive.Drive == WellKnownAppDrives.ContactDrive
-                            ? new PermissionedDrive { Drive = WellKnownAppDrives.ContactDrive, Permission = DrivePermission.Read }
-                            : g.PermissionedDrive
-                    })
+                    .Select(g => new DriveGrantRequest { PermissionedDrive = WithoutContactWrites(g.PermissionedDrive) })
                     .ToList();
 
                 var keys = (app.Grant.PermissionSet?.Keys ?? []).ToHashSet();
@@ -79,6 +77,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
                     PermissionSet = new PermissionSet(keys),
                     Drives = drives
                 }, odinContext);
+
+                // The rebuilt grant is not revoked; an app the owner revoked stays revoked, and is right when allowed again.
+                if (app.IsRevoked)
+                {
+                    await appRegistrationService.RevokeAppAsync(app.AppId, odinContext);
+                }
             }
         }
 
@@ -99,20 +103,32 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
         private async Task<IEnumerable<RedactedAppRegistration>> AppsToCheckAsync(IOdinContext odinContext)
         {
             var apps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
-            return apps.Where(a => ReadOnlyContactApps.Contains(a.AppId) && !a.IsRevoked);
+            return apps.Where(a => ReadOnlyContactApps.Contains(a.AppId));
         }
 
         private static bool NeedsUpgrade(RedactedAppRegistration app)
         {
-            // ReadWrite carries React and Comment too, and a comment is a write; Read is all a contact needs.
             var grantsMoreThanRead = app.Grant.DriveGrants.Any(g =>
                 g.PermissionedDrive.Drive == WellKnownAppDrives.ContactDrive &&
-                g.PermissionedDrive.Permission != DrivePermission.Read);
+                (g.PermissionedDrive.Permission & ContactWrites) != 0);
 
             var feedLacksManageContacts = app.AppId == SystemAppConstants.FeedAppId &&
                                           app.Grant.PermissionSet?.HasKey(PermissionKeys.ManageContacts) != true;
 
             return grantsMoreThanRead || feedLacksManageContacts;
+        }
+
+        /// <summary>The ContactDrive grant without its writes, everything else on it kept; any other grant as it is.</summary>
+        private static PermissionedDrive WithoutContactWrites(PermissionedDrive grant)
+        {
+            if (grant.Drive != WellKnownAppDrives.ContactDrive)
+            {
+                return grant;
+            }
+
+            var readOnly = grant.Clone();
+            readOnly.Permission &= ~ContactWrites;
+            return readOnly;
         }
     }
 }

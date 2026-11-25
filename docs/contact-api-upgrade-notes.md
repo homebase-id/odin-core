@@ -31,15 +31,12 @@
 
 - [ ] **"Chat drive" vs "contact drive" wording.** The request said apps with the *chat drive* need
   `ManageContacts`; the feature is really about apps that **write the contact drive**. We granted it
-  to **Chat + Mail** (both have `ContactDrive ReadWrite`). Mail has no chat-drive grant — confirm
+  to **Chat + Mail** (both had `ContactDrive ReadWrite` at v9). Mail has no chat-drive grant — confirm
   Mail is intended to be included (it should be; it manages contacts).
-- [x] **Downgrade `ContactDrive` `ReadWrite` → `Read`?** Done in v21 → v22 (#1614): Chat, Feed and Mail
-  hold `Read`, and Feed gained `ManageContacts`. The rest of this item is the history. The plan's end state is apps read the drive
-  directly and write only through the API. We did **not** downgrade existing grants (migration only
-  *adds* the permission), and the `SystemAppConstants` defaults still grant `ReadWrite`. Until that's
-  downgraded, apps can still write the drive directly and bypass the API (there is no write-lockdown —
-  Part D was dropped). Decide if/when to flip defaults to `Read` and migrate existing grants, and
-  sequence it with the odin-js client migration.
+- [x] **Downgrade `ContactDrive` `ReadWrite` → `Read`?** Done in v21 → v22 (#1614): the `SystemAppConstants`
+  defaults and the migration give Chat, Feed and Mail `Read` on the ContactDrive, so their tokens can no longer
+  write it directly; Feed also gained `ManageContacts`, since it saves contacts through the API. The Contacts
+  app still holds `ReadWrite`.
 - [ ] **Storage-key dependency for app writes.** `ContactService` encrypts content at rest with the
   drive storage key. `OdinContextUpgrades.UpgradeToByPassAclCheck` grants the *write permission* but
   **no storage key** — so an app can only write contacts if it already holds a grant on the

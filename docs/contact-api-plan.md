@@ -335,8 +335,8 @@ block proactively.
 - `UnifiedV2/SwaggerInfo.cs` → `Contacts = "Contact Operations"`.
 - `PermissionKeys.cs` → add `ManageContacts` constant (mirror `ManageFeed`); add it to
   `PermissionKeyAllowance.Apps`.
-- `SystemAppConstants` → ChatApp/MailApp contact-drive grant `ReadWrite` → **`Read`** (app writes go through
-  the API; reads stay direct).
+- `SystemAppConstants` → Chat/Feed/Mail contact-drive grant `ReadWrite` → **`Read`** (app writes go through
+  the API; reads stay direct). Done in v21 → v22 (#1614).
 - `TenantServices.cs` (~L277): register `ContactService` and `ContactEnrichmentService`
   (`InstancePerLifetimeScope`), and `ContactLifecycleService`
   `.As<INotificationHandler<IntroductionsReceivedNotification>>().As<…ConnectionRequestReceived…>()
