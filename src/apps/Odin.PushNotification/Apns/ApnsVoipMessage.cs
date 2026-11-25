@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using Odin.Core.Dto;
 
@@ -29,5 +32,22 @@ public sealed record ApnsVoipMessage(string Path, IReadOnlyDictionary<string, st
         }
 
         return new ApnsVoipMessage($"/3/device/{request.VoipDeviceToken}", headers, JsonSerializer.Serialize(body));
+    }
+
+    public HttpRequestMessage ToHttpRequest(string providerToken)
+    {
+        // A request's own version wins over HttpClient.DefaultRequestVersion, and APNs only speaks HTTP/2.
+        var http = new HttpRequestMessage(HttpMethod.Post, Path)
+        {
+            Version = HttpVersion.Version20,
+            VersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            Content = new StringContent(Body, Encoding.UTF8, "application/json"),
+        };
+        http.Headers.Authorization = new AuthenticationHeaderValue("bearer", providerToken);
+        foreach (var (name, value) in Headers)
+        {
+            http.Headers.TryAddWithoutValidation(name, value);
+        }
+        return http;
     }
 }
