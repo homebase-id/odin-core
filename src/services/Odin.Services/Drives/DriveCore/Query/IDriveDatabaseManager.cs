@@ -43,7 +43,9 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Saves the file to the database
         /// </summary>
-        Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader metadata, Guid? useThisVersionTag);
+        /// <param name="newFile">False for a change of a stored file: written only over the row as read, so a file
+        /// hard-deleted since it was read isn't recreated (#1963)</param>
+        Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader metadata, Guid? useThisVersionTag, bool newFile);
 
         /// <summary>
         /// Todd says it aint soft and it aint hard ... mushy it is

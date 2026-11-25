@@ -160,9 +160,10 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     public async Task<int> UpsertAllButReactionsAndTransferAsync(
         DriveMainIndexRecord item,
-        Guid? useThisNewVersionTag = null)
+        Guid? useThisNewVersionTag = null,
+        bool newFile = true)
     {
-        var result = await _table.UpsertAllButReactionsAndTransferAsync(item, useThisNewVersionTag);
+        var result = await _table.UpsertAllButReactionsAndTransferAsync(item, useThisNewVersionTag, newFile);
         await InvalidateDriveAsync(item.driveId);
         return result;
     }

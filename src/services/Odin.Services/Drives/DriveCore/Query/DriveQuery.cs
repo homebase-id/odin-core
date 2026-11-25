@@ -234,11 +234,11 @@ public class DriveQuery(
         return size;
     }
 
-    public async Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag = null)
+    public async Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag, bool newFile)
     {
         if (!drive.IsSelectiveShare || header.ServerMetadata.FileSystemType != FileSystemType.Standard)
         {
-            await SaveFileHeaderCoreAsync(drive, header, useThisVersionTag);
+            await SaveFileHeaderCoreAsync(drive, header, useThisVersionTag, newFile);
             return;
         }
 
@@ -254,11 +254,11 @@ public class DriveQuery(
             header.ServerMetadata.AccessControlList.RequiredSecurityGroup = (SecurityGroupType)group;
         }
 
-        await SaveFileHeaderCoreAsync(drive, header, useThisVersionTag);
+        await SaveFileHeaderCoreAsync(drive, header, useThisVersionTag, newFile);
         tx.Commit();
     }
 
-    private async Task SaveFileHeaderCoreAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag)
+    private async Task SaveFileHeaderCoreAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag, bool newFile)
     {
         var fileMetadata = header.FileMetadata;
 
@@ -288,7 +288,7 @@ public class DriveQuery(
 
         try
         {
-            int n = await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag, reconcileAcl);
+            int n = await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag, reconcileAcl, newFile);
             if (n != 1)
                 throw new OdinClientException($"SaveFileHeaderAsync() didn't write database record, n is {n}");
 
