@@ -44,8 +44,6 @@ public sealed class ApnsVoipSender : IApnsVoipSender, IDisposable
         })
         {
             BaseAddress = options.Host,
-            DefaultRequestVersion = HttpVersion.Version20,
-            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
         };
 
         if (options.IsConfigured)
