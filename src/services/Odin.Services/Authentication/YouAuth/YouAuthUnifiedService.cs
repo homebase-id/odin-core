@@ -142,20 +142,17 @@ public sealed class YouAuthUnifiedService(
             var domain = new AsciiDomainName(clientIdOrDomain);
 
             var existingDomain = await domainRegistrationService.GetRegistration(domain, odinContext);
-            if (null == existingDomain)
+            var request = new YouAuthDomainRegistrationRequest()
             {
-                var request = new YouAuthDomainRegistrationRequest()
-                {
-                    Domain = domain.DomainName,
-                    Name = domain.DomainName,
-                    CorsHostName = clientIdOrDomain,
-                    CircleIds = default, //TODO: should we set a circle here?
-                    ConsentRequirements = consentRequirements
-                };
+                Domain = domain.DomainName,
+                Name = domain.DomainName,
+                CorsHostName = clientIdOrDomain,
+                CircleIds = default, //TODO: should we set a circle here?
+                ConsentRequirements = consentRequirements
+            };
 
-                await domainRegistrationService.RegisterDomainAsync(request, odinContext);
-            }
-            else
+            // A sign-in may register the domain between the read and the insert; the consent then goes on its registration
+            if (null != existingDomain || null == await domainRegistrationService.TryRegisterDomainAsync(request, odinContext))
             {
                 await domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements, odinContext);
             }

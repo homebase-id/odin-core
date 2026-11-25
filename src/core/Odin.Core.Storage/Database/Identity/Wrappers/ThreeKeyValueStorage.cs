@@ -44,6 +44,14 @@ public class ThreeKeyValueStorage
         await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
     }
 
+    /// <summary>Saves <paramref name="value"/> only when nothing is stored under <paramref name="key1"/>.</summary>
+    /// <returns>False when something already was; it is left as it was.</returns>
+    public async Task<bool> TryInsertAsync<T>(TableKeyThreeValueCached tblKeyThreeValue, Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
+    {
+        var json = OdinSystemSerializer.Serialize(value);
+        return await tblKeyThreeValue.TryInsertAsync(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
+    }
+
     public async Task DeleteAsync(TableKeyThreeValueCached tblKeyThreeValue, Guid id)
     {
         await tblKeyThreeValue.DeleteAsync(MakeStorageKey(id));

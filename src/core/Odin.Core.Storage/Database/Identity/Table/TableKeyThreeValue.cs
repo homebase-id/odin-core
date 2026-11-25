@@ -43,6 +43,12 @@ public class TableKeyThreeValue(
         return await base.InsertAsync(item);
     }
 
+    internal new async Task<bool> TryInsertAsync(KeyThreeValueRecord item)
+    {
+        item.identityId = odinIdentity;
+        return await base.TryInsertAsync(item);
+    }
+
     internal async Task<int> DeleteAsync(byte[] key1)
     {
         return await base.DeleteAsync(odinIdentity, key1);

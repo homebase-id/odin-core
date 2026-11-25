@@ -58,17 +58,27 @@ public class PasswordKeyRecoveryService(
         return existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
     }
 
+    /// <summary>
+    /// Creates the recovery key; fails if one already exists.  Insert-only, so of two first-time calls at once the
+    /// second fails instead of replacing the key a phrase holder already has.
+    /// </summary>
     public async Task CreateInitialKeyAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var keyRecord = await RecoveryKeyStorage.GetAsync<RecoveryKeyRecord>(tblKeyValue, RecordStorageId);
-        if (null != keyRecord)
+        var masterKey = odinContext.Caller.GetMasterKey();
+        var recoveryKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+
+        var record = new RecoveryKeyRecord()
+        {
+            MasterKeyEncryptedRecoverKey = new SymmetricKeyEncryptedAes(masterKey, recoveryKey),
+            Created = UnixTimeUtc.Now(),
+            RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(recoveryKey, masterKey)
+        };
+
+        if (!await RecoveryKeyStorage.TryInsertAsync(tblKeyValue, RecordStorageId, record))
         {
             throw new OdinSystemException("Recovery key already exists");
         }
-
-        var keyBytes = ByteArrayUtil.GetRndByteArray(16);
-        await SaveKeyAsync(keyBytes.ToSensitiveByteArray(), odinContext);
     }
 
     public async Task<RequestRecoveryKeyResult> RequestRecoveryKey(IOdinContext odinContext)
@@ -343,22 +353,6 @@ public class PasswordKeyRecoveryService(
         var existingKey = await RecoveryKeyStorage.GetAsync<RecoveryKeyRecord>(tblKeyValue, RecordStorageId);
         return existingKey;
     }
-
-    private async Task SaveKeyAsync(SensitiveByteArray recoveryKey, IOdinContext odinContext)
-    {
-        var masterKey = odinContext.Caller.GetMasterKey();
-
-        //TODO: what validations are needed here?
-        var record = new RecoveryKeyRecord()
-        {
-            MasterKeyEncryptedRecoverKey = new SymmetricKeyEncryptedAes(masterKey, recoveryKey),
-            Created = UnixTimeUtc.Now(),
-            RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(recoveryKey, masterKey)
-        };
-
-        await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, record);
-    }
-
 
     private async Task<UnixTimeUtc> MarkNextViewableDate(UnixTimeUtc nextDate)
     {
