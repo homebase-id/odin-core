@@ -256,6 +256,8 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   grant on a zero-knowledge drive, carry no key material (`CircleNetworkService.RequiresPeerKeyAsync`, which asks
   `StorageDrive.GrantCarriesStorageKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
   grant next time the Peer Key is in scope **(V)**.
+- **The Feed circle reads every channel:** Read with the storage key on every channel drive the Feed app owns but an
+  owner-only or zero-knowledge one, added as each is created (`FeedCircleChannelReadGrants`) **(V, tested)**. Each post's ACL still decides who gets and reads it.
 - **No confused deputy:** an app can't plant a circle naming a drive it can't read, which the owner's next grant would
   otherwise make work ([archive/drive-addressing.md](archive/drive-addressing.md#circles)). Creation is bounded by what the app holds (section 2), and updating a
   circle definition needs the master key (`CircleMembershipService.UpdateAsync`) **(V)**.

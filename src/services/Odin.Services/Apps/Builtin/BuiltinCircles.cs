@@ -83,6 +83,8 @@ public static class BuiltinCircles
     };
 
     // --- Feed ---
+    // Read on every other channel drive the Feed app owns, but an owner-only or zero-knowledge one, is added as each is
+    // made, the ones before by the v21 -> v22 upgrade (FeedCircleChannelReadGrants).
     public static readonly CircleDefinition FeedCircle = new()
     {
         Id = Guid.Parse("cb29850cd326480b9c91deb0fbf061d7"),
