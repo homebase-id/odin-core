@@ -39,7 +39,7 @@ public class ArchivalStatusBatchTests : V2Fixture
         var (caller, owner) = await SetupCallerWithOwner(spec);
         var a = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "content a");
         var b = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "content b");
-        var before = await GetHeaderAsync(owner, a);
+        var before = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, a.FileId);
 
         var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias,
             Batch(2, (a.FileId, a.NewVersionTag), (b.FileId, b.NewVersionTag)));
@@ -47,14 +47,14 @@ public class ArchivalStatusBatchTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(expected), response.Error?.Content);
         if (expected != HttpStatusCode.OK)
         {
-            Assert.That((await GetHeaderAsync(owner, a)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(0));
+            Assert.That((await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, a.FileId)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(0));
             return;
         }
 
         var results = response.Content!.Results;
         Assert.That(results.Select(r => (r.FileId, r.ErrorCode)), Is.EqualTo(new[] { (a.FileId, (OdinClientErrorCode?)null), (b.FileId, null) }));
 
-        var after = await GetHeaderAsync(owner, a);
+        var after = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, a.FileId);
         Assert.That(after.FileMetadata.AppData.ArchivalStatus, Is.EqualTo(2));
         Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(results[0].NewVersionTag));
         Assert.That(results[0].Updated?.milliseconds, Is.EqualTo(after.FileMetadata.Updated.milliseconds));
@@ -91,8 +91,8 @@ public class ArchivalStatusBatchTests : V2Fixture
             (current.FileId, null, true)
         }));
 
-        Assert.That((await GetHeaderAsync(owner, current)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(2));
-        var staleHeader = await GetHeaderAsync(owner, stale);
+        Assert.That((await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, current.FileId)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(2));
+        var staleHeader = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, stale.FileId);
         Assert.That((staleHeader.FileMetadata.AppData.ArchivalStatus, staleHeader.FileMetadata.VersionTag),
             Is.EqualTo((0, (Guid?)stale.NewVersionTag)));
     }
@@ -118,8 +118,8 @@ public class ArchivalStatusBatchTests : V2Fixture
             (hidden.FileId, OdinClientErrorCode.FileNotFound),
             (after.FileId, null)
         }));
-        Assert.That((await GetHeaderAsync(owner, hidden)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(0));
-        Assert.That((await GetHeaderAsync(owner, after)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(2));
+        Assert.That((await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, hidden.FileId)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(0));
+        Assert.That((await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, after.FileId)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(2));
     }
 
     [Test]
@@ -128,13 +128,13 @@ public class ArchivalStatusBatchTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
         var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "already restored");
-        var before = await GetHeaderAsync(owner, file);
+        var before = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, file.FileId);
 
         var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(0, (file.FileId, file.NewVersionTag)));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         Assert.That(response.Content!.Results.Single().NewVersionTag, Is.EqualTo(file.NewVersionTag));
-        var after = await GetHeaderAsync(owner, file);
+        var after = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, file.FileId);
         Assert.That((after.FileMetadata.VersionTag, after.FileMetadata.Updated.milliseconds),
             Is.EqualTo((before.FileMetadata.VersionTag, before.FileMetadata.Updated.milliseconds)));
         Assert.That(response.Content.Results.Single().Updated?.milliseconds, Is.EqualTo(before.FileMetadata.Updated.milliseconds));
@@ -149,15 +149,15 @@ public class ArchivalStatusBatchTests : V2Fixture
 
         var remove = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(2, (file.FileId, file.NewVersionTag)));
         Assert.That(remove.StatusCode, Is.EqualTo(HttpStatusCode.OK), remove.Error?.Content);
-        Assert.That(await QueryByArchivalStatusAsync(owner, spec.TargetDrive, 2), Is.EqualTo(new[] { file.FileId }));
+        Assert.That(await AppFileUploads.QueryFileIdsAsync(owner, new FileQueryParamsV1 { TargetDrive = spec.TargetDrive, ArchivalStatus = [2] }), Is.EqualTo(new[] { file.FileId }));
 
         var removedTag = remove.Content!.Results.Single().NewVersionTag!.Value;
         var restore = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(0, (file.FileId, removedTag)));
         Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.OK), restore.Error?.Content);
         Assert.That(restore.Content!.Results.Single().ErrorCode, Is.Null);
 
-        Assert.That(await QueryByArchivalStatusAsync(owner, spec.TargetDrive, 2), Is.Empty);
-        Assert.That(await QueryByArchivalStatusAsync(owner, spec.TargetDrive, 0), Is.EqualTo(new[] { file.FileId }));
+        Assert.That(await AppFileUploads.QueryFileIdsAsync(owner, new FileQueryParamsV1 { TargetDrive = spec.TargetDrive, ArchivalStatus = [2] }), Is.Empty);
+        Assert.That(await AppFileUploads.QueryFileIdsAsync(owner, new FileQueryParamsV1 { TargetDrive = spec.TargetDrive, ArchivalStatus = [0] }), Is.EqualTo(new[] { file.FileId }));
     }
 
     [Test]
@@ -191,23 +191,4 @@ public class ArchivalStatusBatchTests : V2Fixture
         ArchivalStatus = status,
         Files = files.Select(f => new FileVersionTagV2 { FileId = f.FileId, VersionTag = f.VersionTag }).ToList()
     };
-
-
-    private static async Task<SharedSecretEncryptedFileHeader> GetHeaderAsync(OwnerSession owner, CreateFileResult file)
-    {
-        var header = await owner.Drives.Reader.GetFileHeaderAsync(file.DriveId, file.FileId);
-        Assert.That(header.IsSuccessStatusCode, Is.True, $"header read failed: {header.StatusCode}");
-        return header.Content!;
-    }
-
-    private static async Task<List<Guid>> QueryByArchivalStatusAsync(OwnerSession owner, TargetDrive drive, int status)
-    {
-        var results = await owner.Drives.Reader.GetBatchAsync(drive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1 { TargetDrive = drive, ArchivalStatus = [status] },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 10, IncludeMetadataHeader = false }
-        });
-        Assert.That(results.IsSuccessStatusCode, Is.True, $"query failed: {results.StatusCode}");
-        return results.Content!.SearchResults.Select(r => r.FileId).ToList();
-    }
 }
