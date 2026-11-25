@@ -75,6 +75,10 @@ public interface IDriveWriterHttpClientApiV2
     Task<ApiResponse<UpdateArchivalStatusBatchResultV2>> UpdateArchivalStatusBatch([AliasAs("driveId:guid")] Guid driveId,
         [Body] UpdateArchivalStatusBatchRequestV2 request);
 
+    [Post(UnifiedApiRouteConstants.FilesRoot + "/update-local-tags-batch")]
+    Task<ApiResponse<UpdateLocalTagsBatchResultV2>> UpdateLocalTagsBatch([AliasAs("driveId:guid")] Guid driveId,
+        [Body] UpdateLocalTagsBatchRequestV2 request);
+
     [Post(UnifiedApiRouteConstants.FilesRoot + "/transform-key-headers")]
     Task<ApiResponse<TransformKeyHeadersResultV2>> TransformKeyHeaders([AliasAs("driveId:guid")] Guid driveId,
         [Body] TransformKeyHeadersRequestV2 request);

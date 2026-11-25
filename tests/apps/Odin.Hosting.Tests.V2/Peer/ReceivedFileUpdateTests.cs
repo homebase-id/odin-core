@@ -3,8 +3,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Ported.DataSubscription;
+using Odin.Hosting.Tests.V2.Ported.Peer;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -17,7 +20,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 namespace Odin.Hosting.Tests.V2.Peer;
 
 /// <summary>
-/// A recipient changing its own copy of a file it received over transit.
+/// A recipient changing its own copy of a file it received over transit, and what a peer's change of it moves.
 /// </summary>
 [TestFixture]
 public class ReceivedFileUpdateTests : V2Fixture
@@ -60,6 +63,145 @@ public class ReceivedFileUpdateTests : V2Fixture
         var after = await FindAsync(sam, drive, globalTransitId);
         Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo("opened"));
         Assert.That(after.FileMetadata.TransitCreated.milliseconds, Is.EqualTo(transitCreated));
+    }
+
+    // #2065: TransitUpdated is when the file was last changed over transit by a peer.  A sender's update moves it, and
+    // the owner's own update and overwrite keep it
+    [Test]
+    public async Task SendersUpdate_MovesTransitUpdated_AndOwnersWritesKeepIt()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var drive = TargetDrive.NewTargetDrive();
+        await CollabChannelFlow.SetupAsync(frodo, drive, [sam], driveName: "Frodo's drive");
+
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true);
+        metadata.AppData.Content = "first";
+        var globalTransitId = await V2PeerUpdateByGtidTests.TransferAsync(sam, frodo, drive, metadata, []);
+        var received = await FindAsync(frodo, drive, globalTransitId);
+        Assert.That(received.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(0), "a first delivery is no update");
+
+        var beforeTheUpdate = UnixTimeUtc.Now().milliseconds;
+        var change = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true);
+        change.AppData.Content = "changed by sam";
+        var sent = await V2PeerUpdateByGtidTests.UpdateAsync(sam, frodo.Identity, drive, globalTransitId, change,
+            V2PeerUpdateByGtidTests.Instructions(drive, new UploadManifest { PayloadDescriptors = [] }));
+        Assert.That(sent.IsSuccessStatusCode, Is.True, sent.Error?.Content);
+        await sam.Sync.DrainOutboxAsync();
+        await frodo.Sync.ProcessInboxAsync(drive, int.MaxValue);
+
+        var changed = await FindAsync(frodo, drive, globalTransitId);
+        Assert.That(changed.FileMetadata.AppData.Content, Is.EqualTo("changed by sam"));
+        var transitUpdated = changed.FileMetadata.TransitUpdated.milliseconds;
+        Assert.That(transitUpdated, Is.GreaterThanOrEqualTo(beforeTheUpdate), "the sender's update moves TransitUpdated");
+
+        var own = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        own.AppData.Content = "changed by frodo";
+        own.VersionTag = changed.FileMetadata.VersionTag;
+        var update = await frodo.Drives.Writer.UpdateFileByFileId(drive.Alias, changed.FileId, new FileUpdateInstructionSetV2
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            Manifest = new UploadManifest { PayloadDescriptors = [] }
+        }, own, []);
+        Assert.That(update.IsSuccessStatusCode, Is.True, update.Error?.Content);
+
+        var after = await FindAsync(frodo, drive, globalTransitId);
+        Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo("changed by frodo"));
+        Assert.That(after.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated), "the owner's update keeps it");
+
+        // The owner's overwrite of the whole file keeps it too
+        var overwrite = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        overwrite.AppData.Content = "overwritten by frodo";
+        overwrite.VersionTag = after.FileMetadata.VersionTag;
+        var overwritten = await frodo.V1.Drive.UploadNewMetadata(drive, overwrite, new TransitOptions(), overwriteFileId: after.FileId);
+        Assert.That(overwritten.IsSuccessStatusCode, Is.True, overwritten.Error?.Content);
+
+        var afterOverwrite = await FindAsync(frodo, drive, globalTransitId);
+        Assert.That(afterOverwrite.FileMetadata.AppData.Content, Is.EqualTo("overwritten by frodo"));
+        Assert.That(afterOverwrite.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated),
+            "the owner's overwrite keeps it");
+    }
+
+    // #2065 on the feed drive: a followed identity's new post arrives with no TransitUpdated and its edit moves it. A
+    // reaction pushes the item again, and the follower's catch-up sync rewrites every item: neither changes the post, so
+    // neither moves it
+    [Test]
+    public async Task FollowedIdentitysEdit_MovesTransitUpdated_AndAReactionOrASyncKeepsIt()
+    {
+        const int fileType = 20651;
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var (channel, upload, query) = await FollowedPostAsync(frodo, sam, fileType);
+
+        var delivered = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "first", upload);
+        Assert.That(delivered.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(0), "a new feed item is no change");
+
+        var beforeTheEdit = UnixTimeUtc.Now().milliseconds;
+        await DataSubscriptionScenario.OverwriteStandardFileAsync(frodo, upload.File, "edited", fileType, upload.NewVersionTag);
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+
+        var edited = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "edited", upload);
+        var transitUpdated = edited.FileMetadata.TransitUpdated.milliseconds;
+        Assert.That(transitUpdated, Is.GreaterThanOrEqualTo(beforeTheEdit), "the followed identity's edit moves it");
+
+        var react = await frodo.Drives.Reactions.AddReactionAsync(channel.Alias, upload.File.FileId, ":heart:");
+        Assert.That(react.IsSuccessStatusCode, Is.True, react.Error?.Content);
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+
+        var reacted = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "edited", upload);
+        Assert.That(reacted.FileMetadata.ReactionPreview?.Reactions, Is.Not.Empty, "arrange: the reaction should reach the feed");
+        Assert.That(reacted.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated), "a reaction keeps it");
+
+        var sync = await sam.Followers.SynchronizeFeedHistoryAsync(frodo.Identity);
+        Assert.That(sync.IsSuccessStatusCode, Is.True, $"sync-feed-history returned {sync.StatusCode}");
+
+        var synced = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "edited", upload);
+        Assert.That(synced.FileMetadata.Updated.milliseconds, Is.GreaterThan(reacted.FileMetadata.Updated.milliseconds),
+            "arrange: the sync should have rewritten the item");
+        Assert.That(synced.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(transitUpdated), "the sync keeps it");
+    }
+
+    // #2065: an edit the follower's feed missed, which its catch-up sync then brings, moves TransitUpdated as a push would
+    [Test]
+    public async Task AnEditTheSyncBrings_MovesTransitUpdated()
+    {
+        const int fileType = 20652;
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var (_, upload, query) = await FollowedPostAsync(frodo, sam, fileType);
+
+        // Sam isn't following when Frodo edits, so no push reaches the feed; following again, Sam's sync brings the edit
+        var unfollow = await sam.V1.Follower.UnfollowIdentity(frodo.Identity);
+        Assert.That(unfollow.IsSuccessStatusCode, Is.True, $"unfollow returned {unfollow.StatusCode}");
+        var beforeTheEdit = UnixTimeUtc.Now().milliseconds;
+        await DataSubscriptionScenario.OverwriteStandardFileAsync(frodo, upload.File, "edited", fileType, upload.NewVersionTag);
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+        await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "first", upload);
+
+        await DataSubscriptionScenario.FollowAsync(sam, frodo);
+        var sync = await sam.Followers.SynchronizeFeedHistoryAsync(frodo.Identity);
+        Assert.That(sync.IsSuccessStatusCode, Is.True, $"sync-feed-history returned {sync.StatusCode}");
+
+        var synced = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(sam, query, "edited", upload);
+        Assert.That(synced.FileMetadata.TransitUpdated.milliseconds, Is.GreaterThanOrEqualTo(beforeTheEdit),
+            "the edit the sync brought moves it");
+    }
+
+    /// <summary>Frodo's post on an anonymous channel (so Sam's sync can query it unconnected), on Sam's feed</summary>
+    private static async Task<(TargetDrive channel, UploadResult upload, QueryBatchRequest query)> FollowedPostAsync(
+        OwnerSession frodo, OwnerSession sam, int fileType)
+    {
+        var channel = await DataSubscriptionScenario.CreateChannelDriveAsync(frodo, allowAnonymousReads: true);
+        await DataSubscriptionScenario.FollowAsync(sam, frodo);
+
+        var upload = await DataSubscriptionScenario.UploadStandardUnencryptedFileToChannelAsync(frodo, channel, "first", fileType);
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+        return (channel, upload, DataSubscriptionScenario.FeedQueryByFileType(fileType));
     }
 
     private static async Task<SharedSecretEncryptedFileHeader> FindAsync(OwnerSession owner, TargetDrive drive,
