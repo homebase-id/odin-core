@@ -11,11 +11,17 @@ public interface IRefitPushSubscription
 {
     private const string RootPath = "/notify/push";
 
+    [Post(RootPath + "/subscribe")]
+    Task<ApiResponse<HttpContent>> Subscribe([Body] PushNotificationSubscribeDeviceRequest request);
+
     [Post(RootPath + "/subscribe-firebase")]
     Task<ApiResponse<HttpContent>> SubscribeFirebase([Body] PushNotificationSubscribeFirebaseRequest request);
 
     [Get(RootPath + "/subscription")]
     Task<ApiResponse<RedactedPushNotificationSubscription>> GetSubscription();
+
+    [Post(RootPath + "/unsubscribe")]
+    Task<ApiResponse<HttpContent>> Unsubscribe();
 
     [Post(RootPath + "/unsubscribeAll")]
     Task<ApiResponse<HttpContent>> UnsubscribeAll();
