@@ -1887,9 +1887,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <summary>
         /// How often <see cref="ChangeLocalTagsAsync"/> without a local version tag reads and writes again when another
-        /// write to the file's local data gets in between
+        /// write to the file's local data gets in between: each lost attempt means another write went through, so this
+        /// many writers at once all get theirs in
         /// </summary>
-        private const int LocalTagChangeAttempts = 3;
+        private const int LocalTagChangeAttempts = 5;
 
         /// <summary>
         /// Adds <paramref name="add"/> to the file's local tags and takes <paramref name="remove"/> out, keeping the rest of
@@ -1918,7 +1919,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 List<Guid> oldTags = local?.Tags ?? [];
                 var tags = oldTags.Union(add).Except(remove).ToList();
-                if (tags.SequenceEqual(oldTags))
+                if (tags.ToHashSet().SetEquals(oldTags))
                 {
                     return (localVersionTag, UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
                 }
@@ -1937,8 +1938,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                     continue;
                 }
 
-                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
-                await PublishFileChangedAsync(file, updatedHeader, odinContext);
+                // Hard deleted since the write: nothing is left to tell anyone about
+                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext)
+                                    ?? throw new OdinClientException("No such file", OdinClientErrorCode.FileNotFound);
+                // Local data never leaves the identity, so a feed or a channel's members have nothing to receive
+                await PublishFileChangedAsync(file, updatedHeader, odinContext, ignoreFeedDistribution: true);
                 return (newVersionTag, UpdatedAfterOwnWrites(file, updatedHeader.FileMetadata.Updated, odinContext));
             }
         }

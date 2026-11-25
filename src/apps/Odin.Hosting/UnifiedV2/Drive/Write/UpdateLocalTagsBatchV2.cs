@@ -48,7 +48,8 @@ public class UpdateLocalTagsBatchRequestV2
         var add = TagsToAdd;
         var remove = TagsToRemove;
         OdinValidationUtils.AssertIsTrue(add.Count + remove.Count > 0, "addTags or removeTags must name a tag");
-        OdinValidationUtils.AssertIsTrue(add.Count <= LocalAppMetadata.MaxTagCount && remove.Count <= LocalAppMetadata.MaxTagCount,
+        OdinValidationUtils.AssertIsTrue(add.Distinct().Count() <= LocalAppMetadata.MaxTagCount &&
+                                         remove.Distinct().Count() <= LocalAppMetadata.MaxTagCount,
             $"addTags and removeTags hold at most {LocalAppMetadata.MaxTagCount} tags each");
         OdinValidationUtils.AssertIsTrue(add.Concat(remove).All(t => t != Guid.Empty), "a tag may not be empty");
         OdinValidationUtils.AssertIsTrue(!add.Intersect(remove).Any(), "a tag may not be both added and removed");

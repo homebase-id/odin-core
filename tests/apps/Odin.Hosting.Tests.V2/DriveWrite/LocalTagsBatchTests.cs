@@ -136,10 +136,9 @@ public class LocalTagsBatchTests : V2Fixture
             caller.Drives.Writer.UpdateLocalTagsBatch(spec.TargetDrive.Alias, Batch([tag], [], (file.FileId, null)))));
 
         Assert.That(responses.Select(r => r.StatusCode), Is.All.EqualTo(HttpStatusCode.OK), responses.FirstOrDefault(r => r.Error != null)?.Error?.Content);
-        var added = tags.Where((_, i) => responses[i].Content!.Results.Single().ErrorCode == null).ToList();
-        Assert.That(added, Is.Not.Empty);
-        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, file), Is.EquivalentTo(added),
-            "every change that answered success is in the file's tags, and no other");
+        Assert.That(responses.Select(r => r.Content!.Results.Single().ErrorCode), Is.All.Null,
+            "a change without a local version tag is read and written again until it gets in");
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, file), Is.EquivalentTo(tags), "no change lost another's tag");
     }
 
     [Test]
