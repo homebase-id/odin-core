@@ -1874,18 +1874,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             var newVersionTag = DriveFileUtility.CreateVersionTag();
-
-            var mergedMetadata = new LocalAppMetadata
-            {
-                Iv = header.FileMetadata.LocalAppData?.Iv,
-                VersionTag = targetVersionTag,
-                Content = header.FileMetadata.LocalAppData?.Content,
-                Tags = newTags,
-                ReadTime = header.FileMetadata.LocalAppData?.ReadTime,
-                LocalReactions = header.FileMetadata.LocalAppData?.LocalReactions,
-            };
-
-            await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata, newVersionTag);
+            await longTermStorageManager.SaveLocalMetadataTagsAsync(file,
+                WithLocalTags(header.FileMetadata.LocalAppData, targetVersionTag, newTags), newVersionTag);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
             await PublishFileChangedAsync(file, updatedHeader, odinContext);
@@ -1895,6 +1885,76 @@ namespace Odin.Services.Drives.FileSystem.Base
                 NewLocalVersionTag = newVersionTag
             };
         }
+
+        /// <summary>
+        /// How often <see cref="ChangeLocalTagsAsync"/> without a local version tag reads and writes again when another
+        /// write to the file's local data gets in between
+        /// </summary>
+        private const int LocalTagChangeAttempts = 3;
+
+        /// <summary>
+        /// Adds <paramref name="add"/> to the file's local tags and takes <paramref name="remove"/> out, keeping the rest of
+        /// its local data.  With <paramref name="expectedLocalVersionTag"/> the change is made only at that local version
+        /// (Guid.Empty for a file whose local data was never written), else versionTagMismatch; without it, on top of
+        /// the tags the file has, read and written again when another local write gets in between.  A change that leaves the
+        /// tags as they are writes nothing: the local version tag and modified stay.  Any file state, as
+        /// <see cref="UpdateLocalMetadataTags"/>: local tags outlive a soft delete.  A file missing or hidden from the caller
+        /// is fileNotFound, as a query would leave it out.
+        /// </summary>
+        public async Task<(Guid LocalVersionTag, UnixTimeUtc Updated)> ChangeLocalTagsAsync(InternalDriveFileId file,
+            Guid? expectedLocalVersionTag, IReadOnlyCollection<Guid> add, IReadOnlyCollection<Guid> remove, IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+
+            for (var attempt = 1;; attempt++)
+            {
+                var header = await GetServerFileHeaderForWriting(file, odinContext, aclDeniedAsMissing: true)
+                             ?? throw new OdinClientException("No such file", OdinClientErrorCode.FileNotFound);
+                var local = header.FileMetadata.LocalAppData;
+                var localVersionTag = local?.VersionTag ?? Guid.Empty;
+                if (expectedLocalVersionTag.HasValue && expectedLocalVersionTag != localVersionTag)
+                {
+                    throw new OdinClientException($"Mismatching version tag {expectedLocalVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+                }
+
+                var tags = (local?.Tags ?? []).Union(add).Except(remove).ToList();
+                if (tags.SequenceEqual(local?.Tags ?? []))
+                {
+                    return (localVersionTag, UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
+                }
+
+                OdinValidationUtils.AssertIsTrue(tags.Count <= LocalAppMetadata.MaxTagCount,
+                    $"max local tags is {LocalAppMetadata.MaxTagCount}");
+
+                var newVersionTag = DriveFileUtility.CreateVersionTag();
+                try
+                {
+                    await longTermStorageManager.SaveLocalMetadataTagsAsync(file, WithLocalTags(local, localVersionTag, tags), newVersionTag);
+                }
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch &&
+                                                    !expectedLocalVersionTag.HasValue && attempt < LocalTagChangeAttempts)
+                {
+                    continue;
+                }
+
+                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+                await PublishFileChangedAsync(file, updatedHeader, odinContext);
+                return (newVersionTag, UpdatedAfterOwnWrites(file, updatedHeader.FileMetadata.Updated, odinContext));
+            }
+        }
+
+        /// <summary>
+        /// <paramref name="local"/> with <paramref name="tags"/> as its tags, to be written at <paramref name="versionTag"/>
+        /// </summary>
+        private static LocalAppMetadata WithLocalTags(LocalAppMetadata local, Guid versionTag, List<Guid> tags) => new()
+        {
+            Iv = local?.Iv,
+            VersionTag = versionTag,
+            Content = local?.Content,
+            Tags = tags,
+            ReadTime = local?.ReadTime,
+            LocalReactions = local?.LocalReactions,
+        };
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(InternalDriveFileId file, Guid targetVersionTag,
             byte[] initVector,
