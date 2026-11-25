@@ -20,7 +20,9 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 /// <remarks>
 /// A token that is no live subscriber's fails, on any route: 401 means only that.  A live one counts only on an action
 /// marked <see cref="PeerDirectReadAttribute"/>, for a drive it reads; anywhere else its caller is anonymous, so it gains
-/// nothing there.  On a public drive the file reads skip the drive's grant, which is why the drive is asked here.
+/// nothing there.  The read rule asks its context for the drive's Read on a public drive too (it reads no public drive as
+/// public, <see cref="PermissionContext.ReadsPublicDrives"/>); asking the drive here is what answers it there as anyone
+/// anonymous is answered, rather than refusing it.
 /// </remarks>
 public class PeerSubscriberAuthPathHandler : IAuthPathHandler
 {
