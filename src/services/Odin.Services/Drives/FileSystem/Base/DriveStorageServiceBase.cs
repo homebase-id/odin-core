@@ -330,13 +330,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
-            // Every caller passes a header it read: a file gone since was hard-deleted (a purge, the expiry job), and
-            // writing the header as a new file would bring it back, payloads whose bytes are gone included (#1963)
-            if (!await FileExists(targetFile, odinContext))
-            {
-                throw new OdinClientException($"No such file {targetFile.FileId}", OdinClientErrorCode.FileNotFound);
-            }
-
             var metadata = header.FileMetadata;
 
             //TODO: need to encrypt the metadata parts
@@ -347,7 +340,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+            // Every caller passes a header it read: a file gone since was hard-deleted (a purge, the expiry job) or has
+            // expired, and writing the header as a new file would bring it back, payloads whose bytes are gone (#1963)
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext) ??
+                                 throw new OdinClientException($"No such file {targetFile.FileId}", OdinClientErrorCode.FileNotFound);
             metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;

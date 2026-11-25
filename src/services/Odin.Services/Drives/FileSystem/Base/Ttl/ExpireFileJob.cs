@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Serialization;
@@ -99,7 +100,15 @@ public class ExpireFileJob(
                 return JobExecutionResult.Defer(DateTimeOffset.FromUnixTimeMilliseconds(dueAt.Value));
             }
 
-            await fs.Storage.SoftDeleteLongTermFile(file, odinContext, null);
+            try
+            {
+                await fs.Storage.SoftDeleteLongTermFile(file, odinContext, null);
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.FileNotFound)
+            {
+                // Hard-deleted since it was read (a purge, the reap): gone, as a file missing when read is
+                return JobExecutionResult.Success();
+            }
 
             logger.LogInformation("{job} soft deleted expired file {file} on drive {drive} for {tenant}",
                 nameof(ExpireFileJob), Data.FileId, Data.DriveId, tenant);
