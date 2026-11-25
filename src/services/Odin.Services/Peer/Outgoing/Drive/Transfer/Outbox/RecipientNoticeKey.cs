@@ -1,3 +1,4 @@
+using System;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Drives;
@@ -15,6 +16,7 @@ public static class RecipientNoticeKey
     public static InternalDriveFileId For(OutboxItemType type, OdinId recipient) => new()
     {
         DriveId = SystemDriveConstants.TransientTempDrive.Alias,
-        FileId = GuidId.FromString($"{(int)type}:{recipient.DomainName}")
+        // Stored, so it must stay the same across releases: an explicit hash, not GuidId.FromString (not for static keys)
+        FileId = new Guid(ByteArrayUtil.ReduceSHA256Hash($"{(int)type}:{recipient.DomainName}".ToUtf8ByteArray()))
     };
 }

@@ -384,6 +384,7 @@ namespace Odin.Services.Membership.Connections
                 },
             };
 
+            await peerOutbox.RemoveIntroductionNoticesAsync(recipient);
             await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 

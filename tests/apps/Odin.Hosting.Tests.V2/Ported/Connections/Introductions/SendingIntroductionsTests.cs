@@ -371,10 +371,15 @@ public class SendingIntroductionsTests : V2Fixture
         // Note; I have to use a delay because the outbox will never be
         // empty and, currently, there is no way to do an exclusion test on the outbox
         // await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        var samIntroductionKey = RecipientNoticeKey.For(OutboxItemType.SendIntroduction, sam.Identity).FileId;
+        var queuedForSam = await frodo.V1.Drive.GetOutboxItem(SystemDriveConstants.TransientTempDrive,
+            samIntroductionKey, sam.Identity);
+        Assert.That(queuedForSam.Content, Is.Not.Null, "the introduction to sam is queued under this key");
+
         await frodo.Sync.DrainOutboxAsync();
 
         var samOutboxItem = await frodo.V1.Drive.GetOutboxItem(SystemDriveConstants.TransientTempDrive,
-            RecipientNoticeKey.For(OutboxItemType.SendIntroduction, sam.Identity).FileId, sam.Identity);
+            samIntroductionKey, sam.Identity);
         Assert.That(samOutboxItem.Content, Is.Null,
             "sam refused the introduction (403), which is final: the outbox item is dropped, not retried");
 
