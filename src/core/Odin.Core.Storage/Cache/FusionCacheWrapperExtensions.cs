@@ -86,7 +86,8 @@ public static class FusionCacheWrapperExtensions
                 })
                 .WithBackplane(sp =>
                 {
-                    var multiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
+                    // Lent, not given: the backplane disposes its multiplexer, and the container owns this one (#2069)
+                    var multiplexer = BorrowedConnectionMultiplexer.Lend(sp.GetRequiredService<IConnectionMultiplexer>());
                     return new RedisBackplane(new RedisBackplaneOptions
                     {
                         ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer)

@@ -1137,8 +1137,18 @@ node's service provider, and StackExchange.Redis throws while closing the connec
 **Not caused by the PR:** #1996 changes unencrypted feed distribution only (`FeedDriveDistributionRouter`,
 `SendUnencryptedFeedFileOutboxWorkerAsync`, a feed ACL test); nothing in the cache, Redis, or this fixture.
 
-**Cause, a hypothesis:** a race inside the Redis client while a multiplexer is disposed with its own connect or
-background tasks still settling. Undiagnosed; the failed job was re-run.
+**Cause, confirmed 2026-11-25 (#2069):** a double dispose of the node's Redis connection, a product bug, not the
+test's. FusionCache's `RedisBackplane` disposes the multiplexer it is handed when it unsubscribes, on a thread-pool
+thread (`RedisBackplane.Disconnect`, `RedisBackplane.cs:88` in FusionCache 2.1.0), while the container disposes the
+same `IConnectionMultiplexer` singleton; the two closes race inside StackExchange.Redis. Seen with a proxy counting the
+multiplexer's closes: `Dispose` from the backplane plus `DisposeAsync` from the container. `RedisCache` (the L2) does not
+dispose it. Production wires Redis the same way, so it closed the connection twice at shutdown there too.
+
+**Fixed** on branch `flaky-redis-teardown-2069`: the backplane gets the shared connection through
+`BorrowedConnectionMultiplexer.Lend` (`FusionCacheWrapperExtensions.AddCoreCacheServices`), which passes every call on
+except the close and dispose ones, so the container closes it once. `SharedRedisConnectionDisposeTests` checks that, and
+fails without the fix (two closes). Both classes then passed 12 of 12 runs in a row locally. Remove this entry if CI
+stays green on it for a few weeks.
 
 **Again 2026-11-03:** `ubuntu/postgres/release` on PR #2059 (`selective-share-shares`) commit `b3e13951b`, run
 41618641608, the same `TearDown` NullReferenceException. `ubuntu/sqlite/release` and `windows/sqlite/debug` passed on
