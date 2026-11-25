@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Permissions;
@@ -196,7 +197,7 @@ public class AutoAcceptTests : V2Fixture
         await frodo.Sync.DrainOutboxAsync();
 
         var samOutboxItem = await frodo.V1.Drive.GetOutboxItem(SystemDriveConstants.TransientTempDrive,
-            sam.Identity.ToHashId(), sam.Identity);
+            RecipientNoticeKey.For(OutboxItemType.SendIntroduction, sam.Identity).FileId, sam.Identity);
         Assert.That(samOutboxItem.Content, Is.Null,
             "sam refused the introduction (403), which is final: the outbox item is dropped, not retried");
 
