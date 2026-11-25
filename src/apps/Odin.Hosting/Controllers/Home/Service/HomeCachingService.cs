@@ -9,7 +9,7 @@ using MediatR;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -30,6 +30,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private readonly OdinConfiguration _config;
         private readonly IDriveManager _driveManager;
+        private readonly TenantContext _tenantContext;
 
         public const int PostFileType = 101;
         public const int ChannelFileType = 103;
@@ -41,9 +42,11 @@ namespace Odin.Hosting.Controllers.Home.Service
             IDriveManager driveManager,
             OdinConfiguration config,
             FileSystemHttpRequestResolver fsResolver,
-            ITenantLevel1Cache<HomeCachingService> cache)
+            ITenantLevel1Cache<HomeCachingService> cache,
+            TenantContext tenantContext)
         {
             _driveManager = driveManager;
+            _tenantContext = tenantContext;
             _config = config;
             _fsResolver = fsResolver;
             _cache = cache;
@@ -57,26 +60,36 @@ namespace Odin.Hosting.Controllers.Home.Service
             var fileSystemType = _fsResolver.GetFileSystemType();
             var fileSystem = _fsResolver.ResolveFileSystem(fileSystemType);
 
-            // A result is built with the caller's own permissions, so only one every caller would get
-            // alike may be shared: an anonymous one. Anyone else gets their own, uncached.
-            if (odinContext.Caller.SecurityLevel != SecurityGroupType.Anonymous)
-            {
-                return await fileSystem.Query.GetBatchCollection(request.Queries, odinContext);
-            }
-
+            // One result is shared by every caller, so it is built as an anonymous visitor whoever asked: it can
+            // never hold more than a visitor with no token may read
             var key = GetCacheKey(request, fileSystemType, tenantOdinId);
-            var result = await _cache.GetOrSetAsync(key, _ =>
+            var result = await _cache.GetOrSetAsync(key, async _ =>
                 {
 #if DEBUG
                     Interlocked.Increment(ref CacheMiss);
 #endif
-                    return fileSystem.Query.GetBatchCollection(request.Queries, odinContext);
+                    var anonymousContext = await CreateAnonymousContextAsync(odinContext);
+                    return await fileSystem.Query.GetBatchCollection(request.Queries, anonymousContext);
                 },
                 TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds),
                 EntrySize.Large,
                 CacheTags);
 
             return result!;
+        }
+
+        /// <summary>
+        /// The context a visitor with no token gets on this tenant, as the YouAuth scheme builds it
+        /// </summary>
+        private async Task<IOdinContext> CreateAnonymousContextAsync(IOdinContext odinContext)
+        {
+            var anonymousContext = new OdinContext { Tenant = odinContext.Tenant };
+            anonymousContext.SetApiVersion(odinContext.ApiVersion);
+
+            // Read with no caller, so archived drives are left out, as for the YouAuth scheme's anonymous visitor
+            var anonymousDrives = await _driveManager.GetAnonymousDrivesAsync(PageOptions.All, anonymousContext);
+            AnonymousPermissions.Apply(anonymousContext, anonymousDrives.Results, _tenantContext.Settings);
+            return anonymousContext;
         }
 
         //

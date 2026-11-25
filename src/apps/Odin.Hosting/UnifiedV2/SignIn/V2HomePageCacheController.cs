@@ -11,9 +11,8 @@ namespace Odin.Hosting.UnifiedV2.SignIn;
 /// with V1's guest scheme.
 /// </summary>
 /// <remarks>
-/// <b>Do not move this to the unified scheme.</b> <see cref="HomeCachingService"/> keeps one result per tenant and query
-/// name, for every caller. The guest scheme never reads the owner's cookie; the unified one reads it first, so the owner
-/// opening their home page would fill that cache with what the owner can see, for every anonymous visitor to read.
+/// <see cref="HomeCachingService"/> keeps one result per tenant and query for every caller, and builds it as an anonymous
+/// visitor whoever asked, so the scheme decides only who may invalidate it, never what it holds.
 /// </remarks>
 [Route(UnifiedApiRouteConstants.HomeCacheable)]
 [ApiExplorerSettings(GroupName = "v2")]

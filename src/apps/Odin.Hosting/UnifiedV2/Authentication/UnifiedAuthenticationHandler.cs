@@ -23,11 +23,9 @@ using Odin.Hosting.UnifiedV2.Authentication.Handlers;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
-using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Hosting.UnifiedV2.Authentication
@@ -270,48 +268,8 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                 //     OdinClientErrorCode.NotInitialized);
             }
 
-            var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
-            {
-                DriveId = d.Id,
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = d.TargetDriveInfo,
-                    Permission = DrivePermission.Read
-                }
-            }).ToList();
-
             var tenantContext = httpContext.RequestServices.GetRequiredService<TenantContext>();
-            var anonPerms = new List<int>();
-
-            if (tenantContext.Settings.AnonymousVisitorsCanViewConnections)
-            {
-                anonPerms.Add(PermissionKeys.ReadConnections);
-            }
-
-            if (tenantContext.Settings.AnonymousVisitorsCanViewWhoIFollow)
-            {
-                anonPerms.Add(PermissionKeys.ReadWhoIFollow);
-            }
-
-            anonPerms.Add(PermissionKeys.UseTransitRead);
-
-            var permissionGroupMap = new Dictionary<string, PermissionGroup>
-            {
-                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },
-            };
-
-            odinContext.Caller = new CallerContext(
-                odinId: null,
-                securityLevel: SecurityGroupType.Anonymous,
-                masterKey: null
-            );
-
-            odinContext.SetPermissionContext(
-                new PermissionContext(
-                    permissionGroupMap,
-                    sharedSecretKey: null,
-                    readsPublicDrives: true
-                ));
+            AnonymousPermissions.Apply(odinContext, anonymousDrives.Results, tenantContext.Settings);
 
             var claims = new[]
             {
