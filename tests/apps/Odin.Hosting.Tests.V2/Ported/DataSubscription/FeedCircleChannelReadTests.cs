@@ -10,6 +10,7 @@ using Odin.Core.Exceptions;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Configuration.VersionUpgrade.Version21tov22;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -130,6 +131,28 @@ public class FeedCircleChannelReadTests : V2Fixture
         Assert.That(await GrantedDrivesAsync(scope), Does.Contain(WellKnownAppDrives.FeedDrive), "the rest is kept");
         Assert.That(await network.CanDecryptDriveAsync(sam.Identity, channel.Alias), Is.True,
             "Sam's grant should have been re-minted with the channel drive's key");
+        Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
+    }
+
+    [Test]
+    public async Task TheUpgrade_LeavesAGrantTheOwnerSet()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (scope, ctx) = await MigrationContextAsync(frodo);
+        var channel = await CreateFeedChannelDriveAsync(frodo);
+
+        // The owner narrowed the channel to Write for the Feed circle: the upgrade must not widen it back.
+        var definitions = scope.Resolve<CircleDefinitionService>();
+        var def = await definitions.GetCircleAsync(Feed);
+        def!.DriveGrants.Single(g => g.PermissionedDrive.Drive == channel).PermissionedDrive.Permission = DrivePermission.Write;
+        await scope.Resolve<CircleNetworkService>().UpdateCircleDefinitionAsync(def, ctx);
+
+        var migration = scope.Resolve<V21ToV22VersionMigrationService>();
+        await migration.GrantFeedCircleReadOnChannelDrivesAsync(ctx, CancellationToken.None);
+
+        var after = await definitions.GetCircleAsync(Feed);
+        Assert.That(after!.DriveGrants.Single(g => g.PermissionedDrive.Drive == channel).PermissionedDrive.Permission,
+            Is.EqualTo(DrivePermission.Write));
         Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
     }
 

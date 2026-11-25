@@ -79,31 +79,36 @@ public class FeedCircleChannelReadGrants(
         }
     }
 
-    /// <summary>Grants the Feed circle Read on every channel drive it lacks it on; the v21 → v22 upgrade.</summary>
+    /// <summary>
+    /// Grants the Feed circle Read on every channel drive it has no grant on; the v21 → v22 upgrade.  One it has a grant
+    /// on is the owner's choice and is left as it is, and so is Public Posts, whose grant is the built-in one.
+    /// </summary>
     public async Task GrantReadOnAllChannelDrivesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await GrantReadAsync(await ChannelDrivesAsync(odinContext), odinContext);
     }
 
-    /// <summary>The channel drives the Feed circle lacks Read on; none when the identity has no Feed circle.</summary>
-    public async Task<List<TargetDrive>> ChannelDrivesMissingReadAsync(IOdinContext odinContext)
+    /// <summary>The channel drives the Feed circle has no grant on; none when the identity has no Feed circle.</summary>
+    public async Task<List<TargetDrive>> UngrantedChannelDrivesAsync(IOdinContext odinContext)
     {
         var def = await circleDefinitionService.GetCircleAsync(BuiltinCircles.FeedCircle.Id);
-        return def == null ? [] : Missing(def, await ChannelDrivesAsync(odinContext));
+        return def == null ? [] : Ungranted(def, await ChannelDrivesAsync(odinContext));
     }
 
     private async Task<List<TargetDrive>> ChannelDrivesAsync(IOdinContext odinContext)
     {
         var drives = await driveManager.GetDrivesAsync(SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
-        return drives.Results.Where(IsFeedChannelDrive).Select(d => d.TargetDriveInfo).ToList();
+        return drives.Results.Where(IsFeedChannelDrive).Select(d => d.TargetDriveInfo)
+            .Where(d => d != WellKnownAppDrives.PublicPostsChannelDrive).ToList();
     }
 
     private async Task GrantReadAsync(List<TargetDrive> drives, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        // A drive made before the Feed circle exists, as at provisioning, which then makes the circle with its grants.
+        // A drive made before the Feed circle exists, as Public Posts at provisioning, which then makes the circle with
+        // its built-in grants.
         var def = await circleDefinitionService.GetCircleAsync(BuiltinCircles.FeedCircle.Id);
         if (def == null)
         {
@@ -111,7 +116,7 @@ public class FeedCircleChannelReadGrants(
             return;
         }
 
-        var missing = Missing(def, drives);
+        var missing = Ungranted(def, drives);
         if (missing.Count == 0)
         {
             return;
@@ -119,29 +124,15 @@ public class FeedCircleChannelReadGrants(
 
         logger.LogInformation("Granting the Feed circle Read on {count} channel drive(s)", missing.Count);
 
-        // Read joins a grant the circle has on the drive already, else comes as one of its own.
-        var grants = def.DriveGrants?.ToList() ?? [];
-        foreach (var drive in missing)
+        def.DriveGrants = (def.DriveGrants ?? []).Concat(missing.Select(drive => new DriveGrantRequest
         {
-            var existing = grants.FirstOrDefault(g => g.PermissionedDrive.Drive == drive);
-            if (existing != null)
-            {
-                existing.PermissionedDrive.Permission |= DrivePermission.Read;
-                continue;
-            }
-
-            grants.Add(new DriveGrantRequest
-            {
-                PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read }
-            });
-        }
-
-        def.DriveGrants = grants;
+            PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read }
+        })).ToList();
 
         // Persists the definition and re-mints every member's grant, storage keys included.
         await circleNetworkService.UpdateCircleDefinitionAsync(def, odinContext);
     }
 
-    private static List<TargetDrive> Missing(CircleDefinition def, List<TargetDrive> drives) =>
-        drives.Where(drive => !def.GrantsRead(drive)).ToList();
+    private static List<TargetDrive> Ungranted(CircleDefinition def, List<TargetDrive> drives) =>
+        drives.Where(drive => !(def.DriveGrants ?? []).Any(g => g.PermissionedDrive.Drive == drive)).ToList();
 }

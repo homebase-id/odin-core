@@ -12,8 +12,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
     /// or collaborative channel's encrypted posts reach its members again (#1956, <see cref="FeedCircleChannelReadGrants"/>).
     /// </summary>
     /// <remarks>
-    /// A channel drive made from now on is granted when it is created; this covers the ones made before.  The grant is
-    /// added to the circle as the owner has it, not reset to the built-in definition, and every member is re-minted.
+    /// A channel drive made from now on is granted when it is created; this covers the ones made before that the Feed
+    /// circle has no grant on.  The grant is added to the circle as the owner has it, not reset to the built-in
+    /// definition, and every member is re-minted.
     /// </remarks>
     public class V21ToV22VersionMigrationService(FeedCircleChannelReadGrants channelReadGrants)
     {
@@ -26,11 +27,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var missing = await channelReadGrants.ChannelDrivesMissingReadAsync(odinContext);
+            var missing = await channelReadGrants.UngrantedChannelDrivesAsync(odinContext);
             if (missing.Count > 0)
             {
                 throw new OdinSystemException(
-                    $"The Feed circle lacks Read on channel drive(s) {string.Join(", ", missing.Select(d => d.Alias))}");
+                    $"The Feed circle has no grant on channel drive(s) {string.Join(", ", missing.Select(d => d.Alias))}");
             }
         }
     }
