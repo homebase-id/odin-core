@@ -305,6 +305,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             newMetadata.VersionTag = stored.FileMetadata.VersionTag;
             var versionTag = DriveFileUtility.CreateVersionTag();
             serverMetadata.SendersWrite = SentFileChanges.SendersWriteOf(sender, sendersVersionTag, versionTag);
+            serverMetadata.AccessControlList = IncomingFileAcl.ForChange(serverMetadata.FileSystemType,
+                drive.IsCollaborationDrive(), serverMetadata.AccessControlList, stored, sender);
 
             //note: we also update the key header because it might have been changed by the sender
             VersionTagWritten = versionTag;

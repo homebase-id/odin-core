@@ -232,7 +232,7 @@ namespace Odin.Services.Authorization.Acl
         }
 
         /// <summary>Whether <paramref name="level"/> reaches a file's <paramref name="required"/> group, on the ladder.</summary>
-        private static bool ReachesGroup(SecurityGroupType required, SecurityGroupType level) =>
+        internal static bool ReachesGroup(SecurityGroupType required, SecurityGroupType level) =>
             // System is a caller level, never a file's ACL; refuse it rather than let its value (1) admit everyone.
             required != SecurityGroupType.System && (int)level >= (int)required;
     }

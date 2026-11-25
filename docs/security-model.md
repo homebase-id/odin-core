@@ -160,7 +160,7 @@ Later:
 | `IsReadonly` | documented "owner only, in owner auth". **No write path reads it** (grep) **(V)**, so it's not enforced |
 | `IsArchived` | non-owner callers are refused (`AssertDriveIsNotArchived`) |
 | `WriteOnlyKeyPair` | per-drive ECC-384 key: seal a deposit without being able to read; private half under the storage key. Its public half is served to any identity, with whether the asker may write (`CallerMayWrite`); a deposit still needs Write |
-| Attribute `IsCollaborativeChannel` | marks the drive as a **community channel** (`IsCollaborationDrive`): members may change each other's posts, and posts keep the sender's ACL ([file-access.md](file-access.md#drives-marked-as-a-community-channel)) |
+| Attribute `IsCollaborativeChannel` | marks the drive as a **community channel** (`IsCollaborationDrive`): members may change each other's posts, and posts keep the sender's ACL, and a member's change keeps the post's, except its original sender's to one no wider ([file-access.md](file-access.md#drives-marked-as-a-community-channel)) |
 
 - System drives (`BuiltinDrives.Protected`) can't be deleted **(V)**.
 - **A zero-knowledge drive allows neither anonymous reads, the CDN nor subscriptions,** and may not be marked as a
@@ -319,7 +319,8 @@ The full description, today's and Private Share's, is [file-access.md](file-acce
   be one of the listed identities, and still meet the security group, so a named identity that is unconnected or
   unreviewed does not pass a `Connected` ACL **(V)**. Queries apply the same rule in SQL (`aclAnyOf`) **(V)**.
 - `OdinIdList` is stored canonical and de-duplicated by `AccessControlList.Validate`, and is cleared before a file is
-  sent to a peer, so a recipient never learns who else was named **(V)**. `System` (1) is a caller level, never a file
+  sent to a peer, so a recipient never learns who else was named; an ACL that named only identities goes as `Owner`,
+  so clearing them never widens it (`RedactedForRecipient`) **(V)**. `System` (1) is a caller level, never a file
   ACL **(V)**.
 - Owner and `System` callers skip the ACL **(V)**.
 - Reading a file needs **both** drive Read and the ACL. Past drive Read, one rule decides whether the caller may see a stored
