@@ -1279,3 +1279,21 @@ its close (the broadcast removes sockets with no context; not changed by that br
   The `App` and `Guest` cases of the same test passed in that job, the `postgres/release` and `windows/sqlite/debug`
   jobs of the same commit passed, and all three cases pass locally on the branch. The branch only changes feed
   distribution for channel drives, which this test does not touch. Undiagnosed.
+
+---
+
+## `Odin.Services.Tests.PublicPage.HomebaseSsrServiceTests.MarkdownCaption_ShowsAsEncodedPlainTextWithLineBreaks`
+
+**Where:** local only, seen once (macOS, SQLite, Debug, 2026-11-24), with the machine under heavy load from a
+full `Odin.Hosting.Tests.V2` run in another worktree.
+
+**Symptom:** the caption came back with its Markdown unstripped:
+`<h1># **Hi** &lt;script&gt;x&lt;/script&gt;<br/>- two</h1>` where the test expects `<h1>Hi …<br/>two</h1>`, so
+`MarkdownText.ToPlain` returned its input as it was.
+
+**Evidence it is not the change in flight** (branch `ssr-encode-interpolated-values`, which doesn't touch
+`MarkdownText`): it passed straight after, alone and twice in the full `FullyQualifiedName~PublicPage` set (102 tests)
+on the same tree, and on a clean tree (`git stash`).
+
+**Cause:** unknown. A guess, not verified: `MarkdownText` or the Markdown library initialises something shared lazily,
+and a parallel test saw it half-made.

@@ -376,8 +376,9 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         IOdinContext odinContext);
 
     /// <summary>
-    /// A new file's uniqueId must not belong to a file that isn't deleted. The database's unique index is the final
-    /// guard, for two uploads with the same uniqueId at once.
+    /// A new file's uniqueId must not belong to another file, a tombstone that kept it included
+    /// (<see cref="TombstoneOptions.KeepUniqueId"/>), so the upload is refused before its payloads are read. The
+    /// database's unique index is the final guard, for two uploads with the same uniqueId at once.
     /// </summary>
     private async Task AssertUniqueIdNotInUseAsync(Guid? uniqueId, IOdinContext odinContext)
     {
@@ -390,7 +391,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(Package.InternalFile.DriveId, uniqueId.Value,
             odinContext);
 
-        if (null != existingFile && existingFile.FileState != FileState.Deleted)
+        if (null != existingFile)
         {
             _logger.LogDebug(
                 $"File already exists with ClientUniqueId: [{uniqueId}] Existing fileId:{existingFile.FileId}");

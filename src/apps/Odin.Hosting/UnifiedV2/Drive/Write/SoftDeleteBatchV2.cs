@@ -4,6 +4,7 @@ using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Time;
+using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 
@@ -16,6 +17,12 @@ public class SoftDeleteBatchRequestV2
     /// none twice.
     /// </summary>
     public List<SoftDeleteFileV2> Files { get; init; }
+
+    /// <summary>
+    /// Optional. What each file's tombstone keeps beyond the default; see <see cref="TombstoneOptions"/>. A file already
+    /// deleted is left as it is.
+    /// </summary>
+    public TombstoneOptions Tombstone { get; init; }
 
     /// <summary>
     /// Recipients over all files of one batch, e.g. 100 messages to a 100-member group. A larger delete (1000

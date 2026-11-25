@@ -81,7 +81,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
                     fileId, string.Join(",", responses.Select(kv => $"{kv.Key}={kv.Value}")));
             }
 
-            var deleted = await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null, options?.VersionTag);
+            var deleted = await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null, options?.VersionTag, options?.Tombstone);
             result.Updated = deleted?.Updated;
             result.VersionUpdated = deleted?.VersionUpdated;
             result.LocalFileDeleted = deleted != null;
@@ -146,7 +146,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         /// client error only before anything is sent or written; after that, a client failure is in the result, beside
         /// who was told.
         /// </summary>
-        protected async Task<SoftDeleteResultV2> SoftDeleteFileAsync(InternalDriveFileId file, Guid? versionTag,
+        protected async Task<SoftDeleteResultV2> SoftDeleteFileAsync(InternalDriveFileId file, Guid? versionTag, TombstoneOptions tombstone,
             List<OdinId> recipients, IReadOnlyDictionary<OdinId, byte[]> recipientTokens)
         {
             var storage = GetFileSystem().Storage;
@@ -175,7 +175,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 try
                 {
                     // Null is a failure the tombstone write logged and swallowed; like hard delete, it fails the request
-                    times = await storage.SoftDeleteLongTermFile(file, WebOdinContext, null, versionTag)
+                    times = await storage.SoftDeleteLongTermFile(file, WebOdinContext, null, versionTag, tombstone)
                             ?? throw new OdinSystemException($"Soft delete of {file} failed");
                 }
                 catch (OdinClientException e)

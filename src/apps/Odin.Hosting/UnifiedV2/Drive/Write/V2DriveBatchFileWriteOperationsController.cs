@@ -96,6 +96,39 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         }
 
         /// <summary>
+        /// Adds and removes local tags on up to <see cref="FileVersionTagBatchV2.MaxFiles"/> files.
+        /// </summary>
+        [HttpPost("update-local-tags-batch")]
+        [SwaggerOperation(
+            Summary = "Add and remove local tags on many files",
+            Description = "Adds addTags to and removes removeTags from each file's localAppData.tags, keeping its other " +
+                          "local tags and local data. With a file's localVersionTag the change is made only at that local " +
+                          "version; without it, on top of the tags the file has. Results are per file; see " +
+                          "UpdateLocalTagsResultV2.",
+            Tags = [SwaggerInfo.FileWrite]
+        )]
+        public async Task<UpdateLocalTagsBatchResultV2> UpdateLocalTagsBatch(Guid driveId,
+            [FromBody] UpdateLocalTagsBatchRequestV2 request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            request.AssertValid();
+
+            WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+
+            var (add, remove) = (request.TagsToAdd, request.TagsToRemove);
+            var storage = GetFileSystem().Storage;
+            var results = await PerFileAsync(driveId, request.Files,
+                async (file, f) =>
+                {
+                    var (localVersionTag, updated) = await storage.ChangeLocalTagsAsync(file, f.LocalVersionTag, add, remove, WebOdinContext);
+                    return new UpdateLocalTagsResultV2 { FileId = f.FileId, NewLocalVersionTag = localVersionTag, Updated = updated };
+                },
+                (fileId, errorCode) => new UpdateLocalTagsResultV2 { FileId = fileId, ErrorCode = errorCode });
+
+            return new UpdateLocalTagsBatchResultV2 { Results = results };
+        }
+
+        /// <summary>
         /// Replaces the sealed key headers of up to <see cref="FileVersionTagBatchV2.MaxFiles"/> deposits with the drive's
         /// own, for a caller holding the drive's key.
         /// </summary>
@@ -188,7 +221,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 request.Files.SelectMany(f => f.Recipients ?? []).ToOdinIdList(), GetFileSystemType(), WebOdinContext);
 
             var results = await PerFileAsync(driveId, request.Files,
-                (file, f) => SoftDeleteFileAsync(file, f.VersionTag, f.Recipients?.ToOdinIdList() ?? [], tokens),
+                (file, f) => SoftDeleteFileAsync(file, f.VersionTag, request.Tombstone, f.Recipients?.ToOdinIdList() ?? [], tokens),
                 (fileId, errorCode) => new SoftDeleteResultV2 { FileId = fileId, ErrorCode = errorCode });
 
             return new SoftDeleteBatchResultV2 { Results = results };

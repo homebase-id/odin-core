@@ -319,7 +319,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header,
             IOdinContext odinContext,
-            bool raiseEvent = false, bool ignoreFeedDistribution = false)
+            bool raiseEvent, bool changedByPeer)
         {
             if (!header.IsValid())
             {
@@ -353,6 +353,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
             metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
+            SetTransitUpdated(existingHeader.FileMetadata, metadata, changedByPeer);
             ApplyShortenOnlyTtl(existingHeader.FileMetadata, metadata);
 
             // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
@@ -362,7 +363,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //HACKed in for Feed drive -> Should become a data subscription check
             if (raiseEvent)
             {
-                await PublishFileChangedAsync(targetFile, header, odinContext, ignoreFeedDistribution: ignoreFeedDistribution);
+                await PublishFileChangedAsync(targetFile, header, odinContext);
             }
         }
 
@@ -386,6 +387,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //TODO: need to encrypt the metadata parts
             metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
             metadata.FileState = FileState.Active;
+            metadata.TransitUpdated = 0; // a new file has not been changed over transit (FileMetadata.TransitUpdated)
 
             await WriteFileHeaderInternal(header, odinContext, useThisVersionTag); // sets the header.FileMetadata.Created/Updated
 
@@ -900,9 +902,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <param name="expectedVersionTag">When set, the delete only goes ahead if the file is still at this
         /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
         /// conditional on the tag read here, which closes the gap between this check and the write.</param>
+        /// <param name="tombstoneOptions">What the tombstone keeps beyond the default; null is the default</param>
         /// <returns>The tombstone's times; null when the delete failed</returns>
         public async Task<WriteTimes> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
-            WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null)
+            WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null, TombstoneOptions tombstoneOptions = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
@@ -911,7 +914,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                                  ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
             AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
-            var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+            var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete, tombstoneOptions);
             return tombstone == null
                 ? null
                 : WriteTimes.Of(file, tombstone.FileMetadata, odinContext);
@@ -1095,7 +1098,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             InternalDriveFileId originFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete,
-            StagingArea sourceArea, Guid? useThisVersionTag = null)
+            StagingArea sourceArea, Guid? useThisVersionTag = null, bool changedByPeer = false)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
@@ -1121,7 +1124,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             ZkDriveFiles.AssertMayReplace(existingServerHeader, keyHeader, odinContext);
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
-            newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
+            SetTransitUpdated(existingServerHeader.FileMetadata, newMetadata, changedByPeer);
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
             newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created,
@@ -1476,11 +1479,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
+        /// <param name="changedByPeer">A peer's change: see <see cref="FileMetadata.TransitUpdated"/></param>
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            bool raiseEvent = false)
+            bool raiseEvent = false, bool changedByPeer = false)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
-            await UpdateActiveFileHeaderInternal(targetFile, header, odinContext, raiseEvent);
+            await UpdateActiveFileHeaderInternal(targetFile, header, odinContext, raiseEvent, changedByPeer);
         }
 
 
@@ -1489,7 +1493,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             BatchUpdateManifest manifest,
             IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete,
-            StagingArea sourceArea)
+            StagingArea sourceArea,
+            bool changedByPeer = false)
         {
             bool success = false;
 
@@ -1522,7 +1527,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
                     await OverwriteMetadataInternal(manifest.KeyHeader, header, manifest.FileMetadata,
-                        manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+                        manifest.ServerMetadata, odinContext, manifest.NewVersionTag, changedByPeer);
 
                     _logger.LogDebug("{method} -> markComplete {message}",
                         nameof(UpdateBatchAsync),
@@ -1858,10 +1863,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            OdinValidationUtils.AssertIsTrue(newTags.Count <= 50, "max local tags is 50");
+            OdinValidationUtils.AssertIsTrue(newTags.Count <= LocalAppMetadata.MaxTagCount,
+                $"max local tags is {LocalAppMetadata.MaxTagCount}");
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
@@ -1869,18 +1873,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             var newVersionTag = DriveFileUtility.CreateVersionTag();
-
-            var mergedMetadata = new LocalAppMetadata
-            {
-                Iv = header.FileMetadata.LocalAppData?.Iv,
-                VersionTag = targetVersionTag,
-                Content = header.FileMetadata.LocalAppData?.Content,
-                Tags = newTags,
-                ReadTime = header.FileMetadata.LocalAppData?.ReadTime,
-                LocalReactions = header.FileMetadata.LocalAppData?.LocalReactions,
-            };
-
-            await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata, newVersionTag);
+            await longTermStorageManager.SaveLocalMetadataTagsAsync(file,
+                WithLocalTags(header.FileMetadata.LocalAppData, targetVersionTag, newTags), newVersionTag);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
             await PublishFileChangedAsync(file, updatedHeader, odinContext);
@@ -1891,6 +1885,86 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
+        /// <summary>
+        /// How often <see cref="ChangeLocalTagsAsync"/> without a local version tag reads and writes again when another
+        /// write to the file's local data gets in between: each lost attempt means another write went through, so this
+        /// many writers at once all get theirs in
+        /// </summary>
+        private const int LocalTagChangeAttempts = 5;
+
+        /// <summary>
+        /// Adds <paramref name="add"/> to the file's local tags and takes <paramref name="remove"/> out, keeping the rest of
+        /// its local data.  With <paramref name="expectedLocalVersionTag"/> the change is made only at that local version
+        /// (Guid.Empty for a file whose local data was never written), else versionTagMismatch; without it, on top of
+        /// the tags the file has, read and written again when another local write gets in between.  A change that leaves the
+        /// tags as they are writes nothing: the local version tag and modified stay.  Any file state, as
+        /// <see cref="UpdateLocalMetadataTags"/>: local tags outlive a soft delete.  A file missing or hidden from the caller
+        /// is fileNotFound, as a query would leave it out.
+        /// </summary>
+        public async Task<(Guid LocalVersionTag, UnixTimeUtc Updated)> ChangeLocalTagsAsync(InternalDriveFileId file,
+            Guid? expectedLocalVersionTag, IReadOnlyCollection<Guid> add, IReadOnlyCollection<Guid> remove, IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+
+            for (var attempt = 1;; attempt++)
+            {
+                var header = await GetServerFileHeaderForWriting(file, odinContext, aclDeniedAsMissing: true)
+                             ?? throw new OdinClientException("No such file", OdinClientErrorCode.FileNotFound);
+                var local = header.FileMetadata.LocalAppData;
+                var localVersionTag = local?.VersionTag ?? Guid.Empty;
+                if (expectedLocalVersionTag.HasValue && expectedLocalVersionTag != localVersionTag)
+                {
+                    throw new OdinClientException($"Mismatching version tag {expectedLocalVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+                }
+
+                List<Guid> oldTags = local?.Tags ?? [];
+                var tags = oldTags.Union(add).Except(remove).ToList();
+                if (tags.ToHashSet().SetEquals(oldTags))
+                {
+                    return (localVersionTag, UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
+                }
+
+                OdinValidationUtils.AssertIsTrue(tags.Count <= LocalAppMetadata.MaxTagCount,
+                    $"max local tags is {LocalAppMetadata.MaxTagCount}");
+
+                var newVersionTag = DriveFileUtility.CreateVersionTag();
+                try
+                {
+                    await longTermStorageManager.SaveLocalMetadataTagsAsync(file, WithLocalTags(local, localVersionTag, tags), newVersionTag);
+                }
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch &&
+                                                    !expectedLocalVersionTag.HasValue && attempt < LocalTagChangeAttempts)
+                {
+                    // The winner's cache eviction runs after its commit (and on other nodes later still): a re-read at
+                    // once can find its old header and lose to no one
+                    await Task.Delay(TimeSpan.FromMilliseconds(10 * attempt));
+                    continue;
+                }
+
+                // Hard deleted, or hidden from the caller, since the write: answered as the first read would
+                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext, aclDeniedAsMissing: true)
+                                    ?? throw new OdinClientException("No such file", OdinClientErrorCode.FileNotFound);
+                // Local data never leaves the identity and is in no reaction preview: a feed, a channel's members or a
+                // comment's post have nothing to receive
+                await PublishFileChangedAsync(file, updatedHeader, odinContext, ignoreFeedDistribution: true,
+                    ignoreReactionPreviewCalculation: true);
+                return (newVersionTag, UpdatedAfterOwnWrites(file, updatedHeader.FileMetadata.Updated, odinContext));
+            }
+        }
+
+        /// <summary>
+        /// <paramref name="local"/> with <paramref name="tags"/> as its tags, to be written at <paramref name="versionTag"/>
+        /// </summary>
+        private static LocalAppMetadata WithLocalTags(LocalAppMetadata local, Guid versionTag, List<Guid> tags) => new()
+        {
+            Iv = local?.Iv,
+            VersionTag = versionTag,
+            Content = local?.Content,
+            Tags = tags,
+            ReadTime = local?.ReadTime,
+            LocalReactions = local?.LocalReactions,
+        };
+
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(InternalDriveFileId file, Guid targetVersionTag,
             byte[] initVector,
             string newContent,
@@ -1899,8 +1973,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
             // DriveFileUtility.AssertValidLocalAppContentLength(newContent); REPLACED WITH mergedMetadata.Validate();
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
@@ -1941,8 +2013,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
@@ -2000,8 +2070,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
@@ -2302,13 +2370,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// The tombstone a soft delete stores: the file's ids, group, types, dates and ACL, no content, payloads or unique
-        /// id.  Not what a Selective Share member gets for a file no longer shared with them, which holds less
+        /// The tombstone a soft delete stores: the file's ids, group, types, dates and ACL, no content or payloads, and no
+        /// unique id unless <paramref name="options"/> keeps it.  Not what a Selective Share member gets for a file no
+        /// longer shared with them, which holds less
         /// (<see cref="NoLongerSharedTombstoneOf"/>).  It keeps the key header, which opens nothing, for who may see it: on a
         /// zero-knowledge drive a client-locked one keeps it from callers without the drive's key (ZkDriveFiles.VisibleTo), and
         /// a Server Share drive's are relabelled with the rest when it is converted to one (ZkDriveConversionService).
         /// </summary>
-        private static ServerFileHeader TombstoneOf(ServerFileHeader existingHeader)
+        private static ServerFileHeader TombstoneOf(ServerFileHeader existingHeader, TombstoneOptions options)
         {
             var metadata = existingHeader.FileMetadata;
             var appData = existingHeader.FileMetadata.AppData;
@@ -2329,7 +2398,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                     AppData = new AppFileMetaData
                     {
-                        UniqueId = null,
+                        // A tombstone deleted again keeps an id it kept: it stays taken until a hard delete
+                        UniqueId = options?.KeepUniqueId == true || metadata.FileState == FileState.Deleted ? appData.UniqueId : null,
                         Tags = appData.Tags,
                         FileType = appData.FileType,
                         DataType = appData.DataType,
@@ -2399,12 +2469,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <returns>The tombstone written; null when the delete failed</returns>
         private async Task<ServerFileHeader> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
-            WriteSecondDatabaseRowBase markComplete)
+            WriteSecondDatabaseRowBase markComplete, TombstoneOptions options)
         {
             var file = existingHeader.FileMetadata.File;
             var payloadsToDelete = existingHeader.FileMetadata.Payloads ?? [];
 
-            var deletedServerFileHeader = TombstoneOf(existingHeader);
+            var deletedServerFileHeader = TombstoneOf(existingHeader, options);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
 
@@ -2826,9 +2896,18 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
         }
 
+        /// <summary>
+        /// Moves <see cref="FileMetadata.TransitUpdated"/> to now on a peer's change, and otherwise keeps the stored one,
+        /// whatever the new metadata holds
+        /// </summary>
+        private static void SetTransitUpdated(FileMetadata stored, FileMetadata newMetadata, bool changedByPeer)
+        {
+            newMetadata.TransitUpdated = changedByPeer ? UnixTimeUtc.Now() : stored.TransitUpdated;
+        }
+
         private async Task OverwriteMetadataInternal(KeyHeader newKeyHeader, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
-            IOdinContext odinContext, Guid? useThisVersionTag = null)
+            IOdinContext odinContext, Guid? useThisVersionTag = null, bool changedByPeer = false)
         {
             if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeader?.Iv))
             {
@@ -2855,6 +2934,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             }
+
+            SetTransitUpdated(existingServerHeader.FileMetadata, newMetadata, changedByPeer);
 
             ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 
