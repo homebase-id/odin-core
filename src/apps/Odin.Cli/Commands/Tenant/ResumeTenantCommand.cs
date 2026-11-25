@@ -23,18 +23,8 @@ public sealed class ResumeTenantCommand : AsyncCommand<ResumeTenantCommand.Setti
     {
         var httpClient = CliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
 
-        // Resuming is for temporary holds. Re-enabling a disabled tenant is a deliberate, separate step.
-        var tenant = await TenantStatusApi.GetTenantAsync(httpClient, settings.TenantDomain);
-        if (tenant.Status == TenantStatus.Disabled)
-        {
-            var how = TenantStatusRules.HasMovedAway(tenant.Status, tenant.DisabledReason)
-                ? "roll the move back with 'tenant unlock-moved' (agents/identity-move/README.md)"
-                : $"re-enable it with 'tenant set-status {settings.TenantDomain} active'";
-            throw new Exception(
-                $"Tenant {settings.TenantDomain} is {TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}; {how}");
-        }
-
-        var previous = await TenantStatusApi.SetStatusAsync(httpClient, settings.TenantDomain, TenantStatus.Active);
+        // Resuming is for temporary holds: the server refuses a disabled tenant, and says how to re-enable it
+        var previous = await TenantStatusApi.ResumeAsync(httpClient, settings.TenantDomain);
         TenantStatusApi.WriteChange(settings.TenantDomain, previous, TenantStatus.Active, null);
         return 0;
     }

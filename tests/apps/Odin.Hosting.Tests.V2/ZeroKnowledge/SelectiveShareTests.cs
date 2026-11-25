@@ -981,11 +981,13 @@ public partial class SelectiveShareTests : V2Fixture
             Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = Drive, Permission = permission } }]
         };
 
-        /// <summary>A circle of the app granting <paramref name="permission"/> on the drive, its key set.</summary>
-        public async Task<Guid> CircleWithKeyAsync(DrivePermission permission)
+        /// <summary>A circle of the app granting <paramref name="permission"/> on the drive, and <paramref name="otherDrives"/>, its key set.</summary>
+        public async Task<Guid> CircleWithKeyAsync(DrivePermission permission, params DriveGrantRequest[] otherDrives)
         {
             var circleId = Guid.NewGuid();
-            await Frodo.Admin.CreateCircle(circleId, "the app's circle", ReadWriteGrant(permission), App.AppId);
+            var grant = ReadWriteGrant(permission);
+            grant.Drives = [..grant.Drives!, ..otherDrives];
+            await Frodo.Admin.CreateCircle(circleId, "the app's circle", grant, App.AppId);
             await SetShareKeyAsync(circleId);
             return circleId;
         }

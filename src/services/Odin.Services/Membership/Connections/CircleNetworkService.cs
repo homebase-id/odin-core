@@ -88,11 +88,19 @@ namespace Odin.Services.Membership.Connections
 
             // the peer's token has the key store key in scope - convert any pending
             // deposited grants so they apply to this very request
-            if (await TryConvertDepositedGrantsAtPeerAuthAsync(icr, remoteIcrToken, odinContext))
+            if (await TryConvertDepositedGrantsAtPeerAuthAsync(icr, icr.PeerKeyStore!.PeerClientKey, remoteIcrToken, odinContext))
             {
                 // saving clears the in-memory grant collections (they live in sibling tables);
                 // re-fetch so this request's permission context sees the converted grants
                 icr = await this.GetIcrAsync(odinId, remoteIcrToken);
+                if (!IsLiveConnection(icr))
+                {
+                    // disconnected or blocked while the conversion waited its turn
+                    throw new OdinSecurityException("Invalid connection")
+                    {
+                        IsRemoteIcrIssue = true
+                    };
+                }
             }
 
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternalAsync(
@@ -161,7 +169,9 @@ namespace Odin.Services.Membership.Connections
         /// permission.  The server holds no key to those drives, so it hands out a client-locked file as stored, which
         /// only the member's share key opens; a file kept there unencrypted, and every file's metadata, it reads as the
         /// relay would.  On any other drive the server would decrypt files for the caller, so those stay behind the
-        /// relay.  Null when they aren't connected.
+        /// relay.  Null when they aren't connected.  Building it converts the connection's pending deposited grants
+        /// (a write to the connection), as peer auth does (<see cref="TryConvertDepositedGrantsAtPeerAuthAsync"/>), so
+        /// this very read sees the circle.
         /// </summary>
         public async Task<IOdinContext> TryCreatePeerSubscriberReadContextAsync(OdinId odinId, ClientAuthenticationToken authToken,
             ServerHalfOfClientKey accessReg, IOdinContext odinContext)
@@ -175,6 +185,17 @@ namespace Odin.Services.Membership.Connections
             // The token's own half of its key opens the shared secret: what proves it is the token the subscriber was given
             var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
             keyStoreKey?.Wipe();
+
+            // The token opens the connection's key store key too, so an app's deposit for this member converts here,
+            // as on the relay, and this very read sees the circle
+            if (await TryConvertDepositedGrantsAtPeerAuthAsync(icr, accessReg, authToken, odinContext))
+            {
+                icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+                if (!IsLiveConnection(icr))
+                {
+                    return null;
+                }
+            }
 
             var (connectionGrants, enabledCircles) = await ConnectionGrantsAsync(icr, applyAppCircleGrants: true, odinContext);
             var readable = connectionGrants.Values
@@ -1004,7 +1025,8 @@ namespace Odin.Services.Membership.Connections
                 // Blocker #3: the caller (an app) has no path to this connection's key store key
                 // and must not be handed one. It deposits the grant via the store's write-only
                 // public key instead; the deposit converts to a normal circle grant the next time
-                // the key store key is in scope (peer CAT auth or the owner's next grant touch).
+                // the key store key is in scope (peer CAT auth, the member's direct read with their
+                // peer-notification token, or the owner's next grant touch).
                 if (icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId))
                 {
                     return;
@@ -2205,9 +2227,15 @@ namespace Odin.Services.Membership.Connections
 
                     foreach (var odinId in members)
                     {
+                        // A member may hold no grant for the app, e.g. after an earlier reconcile failed or skipped
+                        // it (#2000), or have no connection record at all (a membership row it outlived): nothing to
+                        // take away then
                         var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                        icr.PeerKeyStore.AppGrants[appKey]?.Remove(circleId);
-                        await this.SaveIcrAsync(icr, odinContext);
+                        if (icr.PeerKeyStore?.AppGrants.TryGetValue(appKey, out var appCircleGrants) == true &&
+                            appCircleGrants?.Remove(circleId) == true)
+                        {
+                            await this.SaveIcrAsync(icr, odinContext);
+                        }
                     }
                 }
             }
@@ -2220,9 +2248,38 @@ namespace Odin.Services.Membership.Connections
                 foreach (var odinId in members)
                 {
                     var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
+
+                    // A membership row the connection record no longer backs has nothing to grant to. Skipped: the
+                    // save and this reconcile now roll back together (#2000), so failing here would block every
+                    // change of the app's circles, the V19ToV20 upgrade's included
+                    if (icr.PeerKeyStore == null)
                     {
-                        // refetch the record since the above method just writes to db
+                        logger.LogWarning("ReconcileAuthorizedCircles: {identity} is in circle {circleId} but has no " +
+                                          "connection record; skipping its app grant", odinId, circleId);
+                        continue;
+                    }
+
+                    // The same upgrades UpdateCircleDefinitionAsync runs before re-granting (#2000). Both write the
+                    // stored record, not this copy, so refetch after either: saving the stale copy below would put
+                    // the weak token back.  A token that can't be opened is left as it is, as the reconcile did
+                    // before it upgraded tokens, instead of failing every member and the app's update with it.  The
+                    // same key failures the key store key upgrade tolerates, and a malformed token's (ByteArrayUtil.Split
+                    // throws ArgumentException); deliberately no catch-all: a database or programming fault stays one
+                    // (and on Postgres would abort the shared transaction anyway)
+                    bool tokenUpgraded;
+                    try
+                    {
+                        tokenUpgraded = await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                    }
+                    catch (Exception e) when (e is OdinSecurityException or CryptographicException or ArgumentException)
+                    {
+                        logger.LogWarning(e, "ReconcileAuthorizedCircles: could not upgrade the token of {identity}; " +
+                                             "left as it is", odinId);
+                        tokenUpgraded = false;
+                    }
+
+                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext) || tokenUpgraded)
+                    {
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                     }
 
@@ -2241,11 +2298,40 @@ namespace Odin.Services.Membership.Connections
                         appCircleGrantDictionary = new Dictionary<Guid, AppCircleGrant>();
                     }
 
-                    var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
-                    var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId,
-                        new MasterKeyStorageKeySource(masterKey));
-                    appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
-                    keyStoreKey.Wipe();
+                    // A peer key the master key doesn't open is skipped like one that still needs its upgrade: the
+                    // save and this reconcile roll back together (#2000), so failing here would block every change of
+                    // the app's circles for one member's record, the V19ToV20 upgrade's included.  Its grant for the
+                    // circle goes: one minted under the app's previous grant must not outlive a narrowed one
+                    SensitiveByteArray keyStoreKey;
+                    try
+                    {
+                        keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                    }
+                    catch (Exception e) when (e is OdinSecurityException or CryptographicException)
+                    {
+                        var hadGrant = appCircleGrantDictionary.Remove(circleId);
+                        logger.LogWarning(e, "ReconcileAuthorizedCircles: the peer key of {identity} can't be opened; " +
+                                             "skipping its app grant for circle {circleId}{removed}", odinId, circleId,
+                            hadGrant ? ", and removing the one it held" : "");
+                        if (hadGrant)
+                        {
+                            icr.PeerKeyStore.AppGrants[appKey] = appCircleGrantDictionary;
+                            await this.SaveIcrAsync(icr, odinContext);
+                        }
+
+                        continue;
+                    }
+
+                    try
+                    {
+                        var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId,
+                            new MasterKeyStorageKeySource(masterKey));
+                        appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
+                    }
+                    finally
+                    {
+                        keyStoreKey.Wipe();
+                    }
 
                     icr.PeerKeyStore.AppGrants[appKey] = appCircleGrantDictionary;
                     await this.SaveIcrAsync(icr, odinContext);
@@ -3043,18 +3129,21 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Opportunistic deposit conversion at peer CAT auth — the peer's token reconstructs the
-        /// key store key, which is exactly the "next accessed with the key in scope" moment.
+        /// Opportunistic deposit conversion at peer auth — the peer's token, through
+        /// <paramref name="accessReg"/> (the connection's own peer key, or a peer-notification
+        /// subscriber token's, which wraps the same key store key), reconstructs the key store key,
+        /// which is exactly the "next accessed with the key in scope" moment.
         /// Never fails the auth path. Also fans out AppCircleGrants for the converted circles, via
         /// <see cref="NoStorageKeySource"/> since there is no master key here: any drive grant that
         /// doesn't need Read (the common case -- e.g. Chat's Write|React grants) comes out fully
         /// working; one that needs Read comes out keyless (permission recorded, no storage key) and
         /// self-heals the next time <see cref="ReconcileAuthorizedCircles"/> runs for that app (i.e.
         /// the owner changes that app's registration) — same deferred-key pattern already used for
-        /// introduction/auto-connect accepts.
+        /// introduction/auto-connect accepts. True when the caller should re-read the connection: this
+        /// call converted its deposits, or a parallel one did.
         /// </summary>
         private async Task<bool> TryConvertDepositedGrantsAtPeerAuthAsync(IdentityConnectionRegistration icr,
-            ClientAuthenticationToken remoteIcrToken, IOdinContext odinContext)
+            ServerHalfOfClientKey accessReg, ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
             if (!(icr.PeerKeyStore?.HasPendingDeposits ?? false))
             {
@@ -3063,32 +3152,62 @@ namespace Odin.Services.Membership.Connections
 
             try
             {
-                var (keyStoreKey, sharedSecret) = icr.PeerKeyStore.PeerClientKey.DecryptUsingClientAuthenticationToken(remoteIcrToken);
-                try
+                // One conversion per deposit: a device's parallel reads all arrive with it pending, and each would
+                // otherwise convert, save, reset the cache and publish.  The first converts; the rest find it done
+                // and only need the caller to re-read the connection.
+                var lockKey = NodeLockKey.Create($"{nameof(CircleNetworkService)}:deposits:{odinContext?.Tenant}:{icr.OdinId}");
+                await using (await nodeLock.LockAsync(lockKey))
                 {
-                    var convertedCircleIds = await ConvertDepositedGrantsAsync(icr.PeerKeyStore, keyStoreKey, odinContext);
-
-                    await FanOutAppCircleGrantsAsync(icr, keyStoreKey, convertedCircleIds, NoStorageKeySource.Instance, odinContext);
-
-                    await this.SaveIcrAsync(icr, odinContext);
-
-                    foreach (var convertedCircleId in convertedCircleIds)
+                    // Converted by a parallel call, or no longer a live connection: either way the caller re-reads,
+                    // and its own check refuses a connection that is gone
+                    var current = await GetIdentityConnectionRegistrationInternalAsync(icr.OdinId);
+                    if (current == null || !IsLiveConnection(current) || !current.PeerKeyStore.HasPendingDeposits)
                     {
-                        await mediator.Publish(new ConnectionChangedNotification
-                        {
-                            OdinContext = odinContext,
-                            OdinId = icr.OdinId,
-                            CircleId = convertedCircleId,
-                            Change = ConnectionChangeType.CircleGranted,
-                        });
+                        return true;
                     }
 
-                    return true;
-                }
-                finally
-                {
-                    keyStoreKey?.Wipe();
-                    sharedSecret?.Wipe();
+                    var (keyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
+                    try
+                    {
+                        var convertedCircleIds = await ConvertDepositedGrantsAsync(current.PeerKeyStore, keyStoreKey, odinContext);
+
+                        await FanOutAppCircleGrantsAsync(current, keyStoreKey, convertedCircleIds, NoStorageKeySource.Instance, odinContext);
+
+                        await this.SaveIcrAsync(current, odinContext);
+
+                        // Saved, so converted: what follows failing must not make the caller use the record from before
+                        try
+                        {
+                            // As on an enrollment: the member's contexts cached on other paths (the same token's
+                            // socket, say) were built without the converted circles.  The context this request is
+                            // building is not stored across the reset either (OdinContextCache, #1909); the next
+                            // request caches its own.
+                            await odinContextCache.ResetAsync();
+
+                            foreach (var convertedCircleId in convertedCircleIds)
+                            {
+                                await mediator.Publish(new ConnectionChangedNotification
+                                {
+                                    OdinContext = odinContext,
+                                    OdinId = current.OdinId,
+                                    CircleId = convertedCircleId,
+                                    Change = ConnectionChangeType.CircleGranted,
+                                });
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            logger.LogWarning(e, "Converted deposited grants for {odinId} but failed resetting caches or notifying",
+                                current.OdinId);
+                        }
+
+                        return true;
+                    }
+                    finally
+                    {
+                        keyStoreKey?.Wipe();
+                        sharedSecret?.Wipe();
+                    }
                 }
             }
             catch (Exception e)
@@ -3103,7 +3222,7 @@ namespace Odin.Services.Membership.Connections
         /// authorizes that circle (<see cref="RedactedAppRegistration.AuthorizedCircles"/>) and
         /// mints/updates that app's <see cref="AppCircleGrant"/> on <paramref name="icr"/>. Shared
         /// by <see cref="EnrollInCircleInternalAsync"/> (owner path, real keys via the master key) and
-        /// <see cref="TryConvertDepositedGrantsAtPeerAuthAsync"/> (peer-CAT path, no master key —
+        /// <see cref="TryConvertDepositedGrantsAtPeerAuthAsync"/> (peer paths, no master key —
         /// see that call site for the <see cref="NoStorageKeySource"/> tradeoff). Mutates
         /// <paramref name="icr"/> in place; caller saves.
         /// </summary>
@@ -3398,7 +3517,9 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        public async Task UpgradeTokenEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        /// <returns>True when the upgrade wrote the stored record (not <paramref name="identity"/>), so a caller about to
+        /// save its copy must refetch it first</returns>
+        public async Task<bool> UpgradeTokenEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
         {
             if (identity.TemporaryWeakClientAccessToken != null && identity.EncryptedClientAccessToken == null)
             {
@@ -3409,7 +3530,7 @@ namespace Odin.Services.Membership.Connections
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey(failIfNotFound: false);
                 if (rawIcrKey == null)
                 {
-                    return;
+                    return false;
                 }
 
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
@@ -3428,14 +3549,17 @@ namespace Odin.Services.Membership.Connections
                     logger.LogWarning(e,
                         "Not upgrading ICR Token Encryption for {id}: its temporary token was sealed to a key " +
                         "this identity no longer holds. Left as-is", identity.OdinId);
-                    return;
+                    return false;
                 }
 
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
 
                 await circleNetworkStorage.UpdateClientAccessTokenAsync(identity.OdinId, identity.Status, encryptedCat);
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>
