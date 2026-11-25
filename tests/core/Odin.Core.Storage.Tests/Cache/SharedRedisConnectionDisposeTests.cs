@@ -87,14 +87,7 @@ public class SharedRedisConnectionDisposeTests
                 _closes.Enqueue(method.Name);
             }
 
-            try
-            {
-                return method.Invoke(_inner, args);
-            }
-            catch (TargetInvocationException e) when (e.InnerException != null)
-            {
-                throw e.InnerException;
-            }
+            return method.Invoke(_inner, args);
         }
     }
 }
