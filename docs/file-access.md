@@ -57,7 +57,8 @@ its tombstone keeps none (`DriveStorageServiceBase.AssertNotDeletedForPayloads`)
 file id and global transit id, a member's peer token, and a member's own server, which passes the code on **(V, tested)**;
 the V1, app and guest routes go through the same lookup **(V)**. A file that isn't there is a 404 without it; one the
 caller may not read stays a 403 (steps 2 and 5). Asked for by unique id a deleted file is the plain 404: a tombstone
-keeps no unique id **(V, tested)**. Its header still reads, with `fileState: deleted` **(V, tested)**. A 410
+keeps no unique id **(V, tested)**, unless the delete asked to keep it (`TombstoneOptions.KeepUniqueId`); then the id
+finds the tombstone as its file id does (I, from the code). Its header still reads, with `fileState: deleted` **(V, tested)**. A 410
 (`payloadGone`) is something else: a payload the header names whose bytes are missing. A file deleted between the
 lookup and the read of its bytes is a plain 404 (I, from the code). Temporal-drive reads don't answer it yet.
 
