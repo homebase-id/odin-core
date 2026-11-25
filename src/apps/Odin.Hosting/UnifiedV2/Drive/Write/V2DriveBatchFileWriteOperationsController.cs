@@ -188,7 +188,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 request.Files.SelectMany(f => f.Recipients ?? []).ToOdinIdList(), GetFileSystemType(), WebOdinContext);
 
             var results = await PerFileAsync(driveId, request.Files,
-                (file, f) => SoftDeleteFileAsync(file, f.VersionTag, f.Recipients?.ToOdinIdList() ?? [], tokens),
+                (file, f) => SoftDeleteFileAsync(file, f.VersionTag, request.Tombstone, f.Recipients?.ToOdinIdList() ?? [], tokens),
                 (fileId, errorCode) => new SoftDeleteResultV2 { FileId = fileId, ErrorCode = errorCode });
 
             return new SoftDeleteBatchResultV2 { Results = results };

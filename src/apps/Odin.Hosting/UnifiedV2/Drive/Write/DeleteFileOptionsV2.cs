@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Services.Drives;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Write;
 
@@ -11,4 +12,9 @@ public class DeleteFileOptionsV2  {
     /// VersionTagMismatch, and nothing is deleted or sent to recipients.
     /// </summary>
     public Guid? VersionTag { get; init; }
+
+    /// <summary>
+    /// Optional. What the tombstone keeps beyond the default; see <see cref="TombstoneOptions"/>.
+    /// </summary>
+    public TombstoneOptions Tombstone { get; init; }
 }
