@@ -242,7 +242,18 @@ public static class AppFileUploads
     /// An unencrypted metadata-only file (fileType 100) holding <paramref name="content"/>, uploaded by the owner
     /// </summary>
     public static async Task<CreateFileResult> SeedTextFileAsync(OwnerSession owner, TargetDrive drive, string content,
-        AccessControlList? acl = null, long? ttl = null)
+        AccessControlList? acl = null, long? ttl = null, Guid? uniqueId = null)
+    {
+        var upload = await TryCreateTextFileAsync(owner, drive, content, acl, ttl, uniqueId);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode} {upload.Error?.Content}");
+        return upload.Content!;
+    }
+
+    /// <summary>
+    /// <see cref="SeedTextFileAsync"/> without the success assert, for an upload the test expects may be refused
+    /// </summary>
+    public static Task<Refit.ApiResponse<CreateFileResult>> TryCreateTextFileAsync(OwnerSession owner, TargetDrive drive,
+        string content, AccessControlList? acl = null, long? ttl = null, Guid? uniqueId = null)
     {
         var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, acl: acl ?? AccessControlList.Anonymous);
         if (ttl.HasValue)
@@ -250,10 +261,8 @@ public static class AppFileUploads
             metadata.Ttl = ttl.Value;
         }
 
-        var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata,
-            new UploadManifest { PayloadDescriptors = [] }, []);
-        Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");
-        return upload.Content!;
+        metadata.AppData.UniqueId = uniqueId;
+        return owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata, new UploadManifest { PayloadDescriptors = [] }, []);
     }
 
     /// <summary>
@@ -273,6 +282,20 @@ public static class AppFileUploads
         var response = await owner.Drives.Reader.GetFileHeaderAsync(drive.Alias, fileId);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"header read: {response.StatusCode} {response.Error?.Content}");
         return response.Content!;
+    }
+
+    /// <summary>
+    /// The ids of the files the owner's query finds, in the order it answers them
+    /// </summary>
+    public static async Task<List<Guid>> QueryFileIdsAsync(OwnerSession owner, FileQueryParamsV1 query)
+    {
+        var results = await owner.Drives.Reader.GetBatchAsync(query.TargetDrive.Alias, new QueryBatchRequest
+        {
+            QueryParams = query,
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 10, IncludeMetadataHeader = false }
+        });
+        Assert.That(results.IsSuccessStatusCode, Is.True, $"query failed: {results.StatusCode} {results.Error?.Content}");
+        return results.Content!.SearchResults.Select(r => r.FileId).ToList();
     }
 
     /// <summary>

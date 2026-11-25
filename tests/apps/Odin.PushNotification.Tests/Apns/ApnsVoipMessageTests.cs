@@ -35,6 +35,17 @@ public class ApnsVoipMessageTests
     }
 
     [Test]
+    public void ToHttpRequest_IsExactlyHttp2_BecauseApnsRejectsHttp11()
+    {
+        using var http = ApnsVoipMessage.Build(Ring(), "id.homebase.chat", Now).ToHttpRequest("token");
+
+        Assert.That(http.Version, Is.EqualTo(System.Net.HttpVersion.Version20));
+        Assert.That(http.VersionPolicy, Is.EqualTo(HttpVersionPolicy.RequestVersionExact));
+        Assert.That(http.Headers.Authorization?.ToString(), Is.EqualTo("bearer token"));
+        Assert.That(http.Headers.GetValues("apns-push-type").Single(), Is.EqualTo("voip"));
+    }
+
+    [Test]
     public void Build_BodyCarriesTheSameKeysAsTheFcmDataMessage()
     {
         var request = Ring();
