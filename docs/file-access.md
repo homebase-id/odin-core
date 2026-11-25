@@ -46,7 +46,7 @@ Header, payload or thumbnail (`DriveStorageServiceBase.GetServerFileHeader` → 
 | # | Check | Refused as | Bypassed by |
 |---|---|---|---|
 | 1 | the drive isn't archived | 400 `InvalidDrive` | the owner console (master key) |
-| 2 | drive `Read` | 403 | `System`; not asked on a public drive (`StandardFileDriveStorageService`) |
+| 2 | drive `Read` | 403 | `System`; not asked on a public drive of a caller built with the public-drive grants, which a narrowed caller isn't (`PermissionContext.ReadsAsPublic`, #2130) **(V, tested)** |
 | 3 | the file exists and its TTL hasn't passed | no file (I: a 404 to the client) | a delete, which must still see an expired file |
 | 3a | on a Server Share drive, a deposit the caller's request can open becomes the server's own file, so it is no longer client-locked at 4 (`DriveStorageServiceBase.ConvertDepositsAsync`; a query does the same, `FilterVisibleAsync`) | never refuses: a deposit it can't open stays sealed | the soft-delete batch, V1 and hard deletes and the TTL jobs (loading with `includeExpired`), which 4 lets through anyway |
 | 4 | the read rule, part 1: a client-locked file only for a caller holding the drive key (`ZkDriveFiles.VisibleTo`) | 403, or no file when the path asks for that (`aclDeniedAsMissing`) | `System`; files on the transient drive; on a Server Share drive, a sealed file for a caller holding its storage key, which the server opens for them; a tombstone's sealed key header goes out empty |
@@ -244,7 +244,8 @@ names in one place (`SentFileChanges`, from `PeerFileWriter` and `PeerFileUpdate
 
 `UpgradeToByPassAclCheck` makes a caller an owner caller for one job; the CDN reads CDN-enabled drives as `System`;
 some callers find headers without the read rule, and a file's original sender changes it without reading it ("Changing
-a file you sent"); a public drive skips the drive-permission check, not the read rule. All in "Special cases".
+a file you sent"); a public drive skips the drive-permission check for the callers built with the public-drive grants,
+not the read rule. All in "Special cases".
 
 ## Index rows on other drives
 
@@ -287,7 +288,10 @@ node clears its own (`OdinContextCache.ResetAsync`) **(V)**. A peer notification
 
 ## Special cases
 
-- **Public drives:** the file services don't ask for drive `Read`, nor for `Comment` when writing a comment
+- **Public drives:** the file services don't ask for drive `Read` of a caller whose context was built with the
+  public-drive grants (`PermissionContext.ReadsPublicDrives`: anonymous visitors, signed-in and connected identities,
+  guests, apps, and the CDN); a narrowed context (a peer's direct-read token, a follower) is asked for the drive's
+  `Read` there as anywhere (#2130) **(V, tested)**. Nor do they ask for `Comment` when writing a comment
   (`CommentFileStorageService`) **(V)**; the read rule still applies. The tenant's settings give signed-in and
   connected callers `Read`, and by flag `Comment` and `React`, on public drives (`TenantSettings`) **(V)**. On a
   drive that blocks enumeration that `Read` reaches a file only by its address: only the owner, the owner's apps and

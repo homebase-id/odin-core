@@ -264,15 +264,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var n = 0;
             n = await driveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord, useThisNewVersionTag);
 
-            // The ACL rows are reconciled, not rewritten: a row whose circle or identity stays keeps what it holds
-            // (docs/selective-share-plan.md). The tags hold nothing else, so they are simply rewritten.
+            // The ACL and tag rows are reconciled, not rewritten: a header write whose ACL or tags didn't change touches
+            // none of their rows (#1961), and an ACL row whose circle or identity stays keeps what it holds
+            // (docs/selective-share-plan.md)
             if (reconcileAcl)
             {
                 await driveAclIndex.ReconcileRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
             }
 
-            await driveTagIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-            await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
+            await driveTagIndex.ReconcileRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
             tx.Commit();
 

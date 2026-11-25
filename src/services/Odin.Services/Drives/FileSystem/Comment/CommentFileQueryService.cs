@@ -18,14 +18,7 @@ namespace Odin.Services.Drives.FileSystem.Comment
         CommentFileStorageService commentStorage)
         : DriveQueryServiceBase(logger, driveManager, driveQuery, commentStorage)
     {
-        public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(driveId, true);
-            if (!drive.AllowAnonymousReads)
-            {
-                odinContext.PermissionsContext.AssertCanReadDrive(driveId);
-            }
-        }
+        protected override DrivePermission ReadOrWritePermission => DrivePermission.Comment;
 
         public override async Task AssertCanWriteToDrive(Guid driveId, IOdinContext odinContext)
         {
@@ -45,22 +38,6 @@ namespace Odin.Services.Drives.FileSystem.Comment
             }
 
             return true;
-        }
-
-        public override async Task AssertCanReadOrWriteToDriveAsync(Guid driveId, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(driveId, true);
-            if (!drive.AllowAnonymousReads)
-            {
-                var pc = odinContext.PermissionsContext;
-                var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Comment) ||
-                                     pc.HasDrivePermission(driveId, DrivePermission.Read);
-
-                if (!hasPermissions)
-                {
-                    throw new OdinSecurityException($"Unauthorized to read or write drive [{driveId}]");
-                }
-            }
         }
 
         protected override FileSystemType GetFileSystemType()

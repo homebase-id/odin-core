@@ -62,6 +62,7 @@ public static class AnonymousPermissions
             { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },
         };
 
-        return new PermissionContext(permissionGroupMap, sharedSecretKey: null);
+        // Built with the public-drive grants, so a public drive's reads skip its grant (PermissionContext.ReadsPublicDrives)
+        return new PermissionContext(permissionGroupMap, sharedSecretKey: null, readsPublicDrives: true);
     }
 }
