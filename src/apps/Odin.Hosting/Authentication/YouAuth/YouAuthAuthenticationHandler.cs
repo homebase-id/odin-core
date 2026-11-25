@@ -252,7 +252,8 @@ namespace Odin.Hosting.Authentication.YouAuth
             odinContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
-                    sharedSecretKey: null
+                    sharedSecretKey: null,
+                    readsPublicDrives: true
                 ));
 
             var claims = new[]

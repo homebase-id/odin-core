@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -18,10 +19,14 @@ using Odin.Hosting.UnifiedV2.Drive.Shares;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.Shares;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.AppNotification;
 using Odin.Services.Peer.Encryption;
 using Refit;
@@ -110,6 +115,45 @@ public partial class SelectiveShareTests
     }
 
     [Test]
+    public async Task AMembersPeerTokenReadsStraightAwayOnceAnAppAddsHimToACircle()
+    {
+        var s = await ArrangeAsync();
+
+        // A circle of the app that also grants Read on a drive the server opens: that grant carries a storage key, so
+        // the app, without the owner's master key, can only deposit Sam's membership
+        var meshRead = new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = MeshDrive, Permission = DrivePermission.Read } };
+        await s.Frodo.Admin.SetAppGrants(s.App.AppId, new PermissionSetGrantRequest
+        {
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = s.Drive, Permission = DrivePermission.All } }, meshRead],
+            PermissionSet = new PermissionSet()
+        });
+        var circleId = await s.CircleWithKeyAsync(DriveShareService.ShareBits, meshRead);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var (fileId, _, _) = await s.UploadClientLockedAsync(payload);
+        var write = await s.Shares.WriteShares(s.Drive.Alias, new WriteSharesRequest
+        {
+            Shares = [s.Share(fileId, DrivePermission.Read, lockedFileKey: LockedFileKey(), circleId: circleId)]
+        });
+        Assert.That(write.StatusCode, Is.EqualTo(HttpStatusCode.OK), write.Error?.Content);
+
+        // The token his server fetched earlier, for the socket; then the app adds him, and nothing goes through his own
+        // server to convert the deposit
+        var direct = await PeerTokenCaller.ForAsync(s.Sam, s.Frodo);
+        await AppCircles.AddMemberAsync(s.App, circleId, Identities.Sam);
+        var storage = Host.GetTenantScope(s.Frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
+        var pending = (await storage.GetAsync(s.Sam.Identity))!.PeerKeyStore;
+        Assert.That((pending.DepositedGrants.Any(d => d.CircleId == circleId), pending.CircleGrants.ContainsKey(circleId)), Is.EqualTo((true, false)),
+            "precondition: the app's add deposited the grant, unconverted");
+
+        await PayloadBytesAsync(direct.Drives.Reader.GetPayloadAsync(s.Drive.Alias, fileId, payload.Key),
+            "his first read straight from Frodo's server after the app's add");
+        var converted = (await storage.GetAsync(s.Sam.Identity))!.PeerKeyStore;
+        Assert.That((converted.DepositedGrants.Any(d => d.CircleId == circleId), converted.CircleGrants.ContainsKey(circleId)), Is.EqualTo((false, true)),
+            "the read converted the deposit");
+    }
+
+    [Test]
     public async Task AMembersPeerTokenReadsADrivesFilesAndNothingElse()
     {
         var s = await ArrangeAsync();
@@ -140,7 +184,7 @@ public partial class SelectiveShareTests
         await AssertTokenGainsNothingAsync(direct, s.Frodo.Identity, HttpMethod.Get,
             $"{UnifiedApiRouteConstants.Capi}/validate/{s.Sam.Identity}", "a route outside the drives", refused: false);
 
-        // A public drive: its file reads skip the drive's grant, so the token must not reach it at all
+        // A public drive: the token holds no grant there, so it must not reach a Connected file on it (#2130)
         var publicDrive = TargetDrive.NewTargetDrive();
         await s.Frodo.Admin.CreateDrive(publicDrive, "public", allowAnonymousReads: true);
         var plain = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
