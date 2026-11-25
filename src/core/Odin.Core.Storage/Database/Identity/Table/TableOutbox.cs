@@ -61,6 +61,11 @@ public class TableOutbox(
         return await base.GetAsync(odinIdentity, driveId, fileId, recipient);
     }
 
+    public async Task<int> DeleteAsync(Guid driveId, Guid fileId, string recipient)
+    {
+        return await base.DeleteAsync(odinIdentity, driveId, fileId, recipient);
+    }
+
     public new async Task<int> InsertAsync(OutboxRecord item)
     {
         item.identityId = odinIdentity;

@@ -821,11 +821,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 Priority = 50, //high priority to ensure the withdrawal is delivered promptly
                 Type = OutboxItemType.WithdrawConnectionRequest,
                 AttemptCount = 0,
-                File = new InternalDriveFileId
-                {
-                    DriveId = SystemDriveConstants.TransientTempDrive.Alias,
-                    FileId = recipient.ToHashId()
-                },
+                File = RecipientNoticeKey.For(OutboxItemType.WithdrawConnectionRequest, recipient),
                 DependencyFileId = default,
                 State = new OutboxItemState
                 {
@@ -838,6 +834,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 },
             };
 
+            await peerOutbox.RemoveIntroductionNoticesAsync(recipient);
             await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 

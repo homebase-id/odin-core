@@ -373,11 +373,7 @@ namespace Odin.Services.Membership.Connections
                 Priority = 50, //super high priority to ensure these are sent quickly
                 Type = OutboxItemType.BreakConnectionRequest,
                 AttemptCount = 0,
-                File = new InternalDriveFileId()
-                {
-                    DriveId = SystemDriveConstants.TransientTempDrive.Alias,
-                    FileId = recipient.ToHashId()
-                },
+                File = RecipientNoticeKey.For(OutboxItemType.BreakConnectionRequest, recipient),
                 DependencyFileId = default,
                 State = new OutboxItemState
                 {
@@ -388,6 +384,7 @@ namespace Odin.Services.Membership.Connections
                 },
             };
 
+            await peerOutbox.RemoveIntroductionNoticesAsync(recipient);
             await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 

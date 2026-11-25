@@ -111,8 +111,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         OdinValidationUtils.AssertNotNull(group, nameof(group));
         OdinValidationUtils.AssertValidRecipientList(group.Recipients, allowEmpty: false);
 
-        var driveId = SystemDriveConstants.TransientTempDrive.Alias;
-
         async Task<bool> EnqueueOutboxItem(OdinId recipient, Introduction introduction)
         {
             try
@@ -147,11 +145,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                     Priority = 50, //super high priority to ensure these are sent quickly,
                     Type = OutboxItemType.SendIntroduction,
                     AttemptCount = 0,
-                    File = new InternalDriveFileId()
-                    {
-                        DriveId = driveId,
-                        FileId = recipient.ToHashId() //SequentialGuid.CreateGuid()
-                    },
+                    File = RecipientNoticeKey.For(OutboxItemType.SendIntroduction, recipient),
                     DependencyFileId = default,
                     State = new OutboxItemState
                     {
@@ -785,8 +779,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         introduction.Timestamp = UnixTimeUtc.Now();
         var introducer = odinContext.GetCallerOdinIdOrFail();
 
-        var driveId = SystemDriveConstants.TransientTempDrive.Alias;
-
         //Store the introductions by the identity to which you're being introduces
         var newIdentities = new List<string>();
         var skippedAlreadyConnected = 0;
@@ -820,7 +812,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 Received = UnixTimeUtc.Now()
             };
 
-            await SaveAndEnqueueToConnect(iid, driveId);
+            await SaveAndEnqueueToConnect(iid);
             newIdentities.Add(identity);
         }
 
@@ -1112,7 +1104,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             newContext);
     }
 
-    private async Task SaveAndEnqueueToConnect(IdentityIntroduction iid, Guid driveId)
+    private async Task SaveAndEnqueueToConnect(IdentityIntroduction iid)
     {
         var recipient = iid.Identity;
 
@@ -1131,11 +1123,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                     Priority = 55, //super high priority to ensure these are sent quickly,
                     Type = OutboxItemType.ConnectIntroducee,
                     AttemptCount = 0,
-                    File = new InternalDriveFileId()
-                    {
-                        DriveId = driveId,
-                        FileId = recipient.ToHashId()
-                    },
+                    File = RecipientNoticeKey.For(OutboxItemType.ConnectIntroducee, recipient),
                     DependencyFileId = default,
                     State = new OutboxItemState
                     {
