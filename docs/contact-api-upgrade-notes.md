@@ -33,7 +33,8 @@
   `ManageContacts`; the feature is really about apps that **write the contact drive**. We granted it
   to **Chat + Mail** (both have `ContactDrive ReadWrite`). Mail has no chat-drive grant — confirm
   Mail is intended to be included (it should be; it manages contacts).
-- [ ] **Downgrade `ContactDrive` `ReadWrite` → `Read`?** The plan's end state is apps read the drive
+- [x] **Downgrade `ContactDrive` `ReadWrite` → `Read`?** Done in v21 → v22 (#1614): Chat, Feed and Mail
+  hold `Read`, and Feed gained `ManageContacts`. The rest of this item is the history. The plan's end state is apps read the drive
   directly and write only through the API. We did **not** downgrade existing grants (migration only
   *adds* the permission), and the `SystemAppConstants` defaults still grant `ReadWrite`. Until that's
   downgraded, apps can still write the drive directly and bypass the API (there is no write-lockdown —
