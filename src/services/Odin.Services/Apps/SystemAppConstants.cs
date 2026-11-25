@@ -258,8 +258,8 @@ public static class SystemAppConstants
             },
             new()
             {
-                // Contact Drive. Read only: Feed saves contacts through ContactService (ManageContacts,
-                // below), which keeps the per-app data a direct drive write would wipe (#1614).
+                // Contact Drive. Read only: contact writes go through ContactService, which keeps the
+                // per-app data a direct drive write would wipe (#1614).
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = WellKnownAppDrives.ContactDrive,
@@ -286,10 +286,7 @@ public static class SystemAppConstants
             PermissionKeys.UseTransitWrite,
             PermissionKeys.UseTransitRead,
             PermissionKeys.PublishStaticContent,
-            PermissionKeys.SendPushNotifications,
-            // Feed's author names and images save the contact they show (odin-js saveContact), through
-            // the contact API.
-            PermissionKeys.ManageContacts)
+            PermissionKeys.SendPushNotifications)
     };
 
     /// <summary>

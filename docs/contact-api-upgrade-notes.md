@@ -31,11 +31,11 @@
 
 - [ ] **"Chat drive" vs "contact drive" wording.** The request said apps with the *chat drive* need
   `ManageContacts`; the feature is really about apps that **write the contact drive**. We granted it
-  to **Chat + Mail** (both had `ContactDrive ReadWrite` at v9). Mail has no chat-drive grant — confirm
+  to every app with `ContactDrive` Write at v9 (Chat, Mail, and Feed). Mail has no chat-drive grant — confirm
   Mail is intended to be included (it should be; it manages contacts).
 - [x] **Downgrade `ContactDrive` `ReadWrite` → `Read`?** Done in v21 → v22 (#1614): the `SystemAppConstants`
   defaults and the migration give Chat, Feed and Mail `Read` on the ContactDrive, so their tokens can no longer
-  write it directly; Feed also gained `ManageContacts`, since it saves contacts through the API. The Contacts
+  write it directly. Keys were not touched: Feed holds `ManageContacts` only where v9 gave it, and the Contacts
   app still holds `ReadWrite`.
 - [ ] **Storage-key dependency for app writes.** `ContactService` encrypts content at rest with the
   drive storage key. `OdinContextUpgrades.UpgradeToByPassAclCheck` grants the *write permission* but

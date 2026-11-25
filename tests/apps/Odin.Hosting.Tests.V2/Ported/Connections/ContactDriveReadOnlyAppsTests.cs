@@ -25,28 +25,31 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// <summary>
 /// Chat, Feed and Mail hold only Read on the ContactDrive, so no client of theirs can write a contact file
 /// directly and wipe the per-app data <see cref="ContactService"/> keeps; they write through the contact API
-/// (#1614).  A new identity is registered that way, and v21 → v22 rewrites an older identity's grants.
+/// (#1614).  A new identity is registered that way, and v21 → v22 rewrites an older identity's grants.  Feed is
+/// given no ManageContacts here: that key also manages connections, so it is a decision of its own.
 /// </summary>
 [TestFixture]
 public class ContactDriveReadOnlyAppsTests : V2Fixture
 {
     private static readonly TargetDrive ContactDrive = WellKnownAppDrives.ContactDrive;
 
-    private static IEnumerable<Guid> BuiltinContactReaders()
-    {
-        yield return SystemAppConstants.ChatAppId;
-        yield return SystemAppConstants.FeedAppId;
-    }
-
-    [Test, TestCaseSource(nameof(BuiltinContactReaders))]
-    public async Task ABuiltinApp_CannotUploadToTheContactDrive_ButSavesThroughTheContactApi(Guid appId)
+    [TestCase("chat"), TestCase("feed")]
+    public async Task ABuiltinApp_CannotUploadToTheContactDrive(string name)
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.ForRegisteredAppAsync(owner, appId);
+        var app = await AppSession.ForRegisteredAppAsync(owner,
+            name == "chat" ? SystemAppConstants.ChatAppId : SystemAppConstants.FeedAppId);
 
         var upload = await app.Drives.Writer.UploadNewMetadata(ContactDrive.Alias,
             SampleMetadataData.Create(fileType: ContactService.ContactFileType));
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), "a direct upload to the ContactDrive is refused");
+    }
+
+    [Test]
+    public async Task Chat_StillSavesAContact_ThroughTheContactApi()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.ForRegisteredAppAsync(owner, SystemAppConstants.ChatAppId);
 
         var create = await new V2ContactsClient(app.Identity, app.Factory).CreateAsync(new CreateContactRequest
         {
@@ -56,22 +59,23 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
     }
 
     [Test]
-    public async Task TheUpgrade_LocksChatFeedAndMailToRead_AndGivesFeedManageContacts()
+    public async Task TheUpgrade_LocksChatFeedAndMailToRead_AndKeepsEverythingElse()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var (scope, ctx) = await MigrationContextAsync(owner);
         var apps = scope.Resolve<AppRegistrationService>();
 
-        // A v21 identity: Chat and Feed write the drive, Feed has no ManageContacts, and an old Mail registration, revoked.
+        // A v21 identity: Chat and Feed write the drive, and an old Mail registration, revoked, holds Write alone.
         await RewindAsync(apps, SystemAppConstants.ChatAppId, ctx);
         await RewindAsync(apps, SystemAppConstants.FeedAppId, ctx);
         await owner.Admin.RegisterApp(SystemAppConstants.MailAppId, new PermissionSetGrantRequest
         {
-            Drives = [Grant(ContactDrive, DrivePermission.ReadWrite | DrivePermission.React)],
+            Drives = [Grant(ContactDrive, DrivePermission.Write), Grant(WellKnownAppDrives.ProfileDrive, DrivePermission.Read)],
             PermissionSet = new PermissionSet(PermissionKeys.ManageContacts)
         });
         await apps.RevokeAppAsync(SystemAppConstants.MailAppId, ctx);
         var chatBefore = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
+        var feedBefore = await apps.GetAppRegistration(SystemAppConstants.FeedAppId, ctx);
 
         var migration = scope.Resolve<V21ToV22VersionMigrationService>();
         Assert.ThrowsAsync<OdinSystemException>(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None),
@@ -90,25 +94,24 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
 
         var feed = await apps.GetAppRegistration(SystemAppConstants.FeedAppId, ctx);
         Assert.That(ContactPermission(feed!), Is.EqualTo(DrivePermission.Read));
-        Assert.That(feed!.Grant.PermissionSet.HasKey(PermissionKeys.ManageContacts), Is.True, "Feed saves contacts through the API");
+        Assert.That(feed!.Grant.PermissionSet.Keys, Is.EquivalentTo(feedBefore!.Grant.PermissionSet.Keys), "no key is added");
 
         var mail = await apps.GetAppRegistration(SystemAppConstants.MailAppId, ctx);
-        Assert.That(ContactPermission(mail!), Is.EqualTo(DrivePermission.Read), "React goes with Write");
+        Assert.That(mail!.Grant.DriveGrants.Select(g => g.PermissionedDrive.Drive), Is.EquivalentTo(new[] { WellKnownAppDrives.ProfileDrive }),
+            "a ContactDrive grant of Write alone has nothing left, and goes");
         Assert.That(mail!.IsRevoked, Is.True, "a revoked app is rewritten, and stays revoked");
     }
 
-    /// <summary>Puts a provisioned app back to its v21 grant: ReadWrite on the ContactDrive, and for Feed no ManageContacts.</summary>
+    /// <summary>Puts a provisioned app back to its v21 grant: ReadWrite on the ContactDrive.</summary>
     private static async Task RewindAsync(AppRegistrationService apps, Guid appId, IOdinContext ctx)
     {
-        var dropManageContacts = appId == SystemAppConstants.FeedAppId;
         var app = await apps.GetAppRegistration(appId, ctx);
         Assert.That(ContactPermission(app!), Is.EqualTo(DrivePermission.Read), "precondition: a new identity's app holds Read");
 
         await apps.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
         {
             AppId = appId,
-            PermissionSet = new PermissionSet(app!.Grant.PermissionSet.Keys
-                .Where(k => !dropManageContacts || k != PermissionKeys.ManageContacts).ToList()),
+            PermissionSet = new PermissionSet(app!.Grant.PermissionSet.Keys),
             Drives = app.Grant.DriveGrants
                 .Select(g => g.PermissionedDrive.Drive == ContactDrive
                     ? Grant(ContactDrive, DrivePermission.ReadWrite)

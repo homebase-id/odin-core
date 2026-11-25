@@ -15,8 +15,7 @@ using Odin.Services.Drives;
 namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
 {
     /// <summary>
-    /// v21 → v22: the Chat, Feed and Mail apps hold only Read on the <see cref="WellKnownAppDrives.ContactDrive"/>,
-    /// and Feed gains <see cref="PermissionKeys.ManageContacts"/> (#1614).
+    /// v21 → v22: the Chat, Feed and Mail apps hold only Read on the <see cref="WellKnownAppDrives.ContactDrive"/> (#1614).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -28,8 +27,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
     /// rewritten here.
     /// </para>
     /// <para>
-    /// Feed saves the contacts its author names and images show, through the contact API.  v8 → v9 gave it
-    /// ManageContacts because it held ContactDrive Write, but an identity made since has neither, so it is added.
+    /// Permission keys are not touched.  Feed in particular keeps what it has: v8 → v9 gave it
+    /// <see cref="PermissionKeys.ManageContacts"/> because it held ContactDrive Write, while an identity made
+    /// since got the Write without the key.  The key also lets an app block, disconnect and accept connections,
+    /// so whether Feed should hold it is a decision of its own.
     /// </para>
     /// <para>
     /// Every other grant and key is kept as it is.  A revoked app is rewritten too, so it is right if the owner
@@ -61,20 +62,17 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
 
                 logger.LogInformation("Locking app {appName} ({appId}) to Read on the ContactDrive", app.Name, app.AppId);
 
+                // A ContactDrive grant left with nothing (it was Write alone) is dropped rather than kept as None.
                 var drives = app.Grant.DriveGrants
-                    .Select(g => new DriveGrantRequest { PermissionedDrive = WithoutContactWrites(g.PermissionedDrive) })
+                    .Select(g => WithoutContactWrites(g.PermissionedDrive))
+                    .Where(d => d.Permission != DrivePermission.None)
+                    .Select(d => new DriveGrantRequest { PermissionedDrive = d })
                     .ToList();
-
-                var keys = (app.Grant.PermissionSet?.Keys ?? []).ToHashSet();
-                if (app.AppId == SystemAppConstants.FeedAppId)
-                {
-                    keys.Add(PermissionKeys.ManageContacts);
-                }
 
                 await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
                 {
                     AppId = app.AppId,
-                    PermissionSet = new PermissionSet(keys),
+                    PermissionSet = new PermissionSet(app.Grant.PermissionSet?.Keys ?? []),
                     Drives = drives
                 }, odinContext);
 
@@ -94,8 +92,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
 
                 if (NeedsUpgrade(app))
                 {
-                    throw new OdinSystemException(
-                        $"App {app.Name} ({app.AppId}) holds more than Read on the ContactDrive, or Feed lacks ManageContacts");
+                    throw new OdinSystemException($"App {app.Name} ({app.AppId}) holds more than Read on the ContactDrive");
                 }
             }
         }
@@ -106,17 +103,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
             return apps.Where(a => ReadOnlyContactApps.Contains(a.AppId));
         }
 
-        private static bool NeedsUpgrade(RedactedAppRegistration app)
-        {
-            var grantsMoreThanRead = app.Grant.DriveGrants.Any(g =>
+        private static bool NeedsUpgrade(RedactedAppRegistration app) =>
+            app.Grant.DriveGrants.Any(g =>
                 g.PermissionedDrive.Drive == WellKnownAppDrives.ContactDrive &&
                 (g.PermissionedDrive.Permission & ContactWrites) != 0);
-
-            var feedLacksManageContacts = app.AppId == SystemAppConstants.FeedAppId &&
-                                          app.Grant.PermissionSet?.HasKey(PermissionKeys.ManageContacts) != true;
-
-            return grantsMoreThanRead || feedLacksManageContacts;
-        }
 
         /// <summary>The ContactDrive grant without its writes, everything else on it kept; any other grant as it is.</summary>
         private static PermissionedDrive WithoutContactWrites(PermissionedDrive grant)
