@@ -382,6 +382,8 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             ServerMetadata = serverMetadata
         };
 
+        await FileSystem.Storage.AssertLocalCallerMayReplaceAsync(package.InternalFile.DriveId, odinContext);
+
         // TODO what if success is false?
         var (success, payloads) = await FileSystem.Storage.UpdateBatchAsync(package.InternalFile, package.InternalFile,
             manifest, odinContext, null, sourceArea: StagingArea.Upload);

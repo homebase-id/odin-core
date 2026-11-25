@@ -946,6 +946,37 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
+        /// A local caller's write that replaces a file (a metadata-only overwrite, an update) on a Server Share drive needs
+        /// the drive's storage key, encrypted file or not, as a full overwrite's key header does (<see cref="OverwriteFile"/>):
+        /// drive Write alone lets a caller without it (a guest on a public drive) add files, not change other people's
+        /// (#2026).  Owner callers, the owner's apps included, are the owner acting and skip it; a peer's change has its
+        /// own rule (docs/file-access.md, "Changing a file you sent"); a zero-knowledge drive has no storage key to ask for.
+        /// </summary>
+        public async Task AssertLocalCallerMayReplaceAsync(Guid driveId, IOdinContext odinContext)
+        {
+            if (odinContext.Caller.IsOwner || odinContext.Caller.IsSystem)
+            {
+                return;
+            }
+
+            var drive = await DriveManager.GetDriveAsync(driveId);
+            if (drive.IsZeroKnowledge)
+            {
+                return;
+            }
+
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+            try
+            {
+                drive.AssertValidStorageKey(storageKey);
+            }
+            finally
+            {
+                storageKey.Wipe();
+            }
+        }
+
+        /// <summary>
         /// Refuses with <see cref="OdinClientErrorCode.VersionTagMismatch"/> unless <paramref name="header"/> is at
         /// <paramref name="expectedVersionTag"/> (no tag, no check).  A write that rebuilds a header it read must call it:
         /// the write itself checks only the caller's tag against the row, so a header read at another version (a stale
