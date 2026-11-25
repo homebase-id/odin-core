@@ -1,7 +1,5 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Odin.Core.Dto;
 
@@ -46,8 +44,6 @@ public sealed class ApnsVoipSender : IApnsVoipSender, IDisposable
         })
         {
             BaseAddress = options.Host,
-            DefaultRequestVersion = HttpVersion.Version20,
-            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
         };
 
         if (options.IsConfigured)
@@ -74,13 +70,7 @@ public sealed class ApnsVoipSender : IApnsVoipSender, IDisposable
 
         var message = ApnsVoipMessage.Build(request, _options.BundleId, DateTimeOffset.UtcNow);
 
-        using var http = new HttpRequestMessage(HttpMethod.Post, message.Path);
-        http.Headers.Authorization = new AuthenticationHeaderValue("bearer", CurrentToken());
-        foreach (var (name, value) in message.Headers)
-        {
-            http.Headers.TryAddWithoutValidation(name, value);
-        }
-        http.Content = new StringContent(message.Body, Encoding.UTF8, "application/json");
+        using var http = message.ToHttpRequest(CurrentToken());
 
         using var response = await _http.SendAsync(http, cancellationToken);
         if (response.IsSuccessStatusCode)
