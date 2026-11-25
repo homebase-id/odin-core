@@ -487,6 +487,14 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         return await svc.UpdateArchivalStatusBatch(driveId, request);
     }
 
+    public async Task<ApiResponse<UpdateLocalTagsBatchResultV2>> UpdateLocalTagsBatch(Guid driveId,
+        UpdateLocalTagsBatchRequestV2 request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        return await svc.UpdateLocalTagsBatch(driveId, request);
+    }
+
     public async Task<ApiResponse<TransformKeyHeadersResultV2>> TransformKeyHeaders(Guid driveId,
         TransformKeyHeadersRequestV2 request)
     {

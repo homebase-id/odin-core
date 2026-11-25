@@ -54,7 +54,8 @@ public class CertificateRenewalPredicateTest
             new AcmeAccountConfig(),
             new Mock<IServiceProvider>().Object,
             configuration,
-            new Mock<IBackgroundServiceNotifier<UpdateCertificatesBackgroundService>>().Object);
+            new Mock<IBackgroundServiceNotifier<UpdateCertificatesBackgroundService>>().Object,
+            new CertificateStorageKey(new byte[32]));
     }
 
     private static X509Certificate2 Cert(string[] sans, TimeSpan validFor)

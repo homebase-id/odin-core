@@ -371,16 +371,33 @@ public class TenantAdmin(
 
     public async Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
     {
-        // A moved identity's owner app would process its carried Inbox items, and its Outbox would send, before
-        // their payloads are here (#1871)
+        await AssertPayloadsAreHereAsync(domain, status);
+        return await identityRegistry.SetStatusAsync(domain, status, reason);
+    }
+
+    public async Task<TenantStatusState?> ResumeTenantAsync(string domain)
+    {
+        // A disabled tenant is refused for that, by the registry, before anything is said about its payloads
+        if ((await identityRegistry.GetAsync(domain))?.Status != TenantStatus.Disabled)
+        {
+            await AssertPayloadsAreHereAsync(domain, TenantStatus.Active);
+        }
+
+        return await identityRegistry.ResumeAsync(domain);
+    }
+
+    /// <summary>
+    /// A moved identity's owner app would process its carried Inbox items, and its Outbox would send, before their payloads
+    /// are here (#1871)
+    /// </summary>
+    private async Task AssertPayloadsAreHereAsync(string domain, TenantStatus status)
+    {
         if (TenantStatusRules.RunsBackgroundServices(status) && await payloadMoveAdmin.HoldsResumeAsync(domain))
         {
             throw new OdinClientException(
                 $"The payloads of {domain}'s queued Inbox and Outbox items are still arriving from the source. " +
                 $"Resume once 'payload-move {domain}' shows them here; that usually takes seconds.");
         }
-
-        return await identityRegistry.SetStatusAsync(domain, status, reason);
     }
 
     public Task<TenantStatusState?> UnlockMovedAsync(string domain)

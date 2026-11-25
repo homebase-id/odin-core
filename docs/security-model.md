@@ -152,7 +152,7 @@ Later:
 | Option | Effect |
 |---|---|
 | `OwnerOnly` | every file must carry the Owner ACL (`FileSystemStreamWriterBase`, `FileSystemUpdateWriterBase`); can't be combined with anonymous reads or subscriptions (`DriveManager`) |
-| `AllowAnonymousReads` | anyone may read files whose ACL allows it; also relaxes the comment checks (section 6) |
+| `AllowAnonymousReads` | anyone may read files whose ACL allows it, without the drive's Read; a narrowed caller (a peer's direct-read token, a follower) still needs that Read (`PermissionContext.ReadsPublicDrives`, [file-access.md](file-access.md#special-cases), #2130); also relaxes the comment checks (section 6) |
 | `AllowSubscriptions` | followers may subscribe (feed); a drive marked as a community channel needs it |
 | `AllowCdn` | the CDN may read payloads (`IsCdnEnabled`); anonymous drives are reachable anyway |
 | `RequirePayloadHashes` | every payload must carry client hashes |

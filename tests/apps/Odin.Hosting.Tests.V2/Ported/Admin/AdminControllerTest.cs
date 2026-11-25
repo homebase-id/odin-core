@@ -88,20 +88,19 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 /// it. Listing a second identity in <c>HostIdentities</c> would buy nothing and cost a tenant
 /// materialisation plus a reset per test.</item>
 ///
-/// <item><b>The <c>RUN_S3_TESTS</c> branches are dropped, and that loses coverage — read this
-/// before re-adding them.</b> The V1 original asserted the payload path against
+/// <item><b>The <c>RUN_S3_TESTS</c> branches are dropped — read this before re-adding them.</b> The V1
+/// original asserted the payload path against
 /// <c>Path.Combine(S3Storage__ServiceUrl, S3Payload__BucketName, tenant.Id)</c> under
 /// <c>#if RUN_S3_TESTS</c>, and skipped the export test under <c>#if !RUN_S3_TESTS</c>. That works
 /// on <c>WebScaffold</c>, which configures S3 when the constant is defined. It cannot work here:
-/// <see cref="OdinHost"/> hard-sets <c>S3PayloadStorage__Enabled=false</c> and stores payloads
-/// locally whatever the constant says. Carried verbatim, the S3 branch compiled on CI (which does
+/// <see cref="OdinHost"/> turns S3 off for every host and stores payloads locally whatever the
+/// constant says. Carried verbatim, the S3 branch compiled on CI (which does
 /// define <c>RUN_S3_TESTS</c>) and compared a local path against a bare tenant id — two failures
 /// that no Debug run reproduces, because Debug takes the <c>#else</c>. So both fixtures now always
 /// assert the local path, and the export test always runs.
 /// <para>
-/// The consequence, stated plainly: <b>the S3 payload-path assertion does not survive the move.</b>
-/// It was real coverage on <c>WebScaffold</c> and there is no equivalent here until the fast host
-/// can be pointed at S3. Tracked in #1782 rather than left as a comment.
+/// The S3 payload-path assertion lives in <c>S3/S3PayloadStorageTests</c>
+/// (#1782), the one fixture whose host keeps payloads in S3, compiled with <c>RUN_S3_TESTS</c>.
 /// </para></item>
 ///
 /// <item><b>Carried as-is:</b> the <c>#if false</c> delete-tenant test with its "disabled until we
@@ -636,6 +635,31 @@ public class AdminControllerTest : V2Fixture
 
         await AssertStatusSet(TenantStatus.Active);
         await AssertTenantAnswers(HttpStatusCode.OK);
+    }
+
+    //
+
+    /// <summary>Resume is a server-side intent (#1846): it ends a pause, and refuses a disabled tenant with how to re-enable it.</summary>
+    [Test]
+    public async Task ResumeEndsAPause_AndRefusesADisabledTenant()
+    {
+        using var adminClient = CreateAdminClient();
+
+        Assert.That((await SetFrodoStatusAsync(adminClient, TenantStatus.Paused)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var resumed = await SendAsync(adminClient, HttpMethod.Post, $"tenants/{Identities.Frodo}/resume");
+        Assert.That(resumed.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await ReadAsync<TenantStatusState>(resumed)).Status, Is.EqualTo(TenantStatus.Paused), "the previous status");
+        Assert.That((await GetOkAsync<TenantModel>(adminClient, $"tenants/{Identities.Frodo}")).Status, Is.EqualTo(TenantStatus.Active));
+
+        Assert.That((await SetFrodoStatusAsync(adminClient, TenantStatus.Disabled)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var refused = await SendAsync(adminClient, HttpMethod.Post, $"tenants/{Identities.Frodo}/resume");
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await refused.Content.ReadAsStringAsync(), Does.Contain("set-status"), "says how to re-enable it");
+        Assert.That((await GetOkAsync<TenantModel>(adminClient, $"tenants/{Identities.Frodo}")).Status, Is.EqualTo(TenantStatus.Disabled),
+            "a refused resume changes nothing");
+
+        Assert.That((await SendAsync(adminClient, HttpMethod.Post, "tenants/nobody.dotyou.cloud/resume")).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     //

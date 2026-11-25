@@ -79,7 +79,7 @@ public class LinkPreviewAuthenticationService(IDriveManager driveManager, Tenant
         };
 
         var callerContext = new CallerContext(default, null, SecurityGroupType.Anonymous);
-        var pc = new PermissionContext(permissionGroupMap, sharedSecretKey: null);
+        var pc = new PermissionContext(permissionGroupMap, sharedSecretKey: null, readsPublicDrives: true);
 
         return (callerContext, pc);
     }

@@ -1,4 +1,6 @@
 using System;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -36,6 +38,8 @@ public class CertificateService : ICertificateService
     private readonly OdinConfiguration _configuration;
     private readonly IBackgroundServiceNotifier<UpdateCertificatesBackgroundService> _issuanceNotifier;
     private readonly string _accountKey;
+    private readonly byte[] _storageKey;
+    private readonly string _accountKeySealContext;
 
     //
     // A domain that just failed to issue is not going to succeed on the next TLS handshake a
@@ -98,8 +102,10 @@ public class CertificateService : ICertificateService
         AcmeAccountConfig accountConfig,
         IServiceProvider serviceProvider,
         OdinConfiguration configuration,
-        IBackgroundServiceNotifier<UpdateCertificatesBackgroundService> issuanceNotifier)
+        IBackgroundServiceNotifier<UpdateCertificatesBackgroundService> issuanceNotifier,
+        CertificateStorageKey storageKey)
     {
+        _storageKey = storageKey.StorageKey;
         _issuanceNotifier = issuanceNotifier;
         _logger = logger;
         _nodeLock = nodeLock;
@@ -113,6 +119,10 @@ public class CertificateService : ICertificateService
         _accountKey = _certesAcme.IsProduction ?
             "acme-account-prod-pem" :
             "acme-account-staging-pem";
+
+        // What the sealed key is bound to: fixed, so renaming the row later doesn't lock it, and a prod key copied into
+        // the staging row doesn't open there
+        _accountKeySealContext = _certesAcme.IsProduction ? "odin:acme-account-key:prod" : "odin:acme-account-key:staging";
     }
 
     //
@@ -402,8 +412,8 @@ public class CertificateService : ICertificateService
                     if (account == null)
                     {
                         account = await _certesAcme.CreateAccountAsync(_accountConfig.AcmeContactEmail, cancellationToken);
+                        await SaveAccountAsync(account);
                     }
-                    await SaveAccountAsync(account);
                 }
             }
 
@@ -472,7 +482,8 @@ public class CertificateService : ICertificateService
             // reaching the CA no longer costs 2 seconds, it costs the whole backoff window.
             // Nothing about a failed TCP connection says this domain is unhealthy.
             //
-            var isTransient = e is AcmeTransientException or HttpRequestException ||
+            // So is an account key this server can't open: the CA was never asked, so its spend schedule is the wrong one
+            var isTransient = e is AcmeTransientException or HttpRequestException or AcmeAccountKeyUnreadableException ||
                               e.InnerException is HttpRequestException;
 
             await NoteFailureAsync(domain, error,
@@ -599,20 +610,52 @@ public class CertificateService : ICertificateService
 
     //
 
-    private async Task<AcmeAccount?> LoadAccountAsync()
+    internal async Task<AcmeAccount?> LoadAccountAsync()
     {
         using var scope = _serviceProvider.CreateScope();
         var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
 
         var settings = await tableSettings.GetAsync(_accountKey);
-        return settings == null || string.IsNullOrEmpty(settings.value)
-            ? null
-            : new AcmeAccount { AccounKeyPem = settings.value };
+        if (settings == null || string.IsNullOrEmpty(settings.value))
+        {
+            return null;
+        }
+
+        // Kept as plain PEM before #1748: sealed on its first read, with no new account and no manual step.  A sealed one
+        // the storage key can't open throws: read as no account, it would be replaced by a new one
+        if (settings.value.TrimStart('\uFEFF', ' ', '\t', '\r', '\n').StartsWith("-----BEGIN", StringComparison.Ordinal))
+        {
+            var plain = new AcmeAccount { AccounKeyPem = settings.value };
+            try
+            {
+                await SaveAccountAsync(plain);
+                _logger.LogInformation("Encrypted the stored ACME account key ({key})", _accountKey);
+            }
+            catch (Exception e)
+            {
+                // The key just read still works: sealing it can wait for a later read, the order shouldn't
+                _logger.LogWarning(e, "Could not encrypt the stored ACME account key ({key}); will try on a later read", _accountKey);
+            }
+
+            return plain;
+        }
+
+        try
+        {
+            return new AcmeAccount { AccounKeyPem = SecretAtRest.Open(settings.value, _storageKey, _accountKeySealContext) };
+        }
+        catch (OdinSystemException e)
+        {
+            throw new AcmeAccountKeyUnreadableException(
+                $"The ACME account key (system setting {_accountKey}) can't be read: {e.Message}. If " +
+                "CertificateRenewal:StorageKey changed, restore the key that sealed it; otherwise delete the row to register " +
+                "a new ACME account", e);
+        }
     }
 
     //
 
-    private async Task SaveAccountAsync(AcmeAccount account)
+    internal async Task SaveAccountAsync(AcmeAccount account)
     {
         using var scope = _serviceProvider.CreateScope();
         var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
@@ -620,7 +663,7 @@ public class CertificateService : ICertificateService
         await tableSettings.UpsertAsync(new SettingsRecord
         {
             key = _accountKey,
-            value = account.AccounKeyPem,
+            value = SecretAtRest.Seal(account.AccounKeyPem, _storageKey, _accountKeySealContext),
         });
     }
 
@@ -675,3 +718,6 @@ public class CertificateService : ICertificateService
     //
 
 }
+
+/// <summary>The stored ACME account key can't be opened with this server's storage key (#1748).</summary>
+public class AcmeAccountKeyUnreadableException(string message, Exception inner) : OdinSystemException(message, inner);

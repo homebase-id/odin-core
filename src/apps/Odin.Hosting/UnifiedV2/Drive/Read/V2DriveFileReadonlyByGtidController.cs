@@ -110,8 +110,9 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         }
 
         // Deliberately not DriveStorageControllerBase.GetFileHeaderByGlobalTransitId: that one gates on
-        // PermissionsContext.AssertCanReadDrive, which has no AllowAnonymousReads bypass and so rejects an
-        // anonymous or CDN caller even on a public drive. The query service's own gate does have it.
+        // PermissionsContext.AssertCanReadDrive(Guid), which has no AllowAnonymousReads bypass and so rejects an
+        // anonymous or CDN caller even on a public drive. The query service's own gate does have it, for the callers
+        // built with the public-drive grants (PermissionContext.ReadsPublicDrives).
         private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGtidInternal(Guid driveId, Guid gtid,
             bool includeTransferHistory = false)
         {

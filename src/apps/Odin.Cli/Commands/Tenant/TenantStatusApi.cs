@@ -10,26 +10,12 @@ namespace Odin.Cli.Commands.Tenant;
 
 internal static class TenantStatusApi
 {
-    public static async Task<TenantModel> GetTenantAsync(HttpClient httpClient, string domain)
-    {
-        var response = await httpClient.GetAsync($"tenants/{domain}");
-        await EnsureSuccessAsync(response, domain);
-        var json = await response.Content.ReadAsStringAsync();
-        return OdinSystemSerializer.Deserialize<TenantModel>(json) ?? new TenantModel();
-    }
-
-    //
-
     public static async Task<TenantStatusState> SetStatusAsync(HttpClient httpClient, string domain, TenantStatus status,
         DisabledReason? reason = null)
     {
         var body = OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status, DisabledReason = reason });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
-        var response = await httpClient.PatchAsync($"tenants/{domain}/status", content);
-        await EnsureSuccessAsync(response, domain);
-        var json = await response.Content.ReadAsStringAsync();
-        return OdinSystemSerializer.Deserialize<TenantStatusState>(json) ??
-               throw new Exception($"{response.RequestMessage?.RequestUri}: empty response");
+        return await ReadStateAsync(await httpClient.PatchAsync($"tenants/{domain}/status", content), domain);
     }
 
     //
@@ -48,9 +34,17 @@ internal static class TenantStatusApi
 
     //
 
-    public static async Task<TenantStatusState> UnlockMovedAsync(HttpClient httpClient, string domain)
+    public static async Task<TenantStatusState> UnlockMovedAsync(HttpClient httpClient, string domain) =>
+        await ReadStateAsync(await httpClient.PostAsync($"tenants/{domain}/unlock-moved", null), domain);
+
+    //
+
+    public static async Task<TenantStatusState> ResumeAsync(HttpClient httpClient, string domain) =>
+        await ReadStateAsync(await httpClient.PostAsync($"tenants/{domain}/resume", null), domain);
+
+    /// <summary>The previous status every status change answers with</summary>
+    private static async Task<TenantStatusState> ReadStateAsync(HttpResponseMessage response, string domain)
     {
-        var response = await httpClient.PostAsync($"tenants/{domain}/unlock-moved", null);
         await EnsureSuccessAsync(response, domain);
         return OdinSystemSerializer.Deserialize<TenantStatusState>(await response.Content.ReadAsStringAsync()) ??
                throw new Exception($"{response.RequestMessage?.RequestUri}: empty response");

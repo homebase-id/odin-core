@@ -262,7 +262,8 @@ namespace Odin.Hosting.Middleware
             odinContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
-                    sharedSecretKey: null
+                    sharedSecretKey: null,
+                    readsPublicDrives: true
                 ));
 
             odinContext.SetAuthContext(PeerAuthConstants.PublicTransitAuthScheme);

@@ -45,14 +45,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
             fileExpiryScheduler,
             payloadMoveArrivals)
     {
-        public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(driveId, true);
-            if (!drive.AllowAnonymousReads)
-            {
-                odinContext.PermissionsContext.AssertCanReadDrive(driveId);
-            }
-        }
+        protected override DrivePermission ReadOrWritePermission => DrivePermission.Write;
 
         public override Task AssertCanWriteToDrive(Guid driveId, IOdinContext odinContext)
         {
@@ -63,22 +56,6 @@ namespace Odin.Services.Drives.FileSystem.Standard
         public override Task<bool> CanWriteToDrive(Guid driveId, IOdinContext odinContext)
         {
             return Task.FromResult(odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write));
-        }
-
-        public override async Task AssertCanReadOrWriteToDriveAsync(Guid driveId, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(driveId, true);
-            if (!drive.AllowAnonymousReads)
-            {
-                var pc = odinContext.PermissionsContext;
-                var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Write) ||
-                                     pc.HasDrivePermission(driveId, DrivePermission.Read);
-
-                if (!hasPermissions)
-                {
-                    throw new OdinSecurityException($"Unauthorized to read or write drive [{driveId}]");
-                }
-            }
         }
 
         public override FileSystemType GetFileSystemType()
