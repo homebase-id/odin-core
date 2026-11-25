@@ -965,15 +965,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return;
             }
 
-            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
-            try
-            {
-                drive.AssertValidStorageKey(storageKey);
-            }
-            finally
-            {
-                storageKey.Wipe();
-            }
+            using var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+            drive.AssertValidStorageKey(storageKey);
         }
 
         /// <summary>
