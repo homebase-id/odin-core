@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -28,7 +29,7 @@ namespace Odin.Services.Apps.Builtin;
 /// <para>
 /// The Feed circle already holds it on Public Posts (<see cref="BuiltinCircles.FeedCircle"/>); this gives it the same on
 /// every other channel.  Each post's ACL still decides who gets it and who may read it: the grant only lets a member
-/// decrypt a post the ACL already lets them see.  A new channel drive is granted when it is created, from the owner
+/// decrypt a post the ACL already lets them see.  A channel drive is granted when it is created or changed, from the owner
 /// console, which holds the master key re-minting the members' grants needs; an existing one by the v21 → v22 upgrade.
 /// </para>
 /// <para>
@@ -46,14 +47,29 @@ public class FeedCircleChannelReadGrants(
     private static bool IsFeedChannelDrive(StorageDrive drive) =>
         drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType &&
         drive.AppId == BuiltinCircles.FeedCircle.AppId &&
-        !drive.IsZeroKnowledge;
+        !drive.IsZeroKnowledge &&
+        !drive.OwnerOnly;
 
+    /// <summary>
+    /// On a channel drive's creation, and on any later change to it -- a drive handed to the Feed app, or one a
+    /// failed grant left out, is granted then.  A change made without the master key waits for one made with it.
+    /// </summary>
     public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
     {
-        if (notification.IsNewDrive && IsFeedChannelDrive(notification.Drive) &&
-            notification.OdinContext.Caller.HasMasterKey)
+        if (!IsFeedChannelDrive(notification.Drive) || !notification.OdinContext.Caller.HasMasterKey)
+        {
+            return;
+        }
+
+        try
         {
             await GrantReadAsync([notification.Drive.TargetDriveInfo], notification.OdinContext);
+        }
+        catch (Exception e)
+        {
+            // The drive is stored already; failing its creation over the grant would leave a drive the owner was told
+            // isn't there.  The next change to it, or the upgrade, tries again.
+            logger.LogError(e, "Granting the Feed circle Read on channel drive {drive} failed", notification.Drive.Id);
         }
     }
 

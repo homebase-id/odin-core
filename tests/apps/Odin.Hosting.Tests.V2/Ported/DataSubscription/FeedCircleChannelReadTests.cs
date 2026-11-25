@@ -11,7 +11,9 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Configuration.VersionUpgrade.Version21tov22;
+using Odin.Core;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 
@@ -64,6 +66,33 @@ public class FeedCircleChannelReadTests : V2Fixture
 
         // The owner console's: the Feed circle grants only drives the Feed app owns.
         var channel = await DataSubscriptionScenario.CreateChannelDriveAsync(frodo);
+
+        Assert.That(await GrantedDrivesAsync(scope), Does.Not.Contain(channel));
+    }
+
+    [Test]
+    public async Task AChannelDriveAdoptedByTheFeedApp_IsGranted()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (scope, ctx) = await MigrationContextAsync(frodo);
+        var channel = await DataSubscriptionScenario.CreateChannelDriveAsync(frodo);
+
+        await scope.Resolve<IDriveManager>().SetDriveOwningAppAsync(channel.Alias, SystemAppConstants.FeedAppId,
+            new OdinSlug("adopted"), BuiltinDrives.ChannelDriveTypeSlug, ctx);
+
+        Assert.That(await GrantedDrivesAsync(scope), Does.Contain(channel));
+    }
+
+    [Test]
+    public async Task AnOwnerOnlyFeedChannelDrive_IsNotGranted()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (scope, _) = await MigrationContextAsync(frodo);
+
+        // A circle may not be granted an owner-only drive; its creation must not fail over that.
+        var channel = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        await frodo.Admin.CreateDrive(channel, "owner only", allowAnonymousReads: false, ownerOnly: true,
+            appId: SystemAppConstants.FeedAppId);
 
         Assert.That(await GrantedDrivesAsync(scope), Does.Not.Contain(channel));
     }
