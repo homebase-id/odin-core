@@ -62,11 +62,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
 
                 logger.LogInformation("Locking app {appName} ({appId}) to Read on the ContactDrive", app.Name, app.AppId);
 
-                // A ContactDrive grant left with nothing (it was Write alone) is dropped rather than kept as None.
                 var drives = app.Grant.DriveGrants
-                    .Select(g => WithoutContactWrites(g.PermissionedDrive))
-                    .Where(d => d.Permission != DrivePermission.None)
-                    .Select(d => new DriveGrantRequest { PermissionedDrive = d })
+                    .Select(g => new DriveGrantRequest { PermissionedDrive = WithoutContactWrites(g.PermissionedDrive) })
                     .ToList();
 
                 await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
@@ -108,16 +105,20 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
                 g.PermissionedDrive.Drive == WellKnownAppDrives.ContactDrive &&
                 (g.PermissionedDrive.Permission & ContactWrites) != 0);
 
-        /// <summary>The ContactDrive grant without its writes, everything else on it kept; any other grant as it is.</summary>
+        /// <summary>
+        /// A ContactDrive grant that writes becomes Read, everything else on it kept; any other grant as it is.  Read is
+        /// added, not just kept: it carries the storage key ContactService needs, so a Write-only grant can still
+        /// write contacts through it.
+        /// </summary>
         private static PermissionedDrive WithoutContactWrites(PermissionedDrive grant)
         {
-            if (grant.Drive != WellKnownAppDrives.ContactDrive)
+            if (grant.Drive != WellKnownAppDrives.ContactDrive || (grant.Permission & ContactWrites) == 0)
             {
                 return grant;
             }
 
             var readOnly = grant.Clone();
-            readOnly.Permission &= ~ContactWrites;
+            readOnly.Permission = (readOnly.Permission & ~ContactWrites) | DrivePermission.Read;
             return readOnly;
         }
     }

@@ -97,8 +97,8 @@ public class ContactDriveReadOnlyAppsTests : V2Fixture
         Assert.That(feed!.Grant.PermissionSet.Keys, Is.EquivalentTo(feedBefore!.Grant.PermissionSet.Keys), "no key is added");
 
         var mail = await apps.GetAppRegistration(SystemAppConstants.MailAppId, ctx);
-        Assert.That(mail!.Grant.DriveGrants.Select(g => g.PermissionedDrive.Drive), Is.EquivalentTo(new[] { WellKnownAppDrives.ProfileDrive }),
-            "a ContactDrive grant of Write alone has nothing left, and goes");
+        Assert.That(ContactPermission(mail!), Is.EqualTo(DrivePermission.Read),
+            "a ContactDrive grant of Write alone becomes Read, which carries the storage key ContactService needs");
         Assert.That(mail!.IsRevoked, Is.True, "a revoked app is rewritten, and stays revoked");
     }
 
