@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -29,6 +30,14 @@ public class UpdateLocalTagsBatchRequestV2
     /// </summary>
     public List<FileLocalVersionTagV2> Files { get; init; }
 
+    /// <summary><see cref="AddTags"/>, empty when left out</summary>
+    [JsonIgnore]
+    public List<Guid> TagsToAdd => AddTags ?? [];
+
+    /// <summary><see cref="RemoveTags"/>, empty when left out</summary>
+    [JsonIgnore]
+    public List<Guid> TagsToRemove => RemoveTags ?? [];
+
     /// <summary>
     /// A batch naming at least one tag, none empty, none both added and removed, and 1 to
     /// <see cref="FileVersionTagBatchV2.MaxFiles"/> files, none twice
@@ -36,8 +45,8 @@ public class UpdateLocalTagsBatchRequestV2
     public void AssertValid()
     {
         FileVersionTagBatchV2.AssertValidBatch(Files);
-        var add = AddTags ?? [];
-        var remove = RemoveTags ?? [];
+        var add = TagsToAdd;
+        var remove = TagsToRemove;
         OdinValidationUtils.AssertIsTrue(add.Count + remove.Count > 0, "addTags or removeTags must name a tag");
         OdinValidationUtils.AssertIsTrue(add.Count <= LocalAppMetadata.MaxTagCount && remove.Count <= LocalAppMetadata.MaxTagCount,
             $"addTags and removeTags hold at most {LocalAppMetadata.MaxTagCount} tags each");
@@ -88,8 +97,8 @@ public class UpdateLocalTagsResultV2
     /// <summary>
     /// Null on success. Otherwise why this file was not changed, as a camelCase string: "versionTagMismatch" (stale
     /// localVersionTag, or other writes kept getting in between), "fileNotFound" (missing, or hidden from the caller by
-    /// its ACL), "argumentError" (the file would hold more than 50 local tags), or any other client error the write
-    /// raised. One file's error never stops the others.
+    /// its ACL), "argumentError" (the file would hold more than <see cref="LocalAppMetadata.MaxTagCount"/> local tags),
+    /// or any other client error the write raised. One file's error never stops the others.
     /// </summary>
     public OdinClientErrorCode? ErrorCode { get; init; }
 }

@@ -43,8 +43,8 @@ public class LocalTagsBatchTests : V2Fixture
         var (caller, owner) = await SetupCallerWithOwner(spec);
         var tagged = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "tagged");
         var untagged = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "untagged");
-        await SetLocalTagsAsync(owner, tagged, Kept, Gone);
-        var before = await GetHeaderAsync(owner, tagged);
+        await SetLocalTagsAsync(owner, spec.TargetDrive, tagged, Kept, Gone);
+        var before = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, tagged.FileId);
 
         var response = await caller.Drives.Writer.UpdateLocalTagsBatch(spec.TargetDrive.Alias,
             Batch([Favorite], [Gone], (tagged.FileId, null), (untagged.FileId, null)));
@@ -52,7 +52,7 @@ public class LocalTagsBatchTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(expected), response.Error?.Content);
         if (expected != HttpStatusCode.OK)
         {
-            Assert.That((await GetHeaderAsync(owner, tagged)).FileMetadata.LocalAppData.Tags, Is.EqualTo(new[] { Kept, Gone }));
+            Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, tagged), Is.EqualTo(new[] { Kept, Gone }));
             return;
         }
 
@@ -60,7 +60,7 @@ public class LocalTagsBatchTests : V2Fixture
         Assert.That(results.Select(r => (r.FileId, r.ErrorCode)),
             Is.EqualTo(new[] { (tagged.FileId, (OdinClientErrorCode?)null), (untagged.FileId, null) }));
 
-        var after = await GetHeaderAsync(owner, tagged);
+        var after = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, tagged.FileId);
         Assert.That(after.FileMetadata.LocalAppData.Tags, Is.EqualTo(new[] { Kept, Favorite }));
         Assert.That(after.FileMetadata.LocalAppData.VersionTag, Is.EqualTo(results[0].NewLocalVersionTag));
         Assert.That(after.FileMetadata.LocalAppData.VersionTag, Is.Not.EqualTo(before.FileMetadata.LocalAppData.VersionTag));
@@ -69,7 +69,7 @@ public class LocalTagsBatchTests : V2Fixture
         Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(before.FileMetadata.VersionTag), "the file's own version tag stays");
         Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo(before.FileMetadata.AppData.Content));
 
-        Assert.That((await GetHeaderAsync(owner, untagged)).FileMetadata.LocalAppData.Tags, Is.EqualTo(new[] { Favorite }));
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, untagged), Is.EqualTo(new[] { Favorite }));
     }
 
     [Test]
@@ -80,8 +80,8 @@ public class LocalTagsBatchTests : V2Fixture
         var neverWritten = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "never written");
         var current = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "current");
         var stale = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "stale");
-        var currentTag = await SetLocalTagsAsync(owner, current, Kept);
-        var staleTag = await SetLocalTagsAsync(owner, stale, Kept);
+        var currentTag = await SetLocalTagsAsync(owner, spec.TargetDrive, current, Kept);
+        var staleTag = await SetLocalTagsAsync(owner, spec.TargetDrive, stale, Kept);
 
         var response = await caller.Drives.Writer.UpdateLocalTagsBatch(spec.TargetDrive.Alias, Batch([Favorite], [],
             (neverWritten.FileId, Guid.Empty),
@@ -96,9 +96,9 @@ public class LocalTagsBatchTests : V2Fixture
             (stale.FileId, OdinClientErrorCode.VersionTagMismatch, false)
         }));
 
-        Assert.That((await GetHeaderAsync(owner, neverWritten)).FileMetadata.LocalAppData.Tags, Is.EqualTo(new[] { Favorite }));
-        Assert.That((await GetHeaderAsync(owner, current)).FileMetadata.LocalAppData.Tags, Is.EqualTo(new[] { Kept, Favorite }));
-        var staleHeader = await GetHeaderAsync(owner, stale);
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, neverWritten), Is.EqualTo(new[] { Favorite }));
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, current), Is.EqualTo(new[] { Kept, Favorite }));
+        var staleHeader = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, stale.FileId);
         Assert.That((staleHeader.FileMetadata.LocalAppData.Tags, staleHeader.FileMetadata.LocalAppData.VersionTag),
             Is.EqualTo((new List<Guid> { Kept }, staleTag)));
     }
@@ -109,8 +109,8 @@ public class LocalTagsBatchTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
         var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "already a favorite");
-        var localTag = await SetLocalTagsAsync(owner, file, Favorite);
-        var before = await GetHeaderAsync(owner, file);
+        var localTag = await SetLocalTagsAsync(owner, spec.TargetDrive, file, Favorite);
+        var before = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, file.FileId);
 
         var response = await caller.Drives.Writer.UpdateLocalTagsBatch(spec.TargetDrive.Alias,
             Batch([Favorite], [Gone], (file.FileId, null)));
@@ -119,7 +119,7 @@ public class LocalTagsBatchTests : V2Fixture
         var result = response.Content!.Results.Single();
         Assert.That((result.ErrorCode, result.NewLocalVersionTag, result.Updated?.milliseconds),
             Is.EqualTo(((OdinClientErrorCode?)null, (Guid?)localTag, (long?)before.FileMetadata.Updated.milliseconds)));
-        var after = await GetHeaderAsync(owner, file);
+        var after = await AppFileUploads.HeaderAsync(owner, spec.TargetDrive, file.FileId);
         Assert.That((after.FileMetadata.LocalAppData.VersionTag, after.FileMetadata.Updated.milliseconds),
             Is.EqualTo((localTag, before.FileMetadata.Updated.milliseconds)));
     }
@@ -138,7 +138,7 @@ public class LocalTagsBatchTests : V2Fixture
         Assert.That(responses.Select(r => r.StatusCode), Is.All.EqualTo(HttpStatusCode.OK), responses.FirstOrDefault(r => r.Error != null)?.Error?.Content);
         var added = tags.Where((_, i) => responses[i].Content!.Results.Single().ErrorCode == null).ToList();
         Assert.That(added, Is.Not.Empty);
-        Assert.That((await GetHeaderAsync(owner, file)).FileMetadata.LocalAppData.Tags, Is.EquivalentTo(added),
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, file), Is.EquivalentTo(added),
             "every change that answered success is in the file's tags, and no other");
     }
 
@@ -150,7 +150,7 @@ public class LocalTagsBatchTests : V2Fixture
         var full = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "full");
         var deleted = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "deleted");
         var current = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "current");
-        await SetLocalTagsAsync(owner, full, Enumerable.Range(0, LocalAppMetadata.MaxTagCount).Select(_ => Guid.NewGuid()).ToArray());
+        await SetLocalTagsAsync(owner, spec.TargetDrive, full, Enumerable.Range(0, LocalAppMetadata.MaxTagCount).Select(_ => Guid.NewGuid()).ToArray());
         await AppFileUploads.SoftDeleteAsync(owner, deleted);
         var missing = Guid.NewGuid();
 
@@ -169,10 +169,10 @@ public class LocalTagsBatchTests : V2Fixture
             (current.FileId, null)
         }));
 
-        Assert.That((await GetHeaderAsync(owner, full)).FileMetadata.LocalAppData.Tags, Has.Count.EqualTo(LocalAppMetadata.MaxTagCount));
-        Assert.That((await GetHeaderAsync(owner, deleted)).FileMetadata.LocalAppData.Tags, Is.EqualTo(new[] { Favorite }),
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, full), Has.Count.EqualTo(LocalAppMetadata.MaxTagCount));
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, deleted), Is.EqualTo(new[] { Favorite }),
             "local tags outlive a soft delete, so a tombstone's may change");
-        Assert.That((await GetHeaderAsync(owner, current)).FileMetadata.LocalAppData.Tags, Is.EqualTo(new[] { Favorite }));
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, current), Is.EqualTo(new[] { Favorite }));
     }
 
     [Test]
@@ -192,7 +192,7 @@ public class LocalTagsBatchTests : V2Fixture
             (hidden.FileId, (OdinClientErrorCode?)OdinClientErrorCode.FileNotFound),
             (visible.FileId, null)
         }));
-        Assert.That((await GetHeaderAsync(owner, hidden)).FileMetadata.LocalAppData?.Tags ?? [], Is.Empty);
+        Assert.That(await LocalTagsAsync(owner, spec.TargetDrive, hidden), Is.Empty);
     }
 
     [Test]
@@ -206,11 +206,11 @@ public class LocalTagsBatchTests : V2Fixture
         var add = await caller.Drives.Writer.UpdateLocalTagsBatch(spec.TargetDrive.Alias,
             Batch([Favorite], [], (a.FileId, null), (b.FileId, null)));
         Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.OK), add.Error?.Content);
-        Assert.That(await QueryByLocalTagAsync(owner, spec.TargetDrive, Favorite), Is.EquivalentTo(new[] { a.FileId, b.FileId }));
+        Assert.That(await AppFileUploads.QueryFileIdsAsync(owner, new FileQueryParamsV1 { TargetDrive = spec.TargetDrive, LocalTagsMatchAtLeastOne = [Favorite] }), Is.EquivalentTo(new[] { a.FileId, b.FileId }));
 
         var remove = await caller.Drives.Writer.UpdateLocalTagsBatch(spec.TargetDrive.Alias, Batch([], [Favorite], (a.FileId, null)));
         Assert.That(remove.StatusCode, Is.EqualTo(HttpStatusCode.OK), remove.Error?.Content);
-        Assert.That(await QueryByLocalTagAsync(owner, spec.TargetDrive, Favorite), Is.EqualTo(new[] { b.FileId }));
+        Assert.That(await AppFileUploads.QueryFileIdsAsync(owner, new FileQueryParamsV1 { TargetDrive = spec.TargetDrive, LocalTagsMatchAtLeastOne = [Favorite] }), Is.EqualTo(new[] { b.FileId }));
     }
 
     [Test]
@@ -252,9 +252,9 @@ public class LocalTagsBatchTests : V2Fixture
     /// <summary>
     /// Sets the file's local tags through the single-file route, answering its new local version tag
     /// </summary>
-    private static async Task<Guid> SetLocalTagsAsync(OwnerSession owner, CreateFileResult file, params Guid[] tags)
+    private static async Task<Guid> SetLocalTagsAsync(OwnerSession owner, TargetDrive drive, CreateFileResult file, params Guid[] tags)
     {
-        var header = await GetHeaderAsync(owner, file);
+        var header = await AppFileUploads.HeaderAsync(owner, drive, file.FileId);
         var response = await owner.Drives.Writer.UpdateLocalAppMetadataTags(file.DriveId, file.FileId, new UpdateLocalMetadataTagsRequestV2
         {
             LocalVersionTag = header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty,
@@ -264,21 +264,9 @@ public class LocalTagsBatchTests : V2Fixture
         return response.Content!.NewLocalVersionTag;
     }
 
-    private static async Task<SharedSecretEncryptedFileHeader> GetHeaderAsync(OwnerSession owner, CreateFileResult file)
-    {
-        var header = await owner.Drives.Reader.GetFileHeaderAsync(file.DriveId, file.FileId);
-        Assert.That(header.IsSuccessStatusCode, Is.True, $"header read failed: {header.StatusCode}");
-        return header.Content!;
-    }
-
-    private static async Task<List<Guid>> QueryByLocalTagAsync(OwnerSession owner, TargetDrive drive, Guid tag)
-    {
-        var results = await owner.Drives.Reader.GetBatchAsync(drive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1 { TargetDrive = drive, LocalTagsMatchAtLeastOne = [tag] },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 10, IncludeMetadataHeader = false }
-        });
-        Assert.That(results.IsSuccessStatusCode, Is.True, $"query failed: {results.StatusCode}");
-        return results.Content!.SearchResults.Select(r => r.FileId).ToList();
-    }
+    /// <summary>
+    /// The file's local tags as the owner reads them, empty when its local data was never written
+    /// </summary>
+    private static async Task<List<Guid>> LocalTagsAsync(OwnerSession owner, TargetDrive drive, CreateFileResult file) =>
+        (await AppFileUploads.HeaderAsync(owner, drive, file.FileId)).FileMetadata.LocalAppData?.Tags ?? [];
 }

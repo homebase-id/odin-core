@@ -1863,10 +1863,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            OdinValidationUtils.AssertIsTrue(newTags.Count <= 50, "max local tags is 50");
+            OdinValidationUtils.AssertIsTrue(newTags.Count <= LocalAppMetadata.MaxTagCount,
+                $"max local tags is {LocalAppMetadata.MaxTagCount}");
 
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
@@ -1917,8 +1916,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                     throw new OdinClientException($"Mismatching version tag {expectedLocalVersionTag}", OdinClientErrorCode.VersionTagMismatch);
                 }
 
-                var tags = (local?.Tags ?? []).Union(add).Except(remove).ToList();
-                if (tags.SequenceEqual(local?.Tags ?? []))
+                List<Guid> oldTags = local?.Tags ?? [];
+                var tags = oldTags.Union(add).Except(remove).ToList();
+                if (tags.SequenceEqual(oldTags))
                 {
                     return (localVersionTag, UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
                 }

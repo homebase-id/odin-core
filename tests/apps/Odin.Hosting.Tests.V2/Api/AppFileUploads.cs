@@ -285,6 +285,20 @@ public static class AppFileUploads
     }
 
     /// <summary>
+    /// The ids of the files the owner's query finds, in the order it answers them
+    /// </summary>
+    public static async Task<List<Guid>> QueryFileIdsAsync(OwnerSession owner, FileQueryParamsV1 query)
+    {
+        var results = await owner.Drives.Reader.GetBatchAsync(query.TargetDrive.Alias, new QueryBatchRequest
+        {
+            QueryParams = query,
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 10, IncludeMetadataHeader = false }
+        });
+        Assert.That(results.IsSuccessStatusCode, Is.True, $"query failed: {results.StatusCode} {results.Error?.Content}");
+        return results.Content!.SearchResults.Select(r => r.FileId).ToList();
+    }
+
+    /// <summary>
     /// Every row of the drive's change feed, tombstones included
     /// </summary>
     public static async Task<Dictionary<Guid, FileRef>> FeedAsync(OwnerSession owner, TargetDrive drive)

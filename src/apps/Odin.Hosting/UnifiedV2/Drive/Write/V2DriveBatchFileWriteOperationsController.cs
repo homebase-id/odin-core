@@ -115,13 +115,12 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
 
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
-            List<Guid> add = request.AddTags ?? [];
-            List<Guid> remove = request.RemoveTags ?? [];
             var storage = GetFileSystem().Storage;
             var results = await PerFileAsync(driveId, request.Files,
                 async (file, f) =>
                 {
-                    var (localVersionTag, updated) = await storage.ChangeLocalTagsAsync(file, f.LocalVersionTag, add, remove, WebOdinContext);
+                    var (localVersionTag, updated) = await storage.ChangeLocalTagsAsync(file, f.LocalVersionTag, request.TagsToAdd,
+                        request.TagsToRemove, WebOdinContext);
                     return new UpdateLocalTagsResultV2 { FileId = f.FileId, NewLocalVersionTag = localVersionTag, Updated = updated };
                 },
                 (fileId, errorCode) => new UpdateLocalTagsResultV2 { FileId = fileId, ErrorCode = errorCode });
