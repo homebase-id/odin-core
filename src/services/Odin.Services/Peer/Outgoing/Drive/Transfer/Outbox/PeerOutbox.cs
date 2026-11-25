@@ -49,6 +49,30 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             PerformanceCounter.IncrementCounter($"Outbox Item Added {fileItem.Type}");
         }
 
+        /// <summary>
+        /// Drops the introductions and introducee connects still queued to <paramref name="recipient"/>: a disconnect or
+        /// a withdrawn request ends what they would start.  They shared one outbox key with those notices until #1824,
+        /// so the later notice replaced them (both kinds, on a withdrawal too); with a key per type it is done here.
+        /// </summary>
+        public async Task RemoveIntroductionNoticesAsync(OdinId recipient)
+        {
+            OutboxItemType[] types = [OutboxItemType.SendIntroduction, OutboxItemType.ConnectIntroducee];
+            foreach (var type in types)
+            {
+                var file = RecipientNoticeKey.For(type, recipient);
+                await tblOutbox.DeleteAsync(file.DriveId, file.FileId, recipient);
+            }
+
+            // Queued before #1824 under the one key all four notices shared; only an introduction notice goes. Can be
+            // removed once no outbox holds a row from before that release.
+            var driveId = SystemDriveConstants.TransientTempDrive.Alias;
+            var legacy = await tblOutbox.GetAsync(driveId, recipient.ToHashId(), recipient);
+            if (legacy != null && types.Contains((OutboxItemType)legacy.type))
+            {
+                await tblOutbox.DeleteAsync(driveId, legacy.fileId, recipient);
+            }
+        }
+
         public async Task MarkCompleteAsync(Guid marker)
         {
             await tblOutbox.CompleteAndRemoveAsync(marker);

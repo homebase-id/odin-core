@@ -45,7 +45,7 @@ public class ConnectIntroduceeRetryTests : V2Fixture
         await EnqueueConnectIntroduceeAsync(OutboxBackoff.Resolve(tenant).Outbox);
 
         await OutboxBackoff.AssertFailedOnceAndParkedAsync(tenant, SystemDriveConstants.TransientTempDrive.Alias,
-            Unreachable.ToHashId(), Unreachable);
+            RecipientNoticeKey.For(OutboxItemType.ConnectIntroducee, Unreachable).FileId, Unreachable);
 
         Assert.That(WarningsContaining("ConnectIntroducee to"), Is.Not.Empty,
             "each failed attempt should say why, at Warning");
@@ -81,17 +81,14 @@ public class ConnectIntroduceeRetryTests : V2Fixture
             Recipient = Unreachable,
             Priority = 55,
             Type = OutboxItemType.ConnectIntroducee,
-            File = new InternalDriveFileId
-            {
-                DriveId = SystemDriveConstants.TransientTempDrive.Alias,
-                FileId = Unreachable.ToHashId()
-            },
+            File = RecipientNoticeKey.For(OutboxItemType.ConnectIntroducee, Unreachable),
             State = new OutboxItemState { Data = OdinSystemSerializer.Serialize(iid).ToUtf8ByteArray() }
         }, useUpsert: true);
     }
 
     private static Task<RedactedOutboxFileItem> GetItemAsync(PeerOutbox outbox) =>
-        outbox.GetItemAsync(SystemDriveConstants.TransientTempDrive.Alias, Unreachable.ToHashId(), Unreachable);
+        outbox.GetItemAsync(SystemDriveConstants.TransientTempDrive.Alias,
+            RecipientNoticeKey.For(OutboxItemType.ConnectIntroducee, Unreachable).FileId, Unreachable);
 
     private List<LogEvent> WarningsContaining(string text) =>
         Host.LogStore.GetLogEvents().TryGetValue(LogEventLevel.Warning, out var warnings)
