@@ -25,7 +25,13 @@ namespace Odin.Core.Cryptography.Crypto
         /// <param name="key">The encryption key.</param>
         /// <param name="iv">The 16-byte IV to use.</param>
         /// <returns>The encrypted ciphertext with the authentication tag appended.</returns>
-        public static byte[] Encrypt(byte[] data, SensitiveByteArray key, byte[] iv)
+        public static byte[] Encrypt(byte[] data, SensitiveByteArray key, byte[] iv) => Encrypt(data, key, iv, null);
+
+        /// <summary>
+        /// As <see cref="Encrypt(byte[], SensitiveByteArray, byte[])"/>, authenticating <paramref name="associatedData"/>
+        /// too: decrypting needs the same associated data.
+        /// </summary>
+        public static byte[] Encrypt(byte[] data, SensitiveByteArray key, byte[] iv, byte[] associatedData)
         {
             if (data == null) throw new ArgumentNullException(nameof(data), "Data cannot be null.");
             if (key == null) throw new ArgumentNullException(nameof(key), "Key cannot be null.");
@@ -39,7 +45,7 @@ namespace Odin.Core.Cryptography.Crypto
             var tag = new byte[TagSize];
 
             using var aesGcm = new System.Security.Cryptography.AesGcm(key.GetKey(), TagSize);
-            aesGcm.Encrypt(nonce, data, ciphertext, tag);
+            aesGcm.Encrypt(nonce, data, ciphertext, tag, associatedData);
 
             // Combine ciphertext and tag for output
             var result = new byte[ciphertext.Length + tag.Length];
@@ -74,7 +80,13 @@ namespace Odin.Core.Cryptography.Crypto
         /// <param name="key">The decryption key.</param>
         /// <param name="iv">The 16-byte IV used for encryption.</param>
         /// <returns>The decrypted plaintext.</returns>
-        public static byte[] Decrypt(byte[] cipherText, SensitiveByteArray key, byte[] iv)
+        public static byte[] Decrypt(byte[] cipherText, SensitiveByteArray key, byte[] iv) => Decrypt(cipherText, key, iv, null);
+
+        /// <summary>
+        /// As <see cref="Decrypt(byte[], SensitiveByteArray, byte[])"/>, for ciphertext sealed with
+        /// <paramref name="associatedData"/>.
+        /// </summary>
+        public static byte[] Decrypt(byte[] cipherText, SensitiveByteArray key, byte[] iv, byte[] associatedData)
         {
             if (cipherText == null) throw new ArgumentNullException(nameof(cipherText), "CipherText cannot be null.");
             if (key == null) throw new ArgumentNullException(nameof(key), "Key cannot be null.");
@@ -96,7 +108,7 @@ namespace Odin.Core.Cryptography.Crypto
             using var aesGcm = new System.Security.Cryptography.AesGcm(key.GetKey(), TagSize);
 
             // Decrypt and authenticate
-            aesGcm.Decrypt(nonce, actualCiphertext, tag, plaintext);
+            aesGcm.Decrypt(nonce, actualCiphertext, tag, plaintext, associatedData);
             return plaintext;
         }
     }
