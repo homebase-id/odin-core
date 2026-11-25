@@ -48,7 +48,8 @@ public class CertificateOrderPolicyTests
             new AcmeAccountConfig(),
             Substitute.For<IServiceProvider>(),
             new OdinConfiguration(),
-            _notifier);
+            _notifier,
+            new CertificateStorageKey(new byte[32]));
     }
 
     //
