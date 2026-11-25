@@ -15,12 +15,12 @@ using Odin.Services.Peer.Outgoing.Drive;
 namespace Odin.Hosting.Tests.V2.DriveWrite;
 
 /// <summary>
-/// On a normal drive, every write that replaces a file needs the drive's storage key, even when the file is
+/// On a normal drive, every write that changes an existing file needs the drive's storage key, even when the file is
 /// unencrypted: a caller may lack it while holding Write (a guest on a public drive: its grants carry none), and Write
-/// alone lets them add files, not change other people's (#2026).  A full overwrite (NewFileOrOverwrite) asks for it as
-/// it locks a key header; a metadata-only overwrite and the update endpoint ask for it outright.  Only a zero-knowledge
-/// drive, which has no storage key to ask for, skips it.  The owner's file is readable by the guest (anonymous ACL),
-/// so the read rule alone would let each of these through.
+/// alone lets them add files, not change existing ones (#2026).  A full overwrite (NewFileOrOverwrite) always asked for
+/// it as it locks a key header; a metadata-only overwrite, the update endpoint and a payload's upload now ask for it
+/// outright.  Only a zero-knowledge drive, which has no storage key to ask for, skips it.  The owner's file is
+/// readable by the guest (anonymous ACL), so the read rule alone would let each of these through.
 /// </summary>
 [TestFixture]
 public class OverwriteNeedsTheStorageKeyTests : V2Fixture
@@ -75,6 +75,21 @@ public class OverwriteNeedsTheStorageKeyTests : V2Fixture
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), update.Error?.Content);
 
         await AssertUnchanged(owner, file);
+    }
+
+    [Test]
+    public async Task ACallerWithoutTheStorageKeyCannotUploadAPayloadToAnUnencryptedFile()
+    {
+        var (guest, owner) = await SetupCallerWithOwner(GuestWriter);
+        var (file, versionTag) = await OwnerUploadsAnAnonymousFile(owner);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var upload = await guest.V1.Drive.UploadPayloads(file, versionTag,
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload]);
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), upload.Error?.Content);
+
+        var read = await owner.V1.Drive.GetFileHeader(file);
+        Assert.That(read.Content!.FileMetadata.Payloads, Is.Empty, "the owner's file has no payload added");
     }
 
     [Test]

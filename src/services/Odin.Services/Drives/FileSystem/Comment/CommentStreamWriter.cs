@@ -85,7 +85,6 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
-            await FileSystem.Storage.AssertLocalCallerMayReplaceAsync(package.InternalFile.DriveId, odinContext);
             await FileSystem.Storage.OverwriteMetadata(
                 keyHeader,
                 targetFile,

@@ -282,6 +282,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
+            await FileSystem.Storage.AssertLocalCallerMayReplaceAsync(Package.InternalFile.DriveId, odinContext);
             var uploadedPayloads = await ProcessExistingFileUploadAsync(Package, keyHeader, metadata, serverMetadata, odinContext);
 
             var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
@@ -381,8 +382,6 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
             FileMetadata = metadata,
             ServerMetadata = serverMetadata
         };
-
-        await FileSystem.Storage.AssertLocalCallerMayReplaceAsync(package.InternalFile.DriveId, odinContext);
 
         // TODO what if success is false?
         var (success, payloads) = await FileSystem.Storage.UpdateBatchAsync(package.InternalFile, package.InternalFile,

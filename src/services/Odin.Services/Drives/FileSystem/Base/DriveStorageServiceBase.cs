@@ -946,11 +946,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// A local caller's write that replaces a file (a metadata-only overwrite, an update) on a Server Share drive needs
-        /// the drive's storage key, encrypted file or not, as a full overwrite's key header does (<see cref="OverwriteFile"/>):
-        /// drive Write alone lets a caller without it (a guest on a public drive) add files, not change other people's
-        /// (#2026).  Owner callers, the owner's apps included, are the owner acting and skip it; a peer's change has its
+        /// A local caller's write that changes an existing file's content (an overwrite, metadata-only or full, an update, a
+        /// payload's upload) on a Server Share drive needs the drive's storage key, encrypted file or not, as a full
+        /// overwrite's key header always did (<see cref="OverwriteFile"/>): drive Write alone lets a caller without it (a
+        /// guest on a public drive) add files, not change existing ones, their own included (#2026).  Owner callers, the owner's apps included, are the owner acting and skip it; a peer's change has its
         /// own rule (docs/file-access.md, "Changing a file you sent"); a zero-knowledge drive has no storage key to ask for.
+        /// A payload's delete doesn't ask it: a guest with Write deleting one on the V2 route is tested as allowed.
         /// </summary>
         public async Task AssertLocalCallerMayReplaceAsync(Guid driveId, IOdinContext odinContext)
         {
@@ -1269,6 +1270,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
+            await AssertLocalCallerMayReplaceAsync(targetFile.DriveId, odinContext);
 
             AssertActiveForUpdate(existingServerHeader);
             // The payloads replaced below are the ones this header lists

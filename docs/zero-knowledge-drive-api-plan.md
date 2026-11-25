@@ -974,12 +974,13 @@ it as it is (read 2026-10-26) **(V)**.
   drive's own file out as missing, not as refused, so a write's check for a taken unique id still
   falls through to the index (400). The socket still doesn't leave out an encrypted file it holds no
   storage key for, as a query does; that predates this.
-- **Which writes need the storage key: every replace by an outside caller (#2026).** On a Server Share drive a
-  guest's full overwrite, metadata-only overwrite and update all need the storage key, encrypted file or not
-  (`AssertLocalCallerMayReplaceAsync`; pinned by `OverwriteNeedsTheStorageKeyTests`), so a guest with Write on a
-  public drive adds files but can't replace another's. Owner callers and their apps skip it except on a full
-  overwrite, whose key header still needs the key; a peer's change has its own rule (`SentFileChanges`). A new
-  upload doesn't need it; a delete doesn't ask it.
+- **Which writes need the storage key: every content change by an outside caller (#2026).** On a Server Share
+  drive a guest's overwrite (full or metadata-only), update and payload upload all need the storage key,
+  encrypted file or not (`AssertLocalCallerMayReplaceAsync`; pinned by `OverwriteNeedsTheStorageKeyTests`), so a guest
+  with Write on a public drive adds files but can't change existing ones. Owner callers and their apps skip it except
+  on a full overwrite, whose key header still needs the key; a peer's change has its own rule (`SentFileChanges`). A
+  new upload doesn't need it; a delete (a file's or a payload's), an archival-status change and local app metadata don't
+  ask it.
 - **The CDN for a zero-knowledge drive: later.** Step 1 keeps zero-knowledge drives off the CDN, even
   with `AllowCdn` on. We may want a zero-knowledge drive's files on the CDN later, still encrypted, when
   the owner ticks CDN for the drive. Until then the drive-settings check (status above, built 2026-11-05) refuses

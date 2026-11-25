@@ -287,6 +287,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
             await PayloadHash.AssertIvsRotatedAsync(Package.Payloads, metadata.IsEncrypted, ExistingFileHeader);
 
+            await FileSystem.Storage.AssertLocalCallerMayReplaceAsync(Package.InternalFile.DriveId, odinContext);
             await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
         }
         else
