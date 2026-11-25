@@ -57,9 +57,10 @@ public class TableKeyValueCached(TableKeyValue table, IIdentityTransactionalCach
     public async Task<bool> TryInsertAsync(KeyValueRecord item)
     {
         var result = await table.TryInsertAsync(item);
-
-        // Also when it lost: a miss cached before the other insert must not answer the reads that follow
-        await InvalidateAsync(item.key);
+        if (result)
+        {
+            await InvalidateAsync(item.key);
+        }
         return result;
     }
 

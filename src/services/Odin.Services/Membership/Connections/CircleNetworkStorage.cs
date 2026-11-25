@@ -184,13 +184,18 @@ public class CircleNetworkStorage
     }
 
     /// <summary>
-    /// Creates a new icr key; fails if one already exists.  Insert-only, so of two first-time calls at once the
-    /// second fails instead of replacing the key every connection's token is locked with.
+    /// Creates a new icr key; fails if one already exists
     /// </summary>
     /// <param name="masterKey"></param>
     /// <exception cref="OdinClientException"></exception>
     public async Task CreateIcrKeyAsync(SensitiveByteArray masterKey)
     {
+        var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValueCached, _icrKeyStorageId);
+        if (null != existingKey)
+        {
+            throw new OdinClientException("IcrKey already exists");
+        }
+
         var icrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
         var record = new IcrKeyRecord()
@@ -199,10 +204,7 @@ public class CircleNetworkStorage
             Created = UnixTimeUtc.Now()
         };
 
-        if (!await _icrKeyStorage.TryInsertAsync(_db.KeyValueCached, _icrKeyStorageId, record))
-        {
-            throw new OdinClientException("IcrKey already exists");
-        }
+        await _icrKeyStorage.UpsertAsync(_db.KeyValueCached, _icrKeyStorageId, record);
     }
 
     public async Task<SymmetricKeyEncryptedAes> GetMasterKeyEncryptedIcrKeyAsync()

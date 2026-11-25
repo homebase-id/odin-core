@@ -12,7 +12,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Acl;
@@ -546,7 +545,7 @@ namespace Odin.Services.Authorization.Apps
             {
                 if (appReg.ZkMasterKeyEncryptedAppKey != null)
                 {
-                    throw ZkAppKeyAlreadySet(appReg.AppId);
+                    throw new OdinClientException($"App {appReg.AppId} already has a zero-knowledge key", OdinClientErrorCode.ZkAppKeyAlreadySet);
                 }
 
                 appReg.ZkMasterKeyEncryptedAppKey = request.ZkMasterKeyEncryptedAppKey;
@@ -815,11 +814,11 @@ namespace Odin.Services.Authorization.Apps
         private async Task<AppRegistration?> GetAppRegistrationInternalAsync(GuidId appId)
         {
             var record = await db.AppRegistrations.GetAsync(appId);
-            return record != null ? FromRecord(record) : await GetLegacyAppRegistrationAsync(appId);
-        }
+            if (record != null)
+            {
+                return FromRecord(record);
+            }
 
-        private async Task<AppRegistration?> GetLegacyAppRegistrationAsync(GuidId appId)
-        {
             // Pre-v13 only.  After the move a missing row means the app was deleted, and the blob copy
             // it left behind must not answer for it -- LegacyDefinitionStore says why the gate is the
             // version and not the miss.
@@ -946,7 +945,7 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>Saves a change to a registered app; a new one is inserted by <see cref="RegisterAppAsync"/>.</summary>
         private async Task SaveAsync(AppRegistration appReg)
         {
-            var (row, setsFirstZkKey) = await AssertKeepsKeysAsync(appReg);
+            await AssertKeepsKeysAsync(appReg);
 
             // A drive-key copy lives as long as the grant that reads with it: a grant removed or narrowed to writing,
             // or a drive deleted, takes it, so a grant given again gets a fresh one from the backfill
@@ -962,29 +961,6 @@ namespace Odin.Services.Authorization.Apps
             // An update, so an app uninstalled since it was read isn't written back.  Before v13 an app may live only
             // in the legacy store, and its first change moves it into the table.
             var record = ToRecord(appReg);
-
-            // The app's first zero-knowledge key: only over the row it was checked against, so of two first-time saves
-            // at once the second can't replace the key the first set (#2043).  An app only in the legacy store is moved
-            // into the table insert-only, for the same reason.
-            while (setsFirstZkKey)
-            {
-                if (row != null
-                        ? await db.AppRegistrations.UpdateIfUnmodifiedAsync(record, row.modified)
-                        : await db.AppRegistrations.TryInsertAsync(record))
-                {
-                    return;
-                }
-
-                var storedKey = (await GetAppRegistrationInternalAsync(appReg.AppId))?.ZkMasterKeyEncryptedAppKey;
-                if (storedKey != null && storedKey != appReg.ZkMasterKeyEncryptedAppKey)
-                {
-                    throw ZkAppKeyAlreadySet(appReg.AppId);
-                }
-
-                // Another change in between (or this same key): check again over that one
-                (row, setsFirstZkKey) = await AssertKeepsKeysAsync(appReg);
-            }
-
             if (await db.AppRegistrations.UpdateAsync(record) == 0 &&
                 !(await legacyStore.IsPreMoveAsync() && await db.AppRegistrations.TryInsertAsync(record)))
             {
@@ -997,14 +973,9 @@ namespace Odin.Services.Authorization.Apps
         /// zero-knowledge key locks their copies of drive keys, so a new one would cut them off.  Starting over with new
         /// keys is uninstalling the app and installing it again.
         /// </summary>
-        /// <returns>
-        /// The stored row (null for an app only in the legacy store), for the write to be conditioned on, and whether
-        /// this change gives the app its first zero-knowledge key.
-        /// </returns>
-        private async Task<(AppRegistrationsRecord? Row, bool SetsFirstZkKey)> AssertKeepsKeysAsync(AppRegistration appReg)
+        private async Task AssertKeepsKeysAsync(AppRegistration appReg)
         {
-            var row = await db.AppRegistrations.GetAsync(appReg.AppId);
-            var stored = (row != null ? FromRecord(row) : await GetLegacyAppRegistrationAsync(appReg.AppId))
+            var stored = await GetAppRegistrationInternalAsync(appReg.AppId)
                          ?? throw new OdinSystemException($"App {appReg.AppId} isn't registered; a change never registers it");
 
             if (!SymmetricKeyEncryptedAes.AreSame(stored.AppKeyStore?.MasterKeyEncryptedKeyStoreKey,
@@ -1017,15 +988,10 @@ namespace Odin.Services.Authorization.Apps
             {
                 throw new OdinSystemException($"A change to app {appReg.AppId} would replace its zero-knowledge key");
             }
-
-            return (row, stored.ZkMasterKeyEncryptedAppKey == null && appReg.ZkMasterKeyEncryptedAppKey != null);
         }
 
         private static OdinClientException AlreadyRegistered(Guid appId) =>
             new($"App {appId} is already registered", OdinClientErrorCode.AppAlreadyRegistered);
-
-        private static OdinClientException ZkAppKeyAlreadySet(Guid appId) =>
-            new($"App {appId} already has a zero-knowledge key", OdinClientErrorCode.ZkAppKeyAlreadySet);
 
         internal static AppRegistrationsRecord ToRecord(AppRegistration appReg)
         {

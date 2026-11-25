@@ -347,8 +347,7 @@ namespace Odin.Services.EncryptionKeyService
             {
                 VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
 
-                // Insert-only: a key another call created meanwhile is kept, not replaced
-                await _storage.TryInsertAsync(_tblKeyValue, storageKey, new NotificationEccKeys
+                await _storage.UpsertAsync(_tblKeyValue, storageKey, new NotificationEccKeys
                 {
                     PublicKey64 = vapidKeys.PublicKey,
                     PrivateKey64 = vapidKeys.PrivateKey
@@ -373,9 +372,7 @@ namespace Odin.Services.EncryptionKeyService
                 EccKeyListManagement.DefaultMaxOnlineKeys,
                 EccKeyListManagement.DefaultHoursOnlineKey);
 
-            // Insert-only: the KeyCreationLock is this process's only, so a key another call created meanwhile is
-            // kept, not replaced
-            await _storage.TryInsertAsync(_tblKeyValue, storageKey, eccKeyList);
+            await _storage.UpsertAsync(_tblKeyValue, storageKey, eccKeyList);
         }
 
         private async Task<EccFullKeyData> GetCurrentEccKeyFromStorageAsync(Guid storageKey)

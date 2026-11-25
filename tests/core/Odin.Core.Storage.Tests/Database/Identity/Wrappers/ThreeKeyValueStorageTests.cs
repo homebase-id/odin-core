@@ -51,27 +51,4 @@ public class ThreeKeyValueStorageTests : IocTestBase
         await kvp2.DeleteAsync(tblKeyThreeValue, pk);
         ClassicAssert.IsTrue(await kvp2.GetAsync<string>(tblKeyThreeValue, pk) == null);
     }
-
-    [Test]
-    [TestCase(DatabaseType.Sqlite)]
-    #if RUN_POSTGRES_TESTS
-    [TestCase(DatabaseType.Postgres)]
-    #endif
-    public async Task TryInsertKeepsWhatIsStored(DatabaseType databaseType)
-    {
-        await RegisterServicesAsync(databaseType);
-        var tblKeyThreeValue = Services.Resolve<TableKeyThreeValueCached>();
-
-        var storage = new ThreeKeyValueStorage(Guid.NewGuid());
-        var dataTypeKey = Guid.NewGuid().ToByteArray();
-        var categoryKey = Guid.NewGuid().ToByteArray();
-        var pk = Guid.NewGuid();
-
-        Assert.That(await storage.TryInsertAsync(tblKeyThreeValue, pk, dataTypeKey, categoryKey, "first"), Is.True);
-        Assert.That(await storage.GetAsync<string>(tblKeyThreeValue, pk), Is.EqualTo("first"));
-
-        // A second insert, as a second first-time caller would make, leaves the first in place
-        Assert.That(await storage.TryInsertAsync(tblKeyThreeValue, pk, dataTypeKey, categoryKey, "second"), Is.False);
-        Assert.That(await storage.GetAsync<string>(tblKeyThreeValue, pk), Is.EqualTo("first"));
-    }
 }
