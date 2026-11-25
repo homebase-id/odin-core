@@ -127,6 +127,14 @@ namespace Odin.Services.Registry
         Task<TenantStatusState> UnlockMovedAsync(string domain);
 
         /// <summary>
+        /// Ends a temporary hold (paused, out of quota): sets <see cref="TenantStatus.Active"/>. Throws
+        /// <see cref="Odin.Core.Exceptions.OdinClientException"/> for a disabled copy, which only a deliberate set-status
+        /// re-enables. Checked under the registry lock, so nothing can disable it between the check and the change.
+        /// </summary>
+        /// <returns>Previous state or null if not found</returns>
+        Task<TenantStatusState> ResumeAsync(string domain);
+
+        /// <summary>
         /// Sets whether the identity is allowed a public home page
         /// </summary>
         /// <returns>Previous state or null if not found</returns>

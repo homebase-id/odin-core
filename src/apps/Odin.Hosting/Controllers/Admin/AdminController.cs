@@ -180,6 +180,19 @@ public class AdminController : ControllerBase
     //
 
     /// <summary>
+    /// See <see cref="IIdentityRegistry.ResumeAsync"/>; returns the previous status. 400 for a disabled copy, or while a
+    /// moved identity's queued payloads are still arriving.
+    /// </summary>
+    [HttpPost("tenants/{domain}/resume")]
+    public async Task<ActionResult<TenantStatusState>> ResumeTenant(string domain)
+    {
+        var previous = await _tenantAdmin.ResumeTenantAsync(domain);
+        return previous == null ? NotFound() : Ok(previous);
+    }
+
+    //
+
+    /// <summary>
     /// Sets the tenant's plan and, when given, its quota and public web presence (left out, unchanged), and returns
     /// what it had before. 400 for an empty plan Id or a quota that is not more than 0.
     /// </summary>

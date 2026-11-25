@@ -639,6 +639,31 @@ public class AdminControllerTest : V2Fixture
 
     //
 
+    /// <summary>Resume is a server-side intent (#1846): it ends a pause, and refuses a disabled tenant with how to re-enable it.</summary>
+    [Test]
+    public async Task ResumeEndsAPause_AndRefusesADisabledTenant()
+    {
+        using var adminClient = CreateAdminClient();
+
+        Assert.That((await SetFrodoStatusAsync(adminClient, TenantStatus.Paused)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var resumed = await SendAsync(adminClient, HttpMethod.Post, $"tenants/{Identities.Frodo}/resume");
+        Assert.That(resumed.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await ReadAsync<TenantStatusState>(resumed)).Status, Is.EqualTo(TenantStatus.Paused), "the previous status");
+        Assert.That((await GetOkAsync<TenantModel>(adminClient, $"tenants/{Identities.Frodo}")).Status, Is.EqualTo(TenantStatus.Active));
+
+        Assert.That((await SetFrodoStatusAsync(adminClient, TenantStatus.Disabled)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var refused = await SendAsync(adminClient, HttpMethod.Post, $"tenants/{Identities.Frodo}/resume");
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await refused.Content.ReadAsStringAsync(), Does.Contain("set-status"), "says how to re-enable it");
+        Assert.That((await GetOkAsync<TenantModel>(adminClient, $"tenants/{Identities.Frodo}")).Status, Is.EqualTo(TenantStatus.Disabled),
+            "a refused resume changes nothing");
+
+        Assert.That((await SendAsync(adminClient, HttpMethod.Post, "tenants/nobody.dotyou.cloud/resume")).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    //
+
     [Test]
     public async Task ItShouldEnableAndDisablePublicWebPresence()
     {
