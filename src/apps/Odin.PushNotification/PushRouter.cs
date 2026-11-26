@@ -14,13 +14,16 @@ public interface IPushRouter
 /// A Ring to a device that registered a PushKit token goes out as a VoIP push when the Apple key
 /// is configured; everything else, including a Ring without a VoIP token or without the key, goes
 /// through Firebase as an ordinary alert (Android shows its own call UI; iOS gets a time-sensitive
-/// alert).
+/// alert). A Hangup to a device that rang through CallKit goes out as a silent background push: an
+/// alert would have no ring alert to replace and its text would show on its own.
 /// </summary>
 public sealed class PushRouter(IPushNotification firebase, IApnsVoipSender apns, ILogger<PushRouter> logger) : IPushRouter
 {
     public Task<string> SendAsync(DevicePushNotificationRequestV1 request, CancellationToken cancellationToken = default)
     {
-        var wantsVoip = request.KindOrNotify() == PushKind.Ring && !string.IsNullOrWhiteSpace(request.VoipDeviceToken);
+        var hasVoipToken = !string.IsNullOrWhiteSpace(request.VoipDeviceToken);
+        var kind = request.KindOrNotify();
+        var wantsVoip = kind == PushKind.Ring && hasVoipToken;
 
         if (wantsVoip && apns.IsConfigured)
         {
@@ -33,6 +36,12 @@ public sealed class PushRouter(IPushNotification firebase, IApnsVoipSender apns,
             logger.LogWarning(
                 "VoIP push wanted for a Ring to {to} (device registered a PushKit token) but APNs is not configured; sending an alert push instead",
                 request.ToDomain);
+        }
+
+        // Only when the ring really was a VoIP push; without the Apple key it was an alert and this hangup replaces it.
+        if (kind == PushKind.Hangup && hasVoipToken && apns.IsConfigured)
+        {
+            request.Silent = true;
         }
 
         return firebase.Post(request);
