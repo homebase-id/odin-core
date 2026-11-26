@@ -227,10 +227,10 @@ Start the description with two lines:
 
 ```
 Problem: <the essence from "Working on an issue", updated if the work changed it>
-Core change: <file:line> `<the one line of code that fixes it>`: why it fixes the Problem
+Core change: <file:line> <the essence of the code that fixes it>: why it fixes the Problem
 ```
 
-If the Core change doesn't answer the Problem, the PR solves something else. After opening the PR, print on screen the PR title followed by its bare full URL, then the Problem and Core change lines.
+The Core change is the heart of the fix, not the whole diff: often one line, sometimes a few lines or a short block, quoted or named. If the Core change doesn't answer the Problem, the PR solves something else. After opening the PR, print on screen the PR title followed by its bare full URL, then the Problem and Core change lines.
 
 End the description with this block, one line each, before the attribution lines. The weekly team data reads it.
 
