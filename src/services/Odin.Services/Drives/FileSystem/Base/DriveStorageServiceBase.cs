@@ -330,14 +330,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
-            //short circuit
-            var fileExists = await FileExists(targetFile, odinContext);
-            if (!fileExists)
-            {
-                await WriteNewFileHeader(targetFile, header, odinContext, raiseEvent);
-                return;
-            }
-
             var metadata = header.FileMetadata;
 
             //TODO: need to encrypt the metadata parts
@@ -348,7 +340,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+            // Every caller passes a header it read: a file gone since was hard-deleted (a purge, the expiry job) or has
+            // expired, and writing the header as a new file would bring it back, payloads whose bytes are gone (#1963)
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext) ??
+                                 throw new OdinClientException($"No such file {targetFile.FileId}", OdinClientErrorCode.FileNotFound);
             metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
@@ -389,7 +384,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.FileState = FileState.Active;
             metadata.TransitUpdated = 0; // a new file has not been changed over transit (FileMetadata.TransitUpdated)
 
-            await WriteFileHeaderInternal(header, odinContext, useThisVersionTag); // sets the header.FileMetadata.Created/Updated
+            await WriteFileHeaderInternal(header, odinContext, useThisVersionTag, newFile: true); // sets the header.FileMetadata.Created/Updated
 
             //HACKed in for Feed drive -> should become data subscription
             if (raiseEvent)
@@ -2237,7 +2232,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (payloadDiskUsage, thumbnailDiskUsage);
         }
 
-        private async Task WriteFileHeaderInternal(ServerFileHeader header, IOdinContext odinContext, Guid? useThisVersionTag = null)
+        /// <param name="newFile">Only <see cref="WriteNewFileHeader"/>'s: every other write changes a stored file, and is
+        /// written only over its row as read, so a file hard-deleted meanwhile isn't recreated (#1963)</param>
+        private async Task WriteFileHeaderInternal(ServerFileHeader header, IOdinContext odinContext, Guid? useThisVersionTag = null,
+            bool newFile = false)
         {
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
@@ -2248,7 +2246,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertMemberMayWriteAsync(drive, header, odinContext);
 
             // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
-            await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag);
+            await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag, newFile);
         }
 
         /// <summary>

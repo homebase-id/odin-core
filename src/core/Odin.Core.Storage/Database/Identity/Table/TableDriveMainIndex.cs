@@ -97,7 +97,11 @@ public class TableDriveMainIndex(
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
-    internal virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? useThisNewVersionTag = null)
+    /// <param name="newFile">False for a change of a stored file: only an UPDATE of the row at <c>item.hdrVersionTag</c>,
+    /// so a file hard-deleted since it was read isn't recreated from the header read before the delete (#1963).  A row
+    /// that is gone is fileNotFound; one at another version, versionTagMismatch.</param>
+    internal virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? useThisNewVersionTag = null,
+        bool newFile = true)
     {
         if (useThisNewVersionTag == null)
             useThisNewVersionTag = SequentialGuid.CreateGuid();
@@ -124,13 +128,18 @@ public class TableDriveMainIndex(
         // reads the old row and a clock that holds still for the statement in both databases, sets both
         string newModified = $"{upsertCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr})";
 
-        upsertCommand.CommandText =
-            "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,versionTagModified,created,modified) " +
-            $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},{sqlNowStr},{sqlNowStr}) " +
-            "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
-            $"SET globalTransitId=COALESCE(driveMainIndex.globalTransitId, @globalTransitId),fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @newVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,versionTagModified = {newModified},modified = {newModified} " +
-            "WHERE driveMainIndex.hdrVersionTag = @hdrVersionTag " +
-            "RETURNING created,modified,rowId,versionTagModified;";
+        var set =
+            $"SET globalTransitId=COALESCE(driveMainIndex.globalTransitId, @globalTransitId),fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @newVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,versionTagModified = {newModified},modified = {newModified} ";
+
+        upsertCommand.CommandText = newFile
+            ? "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,versionTagModified,created,modified) " +
+              $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},{sqlNowStr},{sqlNowStr}) " +
+              "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " + set +
+              "WHERE driveMainIndex.hdrVersionTag = @hdrVersionTag " +
+              "RETURNING created,modified,rowId,versionTagModified;"
+            : "UPDATE driveMainIndex " + set +
+              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND hdrVersionTag = @hdrVersionTag " +
+              "RETURNING created,modified,rowId,versionTagModified;";
 
         upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
         upsertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
@@ -180,15 +189,17 @@ public class TableDriveMainIndex(
                 item.versionTagModified = new UnixTimeUtc((long)rdr[3]);
                 return 1;
             }
-            else
-            {
-                logger.LogDebug("Mismatching version tag {versionTag}", item.hdrVersionTag);
-                throw new OdinClientException($"Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
-            }
-            
         }
 
-        // Unreachable return 0;
+        if (!newFile && await GetAsync(item.driveId, item.fileId) == null)
+        {
+            logger.LogDebug("No file {fileId} to update; it was deleted after it was read", item.fileId);
+            throw new OdinClientException($"No such file {item.fileId}", OdinClientErrorCode.FileNotFound);
+        }
+
+        logger.LogDebug("Mismatching version tag {versionTag}", item.hdrVersionTag);
+        throw new OdinClientException($"Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+
     }
 
     internal async Task<(int, long)> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)

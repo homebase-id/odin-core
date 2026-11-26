@@ -594,6 +594,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     // Changed since it was read: judge the delete again on what is there now.  A version the sender
                     // named is theirs to judge: refused
                 }
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.FileNotFound)
+                {
+                    // Hard-deleted since it was read (a purge, the expiry job): gone, as a file missing when read is
+                    return;
+                }
             }
         }
 

@@ -43,7 +43,7 @@ public class GlobalTransitIdClashTests : V2Fixture
         header.FileMetadata.VersionTag = null;
 
         await using var tx = await scope.Resolve<IdentityDatabase>().BeginStackedTransactionAsync();
-        var refused = Assert.ThrowsAsync<OdinClientException>(() => scope.Resolve<DriveQuery>().SaveFileHeaderAsync(drive, header));
+        var refused = Assert.ThrowsAsync<OdinClientException>(() => scope.Resolve<DriveQuery>().SaveFileHeaderAsync(drive, header, null, newFile: true));
         Assert.That(refused!.ErrorCode, Is.EqualTo(OdinClientErrorCode.ExistingFileWithGlobalTransitId), refused.Message);
     }
 }

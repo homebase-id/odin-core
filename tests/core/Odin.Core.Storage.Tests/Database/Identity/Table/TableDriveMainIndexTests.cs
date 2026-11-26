@@ -90,6 +90,56 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Assert.That(stored.modified.milliseconds, Is.GreaterThan(touched.modified.milliseconds), "past every earlier write");
         }
 
+        /// <summary>
+        /// A change of a stored file is written only over its row as read: one hard-deleted since is fileNotFound and comes
+        /// back as nothing, one at another version is versionTagMismatch, and a new file is still inserted (#1963)
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task AChangeOfAStoredFileIsWrittenOnlyOverItsRow(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId = Guid.NewGuid();
+            var f1 = SequentialGuid.CreateGuid();
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, SequentialGuid.CreateGuid().ToString(),
+                SequentialGuid.CreateGuid(), null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+
+            // At its version: written
+            var read = await tblDriveMainIndex.GetAsync(driveId, f1);
+            var readTag = read.hdrVersionTag;
+            Assert.That(await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(read, newFile: false), Is.EqualTo(1));
+            var changed = await tblDriveMainIndex.GetAsync(driveId, f1);
+            Assert.That(changed.hdrVersionTag, Is.Not.EqualTo(readTag), "a new version tag");
+
+            // At a version it moved on from: a mismatch, and the row stays as it was
+            var stale = await tblDriveMainIndex.GetAsync(driveId, f1);
+            stale.hdrVersionTag = Guid.NewGuid();
+            var mismatch = Assert.ThrowsAsync<OdinClientException>(() =>
+                tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(stale, newFile: false));
+            Assert.That(mismatch!.ErrorCode, Is.EqualTo(OdinClientErrorCode.VersionTagMismatch));
+            Assert.That((await tblDriveMainIndex.GetAsync(driveId, f1)).hdrVersionTag, Is.EqualTo(changed.hdrVersionTag));
+
+            // Hard-deleted after it was read: refused, and not recreated from the header read before the delete
+            var readBeforeDelete = await tblDriveMainIndex.GetAsync(driveId, f1);
+            await tblDriveMainIndex.DeleteAsync(driveId, f1);
+            var gone = Assert.ThrowsAsync<OdinClientException>(() =>
+                tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(readBeforeDelete, newFile: false));
+            Assert.That(gone!.ErrorCode, Is.EqualTo(OdinClientErrorCode.FileNotFound));
+            Assert.That(await tblDriveMainIndex.GetAsync(driveId, f1), Is.Null, "the deleted file stays deleted");
+
+            // A new file is still inserted
+            readBeforeDelete.hdrVersionTag = Guid.Empty;
+            Assert.That(await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(readBeforeDelete), Is.EqualTo(1));
+            Assert.That(await tblDriveMainIndex.GetAsync(driveId, f1), Is.Not.Null, "a new file's write inserts it");
+        }
+
         [Test]
         [TestCase(DatabaseType.Sqlite)]
 #if RUN_POSTGRES_TESTS

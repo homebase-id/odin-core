@@ -42,12 +42,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Writes a file header to the database
+        /// Writes a file header to the database: a new file's (<paramref name="newFile"/>), or a change of a stored one,
+        /// written only over the row as read
         /// </summary>
-        public async Task SaveFileHeader(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag)
+        public async Task SaveFileHeader(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag, bool newFile = false)
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
-            await driveQuery.SaveFileHeaderAsync(drive, header, useThisVersionTag);
+            await driveQuery.SaveFileHeaderAsync(drive, header, useThisVersionTag, newFile);
         }
 
         /// <summary>

@@ -99,14 +99,16 @@ public class MainIndexMetaCached : AbstractTableCaching
         List<Guid>? accessControlList = null,
         List<Guid>? tagIdList = null,
         Guid? useThisNewVersionTag = null,
-        bool reconcileAcl = true)
+        bool reconcileAcl = true,
+        bool newFile = true)
     {
         var result = await _meta.BaseUpsertEntryZapZapAsync(
             driveMainIndexRecord,
             accessControlList,
             tagIdList,
             useThisNewVersionTag,
-            reconcileAcl);
+            reconcileAcl,
+            newFile);
 
         await InvalidateDriveAsync(driveMainIndexRecord.driveId);
 
