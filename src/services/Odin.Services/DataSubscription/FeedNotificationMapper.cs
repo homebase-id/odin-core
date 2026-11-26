@@ -14,7 +14,6 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Mediator;
-using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.DataSubscription
@@ -60,14 +59,19 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
         {
-            var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
+            // A comment is notified once, when it is written (DriveFileAddedNotification), whichever way it came in
+            if (notification.FileSystemType == FileSystemType.Comment)
+            {
+                return;
+            }
+
             var odinContext = notification.OdinContext;
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
 
             await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.FeedAppId,
-                TypeId = typeId,
+                TypeId = PostNotificationTypeId,
                 TagId = notification.GlobalTransitId,
                 Silent = false,
             },
@@ -75,8 +79,8 @@ namespace Odin.Services.DataSubscription
         }
 
         /// <summary>
-        /// A comment someone else posted here (from my home page) on a post in one of my channels.  A comment that came
-        /// over peer transfer was notified there (NewFeedItemReceived)
+        /// A comment someone else left on a post in one of my channels: posted here (from my home page), or sent by a
+        /// connected identity, written at once or from the inbox
         /// </summary>
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
@@ -84,7 +88,7 @@ namespace Odin.Services.DataSubscription
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType != FileSystemType.Comment
                 || string.IsNullOrEmpty(metadata.SenderOdinId)
                 || (OdinId)metadata.SenderOdinId == tenantContext.HostOdinId
-                || PeerDirectWrites.IsPeerToken(notification.OdinContext)
+                || metadata.ReferencedFile == null
                 || !await IsChannelDriveAsync(notification.File.DriveId))
             {
                 return;

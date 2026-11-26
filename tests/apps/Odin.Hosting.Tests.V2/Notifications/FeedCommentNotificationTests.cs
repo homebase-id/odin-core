@@ -81,4 +81,39 @@ public class FeedCommentNotificationTests : V2Fixture
             n.Options.AppId == SystemAppConstants.FeedAppId && n.Options.TypeId == CommentNotificationTypeId).ToList();
         Assert.That(notifications, Has.Count.EqualTo(1), "the owner is notified of the comment once");
     }
+
+    [Test]
+    public async Task TheOwnersOwnCommentDoesNotNotify()
+    {
+        var channelDrive = new TargetDrive { Alias = Guid.NewGuid(), Type = SystemDriveConstants.ChannelDriveType };
+        var (_, owner) = await SetupCallerWithOwner(CallerSpec.Owner(new DriveSpec(channelDrive)));
+        var post = await ChannelPosts.UploadPostAsync(owner, channelDrive, "a post", acl: AccessControlList.Anonymous);
+
+        await ChannelPosts.UploadCommentAsync(owner, channelDrive, post.GlobalTransitIdFileIdentifier, "my own comment");
+
+        Assert.That(await CommentNotificationsAsync(owner), Is.Empty);
+    }
+
+    [Test]
+    public async Task AGuestsCommentOnAPostThatIsNotInAChannelDoesNotNotify()
+    {
+        var spec = CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read | DrivePermission.Comment);
+        var (guest, owner) = await SetupCallerWithOwner(spec);
+        var post = await ChannelPosts.UploadPostAsync(owner, spec.TargetDrive, "a post", acl: AccessControlList.Anonymous);
+
+        var commentMetadata = SampleMetadataData.CreateWithContent(fileType: default, "a comment", AccessControlList.Anonymous);
+        commentMetadata.ReferencedFile = post.GlobalTransitIdFileIdentifier;
+        var comment = await guest.V1.Drive.UploadNewMetadata(spec.TargetDrive, commentMetadata, FileSystemType.Comment);
+        Assert.That(comment.StatusCode, Is.EqualTo(HttpStatusCode.OK), comment.Error?.Content);
+
+        Assert.That(await CommentNotificationsAsync(owner), Is.Empty);
+    }
+
+    private static async Task<List<Odin.Services.AppNotifications.Data.AppNotification>> CommentNotificationsAsync(OwnerSession owner)
+    {
+        var list = await owner.V1.Notifications.GetList(100);
+        Assert.That(list.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        return list.Content!.Results.Where(n =>
+            n.Options.AppId == SystemAppConstants.FeedAppId && n.Options.TypeId == CommentNotificationTypeId).ToList();
+    }
 }
