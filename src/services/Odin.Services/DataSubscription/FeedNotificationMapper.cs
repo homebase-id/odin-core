@@ -14,6 +14,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Mediator;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.DataSubscription
@@ -85,8 +86,10 @@ namespace Odin.Services.DataSubscription
             
             var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
 
+            // A comment that came over peer transfer was notified there (NewFeedItemReceived)
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
-                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Type == SystemDriveConstants.ChannelDriveType && sender != tenantContext.HostOdinId)
+                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Type == SystemDriveConstants.ChannelDriveType && sender != tenantContext.HostOdinId
+                && !PeerDirectWrites.IsPeerToken(notification.OdinContext))
             {
                 var odinContext = notification.OdinContext;
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
