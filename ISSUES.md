@@ -27,7 +27,7 @@ the person who hit it sees it (what goes wrong, for whom, when), not the fix.
 
 ## Opening its PR
 
-Start the description with two lines:
+Everything in CLAUDE.md, "Opening a PR", applies. On top of it, start the description with two lines:
 
 ```
 Problem: <the essence from "Reading an issue", updated if the work changed it>

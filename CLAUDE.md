@@ -218,8 +218,6 @@ how to read one, what to write on screen, how to stay with the problem, and how 
 
 One PR solves one problem. Unrelated fixes are separate PRs, however small; no "Small fixes: …" grab-bags. If the title needs "and" or a list to say what the PR does, it is probably two PRs. Two issues share a PR only when the same change fixes both.
 
-Start the description with the `Problem:` and `Core change:` lines from `ISSUES.md`, "Opening its PR", and print them on screen after opening the PR, as it says there.
-
 End the description with this block, one line each, before the attribution lines. The weekly team data reads it.
 
 ```
