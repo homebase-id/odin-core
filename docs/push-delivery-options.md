@@ -72,12 +72,15 @@ above become overrides that a calling app never has to touch.
 | `notify` (default) | nothing | today's behaviour |
 | `ring` | TTL 45 s, `collapseId` = `call-<tagId>`, time-sensitive, not silent | Android: high-priority data message, the app shows its own call UI. iOS with a registered PushKit token and an APNs key on the relay: a VoIP push (below). iOS otherwise: a time-sensitive alert. |
 | `hangup` | the ring's TTL and collapse id, not silent | an alert that replaces the ring with the same `tagId` on the device; never a VoIP push |
+| `handled` | what `hangup` derives | another of the recipient's devices answered or declined. iOS with a PushKit token and an APNs key on the relay: a silent background push, as its ring was a VoIP push with no alert to replace. Otherwise the same push as `hangup` |
 | `wake` | silent | a background wake-up with no UI; the app acts on the LiveRelay blob |
 
 TTL and collapse id are filled in only when the app left them unset; silent and time-sensitive
 are fixed by the kind. For a call the app sends
 `push: { "kind": "ring", "typeId": ..., "tagId": <callId>, "unEncryptedMessage": "Frodo is calling" }`
-and, when the call ends before it was answered, the same with `kind: hangup`. Nothing else.
+and, when the caller gives up before it was answered, the same with `kind: hangup` (shown as a
+missed call). To tell the callee's other devices that one of them took the call, it sends
+`kind: handled` instead. Nothing else.
 
 ### Ring on iOS: PushKit VoIP
 
