@@ -424,7 +424,7 @@ public class ContactService(
                 var newVersionTag = await WriteContentOnlyAsync(existing, content, keyHeader.AesKey, expected, writeContext);
                 return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
             }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
+            catch (OdinClientException e) when (e.ErrorCode is OdinClientErrorCode.VersionTagMismatch or OdinClientErrorCode.FileNotFound)
             {
                 logger.LogDebug("Contact app-data write race for uid {uid} app {appId} (attempt {attempt}/{maxAttempts})",
                     uniqueId, appId, attempt, maxAttempts);
@@ -549,7 +549,7 @@ public class ContactService(
                 var newVersionTag = await WriteAppExtDataPayloadAsync(existing, keyHeader, appExtData, expected, writeContext);
                 return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
             }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
+            catch (OdinClientException e) when (e.ErrorCode is OdinClientErrorCode.VersionTagMismatch or OdinClientErrorCode.FileNotFound)
             {
                 logger.LogDebug("Contact app-ext-data write race for uid {uid} app {appId} (attempt {attempt}/{maxAttempts})",
                     uniqueId, appId, attempt, maxAttempts);
@@ -701,7 +701,7 @@ public class ContactService(
             {
                 return await OverwriteAsync(existing, content, source, extData, writeContext);
             }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
+            catch (OdinClientException e) when (e.ErrorCode is OdinClientErrorCode.VersionTagMismatch or OdinClientErrorCode.FileNotFound)
             {
                 logger.LogDebug("Contact merge race for {odinId} (attempt {attempt}/{maxAttempts})", odinId, attempt, maxAttempts);
             }

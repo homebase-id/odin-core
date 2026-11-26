@@ -249,12 +249,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="reconcileAcl">False leaves the file's ACL rows as they are, whatever
         /// <paramref name="accessControlList"/> says: on a Selective Share drive the rows are the shares, written on
         /// their own (docs/selective-share-pr3-plan.md, section 1).</param>
+        /// <param name="newFile">False for a change of a stored file: written only over the row as read
+        /// (<see cref="TableDriveMainIndex.UpsertAllButReactionsAndTransferAsync"/>)</param>
         /// <returns></returns>
         internal async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null,
             Guid? useThisNewVersionTag = null,
-            bool reconcileAcl = true)
+            bool reconcileAcl = true,
+            bool newFile = true)
         {
             driveMainIndexRecord.identityId = odinIdentity;
 
@@ -262,7 +265,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await using var tx = await cn.BeginStackedTransactionAsync();
 
             var n = 0;
-            n = await driveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord, useThisNewVersionTag);
+            n = await driveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord, useThisNewVersionTag, newFile);
 
             // The ACL and tag rows are reconciled, not rewritten: a header write whose ACL or tags didn't change touches
             // none of their rows (#1961), and an ACL row whose circle or identity stays keeps what it holds
