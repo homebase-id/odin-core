@@ -31,15 +31,15 @@ public class PushKindDefaultsTests
     {
         var callId = Guid.NewGuid();
         var ring = new AppNotificationOptions { Kind = PushKind.Ring, TagId = callId };
-        var hangup = new AppNotificationOptions { Kind = kind, TagId = callId };
+        var end = new AppNotificationOptions { Kind = kind, TagId = callId };
 
         PushKindDefaults.Apply(ring);
-        PushKindDefaults.Apply(hangup);
+        PushKindDefaults.Apply(end);
 
-        Assert.That(hangup.CollapseId, Is.EqualTo(ring.CollapseId), "the hangup must replace the ring on the device");
-        Assert.That(hangup.TimeToLiveSeconds, Is.EqualTo(ring.TimeToLiveSeconds), "a stale hangup must not arrive on its own");
-        Assert.That(hangup.Silent, Is.False, "an alert can only be replaced by an alert; the relay silences a Handled to a CallKit device");
-        Assert.That(hangup.TimeSensitive, Is.False, "the call is over; nothing to interrupt for");
+        Assert.That(end.CollapseId, Is.EqualTo(ring.CollapseId), "it must replace the ring on the device");
+        Assert.That(end.TimeToLiveSeconds, Is.EqualTo(ring.TimeToLiveSeconds), "a stale one must not arrive on its own");
+        Assert.That(end.Silent, Is.False, "an alert can only be replaced by an alert; the relay silences a Handled to a CallKit device");
+        Assert.That(end.TimeSensitive, Is.False, "the call is over; nothing to interrupt for");
     }
 
     [Test]

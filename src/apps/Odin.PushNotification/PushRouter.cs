@@ -14,23 +14,22 @@ public interface IPushRouter
 /// A Ring to a device that registered a PushKit token goes out as a VoIP push when the Apple key
 /// is configured; everything else, including a Ring without a VoIP token or without the key, goes
 /// through Firebase as an ordinary alert (Android shows its own call UI; iOS gets a time-sensitive
-/// alert). A Handled to a device that rang through CallKit goes out as a silent background push: an
-/// alert would have no ring alert to replace and its text would show on its own.
+/// alert). A Handled to a device that rang through CallKit is a silent background push.
 /// </summary>
 public sealed class PushRouter(IPushNotification firebase, IApnsVoipSender apns, ILogger<PushRouter> logger) : IPushRouter
 {
     public Task<string> SendAsync(DevicePushNotificationRequestV1 request, CancellationToken cancellationToken = default)
     {
-        var hasVoipToken = !string.IsNullOrWhiteSpace(request.VoipDeviceToken);
         var kind = request.KindOrNotify();
-        var wantsVoip = kind == PushKind.Ring && hasVoipToken;
+        var hasVoipToken = !string.IsNullOrWhiteSpace(request.VoipDeviceToken);
+        var ringsThroughCallKit = hasVoipToken && apns.IsConfigured;
 
-        if (wantsVoip && apns.IsConfigured)
+        if (kind == PushKind.Ring && ringsThroughCallKit)
         {
             return apns.SendVoipAsync(request, cancellationToken);
         }
 
-        if (wantsVoip)
+        if (kind == PushKind.Ring && hasVoipToken)
         {
             // The stopping point until the Apple key exists: see ApnsOptions for what is needed.
             logger.LogWarning(
@@ -38,11 +37,8 @@ public sealed class PushRouter(IPushNotification firebase, IApnsVoipSender apns,
                 request.ToDomain);
         }
 
-        // Only when the ring really was a VoIP push; without the Apple key it was an alert and this hangup replaces it.
-        if (kind == PushKind.Handled && hasVoipToken && apns.IsConfigured)
-        {
-            request.Silent = true;
-        }
+        // Without the Apple key the ring was an alert, and this must replace it.
+        request.Silent |= kind == PushKind.Handled && ringsThroughCallKit;
 
         return firebase.Post(request);
     }
