@@ -69,11 +69,12 @@ public class PushRouterTests
     public async Task Handled_WithVoipToken_GoesToFirebaseAsSilentBackgroundPush()
     {
         var firebase = new FakeFirebase();
-        var router = new PushRouter(firebase, new FakeApns(configured: true), NullLogger<PushRouter>.Instance);
+        var apns = new FakeApns(configured: true);
+        var router = new PushRouter(firebase, apns, NullLogger<PushRouter>.Instance);
 
         var result = await router.SendAsync(TestRequests.Request(kind: "Handled", voipToken: "voip"));
 
-        Assert.That((result, firebase.Sent), Is.EqualTo(("fcm", 1)), "never a VoIP push");
+        Assert.That((result, apns.Sent, firebase.Sent), Is.EqualTo(("fcm", 0, 1)), "never a VoIP push");
         Assert.That(firebase.Last!.Silent, Is.True, "the CallKit ring has no alert to replace, so no alert");
     }
 
@@ -94,6 +95,19 @@ public class PushRouterTests
 
         Assert.That((apns.Sent, firebase.Sent), Is.EqualTo((0, 1)));
         Assert.That(firebase.Last!.Silent, Is.False);
+    }
+
+    [Test]
+    public async Task ASilentPush_StaysSilent()
+    {
+        var firebase = new FakeFirebase();
+        var router = new PushRouter(firebase, new FakeApns(configured: true), NullLogger<PushRouter>.Instance);
+        var request = TestRequests.Request(kind: "Wake", voipToken: "voip");
+        request.Silent = true;
+
+        await router.SendAsync(request);
+
+        Assert.That(firebase.Last!.Silent, Is.True);
     }
 
     [Test]

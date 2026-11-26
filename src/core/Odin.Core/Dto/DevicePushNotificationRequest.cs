@@ -109,7 +109,10 @@ public class DevicePushNotificationRequestV1
     /// <summary>Ask for a time-sensitive interruption level where the platform supports it (iOS).</summary>
     public bool TimeSensitive { get; set; }
 
-    /// <summary>A <see cref="PushKind"/> name; null or absent means Notify. A string on the wire so no serializer setting can change its shape.</summary>
+    /// <summary>
+    /// A <see cref="PushKind"/> name; null or absent means Notify. A string on the wire so no serializer setting can change its shape.
+    /// Unlike the options above, a new kind is refused by an older relay (and host), so the relay deploys first.
+    /// </summary>
     public string? Kind { get; set; }
 
     /// <summary>The device's PushKit (VoIP) token, iOS only, if it registered one. Read only for a Ring and a Handled.</summary>
