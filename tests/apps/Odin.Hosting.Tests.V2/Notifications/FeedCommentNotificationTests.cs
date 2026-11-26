@@ -9,8 +9,10 @@ using Odin.Core.Storage;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Hosting.Tests.V2.Ported.Reactions;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -26,8 +28,7 @@ public class FeedCommentNotificationTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    // FeedNotificationMapper.CommentNotificationTypeId
-    private static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
+    private static readonly Guid CommentNotificationTypeId = FeedNotificationMapper.CommentNotificationTypeId;
 
     [Test]
     public async Task AGuestsCommentOnAChannelPostNotifiesTheOwner()
@@ -36,13 +37,10 @@ public class FeedCommentNotificationTests : V2Fixture
         var spec = CallerSpec.Guest(new DriveSpec(channelDrive), DrivePermission.Read | DrivePermission.Comment);
         var (guest, owner) = await SetupCallerWithOwner(spec);
 
-        var postMetadata = SampleMetadataData.CreateWithContent(fileType: default, "a post", AccessControlList.Anonymous);
-        postMetadata.AllowDistribution = true;
-        var post = await owner.V1.Drive.UploadNewMetadata(channelDrive, postMetadata);
-        Assert.That(post.StatusCode, Is.EqualTo(HttpStatusCode.OK), post.Error?.Content);
+        var post = await ChannelPosts.UploadPostAsync(owner, channelDrive, "a post", acl: AccessControlList.Anonymous);
 
         var commentMetadata = SampleMetadataData.CreateWithContent(fileType: default, "a comment", AccessControlList.Anonymous);
-        commentMetadata.ReferencedFile = post.Content!.GlobalTransitIdFileIdentifier;
+        commentMetadata.ReferencedFile = post.GlobalTransitIdFileIdentifier;
         var comment = await guest.V1.Drive.UploadNewMetadata(channelDrive, commentMetadata, FileSystemType.Comment);
         Assert.That(comment.StatusCode, Is.EqualTo(HttpStatusCode.OK), comment.Error?.Content);
 
@@ -51,7 +49,7 @@ public class FeedCommentNotificationTests : V2Fixture
         var notification = list.Content!.Results.SingleOrDefault(n =>
             n.Options.AppId == SystemAppConstants.FeedAppId && n.Options.TypeId == CommentNotificationTypeId);
         Assert.That(notification, Is.Not.Null, "the owner is notified of the comment");
-        Assert.That(notification!.Options.TagId, Is.EqualTo(post.Content.GlobalTransitId), "tagged with the post");
+        Assert.That(notification!.Options.TagId, Is.EqualTo(post.GlobalTransitId), "tagged with the post");
     }
 
     /// <summary>
@@ -67,14 +65,11 @@ public class FeedCommentNotificationTests : V2Fixture
             DrivePermission.Read | DrivePermission.WriteReactionsAndComments,
             drive: new TargetDrive { Alias = Guid.NewGuid(), Type = SystemDriveConstants.ChannelDriveType });
 
-        var postMetadata = SampleMetadataData.CreateWithContent(fileType: default, "a post", AccessControlList.Connected);
-        postMetadata.AllowDistribution = true;
-        var post = await owner.V1.Drive.UploadNewMetadata(channelDrive, postMetadata);
-        Assert.That(post.StatusCode, Is.EqualTo(HttpStatusCode.OK), post.Error?.Content);
+        var post = await ChannelPosts.UploadPostAsync(owner, channelDrive, "a post", acl: AccessControlList.Connected);
 
         var commentMetadata = SampleMetadataData.CreateWithContent(fileType: default, "a comment", AccessControlList.Connected);
         commentMetadata.AllowDistribution = true;
-        commentMetadata.ReferencedFile = post.Content!.GlobalTransitIdFileIdentifier;
+        commentMetadata.ReferencedFile = post.GlobalTransitIdFileIdentifier;
         var comment = await commenter.V1.Drive.UploadNewMetadata(channelDrive, commentMetadata,
             new TransitOptions { Recipients = new List<string> { owner.Identity } }, FileSystemType.Comment);
         Assert.That(comment.StatusCode, Is.EqualTo(HttpStatusCode.OK), comment.Error?.Content);

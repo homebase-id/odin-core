@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
@@ -35,11 +36,12 @@ internal static class ChannelPosts
         return drive;
     }
 
-    /// <summary>One unencrypted, owner-only, distributable standard file carrying <paramref name="content"/>.</summary>
+    /// <summary>One unencrypted, distributable standard file carrying <paramref name="content"/>, owner-only unless
+    /// <paramref name="acl"/> says otherwise.</summary>
     public static Task<UploadResult> UploadPostAsync(OwnerSession owner, TargetDrive targetDrive, string content,
-        int fileType = default)
+        int fileType = default, AccessControlList acl = null)
     {
-        var metadata = SampleMetadataData.CreateWithContent(fileType, content);
+        var metadata = SampleMetadataData.CreateWithContent(fileType, content, acl);
         metadata.AllowDistribution = true;
         return UploadAsync(owner, targetDrive, metadata, FileSystemType.Standard);
     }

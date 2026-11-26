@@ -33,7 +33,7 @@ namespace Odin.Services.DataSubscription
         : INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<NewFeedItemReceived>,
             INotificationHandler<NewFollowerNotification>, INotificationHandler<DriveFileAddedNotification>
     {
-        private static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
+        internal static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
         private static readonly Guid PostNotificationTypeId = Guid.Parse("ad695388-c2df-47a0-ad5b-fc9f9e1fffc9");
 
         public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
@@ -74,34 +74,30 @@ namespace Odin.Services.DataSubscription
                 newContext);
         }
 
+        /// <summary>
+        /// A comment someone else posted here (from my home page) on a post in one of my channels.  A comment that came
+        /// over peer transfer was notified there (NewFeedItemReceived)
+        /// </summary>
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
-            //handle comments when added to my identity from a user who's on my home page
-            if (string.IsNullOrEmpty(notification.ServerFileHeader.FileMetadata.SenderOdinId))
+            var metadata = notification.ServerFileHeader.FileMetadata;
+            if (notification.ServerFileHeader.ServerMetadata.FileSystemType != FileSystemType.Comment
+                || string.IsNullOrEmpty(metadata.SenderOdinId)
+                || (OdinId)metadata.SenderOdinId == tenantContext.HostOdinId
+                || PeerDirectWrites.IsPeerToken(notification.OdinContext)
+                || !await IsChannelDriveAsync(notification.File.DriveId))
             {
-                //no need to send a notification to myself
                 return;
             }
-            
-            
-            var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
 
-            // A comment that came over peer transfer was notified there (NewFeedItemReceived)
-            if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
-                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Type == SystemDriveConstants.ChannelDriveType && sender != tenantContext.HostOdinId
-                && !PeerDirectWrites.IsPeerToken(notification.OdinContext))
-            {
-                var odinContext = notification.OdinContext;
-                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+            await pushNotificationService.EnqueueNotification((OdinId)metadata.SenderOdinId, new AppNotificationOptions()
                 {
                     AppId = SystemAppConstants.FeedAppId,
                     TypeId = CommentNotificationTypeId,
-                    TagId = notification.ServerFileHeader.FileMetadata.ReferencedFile != null ? notification.ServerFileHeader.FileMetadata.ReferencedFile.GlobalTransitId : notification.ServerFileHeader.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    TagId = metadata.ReferencedFile.GlobalTransitId,
                     Silent = false,
                 },
-                    newContext);
-            }
+                OdinContextUpgrades.UpgradeToPeerTransferContext(notification.OdinContext));
         }
 
         public async Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
@@ -116,6 +112,12 @@ namespace Odin.Services.DataSubscription
                     Silent = false
                 },
                 newContext);
+        }
+
+        private async Task<bool> IsChannelDriveAsync(Guid driveId)
+        {
+            var drive = await driveManager.GetDriveAsync(driveId);
+            return drive?.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
         }
 
         private async Task<bool> IsFeedDriveRelatedAsync(Guid driveId)
