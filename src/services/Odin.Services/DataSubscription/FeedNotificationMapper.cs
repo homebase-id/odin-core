@@ -59,12 +59,6 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
         {
-            // A comment is notified once, when it is written (DriveFileAddedNotification), whichever way it came in
-            if (notification.FileSystemType == FileSystemType.Comment)
-            {
-                return;
-            }
-
             var odinContext = notification.OdinContext;
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
 
@@ -79,8 +73,9 @@ namespace Odin.Services.DataSubscription
         }
 
         /// <summary>
-        /// A comment someone else left on a post in one of my channels: posted here (from my home page), or sent by a
-        /// connected identity, written at once or from the inbox
+        /// A comment someone else left on a post in one of my channels, posted here (from my home page) or sent by a
+        /// connected identity: the one place a comment is notified, once, when it is first written.  Comments are never
+        /// written to the Feed drive.  A failure is logged, so the event's other handlers still run.
         /// </summary>
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
@@ -94,14 +89,22 @@ namespace Odin.Services.DataSubscription
                 return;
             }
 
-            await pushNotificationService.EnqueueNotification((OdinId)metadata.SenderOdinId, new AppNotificationOptions()
-                {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = CommentNotificationTypeId,
-                    TagId = metadata.ReferencedFile.GlobalTransitId,
-                    Silent = false,
-                },
-                OdinContextUpgrades.UpgradeToPeerTransferContext(notification.OdinContext));
+            try
+            {
+                await pushNotificationService.EnqueueNotification((OdinId)metadata.SenderOdinId, new AppNotificationOptions()
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = CommentNotificationTypeId,
+                        TagId = metadata.ReferencedFile.GlobalTransitId,
+                        Silent = false,
+                    },
+                    OdinContextUpgrades.UpgradeToPeerTransferContext(notification.OdinContext));
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed to notify of comment {fileId} on drive {driveId}", notification.File.FileId,
+                    notification.File.DriveId);
+            }
         }
 
         public async Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)

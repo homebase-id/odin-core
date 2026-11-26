@@ -172,17 +172,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 if (_transferState.TransferInstructionSet.TargetDrive == WellKnownAppDrives.FeedDrive ||
                     _transferState.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
                 {
-                    //Note: we say new feed item here because comments are never pushed into the feed drive; so any
-                    //item going into the feed is new content (i.e. post/image, etc.)
-                    await mediator.Publish(new NewFeedItemReceived
+                    // A new post.  A comment is notified when it is written (FeedNotificationMapper's DriveFileAddedNotification
+                    // handler), as every comment is, however it came in
+                    if (_transferState.TransferInstructionSet.FileSystemType != FileSystemType.Comment)
                     {
-                        FileSystemType = _transferState.TransferInstructionSet.FileSystemType,
-                        Sender = odinContext.GetCallerOdinIdOrFail(),
-                        OdinContext = odinContext,
-                        GlobalTransitId = fileMetadata.ReferencedFile != null
-                            ? fileMetadata.ReferencedFile.GlobalTransitId
-                            : fileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    });
+                        await mediator.Publish(new NewFeedItemReceived
+                        {
+                            FileSystemType = _transferState.TransferInstructionSet.FileSystemType,
+                            Sender = odinContext.GetCallerOdinIdOrFail(),
+                            OdinContext = odinContext,
+                            GlobalTransitId = fileMetadata.ReferencedFile != null
+                                ? fileMetadata.ReferencedFile.GlobalTransitId
+                                : fileMetadata.GlobalTransitId.GetValueOrDefault(),
+                        });
+                    }
                 }
                 else
                 {
