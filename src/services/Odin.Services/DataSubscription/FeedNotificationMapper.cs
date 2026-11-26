@@ -79,18 +79,18 @@ namespace Odin.Services.DataSubscription
         /// </summary>
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
-            var metadata = notification.ServerFileHeader.FileMetadata;
-            if (notification.ServerFileHeader.ServerMetadata.FileSystemType != FileSystemType.Comment
-                || string.IsNullOrEmpty(metadata.SenderOdinId)
-                || (OdinId)metadata.SenderOdinId == tenantContext.HostOdinId
-                || metadata.ReferencedFile == null
-                || !await IsChannelDriveAsync(notification.File.DriveId))
-            {
-                return;
-            }
-
             try
             {
+                var metadata = notification.ServerFileHeader.FileMetadata;
+                if (notification.ServerFileHeader.ServerMetadata.FileSystemType != FileSystemType.Comment
+                    || string.IsNullOrEmpty(metadata.SenderOdinId)
+                    || (OdinId)metadata.SenderOdinId == tenantContext.HostOdinId
+                    || metadata.ReferencedFile == null
+                    || !await IsChannelDriveAsync(notification.File.DriveId))
+                {
+                    return;
+                }
+
                 await pushNotificationService.EnqueueNotification((OdinId)metadata.SenderOdinId, new AppNotificationOptions()
                     {
                         AppId = SystemAppConstants.FeedAppId,

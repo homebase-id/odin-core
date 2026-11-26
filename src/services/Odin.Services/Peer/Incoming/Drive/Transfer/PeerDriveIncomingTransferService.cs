@@ -178,7 +178,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         await mediator.Publish(new NewFeedItemReceived
                         {
-                            FileSystemType = _transferState.TransferInstructionSet.FileSystemType,
                             Sender = odinContext.GetCallerOdinIdOrFail(),
                             OdinContext = odinContext,
                             GlobalTransitId = fileMetadata.ReferencedFile != null

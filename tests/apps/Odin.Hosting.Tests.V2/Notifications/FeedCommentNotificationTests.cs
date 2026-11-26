@@ -53,8 +53,8 @@ public class FeedCommentNotificationTests : V2Fixture
     }
 
     /// <summary>
-    /// A connected identity's comment arrives over peer transfer, which already notifies the owner (NewFeedItemReceived);
-    /// the comment's write must not notify a second time
+    /// A connected identity's comment, sent over peer transfer, is notified once, by its write: the transfer itself
+    /// raises no notification for a comment (it did, and the write then notified a second time)
     /// </summary>
     [Test]
     public async Task APeersCommentOnAChannelPostNotifiesTheOwnerOnce()
