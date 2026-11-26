@@ -86,7 +86,7 @@ namespace Odin.Services.DataSubscription
             var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
 
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
-                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Alias == SystemDriveConstants.ChannelDriveType && sender != tenantContext.HostOdinId)
+                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Type == SystemDriveConstants.ChannelDriveType && sender != tenantContext.HostOdinId)
             {
                 var odinContext = notification.OdinContext;
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
