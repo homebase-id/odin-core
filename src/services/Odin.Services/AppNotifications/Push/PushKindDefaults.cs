@@ -28,6 +28,7 @@ public static class PushKindDefaults
                 break;
 
             case PushKind.Hangup:
+            case PushKind.Handled:
                 // Same collapse id and TTL as the ring it ends, so it replaces the ring on the
                 // device and never arrives on its own after the ring would have expired.
                 options.TimeToLiveSeconds ??= RingTimeToLiveSeconds;
