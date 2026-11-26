@@ -211,8 +211,7 @@ comments. A PR that changes none skips both passes, and its description says so 
 
 ## Issues
 
-Read [`ISSUES.md`](ISSUES.md) before working on an issue or a task given in chat, and before filing an issue:
-how to read one, what to write on screen, how to stay with the problem, and how its PR starts.
+Read [`ISSUES.md`](ISSUES.md) before working on an issue or filing one: how to read one, what to write on screen, how to stay with the problem, and how its PR starts.
 
 ## Opening a PR
 

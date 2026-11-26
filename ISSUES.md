@@ -1,8 +1,8 @@
 # Issues
 
 What to do with an issue: reading it, what to write on screen, working on it, opening its PR, and filing
-one. A task given in chat is handled the same way. The PR rules in CLAUDE.md ("Simplify, then code review"
-and "Opening a PR") still apply in full; this adds to them.
+one. The PR rules in CLAUDE.md ("Simplify, then code review" and "Opening a PR") still apply in full; this
+adds to them.
 
 ## Reading an issue
 
