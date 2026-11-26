@@ -1,7 +1,9 @@
 #nullable enable
 using System;
+using System.Text.Json;
 using NUnit.Framework;
 using Odin.Core.Dto;
+using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -23,19 +25,20 @@ public class PushKindDefaultsTests
         Assert.That(options.Silent, Is.False);
     }
 
-    [Test]
-    public void Hangup_DerivesTheSameCollapseIdAsTheRingItEnds()
+    [TestCase(PushKind.Hangup)]
+    [TestCase(PushKind.Handled)]
+    public void CallEnd_DerivesTheSameCollapseIdAsTheRingItEnds(PushKind kind)
     {
         var callId = Guid.NewGuid();
         var ring = new AppNotificationOptions { Kind = PushKind.Ring, TagId = callId };
-        var hangup = new AppNotificationOptions { Kind = PushKind.Hangup, TagId = callId };
+        var hangup = new AppNotificationOptions { Kind = kind, TagId = callId };
 
         PushKindDefaults.Apply(ring);
         PushKindDefaults.Apply(hangup);
 
         Assert.That(hangup.CollapseId, Is.EqualTo(ring.CollapseId), "the hangup must replace the ring on the device");
         Assert.That(hangup.TimeToLiveSeconds, Is.EqualTo(ring.TimeToLiveSeconds), "a stale hangup must not arrive on its own");
-        Assert.That(hangup.Silent, Is.False, "an alert can only be replaced by an alert");
+        Assert.That(hangup.Silent, Is.False, "an alert can only be replaced by an alert; the relay silences a Handled to a CallKit device");
         Assert.That(hangup.TimeSensitive, Is.False, "the call is over; nothing to interrupt for");
     }
 
@@ -88,5 +91,22 @@ public class PushKindDefaultsTests
         Assert.That(options.CollapseId, Is.Null);
         Assert.That(options.TimeSensitive, Is.False);
         Assert.That(options.Silent, Is.False);
+    }
+
+    [TestCase("ring", PushKind.Ring)]
+    [TestCase("hangup", PushKind.Hangup)]
+    [TestCase("handled", PushKind.Handled)]
+    public void AppWireKind_Deserializes(string wire, PushKind expected)
+    {
+        var options = OdinSystemSerializer.Deserialize<AppNotificationOptions>($$"""{"kind":"{{wire}}"}""")!;
+
+        Assert.That(options.Kind, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void UnknownWireKind_IsRefused()
+    {
+        // So a host that predates a kind answers 400 to the whole request rather than sending it as Notify.
+        Assert.Throws<JsonException>(() => OdinSystemSerializer.Deserialize<AppNotificationOptions>("""{"kind":"later"}"""));
     }
 }

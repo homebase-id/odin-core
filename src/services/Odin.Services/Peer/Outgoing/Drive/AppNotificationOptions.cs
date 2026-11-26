@@ -15,7 +15,7 @@ public class AppNotificationOptions
     public Guid TypeId { get; set; }
 
     /// <summary>
-    /// What the push is for; see <see cref="PushKind"/>. A calling app sends Ring (and later Hangup)
+    /// What the push is for; see <see cref="PushKind"/>. A calling app sends Ring (and later Hangup or Handled)
     /// with the call id as TagId and nothing else; the delivery fields below are derived from it.
     /// </summary>
     public PushKind Kind { get; set; }
