@@ -31,11 +31,19 @@ public enum PushKind
     Wake = 2,
 
     /// <summary>
-    /// The call with this TagId is over (hung up or answered elsewhere). Derives the same collapse
+    /// The call with this TagId is over: hung up, or the caller gave up (a missed call). Derives the same collapse
     /// id as the Ring, so an undelivered or still-showing ring is replaced by this one, and the
     /// same TTL, so a stale "call ended" never arrives on its own.
     /// </summary>
     Hangup = 3,
+
+    /// <summary>
+    /// The call with this TagId was answered or declined on another of the recipient's devices:
+    /// stop ringing and show nothing. Derives what Hangup derives. To a device that rang through
+    /// CallKit it is a silent background push, as there is no ring alert to replace; elsewhere it
+    /// is the same high-priority push as Hangup, since on Android that may be all that stops a ring.
+    /// </summary>
+    Handled = 4,
 }
 
 // Version 1
@@ -101,10 +109,13 @@ public class DevicePushNotificationRequestV1
     /// <summary>Ask for a time-sensitive interruption level where the platform supports it (iOS).</summary>
     public bool TimeSensitive { get; set; }
 
-    /// <summary>A <see cref="PushKind"/> name; null or absent means Notify. A string on the wire so no serializer setting can change its shape.</summary>
+    /// <summary>
+    /// A <see cref="PushKind"/> name; null or absent means Notify. A string on the wire so no serializer setting can change its shape.
+    /// Unlike the options above, a new kind is refused by an older relay (and host), so the relay deploys first.
+    /// </summary>
     public string? Kind { get; set; }
 
-    /// <summary>The device's PushKit (VoIP) token, iOS only, if it registered one. Used solely for a Ring.</summary>
+    /// <summary>The device's PushKit (VoIP) token, iOS only, if it registered one. Read only for a Ring and a Handled.</summary>
     public string? VoipDeviceToken { get; set; }
 
     public PushKind KindOrNotify() => Enum.TryParse<PushKind>(Kind, ignoreCase: true, out var kind) ? kind : PushKind.Notify;
