@@ -100,7 +100,7 @@ namespace Odin.Services.DataSubscription
                     },
                     OdinContextUpgrades.UpgradeToPeerTransferContext(notification.OdinContext));
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 logger.LogError(e, "Failed to notify of comment {fileId} on drive {driveId}", notification.File.FileId,
                     notification.File.DriveId);
