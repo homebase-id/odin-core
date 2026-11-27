@@ -37,7 +37,8 @@ public class BuiltinProvisioner(
     IDriveManager driveManager,
     CircleDefinitionService circleDefinitionService,
     IAppRegistrationService appRegistrationService,
-    UninstalledBuiltinApps uninstalledApps)
+    UninstalledBuiltinApps uninstalledApps,
+    DrivePurgeRegistry drivePurges)
 {
     /// <summary>
     /// Drives that must exist even though their app is not built-in, because the Chat app
@@ -295,10 +296,20 @@ public class BuiltinProvisioner(
         var missing = new List<TargetDrive>();
         foreach (var drive in BuiltinApps.BrowserMadeDrives.Where(d => d.AppId == appId))
         {
-            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null)
+            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) != null)
             {
-                missing.Add(drive.TargetDrive);
+                continue;
             }
+
+            // The browser couldn't make it until the purge ends, so the install waits for it, as for a server-made one
+            if (await drivePurges.GetAsync(drive.TargetDrive.Alias) != null)
+            {
+                throw new OdinClientException(
+                    $"The deleted drive '{drive.Name}' is still being removed in the background; install the app again " +
+                    "once that has finished", OdinClientErrorCode.DriveStillBeingDeleted);
+            }
+
+            missing.Add(drive.TargetDrive);
         }
 
         if (missing.Count == 0)
@@ -338,7 +349,8 @@ public class BuiltinProvisioner(
     /// <summary>
     /// Gives <paramref name="appId"/>'s registration the grants its built-in definition declares on
     /// <paramref name="drives"/> that it holds none on, app-level and circle-member.  A revoked app stays revoked:
-    /// rewriting its grant would lift that, so it is revoked again after.
+    /// rewriting its grant would lift that, so it is revoked again after; and its circle members are given nothing, since
+    /// that grant goes out to every member at once.
     /// </summary>
     private async Task RestoreDeclaredGrantsAsync(Guid appId, List<TargetDrive> drives, IOdinContext odinContext)
     {
@@ -352,7 +364,7 @@ public class BuiltinProvisioner(
             .ToList();
         var missing = Missing(request.Drives, held, drives);
         var memberHeld = registration.CircleMemberPermissionSetGrantRequest?.Drives?.ToList() ?? [];
-        var memberMissing = Missing(request.CircleMemberPermissionGrant?.Drives, memberHeld, drives);
+        var memberMissing = registration.IsRevoked ? [] : Missing(request.CircleMemberPermissionGrant?.Drives, memberHeld, drives);
         if (missing.Count == 0 && memberMissing.Count == 0)
         {
             return;

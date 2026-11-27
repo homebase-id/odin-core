@@ -60,7 +60,7 @@ Same guards. It drops pending transfers, then records the purge with the time of
 
 1. **Guards:** master key; not built-in (`AppUninstallService.IsBuiltIn`); not while the v13 registration move is pending (its blob copy would bring the app back).
    - Built-in means the owner console and the core apps: Chat, Contacts, Feed, HomePage, Recovery and System.
-   - Every other known app can be uninstalled (#2138), even one the platform provisions: Email, Location, Moments, WebDrop and Vault; Lists and Mail, once their own install has registered them (the platform makes their drives but doesn't register them); and the unprovisioned Community and Social Sync. `WellknownAppDefinition.Uninstallable` says which.
+   - Every other known app can be uninstalled (#2138), even one the platform provisions: Email, Location, Moments, WebDrop and Vault; Lists and Mail, once their own install has registered them (the platform makes their drives but doesn't register them); and every known app that isn't provisioned (`BuiltinApps.Wellknown`: Community, Photo and Social Sync). `WellknownAppDefinition.Uninstallable` says which.
 2. **Refused if the app owns circles or drives,** unless `DeleteOwnedCirclesAndDrives` is set.
 3. **A provisioned app is remembered as uninstalled** (`UninstalledBuiltinApps`, one identity KeyThreeValue row per app), before anything is deleted, so an uninstall that fails partway is finished by uninstalling it again:
    - `BuiltinProvisioner` and `missing-drives` skip it and the drives and circles it owns, so an upgrade doesn't bring it back, and its browser-made drive can't be created;

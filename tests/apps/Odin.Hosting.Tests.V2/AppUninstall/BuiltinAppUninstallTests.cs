@@ -207,6 +207,10 @@ public class BuiltinAppUninstallTests : V2Fixture
         await ZkOwnerSteps.CreateMissingDrivesAsync(owner, zkMasterKey);
         Assert.That(await owner.Admin.Uninstall(SystemAppConstants.VaultAppId, deleteOwnedCirclesAndDrives: true),
             Is.EqualTo(HttpStatusCode.OK));
+
+        // Its drive is still being purged, which the browser couldn't make again, so the install waits for that
+        var tooSoon = await owner.Admin.TryRegisterApp(SystemAppConstants.VaultAppId, new PermissionSetGrantRequest());
+        Assert.That(tooSoon.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "installed while its drive is purged");
         await RunPurgeAsync(owner);
 
         var vault = BuiltinApps.BrowserMadeDrives.Single(d => d.AppId == SystemAppConstants.VaultAppId);
@@ -259,6 +263,8 @@ public class BuiltinAppUninstallTests : V2Fixture
         var chat = (await registrations.GetAppRegistration(SystemAppConstants.ChatAppId, ctx))!;
         Assert.That(chat.IsRevoked, Is.True, "restoring Chat's grant lifted its revocation");
         Assert.That(chat.Grant.DriveGrants.Select(g => g.PermissionedDrive.Drive), Does.Contain(WellKnownAppDrives.MomentsDrive));
+        Assert.That(chat.CircleMemberPermissionSetGrantRequest.Drives.Select(g => g.PermissionedDrive.Drive),
+            Does.Not.Contain(WellKnownAppDrives.MomentsDrive), "a revoked Chat's members were handed a grant");
     }
 
     [Test]
@@ -291,6 +297,11 @@ public class BuiltinAppUninstallTests : V2Fixture
         var refused = await owner.Admin.TryCreateDrive(moments.TargetDrive, moments.Name, allowAnonymousReads: false,
             appId: moments.AppId, driveSlug: moments.DriveSlug, driveTypeSlug: moments.DriveTypeSlug);
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a Moments drive was made without its app");
+
+        var another = await owner.Admin.TryCreateDrive(TargetDrive.NewTargetDrive(), "another", allowAnonymousReads: false,
+            appId: SystemAppConstants.MomentsAppId, driveSlug: new Odin.Core.OdinSlug("another"),
+            driveTypeSlug: new Odin.Core.OdinSlug("another"));
+        Assert.That(another.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a drive was made for the uninstalled app");
     }
 
     /// <summary>A core circle the owner moved onto an optional app doesn't go with it: the tree says whose it is.</summary>

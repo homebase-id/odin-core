@@ -134,7 +134,9 @@ public class DriveManager : IDriveManager
 
         // A system drive of an app the owner uninstalled (#2138) would belong to nothing that could delete it.  Installing
         // the app again takes it off the list first.
-        if (BuiltinProvisioner.IsOwnedByAny(request.TargetDrive, await _uninstalledApps.GetAsync()))
+        var uninstalled = await _uninstalledApps.GetAsync();
+        if (BuiltinProvisioner.IsOwnedByAny(request.TargetDrive, uninstalled) ||
+            (request.AppId is { } owningApp && uninstalled.Contains(owningApp)))
         {
             throw new OdinClientException("The app that owns this drive was uninstalled; install it again first",
                 OdinClientErrorCode.OwningAppUninstalled);
