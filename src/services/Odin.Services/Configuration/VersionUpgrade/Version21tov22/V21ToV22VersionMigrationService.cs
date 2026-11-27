@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Drives.Management;
 
@@ -28,12 +29,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
     /// <para>
     /// Filesync and Photos are system drives now, so an owner can no longer change one's settings or archive state.  One
     /// the owner made by installing the app, before, keeps whatever it was given -- archived, say, for good.  It is
-    /// unarchived and given its definition's settings, as a new identity's drive has them (decided on #2136).
+    /// unarchived and given its definition's settings, as a new identity's drive has them (decided on #2136), and the
+    /// app and its circles get the grants on it the tree declares (<see cref="BuiltinProvisioner.ReconcileInstalledGrantsAsync"/>).
     /// </para>
     /// </remarks>
     public class V21ToV22VersionMigrationService(
         ILogger<V21ToV22VersionMigrationService> logger,
-        DriveManager driveManager)
+        DriveManager driveManager,
+        BuiltinProvisioner builtinProvisioner)
     {
         public async Task StoreWebDropBlockEnumerationAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -63,6 +66,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
                 cancellationToken.ThrowIfCancellationRequested();
                 logger.LogInformation("Resetting the drive {driveId} to its built-in definition", drive.Id);
                 await driveManager.ResetToBuiltinDefinitionAsync(drive.Id, odinContext);
+            }
+
+            // And the app's and its circles' grants on it, which the install may have made otherwise
+            foreach (var appId in new[] { SystemAppConstants.FilesyncAppId, SystemAppConstants.PhotobaseAppId })
+            {
+                await builtinProvisioner.ReconcileInstalledGrantsAsync(appId, odinContext);
             }
         }
 

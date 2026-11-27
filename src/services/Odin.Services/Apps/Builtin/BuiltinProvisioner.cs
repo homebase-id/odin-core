@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Membership.Connections;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -30,7 +32,9 @@ public class BuiltinProvisioner(
     ILogger<BuiltinProvisioner> logger,
     IDriveManager driveManager,
     CircleDefinitionService circleDefinitionService,
-    IAppRegistrationService appRegistrationService)
+    IAppRegistrationService appRegistrationService,
+    CircleNetworkService circleNetworkService,
+    DrivePurgeRegistry drivePurges)
 {
     /// <summary>
     /// Drives that must exist even though their app is not built-in, because the Chat app
@@ -104,7 +108,9 @@ public class BuiltinProvisioner(
         var missing = new List<CreateDriveRequest>();
         foreach (var drive in BuiltinApps.BrowserMadeDrives)
         {
-            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null)
+            // A drive whose deletion is still running can't be made again under its alias yet (DriveStillBeingDeleted)
+            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null &&
+                await drivePurges.GetAsync(drive.TargetDrive.Alias) is not { Kind: DrivePurgeKind.Delete })
             {
                 missing.Add(drive);
             }
@@ -251,7 +257,55 @@ public class BuiltinProvisioner(
         }
 
         await EnsureAppAsync(app, odinContext);
+        await ReconcileInstalledGrantsAsync(app.AppId, odinContext);
     }
+
+    /// <summary>
+    /// For Filesync and Photos, which an owner could install before they became built-in (#2136): gives the app and its
+    /// circles the drive grants the tree declares, where the install left them different, and grants the circles'
+    /// members again.  An older install's circle granted Write, and a drive deleted and made again took every grant on
+    /// it with it.  Nothing for any other app.
+    /// </summary>
+    public async Task ReconcileInstalledGrantsAsync(Guid appId, IOdinContext odinContext)
+    {
+        if (!BuiltinApps.BecameBuiltinAfterInstall(appId))
+        {
+            return;
+        }
+
+        var app = BuiltinApps.Builtin.Single(a => a.AppId == appId);
+        foreach (var def in app.Circles)
+        {
+            var circle = await circleDefinitionService.GetCircleAsync(def.Id) ??
+                         await circleDefinitionService.GetCircleByAppSlugAsync(appId, def.Slug);
+            if (circle == null || SameGrants(circle.DriveGrants.Select(g => g.PermissionedDrive), def.DriveGrants))
+            {
+                continue;
+            }
+
+            logger.LogInformation("Granting the installed circle {circleId} what {app} declares", circle.Id, app.Name);
+            circle.DriveGrants = def.DriveGrants;
+            await circleNetworkService.UpdateCircleDefinitionAsync(circle, odinContext);
+        }
+
+        var request = Registrations[appId];
+        var registration = await appRegistrationService.GetAppRegistration(appId, odinContext);
+        if (registration != null &&
+            !SameGrants(registration.Grant.DriveGrants.Select(g => g.PermissionedDrive), request.Drives))
+        {
+            logger.LogInformation("Granting the installed app {app} the drives it declares", app.Name);
+            await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
+            {
+                AppId = appId,
+                PermissionSet = request.PermissionSet,
+                Drives = request.Drives
+            }, odinContext);
+        }
+    }
+
+    private static bool SameGrants(IEnumerable<PermissionedDrive> held, IEnumerable<DriveGrantRequest> declared) =>
+        held.Select(d => (d.Drive, d.Permission)).ToHashSet()
+            .SetEquals(declared.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission)));
 
     private async Task EnsureAppAsync(WellknownAppDefinition app, IOdinContext odinContext)
     {

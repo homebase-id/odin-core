@@ -77,7 +77,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
     }
 
     [Test]
-    public async Task AnIdentityThatInstalledThemFirstKeepsItsDrivesCirclesMembersAndGrants()
+    public async Task AnIdentityThatInstalledThemFirstKeepsItsDrivesCirclesAndMembers_WithTheDeclaredGrants()
     {
         var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         var sam = await LoginAsOwner(Identities.Sam);
@@ -87,8 +87,9 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
         var provisioner = scope.Resolve<BuiltinProvisioner>();
         var registrations = frodo.RefitFor<IRefitOwnerAppRegistration>();
 
-        // Installed as the apps install themselves before this: the drive made with the browser's keys, then the app
-        // registered declaring its circle, which gets an id of its own.  Sam is a member.
+        // Installed as the apps installed themselves before this: the drive made with the browser's keys, then the app
+        // registered declaring its circle, which gets an id of its own, with the drive's full permissions as installs
+        // before chat-kmp 0970fae78 declared it, Write included.  Sam is a member.
         var installed = new Dictionary<Guid, (StorageDrive Drive, CircleDefinition Circle, RedactedAppRegistration App)>();
         foreach (var (appId, drive, circle, circlePermission) in Apps)
         {
@@ -112,7 +113,8 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
                     new CreateAppCircleRequest
                     {
                         Name = circle.Name, Slug = circle.Slug, Description = circle.Description, Emoji = circle.Emoji,
-                        DriveGrants = [Grant(drive, circlePermission)], Permissions = new PermissionSet()
+                        DriveGrants = [Grant(drive, DrivePermission.ReadWrite | DrivePermission.React | DrivePermission.Comment)],
+                        Permissions = new PermissionSet()
                     }
                 ]
             }, ctx);
@@ -139,9 +141,8 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
         Assert.That(missing.Select(d => d.TargetDrive), Has.None.AnyOf(Apps.Select(a => a.Drive).ToArray()));
 
         var circles = (await frodo.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions(includeSystemCircle: true)).Content!;
-        var samsCircles = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant.CircleGrants
-            .Select(c => c.CircleId).ToList();
-        foreach (var (appId, drive, circle, _) in Apps)
+        var samsCircles = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant.CircleGrants;
+        foreach (var (appId, drive, circle, circlePermission) in Apps)
         {
             var (driveBefore, circleBefore, appBefore) = installed[appId];
             var driveAfter = (await driveManager.GetDriveAsync(drive.Alias))!;
@@ -154,13 +155,22 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             Assert.That(appCircles.Select(c => c.Id.Value), Is.EqualTo(new[] { circleBefore.Id.Value }),
                 "the installed circle, not a second one");
             Assert.That(appCircles.Single().IsTreeDeclared, Is.True, "it is the app's declared circle");
-            Assert.That(samsCircles, Does.Contain(circleBefore.Id), "Sam is still a member");
+            var samsGrant = samsCircles.SingleOrDefault(c => c.CircleId == circleBefore.Id);
+            Assert.That(samsGrant, Is.Not.Null, "Sam is still a member");
+            Assert.That(appCircles.Single().DriveGrants.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission)),
+                Is.EqualTo(new[] { (drive, circlePermission) }), "the circle grants what the app declares, no Write");
+            Assert.That(samsGrant!.DriveGrants.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission)),
+                Is.EqualTo(new[] { (drive, circlePermission) }), "and Sam holds that");
             Assert.That(circles.Any(c => c.Id == circle.Id), Is.False);
 
             var appAfter = (await registrations.GetRegisteredApp(new GetAppRequest { AppId = appId })).Content!;
             Assert.That(appAfter.Name, Is.EqualTo(appBefore.Name), "the installed registration, not replaced");
+            var declared = (appId == SystemAppConstants.FilesyncAppId
+                ? SystemAppConstants.FilesyncAppRegistrationRequest
+                : SystemAppConstants.PhotobaseAppRegistrationRequest).Drives;
             Assert.That(appAfter.Grant.DriveGrants.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission)),
-                Is.EquivalentTo(appBefore.Grant.DriveGrants.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission))));
+                Is.EquivalentTo(declared.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission))),
+                "the app holds the grants it declares");
         }
     }
 
