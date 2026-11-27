@@ -87,9 +87,10 @@ public class AppUninstallService(
             await circleDefinitionService.AssertDeletableAsync(circleId, appId);
         }
 
-        // Before the deletes: a provisioned app stays uninstalled across upgrades, which leave its drives alone from
-        // here.  A failure past here leaves it registered and half removed, and uninstalling it again finishes it.
-        if (BuiltinProvisioner.IsProvisioned(appId))
+        // Before the deletes: a known app stays uninstalled -- across upgrades, which leave a provisioned one's drives
+        // alone from here, and against a drive or circle made for it before it is installed again.  A failure past
+        // here leaves it registered and half removed, and uninstalling it again finishes it.
+        if (BuiltinApps.IsUninstallable(appId))
         {
             await uninstalledApps.AddAsync(appId);
         }

@@ -319,6 +319,85 @@ public class BuiltinAppUninstallTests : V2Fixture
         Assert.That(await owner.Admin.IsAppRegistered(SystemAppConstants.MomentsAppId), Is.True);
     }
 
+    [TestCase("community")]
+    [TestCase("social-sync")]
+    public async Task AKnownAppThatIsNotProvisionedIsUninstalledWithItsCircles(string slug)
+    {
+        var app = BuiltinApps.Wellknown.Single(a => a.AppSlug.ToString() == slug);
+        var owner = await LoginAsOwner();
+        await owner.Admin.RegisterApp(app.AppId, new PermissionSetGrantRequest());
+        var (scope, _) = await MigrationContextAsync(owner);
+        var definitions = scope.Resolve<CircleDefinitionService>();
+        foreach (var circle in app.Circles)
+        {
+            await definitions.EnsureCircleExistsAsync(circle);
+        }
+
+        Assert.That(await owner.Admin.Uninstall(app.AppId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
+
+        Assert.That(await owner.Admin.IsAppRegistered(app.AppId), Is.False);
+        foreach (var circle in app.Circles)
+        {
+            Assert.That(await definitions.GetCircleAsync(circle.Id), Is.Null, $"{circle.Name} outlived its app");
+        }
+
+        // Nothing is made for it until it is installed again, and then it is
+        var orphan = await owner.Admin.TryCreateDrive(TargetDrive.NewTargetDrive(), "orphan", allowAnonymousReads: false,
+            appId: app.AppId, driveSlug: new Odin.Core.OdinSlug("orphan"), driveTypeSlug: new Odin.Core.OdinSlug("orphan"));
+        Assert.That(orphan.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a drive was made for the uninstalled app");
+        await owner.Admin.RegisterApp(app.AppId, new PermissionSetGrantRequest());
+        Assert.That(await owner.Admin.IsAppRegistered(app.AppId), Is.True);
+    }
+
+    [Test]
+    public async Task ASystemDriveOrBuiltInCircleIsStillRefusedOutsideAnUninstall()
+    {
+        var owner = await LoginAsOwner();
+        var deleteDrive = await owner.RefitFor<IRefitDriveManagement>().DeleteDrive(
+            new TargetDriveRequest { TargetDrive = WellKnownAppDrives.MomentsDrive });
+        Assert.That(deleteDrive.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+        var (scope, _) = await MigrationContextAsync(owner);
+        var definitions = scope.Resolve<CircleDefinitionService>();
+        Assert.ThrowsAsync<Odin.Core.Exceptions.OdinClientException>(() =>
+            definitions.AssertDeletableAsync(BuiltinCircles.MomentsCircle.Id));
+
+        // Nor does naming an app that doesn't own the circle, or a core app, let one through.
+        Assert.ThrowsAsync<Odin.Core.Exceptions.OdinClientException>(() =>
+            definitions.AssertDeletableAsync(BuiltinCircles.MomentsCircle.Id, SystemAppConstants.LocationAppId));
+        Assert.ThrowsAsync<Odin.Core.Exceptions.OdinClientException>(() =>
+            definitions.AssertDeletableAsync(BuiltinCircles.ChatCircle.Id, SystemAppConstants.ChatAppId));
+
+        Assert.That(await scope.Resolve<IDriveManager>().GetDriveAsync(WellKnownAppDrives.MomentsDrive.Alias), Is.Not.Null);
+        Assert.That(await definitions.GetCircleAsync(BuiltinCircles.MomentsCircle.Id), Is.Not.Null);
+    }
+
+    [Test]
+    public async Task AConnectionLosesOnlyTheUninstalledAppsCircle()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+
+        var review = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory).MarkReviewedAsync(sam.Identity);
+        Assert.That(review.IsSuccessStatusCode, Is.True, "arrange: review failed");
+        var enrollment = (await frodo.Admin.GrantCircleToMany(BuiltinCircles.MomentsCircle.Id, [sam.Identity])).Content!;
+        Assert.That(enrollment.Enrolled, Is.EqualTo(1), "arrange: Sam was not enrolled in Moments");
+
+        var before = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant;
+        var otherCircles = before.CircleGrants.Select(c => c.CircleId.Value)
+            .Where(id => id != BuiltinCircles.MomentsCircle.Id.Value).ToList();
+        Assert.That(otherCircles, Does.Contain(BuiltinCircles.ChatCircle.Id.Value), "arrange: Sam is not in Chat");
+
+        Assert.That(await frodo.Admin.Uninstall(SystemAppConstants.MomentsAppId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
+
+        var after = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant;
+        Assert.That(after.CircleGrants.Select(c => c.CircleId.Value), Is.EquivalentTo(otherCircles),
+            "Sam kept the Moments circle, or lost another");
+        Assert.That(after.CircleGrants.SelectMany(c => c.DriveGrants).Any(g => g.PermissionedDrive.Drive == WellKnownAppDrives.MomentsDrive),
+            Is.False, "Sam still holds a grant on the Moments drive");
+    }
+
     /// <summary>
     /// Registers what a provisioned app has on an identity whose owner uses it: Lists and Mail are registered by
     /// their own install, and Email's and Vault's drives are made by the owner's browser.

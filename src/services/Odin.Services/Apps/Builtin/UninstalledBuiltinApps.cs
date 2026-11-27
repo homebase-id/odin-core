@@ -12,7 +12,7 @@ namespace Odin.Services.Apps.Builtin;
 #nullable enable
 
 /// <summary>
-/// The provisioned apps this identity's owner uninstalled (#2138), each with when.  <see cref="BuiltinProvisioner"/>
+/// The known apps this identity's owner uninstalled (#2138), each with when.  <see cref="BuiltinProvisioner"/>
 /// skips them and the drives they own, so an upgrade doesn't bring them back; registering one again takes it off.
 /// </summary>
 /// <remarks>
