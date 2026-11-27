@@ -294,13 +294,25 @@ public class DriveManager : IDriveManager
     /// Lets only the owner, the owner's apps and the server list the drive, or lets everyone who reads it list it again.
     /// A system drive keeps what its built-in definition says.
     /// </summary>
-    public async Task SetDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
+    public Task SetDriveBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext) =>
+        WriteBlockEnumerationAsync(driveId, blockEnumeration, refuseSystemDrive: true, odinContext);
+
+    /// <summary>
+    /// The upgrades' writer of <see cref="StorageDrive.BlockEnumeration"/>: stores it on any drive, a system drive
+    /// included, whose getter answers with its built-in definition whatever is stored (#2136).  Not for owners: a system
+    /// drive keeps what its definition says.
+    /// </summary>
+    public Task StoreBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext) =>
+        WriteBlockEnumerationAsync(driveId, blockEnumeration, refuseSystemDrive: false, odinContext);
+
+    /// <summary>Compares the stored value, which for a drive that isn't a system drive is also what the getter says.</summary>
+    private async Task WriteBlockEnumerationAsync(Guid driveId, bool blockEnumeration, bool refuseSystemDrive,
+        IOdinContext odinContext)
     {
-        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: true, odinContext);
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive, odinContext);
         AssertListingFits(blockEnumeration, storageDrive.AllowSubscriptions);
 
-        //only change if needed
-        if (storageDrive.BlockEnumeration != blockEnumeration)
+        if (storageDrive.Data.BlockEnumeration != blockEnumeration)
         {
             storageDrive.BlockEnumeration = blockEnumeration;
             await SaveDriveChangeAsync(storageDrive, odinContext);
