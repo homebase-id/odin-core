@@ -56,7 +56,12 @@ namespace Odin.Services.Authorization.Apps
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
             }
 
-            var appSlug = await AssignSlugAsync(request.AppId, request.AppSlug);
+            // An app the owner uninstalled is being installed again (#2138), at the address the tree gives it, as the
+            // provisioner registers it: peers build /apps/{slug} from the tree.
+            var reinstalling = (await uninstalledApps.GetAsync()).Contains(request.AppId);
+            var treeSlug = BuiltinApps.All.FirstOrDefault(a => a.AppId == request.AppId)?.AppSlug;
+            var appSlug = await AssignSlugAsync(request.AppId,
+                reinstalling && treeSlug is { } slug ? slug : request.AppSlug);
 
             // Registering again would replace the app's keys and cut off its devices (#2039).  Changing what it may do
             // has its own calls, and starting over with new keys is uninstalling it first.
@@ -65,14 +70,23 @@ namespace Odin.Services.Authorization.Apps
                 throw AlreadyRegistered(request.AppId);
             }
 
-            // An app the owner uninstalled is being installed again (#2138): it comes off the list and its drives and
-            // circles come back first, so it can be granted them, all in one transaction with the save, so a refused
-            // install leaves it as it was.  Lazy: the provisioner registers the built-in apps through this service.
-            var reinstalling = (await uninstalledApps.GetAsync()).Contains(request.AppId);
+            // Reinstalling: it comes off the list and its drives and circles come back first, so it can be granted
+            // them, all in one transaction with the save, so a refused install leaves it as it was.  Grants on its
+            // browser-made drives wait for the browser to make them.  Lazy: the provisioner registers the built-in
+            // apps through this service.
             await using var reinstallTx = reinstalling ? await db.BeginStackedTransactionAsync() : null;
-            var requestedDrives = reinstalling
-                ? await builtinProvisioner.Value.PrepareReinstallAsync(request.AppId, request.Drives, odinContext)
-                : request.Drives;
+            var notYetMade = reinstalling
+                ? await builtinProvisioner.Value.PrepareReinstallAsync(request.AppId, odinContext)
+                : [];
+            var requestedDrives = request.Drives?.Where(g => !notYetMade.Contains(g.PermissionedDrive.Drive)).ToList();
+            var circleMemberGrant = request.CircleMemberPermissionGrant == null || notYetMade.Count == 0
+                ? request.CircleMemberPermissionGrant
+                : new PermissionSetGrantRequest
+                {
+                    PermissionSet = request.CircleMemberPermissionGrant.PermissionSet,
+                    Drives = request.CircleMemberPermissionGrant.Drives?
+                        .Where(g => !notYetMade.Contains(g.PermissionedDrive.Drive)).ToList()
+                };
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -98,7 +112,7 @@ namespace Odin.Services.Authorization.Apps
                 AppKeyStore = appGrant,
 
                 CorsHostName = request.CorsHostName,
-                CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
+                CircleMemberPermissionGrant = circleMemberGrant,
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
@@ -122,7 +136,7 @@ namespace Odin.Services.Authorization.Apps
 
             if (reinstallTx != null)
             {
-                await builtinProvisioner.Value.RestoreGrantsOnItsDrivesAsync(request.AppId, odinContext);
+                await builtinProvisioner.Value.RestoreOtherAppsGrantsOnItsDrivesAsync(request.AppId, odinContext);
                 reinstallTx.Commit();
             }
 

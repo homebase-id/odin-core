@@ -39,7 +39,8 @@ namespace Odin.Services.Membership.Circles
         IDriveManager driveManager,
         IdentityDatabase db,
         LegacyDefinitionStore legacyStore,
-        OdinContextCache odinContextCache)
+        OdinContextCache odinContextCache,
+        UninstalledBuiltinApps uninstalledApps)
     {
 
         public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)
@@ -829,6 +830,14 @@ namespace Odin.Services.Membership.Circles
         /// </remarks>
         private async Task AssertOwningAppExistsAsync(Guid appId)
         {
+            // Not one the owner uninstalled (#2138): a circle left without its app couldn't go with it.  Installing the
+            // app again comes first, as for its drives.
+            if (BuiltinApps.IsPlatformApp(appId) && (await uninstalledApps.GetAsync()).Contains(appId))
+            {
+                throw new OdinClientException($"App {appId} was uninstalled; install it again first",
+                    OdinClientErrorCode.OwningAppUninstalled);
+            }
+
             if (BuiltinApps.IsPlatformApp(appId))
             {
                 return;

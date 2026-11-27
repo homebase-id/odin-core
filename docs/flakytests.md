@@ -1283,6 +1283,9 @@ its close (the broadcast removes sockets with no context; not changed by that br
   run on branch `uninstall-optional-builtin-apps-2138` (#2138), which changes app uninstall and built-in provisioning,
   not tags or queries. All three cases passed when rerun alone straight after, and the previous full run on the
   branch passed it. Undiagnosed.
+  **And again** in the next full run on the same branch: `(App[Write],OK)` and `(Guest[Read],OK)`. The whole
+  `V1TagTests` class (23 tests) then passed three times in a row alone. The test queries `QueryModified` with no
+  `MinDate`, straight after setting the tags, so a timing window is the likelier cause than the branch (I: not traced).
 
 ---
 

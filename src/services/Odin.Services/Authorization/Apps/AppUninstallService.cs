@@ -87,9 +87,16 @@ public class AppUninstallService(
             await circleDefinitionService.AssertDeletableAsync(circleId, appId);
         }
 
-        // Each delete also takes every other app's, circle's and connection's grant on the drive.
+        // Each delete also takes every other app's, circle's and connection's grant on the drive.  A drive the owner may
+        // archive is archived first, which tells whoever follows its definition (the home page's cache of a channel
+        // drive); a system drive can't be, and none of an uninstallable app's is a channel drive.
         foreach (var drive in drives)
         {
+            if (!BuiltinDrives.IsProtected(drive.Id))
+            {
+                await driveManager.SetArchiveDriveFlagAsync(drive.Id, true, odinContext);
+            }
+
             await driveDeletionService.DeleteDriveAsync(drive.Id, appId, odinContext);
         }
 

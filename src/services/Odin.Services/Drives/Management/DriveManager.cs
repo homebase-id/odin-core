@@ -136,7 +136,8 @@ public class DriveManager : IDriveManager
         // the app again takes it off the list first.
         if (BuiltinProvisioner.IsOwnedByAny(request.TargetDrive, await _uninstalledApps.GetAsync()))
         {
-            throw new OdinClientException("The app that owns this drive was uninstalled; install it again first");
+            throw new OdinClientException("The app that owns this drive was uninstalled; install it again first",
+                OdinClientErrorCode.OwningAppUninstalled);
         }
 
         // Both slugs are the caller's to name (#1901): missing, empty, whitespace-only or malformed is a

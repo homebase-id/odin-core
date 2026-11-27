@@ -82,6 +82,12 @@ public enum OdinClientErrorCode
     /// <summary>A drive nobody but the owner may list can't let followers subscribe: the feed would push them every file.</summary>
     CannotAllowSubscriptionsOnDriveThatBlocksEnumeration = 4009,
 
+    /// <summary>
+    /// The app that owns this built-in drive or circle was uninstalled (#2138): installing the app again comes first,
+    /// since nothing could delete one left without its app.
+    /// </summary>
+    OwningAppUninstalled = 4010,
+
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,
     CannotUploadEncryptedFileForAnonymous = 4102,

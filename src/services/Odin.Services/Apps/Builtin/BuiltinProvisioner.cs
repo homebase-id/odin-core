@@ -292,16 +292,15 @@ public class BuiltinProvisioner(
     /// registration being made can be granted them.  The caller holds the transaction, so a refused install undoes it.
     /// </summary>
     /// <returns>
-    /// <paramref name="requested"/> without its grants on the app's browser-made drives (Vault, Email): the owner's
-    /// browser makes those once the app is registered (<see cref="GetMissingZeroKnowledgeDrivesAsync"/>), and the app
-    /// is given its declared grants on them then (<see cref="EnsureAppOfBrowserMadeDriveAsync"/>).
+    /// The app's browser-made drives (Vault, Email) that aren't there, which the registration can't grant yet: the
+    /// owner's browser makes them once the app is registered (<see cref="GetMissingZeroKnowledgeDrivesAsync"/>), and
+    /// the app is given its declared grants on them then (<see cref="EnsureAppOfBrowserMadeDriveAsync"/>).
     /// </returns>
     /// <remarks>
     /// Its circles wait for its browser-made drives, as at setup.  A drive whose delete is still being purged can't be
     /// made again yet, which refuses the install with that reason.
     /// </remarks>
-    public async Task<List<DriveGrantRequest>> PrepareReinstallAsync(Guid appId, List<DriveGrantRequest> requested,
-        IOdinContext odinContext)
+    public async Task<List<TargetDrive>> PrepareReinstallAsync(Guid appId, IOdinContext odinContext)
     {
         await uninstalledApps.RemoveAsync(appId);
         await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => d.AppId == appId), skipBeingPurged: false, odinContext);
@@ -323,19 +322,18 @@ public class BuiltinProvisioner(
             }
         }
 
-        return requested?.Where(g => !missing.Contains(g.PermissionedDrive.Drive)).ToList();
+        return missing;
     }
 
     /// <summary>
-    /// After <paramref name="appId"/> is installed again, or its browser-made drive is made: the grants the built-in
-    /// registrations declare on its drives, which its uninstall took off them (Chat's on Moments, Lists and Location;
-    /// the app's own), are given back, as a new identity has them.  Only on drives that exist, and not to a revoked
-    /// app, whose grant this would rebuild.
+    /// After <paramref name="appId"/> is installed again: the grants the other built-in registrations declare on its
+    /// drives, which its uninstall took off them (Chat's on Moments, Lists and Location), are given back, as a new
+    /// identity has them.  Only on drives that exist.  The app itself keeps what its install asked for.
     /// </summary>
-    public async Task RestoreGrantsOnItsDrivesAsync(Guid appId, IOdinContext odinContext)
+    public async Task RestoreOtherAppsGrantsOnItsDrivesAsync(Guid appId, IOdinContext odinContext)
     {
         var itsDrives = new List<TargetDrive>();
-        foreach (var (alias, owner) in OwningAppOfDrive.Where(kv => kv.Value == appId))
+        foreach (var alias in OwningAppOfDrive.Where(kv => kv.Value == appId).Select(kv => kv.Key))
         {
             var drive = await driveManager.GetDriveAsync(alias);
             if (drive != null)
@@ -344,47 +342,62 @@ public class BuiltinProvisioner(
             }
         }
 
-        if (itsDrives.Count == 0)
+        foreach (var otherAppId in Registrations.Keys.Where(id => id != appId))
+        {
+            await RestoreDeclaredGrantsAsync(otherAppId, itsDrives, odinContext);
+        }
+    }
+
+    /// <summary>
+    /// Gives <paramref name="appId"/>'s registration the grants its built-in definition declares on
+    /// <paramref name="drives"/> that it holds none on, app-level and circle-member.  A revoked app stays revoked:
+    /// rewriting its grant would lift that, so it is revoked again after.
+    /// </summary>
+    private async Task RestoreDeclaredGrantsAsync(Guid appId, List<TargetDrive> drives, IOdinContext odinContext)
+    {
+        var registration = await appRegistrationService.GetAppRegistration(appId, odinContext);
+        if (drives.Count == 0 || registration == null || !Registrations.TryGetValue(appId, out var request))
         {
             return;
         }
 
-        foreach (var (otherAppId, request) in Registrations)
+        var held = registration.Grant.DriveGrants.Select(g => new DriveGrantRequest { PermissionedDrive = g.PermissionedDrive })
+            .ToList();
+        var missing = Missing(request.Drives, held, drives);
+        var memberHeld = registration.CircleMemberPermissionSetGrantRequest?.Drives?.ToList() ?? [];
+        var memberMissing = Missing(request.CircleMemberPermissionGrant?.Drives, memberHeld, drives);
+        if (missing.Count == 0 && memberMissing.Count == 0)
         {
-            var registration = await appRegistrationService.GetAppRegistration(otherAppId, odinContext);
-            if (registration == null || registration.IsRevoked)
-            {
-                continue;
-            }
+            return;
+        }
 
-            var held = registration.Grant.DriveGrants.Select(g => new DriveGrantRequest { PermissionedDrive = g.PermissionedDrive })
-                .ToList();
-            var missing = Missing(request.Drives, held, itsDrives);
-            if (missing.Count > 0)
+        if (missing.Count > 0)
+        {
+            await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
             {
-                await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
-                {
-                    AppId = otherAppId,
-                    PermissionSet = registration.Grant.PermissionSet,
-                    Drives = [..held, ..missing]
-                }, odinContext);
-            }
+                AppId = appId,
+                PermissionSet = registration.Grant.PermissionSet,
+                Drives = [..held, ..missing]
+            }, odinContext);
+        }
 
-            var memberHeld = registration.CircleMemberPermissionSetGrantRequest?.Drives?.ToList() ?? [];
-            var memberMissing = Missing(request.CircleMemberPermissionGrant?.Drives, memberHeld, itsDrives);
-            if (memberMissing.Count > 0)
+        if (memberMissing.Count > 0)
+        {
+            await appRegistrationService.UpdateAuthorizedCirclesAsync(new UpdateAuthorizedCirclesRequest
             {
-                await appRegistrationService.UpdateAuthorizedCirclesAsync(new UpdateAuthorizedCirclesRequest
+                AppId = appId,
+                AuthorizedCircles = registration.AuthorizedCircles ?? [],
+                CircleMemberPermissionGrant = new PermissionSetGrantRequest
                 {
-                    AppId = otherAppId,
-                    AuthorizedCircles = registration.AuthorizedCircles ?? [],
-                    CircleMemberPermissionGrant = new PermissionSetGrantRequest
-                    {
-                        PermissionSet = registration.CircleMemberPermissionSetGrantRequest?.PermissionSet ?? new PermissionSet(),
-                        Drives = [..memberHeld, ..memberMissing]
-                    }
-                }, odinContext);
-            }
+                    PermissionSet = registration.CircleMemberPermissionSetGrantRequest?.PermissionSet ?? new PermissionSet(),
+                    Drives = [..memberHeld, ..memberMissing]
+                }
+            }, odinContext);
+        }
+
+        if (registration.IsRevoked)
+        {
+            await appRegistrationService.RevokeAppAsync(appId, odinContext);
         }
     }
 
@@ -425,8 +438,13 @@ public class BuiltinProvisioner(
 
         await EnsureAppAsync(app, uninstalled, odinContext);
 
-        // Registered before its drive was made, as an app installed again is: its own declared grant on it now
-        await RestoreGrantsOnItsDrivesAsync(app.AppId, odinContext);
+        // Registered before its drive was made, as an app installed again is: its own declared grant on it now, and
+        // any other built-in app's
+        var made = (await driveManager.GetDriveAsync(driveId))!.TargetDriveInfo;
+        foreach (var appId in Registrations.Keys)
+        {
+            await RestoreDeclaredGrantsAsync(appId, [made], odinContext);
+        }
     }
 
     private async Task EnsureAppAsync(WellknownAppDefinition app, IReadOnlySet<Guid> uninstalled, IOdinContext odinContext)

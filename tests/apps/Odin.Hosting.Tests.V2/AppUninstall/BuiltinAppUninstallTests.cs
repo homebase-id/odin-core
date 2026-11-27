@@ -216,11 +216,14 @@ public class BuiltinAppUninstallTests : V2Fixture
             zkKeys: keys.Request);
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a Vault drive was made without its app");
 
-        // Asking, as its own install does, for its drive, which the browser hasn't made again yet
-        await owner.Admin.RegisterApp(SystemAppConstants.VaultAppId, new PermissionSetGrantRequest
+        // Asking, as its own install might, for its drive, which the browser hasn't made again yet, for itself and its
+        // circles' members
+        var onVault = new DriveGrantRequest
         {
-            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = vault.TargetDrive, Permission = DrivePermission.ReadWrite } }]
-        });
+            PermissionedDrive = new PermissionedDrive { Drive = vault.TargetDrive, Permission = DrivePermission.ReadWrite }
+        };
+        await owner.Admin.RegisterApp(SystemAppConstants.VaultAppId, new PermissionSetGrantRequest { Drives = [onVault] },
+            circleMemberGrantRequest: new PermissionSetGrantRequest { Drives = [onVault] });
         var created = await ZkOwnerSteps.CreateMissingDrivesAsync(owner, zkMasterKey);
         Assert.That(created.Keys, Does.Contain(vault.TargetDrive.Alias.Value), "the browser was not asked for the Vault drive");
 
@@ -230,6 +233,50 @@ public class BuiltinAppUninstallTests : V2Fixture
         var registration = await scope.Resolve<IAppRegistrationService>().GetAppRegistration(SystemAppConstants.VaultAppId, ctx);
         Assert.That(registration!.Grant.DriveGrants.Select(g => g.PermissionedDrive.Drive), Does.Contain(vault.TargetDrive),
             "the Vault app wasn't granted its drive once it was made");
+    }
+
+    /// <summary>
+    /// Installed again, an app has what its install asked for, under the tree's address; Chat, revoked meanwhile, gets its
+    /// grant on the returning drive back and stays revoked.
+    /// </summary>
+    [Test]
+    public async Task AReinstallKeepsWhatTheInstallAskedForAtTheTreesAddressAndARevokedChatStaysRevoked()
+    {
+        var owner = await LoginAsOwner();
+        var appId = SystemAppConstants.MomentsAppId;
+        Assert.That(await owner.Admin.Uninstall(appId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
+        await RunPurgeAsync(owner);
+        var (scope, ctx) = await MigrationContextAsync(owner);
+        var registrations = scope.Resolve<IAppRegistrationService>();
+        await registrations.RevokeAppAsync(SystemAppConstants.ChatAppId, ctx);
+
+        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: new Odin.Core.OdinSlug("my-moments"));
+
+        var moments = (await registrations.GetAppRegistration(appId, ctx))!;
+        Assert.That(moments.AppSlug.ToString(), Is.EqualTo("moments"), "not at the tree's address");
+        Assert.That(moments.Grant.DriveGrants, Is.Empty, "given grants its install didn't ask for");
+
+        var chat = (await registrations.GetAppRegistration(SystemAppConstants.ChatAppId, ctx))!;
+        Assert.That(chat.IsRevoked, Is.True, "restoring Chat's grant lifted its revocation");
+        Assert.That(chat.Grant.DriveGrants.Select(g => g.PermissionedDrive.Drive), Does.Contain(WellKnownAppDrives.MomentsDrive));
+    }
+
+    [Test]
+    public async Task AnUninstalledAppsCircleCanNotBeCreated()
+    {
+        var owner = await LoginAsOwner();
+        Assert.That(await owner.Admin.Uninstall(SystemAppConstants.MomentsAppId, deleteOwnedCirclesAndDrives: true),
+            Is.EqualTo(HttpStatusCode.OK));
+
+        var (scope, _) = await MigrationContextAsync(owner);
+        var refused = Assert.ThrowsAsync<Odin.Core.Exceptions.OdinClientException>(() =>
+            scope.Resolve<CircleDefinitionService>().CreateAsync(new CreateCircleRequest
+            {
+                Id = Guid.NewGuid(), Name = "after Moments", Slug = new Odin.Core.OdinSlug("after-moments"),
+                AppId = SystemAppConstants.MomentsAppId, DriveGrants = [],
+                Permissions = new Odin.Services.Authorization.Permissions.PermissionSet(Odin.Services.Authorization.Permissions.PermissionKeys.ReadCircleMembership)
+            }));
+        Assert.That(refused!.ErrorCode, Is.EqualTo(Odin.Core.Exceptions.OdinClientErrorCode.OwningAppUninstalled));
     }
 
     [Test]
