@@ -78,15 +78,19 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.ConnectAsync(frodo, sam);
         var (scope, ctx) = await MigrationContextAsync(frodo);
+        var driveManager = scope.Resolve<IDriveManager>();
+        var provisioner = scope.Resolve<BuiltinProvisioner>();
+        var registrations = frodo.RefitFor<IRefitOwnerAppRegistration>();
 
         // Installed as the apps install themselves before this: the drive made with the browser's keys, then the app
         // registered declaring its circle, which gets an id of its own.  Sam is a member.
         var installed = new Dictionary<Guid, (StorageDrive Drive, CircleDefinition Circle, RedactedAppRegistration App)>();
         foreach (var (appId, drive, circle) in Apps)
         {
-            var definition = BuiltinApps.Builtin.Single(a => a.AppId == appId).Drives.Single();
+            var tree = BuiltinApps.Builtin.Single(a => a.AppId == appId);
+            var definition = tree.Drives.Single();
             var keys = ZkBrowser.MakeDriveKeys(drive.Alias, zkMasterKey);
-            await scope.Resolve<IDriveManager>().CreateDriveAsync(new CreateDriveRequest
+            await driveManager.CreateDriveAsync(new CreateDriveRequest
             {
                 Name = definition.Name, TargetDrive = drive, Metadata = "", AppId = appId, DriveSlug = definition.DriveSlug,
                 DriveTypeSlug = definition.DriveTypeSlug, SharingModel = DriveSharingModel.SelectiveShare, ZkKeys = keys.Request
@@ -95,7 +99,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             {
                 AppId = appId,
                 Name = "installed first",
-                AppSlug = BuiltinApps.Builtin.Single(a => a.AppId == appId).AppSlug,
+                AppSlug = tree.AppSlug,
                 PermissionSet = new PermissionSet(),
                 Drives = [Grant(drive, DrivePermission.ReadWrite | DrivePermission.React | DrivePermission.Comment)],
                 Circles =
@@ -112,17 +116,17 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             Assert.That(appCircle!.Id.Value, Is.Not.EqualTo(circle.Id.Value), "precondition: the install made its own circle");
             await scope.Resolve<CircleNetworkService>().EnrollInCircleAsync(appCircle.Id, sam.Identity, ctx);
 
-            var app = (await frodo.RefitFor<IRefitOwnerAppRegistration>().GetRegisteredApp(new GetAppRequest { AppId = appId })).Content!;
-            installed[appId] = ((await scope.Resolve<IDriveManager>().GetDriveAsync(drive.Alias))!, appCircle, app);
+            var app = (await registrations.GetRegisteredApp(new GetAppRequest { AppId = appId })).Content!;
+            installed[appId] = ((await driveManager.GetDriveAsync(drive.Alias))!, appCircle, app);
         }
 
         // Then the upgrade, and the browser's next password login
-        await scope.Resolve<BuiltinProvisioner>().EnsureAllAsync(ctx);
+        await provisioner.EnsureAllAsync(ctx);
         var missing = (await ZkOwnerSteps.Client(frodo).GetMissingDrives()).Content!;
         Assert.That(missing.Select(d => d.TargetDrive), Has.None.AnyOf(Apps.Select(a => a.Drive).ToArray()));
         foreach (var (_, drive, _) in Apps)
         {
-            await scope.Resolve<BuiltinProvisioner>().EnsureAppOfBrowserMadeDriveAsync(drive.Alias, ctx);
+            await provisioner.EnsureAppOfBrowserMadeDriveAsync(drive.Alias, ctx);
         }
 
         var circles = (await frodo.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions(includeSystemCircle: true)).Content!;
@@ -131,7 +135,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
         foreach (var (appId, drive, circle) in Apps)
         {
             var (driveBefore, circleBefore, appBefore) = installed[appId];
-            var driveAfter = (await scope.Resolve<IDriveManager>().GetDriveAsync(drive.Alias))!;
+            var driveAfter = (await driveManager.GetDriveAsync(drive.Alias))!;
             Assert.That(driveAfter.Data.ZkMasterKeyEncryptedStorageKey, Is.EqualTo(driveBefore.Data.ZkMasterKeyEncryptedStorageKey),
                 "the same drive key");
             Assert.That(driveAfter.Created, Is.EqualTo(driveBefore.Created));
@@ -143,7 +147,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             Assert.That(samsCircles, Does.Contain(circleBefore.Id), "Sam is still a member");
             Assert.That(circles.Any(c => c.Id == circle.Id), Is.False);
 
-            var appAfter = (await frodo.RefitFor<IRefitOwnerAppRegistration>().GetRegisteredApp(new GetAppRequest { AppId = appId })).Content!;
+            var appAfter = (await registrations.GetRegisteredApp(new GetAppRequest { AppId = appId })).Content!;
             Assert.That(appAfter.Name, Is.EqualTo(appBefore.Name), "the installed registration, not replaced");
             Assert.That(appAfter.Grant.DriveGrants.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission)),
                 Is.EquivalentTo(appBefore.Grant.DriveGrants.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission))));
