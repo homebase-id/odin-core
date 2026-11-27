@@ -3,10 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
@@ -18,6 +20,7 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration.VersionUpgrade.Version21tov22;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
@@ -118,14 +121,19 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             Assert.That(appCircle!.Id.Value, Is.Not.EqualTo(circle.Id.Value), "precondition: the install made its own circle");
             await scope.Resolve<CircleNetworkService>().EnrollInCircleAsync(appCircle.Id, sam.Identity, ctx);
 
-            // The owner had blocked listing on it, which the drive keeps once it is a system drive
+            // The owner had blocked listing on it, which the upgrade resets to the built-in definition
             await scope.Resolve<DriveManager>().StoreBlockEnumerationAsync((await driveManager.GetDriveAsync(drive.Alias))!.Id, true, ctx);
 
             var app = (await registrations.GetRegisteredApp(new GetAppRequest { AppId = appId })).Content!;
             installed[appId] = ((await driveManager.GetDriveAsync(drive.Alias))!, appCircle, app);
         }
 
-        // Then the owner setup call, and the browser's next password login, which finds nothing missing
+        // Then the upgrade's reset, the owner setup call, and the browser's next password login, which finds nothing missing
+        var migration = scope.Resolve<V21ToV22VersionMigrationService>();
+        Assert.ThrowsAsync<OdinSystemException>(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None),
+            "validation must not pass while an installed drive keeps the owner's settings");
+        await migration.ResetInstalledFilesyncAndPhotosDrivesAsync(ctx, CancellationToken.None);
+        Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
         await provisioner.EnsureAllAsync(ctx);
         var missing = (await ZkOwnerSteps.Client(frodo).GetMissingDrives()).Content!;
         Assert.That(missing.Select(d => d.TargetDrive), Has.None.AnyOf(Apps.Select(a => a.Drive).ToArray()));
@@ -140,7 +148,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             Assert.That(driveAfter.Data.ZkMasterKeyEncryptedStorageKey, Is.EqualTo(driveBefore.Data.ZkMasterKeyEncryptedStorageKey),
                 "the same drive key");
             Assert.That(driveAfter.Created, Is.EqualTo(driveBefore.Created));
-            Assert.That(driveAfter.BlockEnumeration, Is.True, "the owner's block on listing it stays");
+            Assert.That(driveAfter.Data.BlockEnumeration, Is.False, "reset to the built-in definition, which lets members list it");
 
             var appCircles = circles.Where(c => c.AppId == appId).ToList();
             Assert.That(appCircles.Select(c => c.Id.Value), Is.EqualTo(new[] { circleBefore.Id.Value }),

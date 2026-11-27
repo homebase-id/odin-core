@@ -809,6 +809,13 @@ public class VersionUpgradeService(
                     webDropTx.Commit();
                 }, cancellationToken);
 
+                await RunPhaseAsync("v21->v22 reset-installed-filesync-photos-drives", async ct =>
+                {
+                    await using var resetTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v22.ResetInstalledFilesyncAndPhotosDrivesAsync(odinContext, ct);
+                    resetTx.Commit();
+                }, cancellationToken);
+
                 await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 await v22.ValidateUpgradeAsync(odinContext, cancellationToken);

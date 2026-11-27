@@ -56,13 +56,11 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 
     /// <summary>
     /// Only the owner, the owner's apps and the server may list it. See <see cref="StorageDriveDetails"/>.  A system drive
-    /// whose built-in definition blocks enumeration (<see cref="BuiltinDrives.BlockEnumerationOf"/>) blocks it whatever is
-    /// stored; any drive blocks it when stored so, which keeps an owner's block on a drive installed before it became a
-    /// system drive (Filesync, Photos: #2136).
+    /// has what its built-in definition says (<see cref="BuiltinDrives.BlockEnumerationOf"/>), whatever is stored.
     /// </summary>
     public bool BlockEnumeration
     {
-        get => BuiltinDrives.BlockEnumerationOf(TargetDriveInfo) == true || Data.BlockEnumeration;
+        get => BuiltinDrives.BlockEnumerationOf(TargetDriveInfo) ?? Data.BlockEnumeration;
         set => Data.BlockEnumeration = value;
     }
 

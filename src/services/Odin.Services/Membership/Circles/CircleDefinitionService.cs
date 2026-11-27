@@ -267,13 +267,15 @@ namespace Odin.Services.Membership.Circles
         }
 
         /// <summary>
-        /// Creates a declared circle unless it exists: by its id, or by its address within its app, which is how an app
-        /// installed before it became built-in holds it (#2136).  Either way the existing circle is left as it is.
+        /// Creates a declared circle unless it exists: by its id, or, for an app installed before it became built-in
+        /// (Filesync, Photos), by its address within its app, which is how such an install holds it (#2136).  Either way
+        /// the existing circle is left as it is.
         /// </summary>
         public async Task EnsureCircleExistsAsync(CircleDefinition def)
         {
             if (await GetCircleAsync(def.Id) != null ||
-                (def.AppId is { } appId && def.Slug.HasValue && await GetCircleByAppSlugAsync(appId, def.Slug) != null))
+                (def.AppId is { } appId && BuiltinApps.BecameBuiltinAfterInstall(appId) && def.Slug.HasValue &&
+                 await GetCircleByAppSlugAsync(appId, def.Slug) != null))
             {
                 return;
             }

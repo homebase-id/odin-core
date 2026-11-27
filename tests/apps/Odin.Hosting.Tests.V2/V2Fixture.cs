@@ -480,7 +480,7 @@ public abstract class V2Fixture
 
     /// <summary>
     /// The protected built-in drives a new identity has before its owner's browser has run: all but the ones the
-    /// browser creates zero knowledge (Vault, Email), which the server leaves out at setup.
+    /// browser creates zero knowledge (Vault, Email, Filesync, Photos), which the server leaves out at setup.
     /// </summary>
     protected static List<TargetDrive> ProtectedDrivesMadeAtSetup =>
         BuiltinDrives.Protected

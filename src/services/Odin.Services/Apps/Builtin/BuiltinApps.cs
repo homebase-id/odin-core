@@ -212,7 +212,7 @@ public static class BuiltinApps
 
     /// <summary>
     /// True when the app tree declares this circle.  Known by its id, when the tree re-applies its owner, grant rule
-    /// and designation on version upgrades; or, for a built-in app, by its address: an app that became built-in after
+    /// and designation on version upgrades; or, for Filesync and Photos, by its address: an app that became built-in after
     /// the owner installed it holds its declared circle under the id it was created with, which the upgrades, looking
     /// circles up by id, leave as the install made it (#2136).
     /// </summary>
@@ -226,11 +226,16 @@ public static class BuiltinApps
     /// Built once: the tree is static, and this is asked per circle on a page that lists them.
     /// </para>
     /// </remarks>
+    /// <summary>Apps an owner could install before they became built-in, so their declared circle may sit under another id.</summary>
+    public static bool BecameBuiltinAfterInstall(Guid appId) => AppsBuiltinAfterInstall.Contains(appId);
+
+    private static readonly HashSet<Guid> AppsBuiltinAfterInstall = [SystemAppConstants.FilesyncAppId, SystemAppConstants.PhotobaseAppId];
+
     private static readonly HashSet<Guid> DeclaredCircleIds =
         AllCircles.Select(c => c.Id.Value).ToHashSet();
 
     private static readonly HashSet<(Guid AppId, OdinSlug Slug)> DeclaredCircleAddresses =
-        SeededCircles.Select(c => (c.AppId!.Value, c.Slug)).ToHashSet();
+        SeededCircles.Where(c => AppsBuiltinAfterInstall.Contains(c.AppId!.Value)).Select(c => (c.AppId!.Value, c.Slug)).ToHashSet();
 
     public static bool IsTreeDeclaredCircle(CircleDefinition circle) =>
         DeclaredCircleIds.Contains(circle.Id.Value) ||
