@@ -32,7 +32,7 @@ namespace Odin.Services.DataSubscription
         : INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<NewFeedItemReceived>,
             INotificationHandler<NewFollowerNotification>, INotificationHandler<DriveFileAddedNotification>
     {
-        private static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
+        internal static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
         private static readonly Guid PostNotificationTypeId = Guid.Parse("ad695388-c2df-47a0-ad5b-fc9f9e1fffc9");
 
         public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
@@ -59,45 +59,51 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
         {
-            var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
             var odinContext = notification.OdinContext;
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
 
             await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.FeedAppId,
-                TypeId = typeId,
+                TypeId = PostNotificationTypeId,
                 TagId = notification.GlobalTransitId,
                 Silent = false,
             },
                 newContext);
         }
 
+        /// <summary>
+        /// A comment someone else left on a post in one of my channels, posted here (from my home page) or sent by a
+        /// connected identity: the one place a comment is notified, once, when it is first written.  Comments are never
+        /// written to the Feed drive.  A failure is logged, so the event's other handlers still run.
+        /// </summary>
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
-            //handle comments when added to my identity from a user who's on my home page
-            if (string.IsNullOrEmpty(notification.ServerFileHeader.FileMetadata.SenderOdinId))
+            try
             {
-                //no need to send a notification to myself
-                return;
-            }
-            
-            
-            var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
-
-            if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
-                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Alias == SystemDriveConstants.ChannelDriveType && sender != tenantContext.HostOdinId)
-            {
-                var odinContext = notification.OdinContext;
-                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                var metadata = notification.ServerFileHeader.FileMetadata;
+                if (notification.ServerFileHeader.ServerMetadata.FileSystemType != FileSystemType.Comment
+                    || string.IsNullOrEmpty(metadata.SenderOdinId)
+                    || (OdinId)metadata.SenderOdinId == tenantContext.HostOdinId
+                    || metadata.ReferencedFile == null
+                    || !await IsChannelDriveAsync(notification.File.DriveId))
                 {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = CommentNotificationTypeId,
-                    TagId = notification.ServerFileHeader.FileMetadata.ReferencedFile != null ? notification.ServerFileHeader.FileMetadata.ReferencedFile.GlobalTransitId : notification.ServerFileHeader.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    Silent = false,
-                },
-                    newContext);
+                    return;
+                }
+
+                await pushNotificationService.EnqueueNotification((OdinId)metadata.SenderOdinId, new AppNotificationOptions()
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = CommentNotificationTypeId,
+                        TagId = metadata.ReferencedFile.GlobalTransitId,
+                        Silent = false,
+                    },
+                    OdinContextUpgrades.UpgradeToPeerTransferContext(notification.OdinContext));
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                logger.LogError(e, "Failed to notify of comment {fileId} on drive {driveId}", notification.File.FileId,
+                    notification.File.DriveId);
             }
         }
 
@@ -113,6 +119,12 @@ namespace Odin.Services.DataSubscription
                     Silent = false
                 },
                 newContext);
+        }
+
+        private async Task<bool> IsChannelDriveAsync(Guid driveId)
+        {
+            var drive = await driveManager.GetDriveAsync(driveId);
+            return drive?.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
         }
 
         private async Task<bool> IsFeedDriveRelatedAsync(Guid driveId)
