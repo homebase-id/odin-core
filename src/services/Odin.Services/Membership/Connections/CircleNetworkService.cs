@@ -3449,7 +3449,7 @@ namespace Odin.Services.Membership.Connections
 
             foreach (var circleId in ownedCircleIds)
             {
-                await circleMembershipService.DeleteCircleAndMembersAsync(circleId, odinContext);
+                await circleMembershipService.DeleteCircleAndMembersAsync(circleId, appId, odinContext);
                 await mediator.Publish(new CircleDefinitionChangedNotification
                 {
                     OdinContext = odinContext,

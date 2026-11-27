@@ -1,3 +1,6 @@
+using System.Linq;
+using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,7 +24,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version7tov8
         CircleNetworkService circleNetworkService,
         AppRegistrationService appRegistrationService,
         IdentityDatabase db,
-        IDriveManager driveManager)
+        IDriveManager driveManager,
+        UninstalledBuiltinApps uninstalledApps)
     {
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -40,8 +44,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version7tov8
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            // Not made when the owner uninstalled Moments (#2138).
             var momentsDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.MomentsDrive.Alias, false);
-            if (momentsDrive == null)
+            if (momentsDrive == null && !(await uninstalledApps.GetAsync()).Contains(SystemAppConstants.MomentsAppId))
             {
                 throw new OdinSystemException("Moments drive not created");
             }

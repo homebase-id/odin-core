@@ -41,7 +41,7 @@ public class DriveDeletionService(
     /// </summary>
     public async Task EmptyDriveAsync(Guid driveId, IOdinContext odinContext)
     {
-        var drive = await AssertDeletableAsync(driveId, odinContext);
+        var drive = await AssertDeletableAsync(driveId, uninstallingAppId: null, odinContext);
 
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
@@ -62,9 +62,17 @@ public class DriveDeletionService(
     /// The drive, its grants and its pending transfers go now, in one transaction; its files and directories go
     /// in the background. Until they have, its alias cannot be used for a new drive.
     /// </remarks>
-    public async Task DeleteDriveAsync(Guid driveId, IOdinContext odinContext)
+    public Task DeleteDriveAsync(Guid driveId, IOdinContext odinContext) =>
+        DeleteDriveAsync(driveId, uninstallingAppId: null, odinContext);
+
+    /// <summary>
+    /// As <see cref="DeleteDriveAsync(Guid, IOdinContext)"/>, as part of uninstalling <paramref name="uninstallingAppId"/>,
+    /// which must own the drive.  It needn't be archived: the owner asked for the app's drives to go with it.  A system
+    /// drive goes only with an app the owner may uninstall (#2138); uninstalling it is the one way to delete one.
+    /// </summary>
+    public async Task DeleteDriveAsync(Guid driveId, Guid? uninstallingAppId, IOdinContext odinContext)
     {
-        var drive = await AssertDeletableAsync(driveId, odinContext);
+        var drive = await AssertDeletableAsync(driveId, uninstallingAppId, odinContext);
 
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
@@ -151,17 +159,22 @@ public class DriveDeletionService(
         });
     }
 
-    private async Task<StorageDrive> AssertDeletableAsync(Guid driveId, IOdinContext odinContext)
+    private async Task<StorageDrive> AssertDeletableAsync(Guid driveId, Guid? uninstallingAppId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        if (BuiltinDrives.IsProtected(driveId))
+        if (BuiltinDrives.IsProtected(driveId) && !(uninstallingAppId is { } uninstalling && BuiltinApps.IsUninstallable(uninstalling)))
         {
             throw new OdinClientException("Cannot delete a system drive or its content");
         }
 
-        // Archiving first is the owner's first "are you sure"; it also stops apps writing to the drive.
         var drive = (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!;
+        if (uninstallingAppId is { } appId)
+        {
+            return drive.AppId == appId ? drive : throw new OdinClientException($"Drive {driveId} is not owned by app {appId}");
+        }
+
+        // Archiving first is the owner's first "are you sure"; it also stops apps writing to the drive.
         if (!drive.IsArchived)
         {
             throw new OdinClientException("Archive the drive before emptying or deleting it");

@@ -56,7 +56,8 @@ public static class BuiltinApps
                 PermissionKeys.ManageProfile,
                 PermissionKeys.ReadCircleMembership,
                 // Kept for Chat alone: see SystemAppConstants.ChatAppRegistrationRequest.
-                PermissionKeys.ManageCircleMembership)),
+                PermissionKeys.ManageCircleMembership),
+            Uninstallable: false),
 
         new(SystemAppConstants.ContactsAppId, "Contacts", (OdinSlug)"contacts",
             Drives:
@@ -65,17 +66,20 @@ public static class BuiltinApps
                 BuiltinDrives.ProfileDrive
             ],
             Circles: [BuiltinCircles.FriendsCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: false),
 
         new(SystemAppConstants.EmailAppId, "Email", (OdinSlug)"email",
             Drives: [BuiltinDrives.EmailDrive],
             Circles: [BuiltinCircles.EmailCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: true),
         
         new(SystemAppConstants.LocationAppId, "Location", (OdinSlug)"location",
             Drives: [BuiltinDrives.LocationDrive],
             Circles: [BuiltinCircles.EmergencyLocationAccessCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: true),
 
         new(SystemAppConstants.FeedAppId, "Feed", (OdinSlug)"feed",
             Drives:
@@ -94,30 +98,35 @@ public static class BuiltinApps
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.UseTransitRead,
                 PermissionKeys.PublishStaticContent,
-                PermissionKeys.SendPushNotifications)),
+                PermissionKeys.SendPushNotifications),
+            Uninstallable: false),
 
         new(SystemAppConstants.HomePageAppId, "HomePage", (OdinSlug)"homepage",
             Drives: [BuiltinDrives.HomePageConfigDrive],
             Circles: [BuiltinCircles.HomePageCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: false),
 
 
         new(SystemAppConstants.RecoveryAppId, "Recovery", (OdinSlug)"recovery",
             Drives: [BuiltinDrives.ShardRecoveryDrive],
             Circles: [BuiltinCircles.RecoveryCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: false),
 
         // Owns the transient drive.
 
         new(SystemAppConstants.SystemAppId, "System", (OdinSlug)"system",
             Drives: [BuiltinDrives.TransientTempDrive],
             Circles: [],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: false),
 
         new(SystemAppConstants.MomentsAppId, "Moments", (OdinSlug)"moments",
             Drives: [BuiltinDrives.MomentsDrive],
             Circles: [BuiltinCircles.MomentsCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: true),
         
         new(SystemAppConstants.WebdropAppId, "Webdrop", (OdinSlug)"webdrop",
             Drives: [BuiltinDrives.WebDropDrive],
@@ -131,12 +140,14 @@ public static class BuiltinApps
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.ManageContacts,
                 PermissionKeys.ManageProfile,
-                PermissionKeys.ReadCircleMembership)),
+                PermissionKeys.ReadCircleMembership),
+            Uninstallable: true),
         
         new(SystemAppConstants.VaultAppId, "Vault", (OdinSlug)"vault",
             Drives: [BuiltinDrives.VaultDrive],
             Circles: [BuiltinCircles.VaultCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: true),
     ];
 
     /// <summary>
@@ -153,17 +164,20 @@ public static class BuiltinApps
         new(SystemAppConstants.CommunityAppId, "Community", (OdinSlug)"community",
             Drives: [BuiltinDrives.CommunityDrive],
             Circles: [BuiltinCircles.CommunityCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: true),
         
         new(SystemAppConstants.PhotoAppId, "Photo", (OdinSlug)"photo",
             Drives: [BuiltinDrives.PhotoLibraryDrive],
             Circles: [BuiltinCircles.PhotosCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: true),
 
         new(SystemAppConstants.SocialSyncAppId, "Social Sync", (OdinSlug)"social-sync",
             Drives: [],
             Circles: [BuiltinCircles.SocialSyncCircle],
-            Permissions: new PermissionSet()),
+            Permissions: new PermissionSet(),
+            Uninstallable: true),
         
         // BuiltinDrives.ListsDrive is seeded despite its app not being built-in, because Chat's circle-member
         // grant names it and issuing a grant for an absent drive throws (BuiltinProvisioner.CarryOverDrives).
@@ -224,6 +238,12 @@ public static class BuiltinApps
 
     public static bool IsTreeDeclaredCircle(Guid circleId) => DeclaredCircleIds.Contains(circleId);
 
+    /// <summary>The app whose tree entry declares this circle, whatever app the stored circle now names; null for any other.</summary>
+    public static Guid? TreeOwnerOfCircle(Guid circleId) => TreeCircleOwners.TryGetValue(circleId, out var appId) ? appId : null;
+
+    private static readonly Dictionary<Guid, Guid> TreeCircleOwners =
+        All.SelectMany(a => a.Circles.Select(c => (CircleId: c.Id.Value, a.AppId))).ToDictionary(x => x.CircleId, x => x.AppId);
+
     /// <summary>
     /// True when the id names an app the platform ships, whether or not it is registered here.
     /// </summary>
@@ -251,6 +271,21 @@ public static class BuiltinApps
     private static readonly HashSet<Guid> PlatformAppIds =
     [
         ..All.Select(a => a.AppId),
+        SystemAppConstants.ListsAppId,
+        SystemAppConstants.MailAppId,
+    ];
+
+    /// <summary>
+    /// True when the owner may uninstall this known app (#2138): every app on the tree that says so, every
+    /// <see cref="Wellknown"/> one, and Lists and Mail, which own a provisioned drive without a tree entry.
+    /// False for the core of the platform, and for any id the platform doesn't know (a third-party app is not
+    /// built-in at all).
+    /// </summary>
+    public static bool IsUninstallable(Guid appId) => UninstallableAppIds.Contains(appId);
+
+    private static readonly HashSet<Guid> UninstallableAppIds =
+    [
+        ..All.Where(a => a.Uninstallable).Select(a => a.AppId),
         SystemAppConstants.ListsAppId,
         SystemAppConstants.MailAppId,
     ];

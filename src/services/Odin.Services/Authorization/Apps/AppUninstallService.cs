@@ -18,9 +18,10 @@ namespace Odin.Services.Authorization.Apps;
 #nullable enable
 
 /// <summary>
-/// The owner's full removal of a third-party app (#1870): its clients and their push subscriptions, its grants
-/// on every connection, and -- when the owner says so -- the circles and drives it owns. An app that owns any is
-/// refused unless they go with it.
+/// The owner's full removal of an app (#1870), third-party or an optional known one (#2138): its clients and their
+/// push subscriptions, its grants on every connection, and -- when the owner says so -- the circles and drives it
+/// owns. An app that owns any is refused unless they go with it.  A provisioned one is remembered as uninstalled, so
+/// an upgrade doesn't bring it back.
 /// </summary>
 /// <remarks>
 /// Runs in steps rather than one transaction, because a drive's files are removed after its own transaction
@@ -37,10 +38,15 @@ public class AppUninstallService(
     ClientRegistrationStorage clientRegistrationStorage,
     PushNotificationService pushNotificationService,
     LegacyDefinitionStore legacyStore,
+    UninstalledBuiltinApps uninstalledApps,
     IdentityDatabase db)
 {
-    /// <summary>The owner console and the platform's own apps: never uninstalled, only revoked.</summary>
-    public static bool IsBuiltIn(Guid appId) => SystemAppConstants.IsOwnerConsole(appId) || BuiltinApps.IsPlatformApp(appId);
+    /// <summary>
+    /// The owner console and the core of the platform: never uninstalled, only revoked.  An optional known app is
+    /// not, even when the platform provisions it (<see cref="BuiltinApps.IsUninstallable"/>).
+    /// </summary>
+    public static bool IsBuiltIn(Guid appId) => SystemAppConstants.IsOwnerConsole(appId) ||
+                                               (BuiltinApps.IsPlatformApp(appId) && !BuiltinApps.IsUninstallable(appId));
 
     public async Task UninstallAsync(Guid appId, bool deleteOwnedCirclesAndDrives, IOdinContext odinContext)
     {
@@ -78,13 +84,28 @@ public class AppUninstallService(
         // Before anything is removed: a circle that cannot be deleted must not first lose its grants everywhere.
         foreach (var circleId in circleIds)
         {
-            await circleDefinitionService.AssertDeletableAsync(circleId);
+            await circleDefinitionService.AssertDeletableAsync(circleId, appId);
         }
 
+        // Before the deletes: a known app stays uninstalled -- across upgrades, which leave a provisioned one's drives
+        // alone from here, and against a drive or circle made for it before it is installed again.  A failure past
+        // here leaves it registered and half removed, and uninstalling it again finishes it.
+        if (BuiltinApps.IsUninstallable(appId))
+        {
+            await uninstalledApps.AddAsync(appId);
+        }
+
+        // Each delete also takes every other app's, circle's and connection's grant on the drive.  A drive the owner may
+        // archive is archived first, which tells whoever follows its definition (the home page's cache of a channel
+        // drive); a system drive can't be, and none of an uninstallable app's is a channel drive.
         foreach (var drive in drives)
         {
-            await driveManager.SetArchiveDriveFlagAsync(drive.Id, true, odinContext);
-            await driveDeletionService.DeleteDriveAsync(drive.Id, odinContext);
+            if (!BuiltinDrives.IsProtected(drive.Id))
+            {
+                await driveManager.SetArchiveDriveFlagAsync(drive.Id, true, odinContext);
+            }
+
+            await driveDeletionService.DeleteDriveAsync(drive.Id, appId, odinContext);
         }
 
         await appRegistrationService.RemoveCirclesFromAllAppsAsync(circleIds, odinContext);

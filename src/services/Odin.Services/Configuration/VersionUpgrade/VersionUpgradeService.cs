@@ -235,6 +235,8 @@ public class VersionUpgradeService(
             // each need to create it first. New drives are added by appending to EnsureSystemDrivesExist.
             // Except the browser-made ones (BuiltinApps.BrowserMadeDrives: Vault, Email), which the server can't create
             // and the owner's browser does at a password login: a migration must not assume those exist.
+            // Nor the drives of an app the owner uninstalled (#2138, UninstalledBuiltinApps), which the pre-pass skips:
+            // a step that touches an optional app's drive, circle or grants skips it when the owner removed that app.
             if (cancellationToken.IsCancellationRequested)
             {
                 return;

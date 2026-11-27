@@ -48,6 +48,7 @@ public class DriveManager : IDriveManager
     private readonly TableDrivesCached _tableDrives;
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
     private readonly DrivePurgeRegistry _drivePurges;
+    private readonly UninstalledBuiltinApps _uninstalledApps;
 
     /// <summary>
     /// Manages drive creation, metadata updates, and their overall definitions
@@ -59,8 +60,10 @@ public class DriveManager : IDriveManager
         TenantContext tenantContext,
         TableDrivesCached tableDrives,
         ScopedIdentityConnectionFactory scopedConnectionFactory,
-        DrivePurgeRegistry drivePurges)
+        DrivePurgeRegistry drivePurges,
+        UninstalledBuiltinApps uninstalledApps)
     {
+        _uninstalledApps = uninstalledApps;
         _logger = logger;
         _driveCache = driveCache;
         _mediator = mediator;
@@ -127,6 +130,16 @@ public class DriveManager : IDriveManager
                 $"{deleted} still uses this alias: its files and folders are being removed in the background. " +
                 $"Create this drive again once that deletion has finished, or retry the deletion if it has stopped.{lastError}",
                 OdinClientErrorCode.DriveStillBeingDeleted);
+        }
+
+        // A system drive of an app the owner uninstalled (#2138) would belong to nothing that could delete it.  Installing
+        // the app again takes it off the list first.
+        var uninstalled = await _uninstalledApps.GetAsync();
+        if (BuiltinProvisioner.IsOwnedByAny(request.TargetDrive, uninstalled) ||
+            (request.AppId is { } owningApp && uninstalled.Contains(owningApp)))
+        {
+            throw new OdinClientException("The app that owns this drive was uninstalled; install it again first",
+                OdinClientErrorCode.OwningAppUninstalled);
         }
 
         // Both slugs are the caller's to name (#1901): missing, empty, whitespace-only or malformed is a

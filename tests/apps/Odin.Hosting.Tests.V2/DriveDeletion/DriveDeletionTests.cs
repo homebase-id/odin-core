@@ -67,7 +67,6 @@ public class DriveDeletionTests : V2Fixture
     [TearDown]
     public void RestoreBatchSize() => DrivePurgeJob.BatchSize = DefaultBatchSize;
 
-    private IJobManager Jobs => Host.Server.Services.GetRequiredService<IJobManager>();
 
     [Test]
     public async Task HardDeleteFileIdBatchRemovesTheListedFilesAndTheirPayloads()
@@ -190,12 +189,7 @@ public class DriveDeletionTests : V2Fixture
         await UploadAsync(owner, drive, "app content");
         Assert.That(PayloadFiles(owner, drive), Is.Not.Empty, "precondition: the payload is stored on disk");
 
-        var uninstall = await owner.RefitFor<IRefitOwnerAppRegistration>().Uninstall(new UninstallAppRequest
-        {
-            AppId = appId,
-            DeleteOwnedCirclesAndDrives = true
-        });
-        Assert.That(uninstall.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await owner.Admin.Uninstall(appId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.False, "the app's drive outlived it");
 
         await RunPurgeAsync(owner);
@@ -454,34 +448,6 @@ public class DriveDeletionTests : V2Fixture
         RedactedIdentityConnectionRegistration info = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!;
         return info.AccessGrant.CircleGrants.SelectMany(c => c.DriveGrants).Any(g => g.PermissionedDrive.Drive == drive);
     }
-
-    /// <summary>
-    /// Runs the owner's drive purge jobs until none is left -- the test host does not run jobs on its own -- or for
-    /// <paramref name="maxRuns"/> rounds, and returns how many rounds it took. A finished purge job deletes itself.
-    /// </summary>
-    private async Task<int> RunPurgeAsync(OwnerSession owner, int maxRuns = 20)
-    {
-        for (var runs = 0; runs < maxRuns; runs++)
-        {
-            var jobs = (await Jobs.GetJobsByIdentityIdAsync(IdentityId(owner.Identity.DomainName)))
-                .Where(j => j.jobType == DrivePurgeJob.JobTypeId.ToString())
-                .ToList();
-            if (jobs.Count == 0)
-            {
-                return runs;
-            }
-
-            foreach (var job in jobs)
-            {
-                await Jobs.RunJobNowAsync(job.id, CancellationToken.None);
-            }
-        }
-
-        return maxRuns;
-    }
-
-    private Guid IdentityId(string domain) =>
-        Host.GetTenantScope(domain).Resolve<TenantContext>().DotYouRegistryId;
 
     private static async Task<List<DrivePurgeStatus>> PurgesAsync(OwnerSession owner)
     {

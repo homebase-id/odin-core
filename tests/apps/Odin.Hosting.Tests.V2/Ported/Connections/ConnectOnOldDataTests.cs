@@ -332,25 +332,6 @@ public class ConnectOnOldDataTests : V2Fixture
         await scope.Resolve<TenantConfigService>().ForceVersionNumberAsync(OldDataVersion);
     }
 
-    /// <summary>The upgrade job the scheduler runs, as <c>SystemCircleRemovalMigrationTests</c> runs it.</summary>
-    private async Task RunUpgradeAsync(OwnerSession owner)
-    {
-        var (scope, _) = await MigrationContextAsync(owner);
-        var (iv, encryptedToken) = AesCbc.Encrypt(owner.Token.ToPortableBytes(),
-            scope.Resolve<TenantContext>().TemporalEncryptionKey);
-        await scope.Resolve<VersionUpgradeService>().UpgradeAsync(new VersionUpgradeJobData
-        {
-            Tenant = owner.Identity,
-            Iv = iv,
-            EncryptedToken = encryptedToken
-        }, CancellationToken.None);
-
-        var config = scope.Resolve<TenantConfigService>();
-        var failure = await config.GetVersionFailureInfoAsync();
-        Assert.That(failure, Is.Null, $"the upgrade failed at v{failure?.FailedDataVersionNumber}; see the log");
-        Assert.That((await config.GetVersionInfoAsync()).DataVersionNumber, Is.EqualTo(Odin.Services.Version.DataVersionNumber));
-    }
-
     /// <summary>An owner-origin request, which the recipient does not auto-accept: it waits as pending.</summary>
     private static async Task SendPendingRequestAsync(OwnerSession sender, OwnerSession recipient)
     {

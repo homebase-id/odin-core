@@ -93,7 +93,9 @@ drives belong to the owner console (`StorageDriveData.AppId`) **(V)**.
   - The code's seeded list (`BuiltinApps.Builtin`) doesn't match yet: Community is only "well-known" (not seeded), and
     Mail isn't on the tree at all, though its drive is created (`BuiltinApps` remarks) **(V)**.
 - **Third-party apps:** anything else the owner installs.
-- `AppUninstallService.IsBuiltIn` (the owner console + every app on the tree, plus Lists and Mail) can't be uninstalled **(V)**.
+- `AppUninstallService.IsBuiltIn` (the owner console and the core apps: Chat, Contacts, Feed, HomePage, Recovery,
+  System) can't be uninstalled. Every other known app can, provisioned or not, with its system drives and built-in
+  circles, which nothing else may delete; an upgrade doesn't bring it back (#2138) **(V)**.
 
 ### How a client installs an app (YouAuth, `youauth-unified-authorization.md`) **(V)**
 

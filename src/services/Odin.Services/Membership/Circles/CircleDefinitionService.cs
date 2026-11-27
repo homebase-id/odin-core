@@ -39,7 +39,8 @@ namespace Odin.Services.Membership.Circles
         IDriveManager driveManager,
         IdentityDatabase db,
         LegacyDefinitionStore legacyStore,
-        OdinContextCache odinContextCache)
+        OdinContextCache odinContextCache,
+        UninstalledBuiltinApps uninstalledApps)
     {
 
         public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)
@@ -411,9 +412,12 @@ namespace Odin.Services.Membership.Circles
         /// Refused for any circle <see cref="AssertDeletableAsync"/> refuses, and for a circle with any
         /// member, identity or YouAuth domain -- deleting it would strand their grants.
         /// </remarks>
-        public async Task DeleteAsync(GuidId id)
+        public Task DeleteAsync(GuidId id) => DeleteAsync(id, uninstallingAppId: null);
+
+        /// <summary>As <see cref="DeleteAsync(GuidId)"/>, as part of uninstalling an app; see <see cref="AssertDeletableAsync(GuidId, Guid?)"/>.</summary>
+        public async Task DeleteAsync(GuidId id, Guid? uninstallingAppId)
         {
-            await AssertDeletableAsync(id);
+            await AssertDeletableAsync(id, uninstallingAppId);
 
             var members = await db.CircleMemberCached.GetCircleMembersAsync(id);
             if (members.Count > 0)
@@ -429,7 +433,14 @@ namespace Odin.Services.Membership.Circles
         /// Throws unless the circle exists and is one that may be deleted at all, members aside: not a
         /// built-in circle (provisioning and every upgrade assume it exists).
         /// </summary>
-        public async Task AssertDeletableAsync(GuidId id)
+        public Task AssertDeletableAsync(GuidId id) => AssertDeletableAsync(id, uninstallingAppId: null);
+
+        /// <summary>
+        /// As <see cref="AssertDeletableAsync(GuidId)"/>, but a built-in circle may go with the app that owns it, when
+        /// <paramref name="uninstallingAppId"/> is that app and the owner may uninstall it (#2138): uninstalling the
+        /// app is the one way to delete it.
+        /// </summary>
+        public async Task AssertDeletableAsync(GuidId id, Guid? uninstallingAppId)
         {
             var circle = await GetCircleAsync(id);
 
@@ -438,7 +449,11 @@ namespace Odin.Services.Membership.Circles
                 throw new OdinClientException($"Invalid circle {id}", OdinClientErrorCode.UnknownId);
             }
 
-            if (BuiltinApps.IsTreeDeclaredCircle(id))
+            // By the tree, not only the stored owner, which the owner may move: a core circle moved onto an optional app
+            // must not go with it
+            var goesWithItsApp = uninstallingAppId is { } appId && circle.AppId == appId && BuiltinApps.IsUninstallable(appId) &&
+                                 BuiltinApps.TreeOwnerOfCircle(id) == appId;
+            if (BuiltinApps.IsTreeDeclaredCircle(id) && !goesWithItsApp)
             {
                 throw new OdinClientException($"Circle {id} is a built-in circle and cannot be deleted",
                     OdinClientErrorCode.CannotDeleteBuiltInCircle);
@@ -815,6 +830,14 @@ namespace Odin.Services.Membership.Circles
         /// </remarks>
         private async Task AssertOwningAppExistsAsync(Guid appId)
         {
+            // Not one the owner uninstalled (#2138): a circle left without its app couldn't go with it.  Installing the
+            // app again comes first, as for its drives.
+            if (BuiltinApps.IsPlatformApp(appId) && (await uninstalledApps.GetAsync()).Contains(appId))
+            {
+                throw new OdinClientException($"App {appId} was uninstalled; install it again first",
+                    OdinClientErrorCode.OwningAppUninstalled);
+            }
+
             if (BuiltinApps.IsPlatformApp(appId))
             {
                 return;

@@ -49,6 +49,14 @@ public sealed partial class OwnerAdmin
         return response.Content!;
     }
 
+    /// <summary>Uninstalls an app, with what it owns when asked; the status the server answered.</summary>
+    public async Task<System.Net.HttpStatusCode> Uninstall(Guid appId, bool deleteOwnedCirclesAndDrives = false) =>
+        (await _owner.RefitFor<IRefitOwnerAppRegistration>().Uninstall(new UninstallAppRequest
+        {
+            AppId = appId,
+            DeleteOwnedCirclesAndDrives = deleteOwnedCirclesAndDrives
+        })).StatusCode;
+
     public async Task<bool> IsAppRegistered(Guid appId)
     {
         var (client, ss) = _owner.NewAdminHttpClient();

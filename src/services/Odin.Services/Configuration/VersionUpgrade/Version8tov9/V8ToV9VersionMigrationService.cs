@@ -54,6 +54,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
         CircleNetworkService circleNetworkService,
         CircleDefinitionService circleDefinitionService,
         AppRegistrationService appRegistrationService,
+        UninstalledBuiltinApps uninstalledApps,
         IdentityDatabase db)
     {
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -76,7 +77,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
 
             // 2. v9 is where Emergency Location Access arrives.  It is created here from the tree, which is
             // what a v13 identity gets and carries the owning app with it.
-            await circleDefinitionService.EnsureCircleExistsAsync(BuiltinCircles.EmergencyLocationAccessCircle);
+            // Not when the owner uninstalled Location (#2138): the circle went with it.
+            if (!await IsUninstalledAsync(SystemAppConstants.LocationAppId))
+            {
+                await circleDefinitionService.EnsureCircleExistsAsync(BuiltinCircles.EmergencyLocationAccessCircle);
+            }
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -93,12 +98,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             // connected identities — only the definition itself needs to exist.
             var emergencyLocationCircleId = BuiltinCircles.EmergencyLocationAccessCircle.Id;
             var emergencyLocationCircle = await circleDefinitionService.GetCircleAsync(emergencyLocationCircleId);
-            if (emergencyLocationCircle == null)
+            if (emergencyLocationCircle == null && !await IsUninstalledAsync(SystemAppConstants.LocationAppId))
             {
                 throw new OdinSystemException(
                     $"Built-in circle {emergencyLocationCircleId} (Emergency Location Access) was not created");
             }
 
+            var uninstalled = await uninstalledApps.GetAsync();
             var apps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
             foreach (var app in apps)
             {
@@ -116,7 +122,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                         $"App {app.Name} ({app.AppId}) has ContactDrive write access but was not granted ManageContacts");
                 }
 
-                foreach (var drive in RequiredSystemDriveGrants(app))
+                foreach (var drive in RequiredSystemDriveGrants(app, uninstalled))
                 {
                     if (!HasDriveReadWrite(app, drive))
                     {
@@ -126,7 +132,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                 }
 
                 // The new v9 circle-member drive grants must be present on the stored CircleMemberPermissionGrant.
-                foreach (var grant in RequiredCircleMemberDriveGrants(app))
+                foreach (var grant in RequiredCircleMemberDriveGrants(app, uninstalled))
                 {
                     var hasGrant = app.CircleMemberPermissionSetGrantRequest?.Drives?.Any(d =>
                         d.PermissionedDrive.Drive == grant.PermissionedDrive.Drive &&
@@ -144,6 +150,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
 
         private async Task UpgradeAppPermissionsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
+            var uninstalled = await uninstalledApps.GetAsync();
             var apps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
             foreach (var app in apps)
             {
@@ -161,7 +168,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                 var needsManageContacts = HasContactDriveWriteAccess(app) &&
                                           app.Grant.PermissionSet?.HasKey(PermissionKeys.ManageContacts) != true;
 
-                var missingDriveGrants = RequiredSystemDriveGrants(app)
+                var missingDriveGrants = RequiredSystemDriveGrants(app, uninstalled)
                     .Where(drive => !HasDriveReadWrite(app, drive))
                     .ToList();
 
@@ -212,6 +219,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
 
         private async Task UpgradeCircleMemberGrantsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
+            var uninstalled = await uninstalledApps.GetAsync();
             var apps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
             foreach (var app in apps)
             {
@@ -224,7 +232,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                     continue;
                 }
 
-                var required = RequiredCircleMemberDriveGrants(app);
+                var required = RequiredCircleMemberDriveGrants(app, uninstalled);
                 if (required.Length == 0)
                 {
                     continue;
@@ -312,28 +320,29 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             tx.Commit();
         }
 
-        // The app-level system-drive grants introduced in v9, by app. All are granted ReadWrite.
-        private static TargetDrive[] RequiredSystemDriveGrants(RedactedAppRegistration app)
+        private async Task<bool> IsUninstalledAsync(Guid appId) => (await uninstalledApps.GetAsync()).Contains(appId);
+
+        // The app-level system-drive grants introduced in v9, by app. All are granted ReadWrite.  None on the drive
+        // of an app the owner uninstalled (#2138): it isn't there.
+        private static TargetDrive[] RequiredSystemDriveGrants(RedactedAppRegistration app, IReadOnlySet<Guid> uninstalled)
         {
-            if (app.AppId == SystemAppConstants.ChatAppId)
-            {
-                return [WellKnownAppDrives.StickerDrive, WellKnownAppDrives.ListsDrive, WellKnownAppDrives.LocationDrive];
-            }
-
-            if (app.AppId == SystemAppConstants.FeedAppId || app.AppId == SystemAppConstants.MailAppId)
-            {
-                return [WellKnownAppDrives.StickerDrive];
-            }
-
-            return [];
+            TargetDrive[] required =
+                app.AppId == SystemAppConstants.ChatAppId
+                    ? [WellKnownAppDrives.StickerDrive, WellKnownAppDrives.ListsDrive, WellKnownAppDrives.LocationDrive]
+                    : app.AppId == SystemAppConstants.FeedAppId || app.AppId == SystemAppConstants.MailAppId
+                        ? [WellKnownAppDrives.StickerDrive]
+                        : [];
+            return required.Where(d => !BuiltinProvisioner.IsOwnedByAny(d, uninstalled)).ToArray();
         }
 
         // The circle-member drive grants introduced in v9, by app. Members of the app's authorized
         // (connection) circles receive these through the app's CircleMemberPermissionGrant, mirroring
-        // SystemAppConstants. Today only the Chat app gains a grant (ListsDrive Write+React).
-        private static DriveGrantRequest[] RequiredCircleMemberDriveGrants(RedactedAppRegistration app)
+        // SystemAppConstants. Today only the Chat app gains a grant (ListsDrive Write+React), unless the owner
+        // uninstalled Lists.
+        private static DriveGrantRequest[] RequiredCircleMemberDriveGrants(RedactedAppRegistration app,
+            IReadOnlySet<Guid> uninstalled)
         {
-            if (app.AppId == SystemAppConstants.ChatAppId)
+            if (app.AppId == SystemAppConstants.ChatAppId && !BuiltinProvisioner.IsOwnedByAny(WellKnownAppDrives.ListsDrive, uninstalled))
             {
                 return
                 [
