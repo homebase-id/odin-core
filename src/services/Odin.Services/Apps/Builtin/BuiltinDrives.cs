@@ -186,14 +186,24 @@ public static class BuiltinDrives
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
-    public static readonly CreateDriveRequest PhotoLibraryDrive = new()
+    //
+
+    // --- Filesync and Photobase ---
+    // SelectiveShare, as their apps create them: the owner's browser makes each with its keys at a password login
+    // (BuiltinApps.BrowserMadeDrives), never the server
+    public static readonly CreateDriveRequest FilesyncDrive = new()
     {
-        Name = "Photo Library", TargetDrive = WellKnownAppDrives.PhotoLibraryDrive, Metadata = "",
-        AppId = SystemAppConstants.PhotoAppId, DriveSlug = (OdinSlug)"photos", DriveTypeSlug = (OdinSlug)"photos",
-        AllowAnonymousReads = false, OwnerOnly = false
+        Name = "Filesync", TargetDrive = WellKnownAppDrives.FilesyncDrive, Metadata = "",
+        AppId = SystemAppConstants.FilesyncAppId, DriveSlug = (OdinSlug)"filesync", DriveTypeSlug = (OdinSlug)"filesync",
+        AllowAnonymousReads = false, OwnerOnly = false, SharingModel = DriveSharingModel.SelectiveShare
     };
 
-    //
+    public static readonly CreateDriveRequest PhotobaseDrive = new()
+    {
+        Name = "Photos", TargetDrive = WellKnownAppDrives.PhotobaseDrive, Metadata = "",
+        AppId = SystemAppConstants.PhotobaseAppId, DriveSlug = (OdinSlug)"photos", DriveTypeSlug = (OdinSlug)"photos",
+        AllowAnonymousReads = false, OwnerOnly = false, SharingModel = DriveSharingModel.SelectiveShare
+    };
 
     // --- Webdrop ---
     public static readonly CreateDriveRequest WebDropDrive = new()
@@ -236,7 +246,9 @@ public static class BuiltinDrives
         WellKnownAppDrives.LocationDrive,
         WellKnownAppDrives.EmailAppDrive,
         WellKnownAppDrives.WebDropDrive,
-        WellKnownAppDrives.VaultDrive
+        WellKnownAppDrives.VaultDrive,
+        WellKnownAppDrives.FilesyncDrive,
+        WellKnownAppDrives.PhotobaseDrive
     ];
 
     /// <summary>

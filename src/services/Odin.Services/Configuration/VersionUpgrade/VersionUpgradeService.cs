@@ -32,6 +32,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
 using Odin.Services.Configuration.VersionUpgrade.Version18tov19;
 using Odin.Services.Configuration.VersionUpgrade.Version19tov20;
 using Odin.Services.Configuration.VersionUpgrade.Version20tov21;
+using Odin.Services.Configuration.VersionUpgrade.Version21tov22;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -60,6 +61,7 @@ public class VersionUpgradeService(
     V18ToV19VersionMigrationService v19,
     V19ToV20VersionMigrationService v20,
     V20ToV21VersionMigrationService v21,
+    V21ToV22VersionMigrationService v22,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -233,7 +235,7 @@ public class VersionUpgradeService(
             // idempotent and version-independent, so a single up-front pass lets the version ladder assume
             // the invariant — migrations that grant a (possibly newly-introduced) system drive no longer
             // each need to create it first. New drives are added by appending to EnsureSystemDrivesExist.
-            // Except the browser-made ones (BuiltinApps.BrowserMadeDrives: Vault, Email), which the server can't create
+            // Except the browser-made ones (BuiltinApps.BrowserMadeDrives: Vault, Email, Filesync, Photos), which the server can't create
             // and the owner's browser does at a password login: a migration must not assume those exist.
             if (cancellationToken.IsCancellationRequested)
             {
@@ -782,6 +784,34 @@ public class VersionUpgradeService(
                 await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 await v21.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                versionTx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 21)
+            {
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await RunPhaseAsync("v21->v22 store-webdrop-block-enumeration", async ct =>
+                {
+                    await using var webDropTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v22.StoreWebDropBlockEnumerationAsync(odinContext, ct);
+                    webDropTx.Commit();
+                }, cancellationToken);
+
+                await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                await v22.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 

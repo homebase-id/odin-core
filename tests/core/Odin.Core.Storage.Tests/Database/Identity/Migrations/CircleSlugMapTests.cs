@@ -25,17 +25,23 @@ public class CircleSlugMapTests
             .Select(f => (CircleDefinition)f.GetValue(null))
             .ToDictionary(c => c.Id.Value, c => c.Slug);
 
-        // The migration's frozen map also slugs the two system circles, which v19 -> v20 deletes (#1809)
-        var retiredSystemCircles = new[]
+        // The migration's frozen map also slugs the two system circles, which v19 -> v20 deletes (#1809), and the old
+        // photo-app's circle, retired from the tree (#2136)
+        var retired = new[]
         {
             Guid.Parse("bb2683fa402aff866e771a6495765a15"),
-            Guid.Parse("9e22b42952f74d2580e11250b651d343")
+            Guid.Parse("9e22b42952f74d2580e11250b651d343"),
+            Guid.Parse("d9471317728a431c94d9842118acb676")
         };
         var frozen = TableCircleMigrationV202610140701.KnownCircleSlugs
-            .Where(kv => !retiredSystemCircles.Contains(kv.Key))
+            .Where(kv => !retired.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
-        Assert.That(frozen, Is.EquivalentTo(live));
+        // Declared after the migration ran, so no existing row needed slugging (#2136)
+        var addedSince = new[] { BuiltinCircles.FilesyncCircle.Id.Value, BuiltinCircles.PhotobaseCircle.Id.Value };
+        var liveThen = live.Where(kv => !addedSince.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        Assert.That(frozen, Is.EquivalentTo(liveThen));
     }
 
     [Test]

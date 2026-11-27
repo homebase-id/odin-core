@@ -266,9 +266,14 @@ namespace Odin.Services.Membership.Circles
             return true;
         }
 
+        /// <summary>
+        /// Creates a declared circle unless it exists: by its id, or by its address within its app, which is how an app
+        /// installed before it became built-in holds it (#2136).  Either way the existing circle is left as it is.
+        /// </summary>
         public async Task EnsureCircleExistsAsync(CircleDefinition def)
         {
-            if (await GetCircleAsync(def.Id) != null)
+            if (await GetCircleAsync(def.Id) != null ||
+                (def.AppId is { } appId && def.Slug.HasValue && await GetCircleByAppSlugAsync(appId, def.Slug) != null))
             {
                 return;
             }
@@ -438,7 +443,7 @@ namespace Odin.Services.Membership.Circles
                 throw new OdinClientException($"Invalid circle {id}", OdinClientErrorCode.UnknownId);
             }
 
-            if (BuiltinApps.IsTreeDeclaredCircle(id))
+            if (BuiltinApps.IsTreeDeclaredCircle(circle))
             {
                 throw new OdinClientException($"Circle {id} is a built-in circle and cannot be deleted",
                     OdinClientErrorCode.CannotDeleteBuiltInCircle);
@@ -1010,7 +1015,7 @@ namespace Odin.Services.Membership.Circles
             definition.Emoji = record.Emoji;
 
             // Derived from the catalogue, not the row: the tree changes with the build.
-            definition.IsTreeDeclared = BuiltinApps.IsTreeDeclaredCircle(definition.Id.Value);
+            definition.IsTreeDeclared = BuiltinApps.IsTreeDeclaredCircle(definition);
 
             return definition;
         }

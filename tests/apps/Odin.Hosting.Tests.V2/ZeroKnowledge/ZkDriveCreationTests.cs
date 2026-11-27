@@ -183,11 +183,17 @@ public class ZkDriveCreationTests : V2Fixture
         Assert.That((await frodo.Admin.GetDrives()).Any(d => d.TargetDriveInfo == Vault), Is.False);
         Assert.That(await BuiltinAppAsync(frodo, SystemAppConstants.VaultAppId), Is.Null, "the Vault app waits for its drive");
 
-        // At setup or a password login the browser creates each missing private drive with its keys: Vault and Email
+        // At setup or a password login the browser creates each missing zero-knowledge drive with its keys: Vault and Email
+        // private, and Filesync and Photobase SelectiveShare (#2136)
         var client = ZkOwnerSteps.Client(frodo);
         var missing = (await client.GetMissingDrives()).Content!;
-        Assert.That(missing.Select(d => d.TargetDrive), Is.EquivalentTo(new[] { Vault, WellKnownAppDrives.EmailAppDrive }));
-        Assert.That(missing.Select(d => d.SharingModel), Is.All.EqualTo(DriveSharingModel.Private));
+        Assert.That(missing.Select(d => (d.TargetDrive, d.SharingModel)), Is.EquivalentTo(new[]
+        {
+            (Vault, DriveSharingModel.Private),
+            (WellKnownAppDrives.EmailAppDrive, DriveSharingModel.Private),
+            (WellKnownAppDrives.FilesyncDrive, DriveSharingModel.SelectiveShare),
+            (WellKnownAppDrives.PhotobaseDrive, DriveSharingModel.SelectiveShare)
+        }));
         var driveKeys = await ZkOwnerSteps.CreateMissingDrivesAsync(frodo, zkMasterKey);
 
         var drive = await frodo.Admin.GetDrive(Vault);

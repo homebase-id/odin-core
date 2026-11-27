@@ -307,6 +307,23 @@ public class DriveManager : IDriveManager
         }
     }
 
+    /// <summary>
+    /// The upgrades' writer of <see cref="StorageDrive.BlockEnumeration"/>: stores it on any drive, a system drive
+    /// included, whose getter answers with its built-in definition whatever is stored (#2136).  Not for owners: a system
+    /// drive keeps what its definition says.
+    /// </summary>
+    public async Task StoreBlockEnumerationAsync(Guid driveId, bool blockEnumeration, IOdinContext odinContext)
+    {
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: false, odinContext);
+        AssertListingFits(blockEnumeration, storageDrive.AllowSubscriptions);
+
+        if (storageDrive.Data.BlockEnumeration != blockEnumeration)
+        {
+            storageDrive.BlockEnumeration = blockEnumeration;
+            await SaveDriveChangeAsync(storageDrive, odinContext);
+        }
+    }
+
     public async Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext)
     {
         // Deliberately no system-drive or owner-only guard here, unlike the sibling setters. The

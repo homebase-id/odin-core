@@ -23,13 +23,13 @@ public class AppSlugGeneratorTests
         var slugs = AppSlugGenerator.GenerateAll([
             (SystemAppConstants.ChatAppId, "Homebase - Chat"),
             (SystemAppConstants.FeedAppId, "Homebase - Feed"),
-            (SystemAppConstants.PhotoAppId, "Homebase - Photos"),
+            (SystemAppConstants.PhotobaseAppId, "Homebase Photos"),
             (SystemAppConstants.SystemAppId, "Owner")
         ]);
 
         Assert.That(slugs[SystemAppConstants.ChatAppId], Is.EqualTo("chat"));
         Assert.That(slugs[SystemAppConstants.FeedAppId], Is.EqualTo("feed"));
-        Assert.That(slugs[SystemAppConstants.PhotoAppId], Is.EqualTo("photo"));
+        Assert.That(slugs[SystemAppConstants.PhotobaseAppId], Is.EqualTo("photobase"));
         Assert.That(slugs[SystemAppConstants.SystemAppId], Is.EqualTo("system"));
     }
 

@@ -132,13 +132,6 @@ public static class WellKnownAppDrives
     };
 
 
-    /// <summary>The Photo app's library drive.</summary>
-    public static readonly TargetDrive PhotoLibraryDrive = new()
-    {
-        Alias = Guid.Parse("6483b7b1f71bd43eb6896c86148668cc"),
-        Type = Guid.Parse("2af68fe72fb84896f39f97c59d60813a")
-    };
-
     /// <summary>The Vault app's drive.</summary>
     /// <summary>The Vault app's drive (chat-kmp <c>vaultLabeledDrive</c>).</summary>
     /// <remarks>
@@ -163,6 +156,13 @@ public static class WellKnownAppDrives
     {
         Alias = Guid.Parse("cfceb937-b868-496b-91cb-3402f18320f8"),
         Type = Guid.Parse("5da48122-e946-487a-8b9d-589642f3c91d")
+    };
+
+    /// <summary>The Photobase app's drive (chat-kmp <c>PhotobaseProtocol</c>).</summary>
+    public static readonly TargetDrive PhotobaseDrive = new()
+    {
+        Alias = Guid.Parse("e3e5d4ed-462a-4fc0-835c-2d3722820be8"),
+        Type = Guid.Parse("764a8e3a-13b9-46e1-b53f-092679dc9953")
     };
 
     /// <summary>The Webdrop app's drive (chat-kmp <c>webDropLabeledDrive</c>).</summary>

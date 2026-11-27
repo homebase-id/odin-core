@@ -137,6 +137,16 @@ public static class BuiltinApps
             Drives: [BuiltinDrives.VaultDrive],
             Circles: [BuiltinCircles.VaultCircle],
             Permissions: new PermissionSet()),
+
+        new(SystemAppConstants.FilesyncAppId, "Homebase Filesync", (OdinSlug)"filesync",
+            Drives: [BuiltinDrives.FilesyncDrive],
+            Circles: [BuiltinCircles.FilesyncCircle],
+            Permissions: new PermissionSet()),
+
+        new(SystemAppConstants.PhotobaseAppId, "Homebase Photos", (OdinSlug)"photobase",
+            Drives: [BuiltinDrives.PhotobaseDrive],
+            Circles: [BuiltinCircles.PhotobaseCircle],
+            Permissions: new PermissionSet()),
     ];
 
     /// <summary>
@@ -155,11 +165,6 @@ public static class BuiltinApps
             Circles: [BuiltinCircles.CommunityCircle],
             Permissions: new PermissionSet()),
         
-        new(SystemAppConstants.PhotoAppId, "Photo", (OdinSlug)"photo",
-            Drives: [BuiltinDrives.PhotoLibraryDrive],
-            Circles: [BuiltinCircles.PhotosCircle],
-            Permissions: new PermissionSet()),
-
         new(SystemAppConstants.SocialSyncAppId, "Social Sync", (OdinSlug)"social-sync",
             Drives: [],
             Circles: [BuiltinCircles.SocialSyncCircle],
@@ -189,7 +194,7 @@ public static class BuiltinApps
     public static IEnumerable<CircleDefinition> SeededCircles => Builtin.SelectMany(a => a.Circles);
 
     /// <summary>
-    /// The seeded drives defined Private or SelectiveShare (Vault, Email): setup never creates one, since the server would make
+    /// The seeded drives defined Private or SelectiveShare (Vault, Email, Filesync, Photos): setup never creates one, since the server would make
     /// its key; the owner's browser creates it at a password login (docs/zero-knowledge-drive-api-plan.md, 4.7).
     /// </summary>
     public static IEnumerable<CreateDriveRequest> BrowserMadeDrives => SeededDrives.Where(d => d.SharingModel.IsZeroKnowledgeDrive());
@@ -207,7 +212,8 @@ public static class BuiltinApps
 
     /// <summary>
     /// True when the app tree declares this circle, and so re-applies its owner, grant rule and
-    /// designation on every version upgrade.
+    /// designation on every version upgrade.  Known by its id, or by its address: an app that became built-in
+    /// after the owner installed it holds its declared circle under the id it was created with (#2136).
     /// </summary>
     /// <remarks>
     /// The distinction a client needs before offering to edit any of those: a change to a declared
@@ -222,7 +228,12 @@ public static class BuiltinApps
     private static readonly HashSet<Guid> DeclaredCircleIds =
         AllCircles.Select(c => c.Id.Value).ToHashSet();
 
-    public static bool IsTreeDeclaredCircle(Guid circleId) => DeclaredCircleIds.Contains(circleId);
+    private static readonly HashSet<(Guid AppId, OdinSlug Slug)> DeclaredCircleAddresses =
+        AllCircles.Select(c => (c.AppId!.Value, c.Slug)).ToHashSet();
+
+    public static bool IsTreeDeclaredCircle(CircleDefinition circle) =>
+        DeclaredCircleIds.Contains(circle.Id.Value) ||
+        (circle.AppId is { } appId && circle.Slug.HasValue && DeclaredCircleAddresses.Contains((appId, circle.Slug)));
 
     /// <summary>
     /// True when the id names an app the platform ships, whether or not it is registered here.

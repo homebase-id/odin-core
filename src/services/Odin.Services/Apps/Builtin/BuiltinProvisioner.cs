@@ -70,7 +70,9 @@ public class BuiltinProvisioner(
             [SystemAppConstants.SystemAppId] = SystemAppConstants.SystemAppRegistrationRequest,
             [SystemAppConstants.WebdropAppId] = SystemAppConstants.WebdropAppRegistrationRequest,
             [SystemAppConstants.MomentsAppId] = SystemAppConstants.MomentsAppRegistrationRequest,
-            [SystemAppConstants.VaultAppId] = SystemAppConstants.VaultAppRegistrationRequest
+            [SystemAppConstants.VaultAppId] = SystemAppConstants.VaultAppRegistrationRequest,
+            [SystemAppConstants.FilesyncAppId] = SystemAppConstants.FilesyncAppRegistrationRequest,
+            [SystemAppConstants.PhotobaseAppId] = SystemAppConstants.PhotobaseAppRegistrationRequest
         };
 
     /// <summary>
