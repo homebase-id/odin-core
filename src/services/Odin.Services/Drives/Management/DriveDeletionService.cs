@@ -67,7 +67,7 @@ public class DriveDeletionService(
 
     /// <summary>
     /// As <see cref="DeleteDriveAsync(Guid, IOdinContext)"/>, as part of uninstalling <paramref name="uninstallingAppId"/>,
-    /// which must own the drive.  Not archived first: the owner asked for the app's drives to go with it.  A system
+    /// which must own the drive.  It needn't be archived: the owner asked for the app's drives to go with it.  A system
     /// drive goes only with an app the owner may uninstall (#2138); uninstalling it is the one way to delete one.
     /// </summary>
     public async Task DeleteDriveAsync(Guid driveId, Guid? uninstallingAppId, IOdinContext odinContext)

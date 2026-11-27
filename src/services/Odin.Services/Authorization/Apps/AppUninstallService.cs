@@ -87,6 +87,13 @@ public class AppUninstallService(
             await circleDefinitionService.AssertDeletableAsync(circleId, appId);
         }
 
+        // Before the deletes: a provisioned app stays uninstalled across upgrades, which leave its drives alone from
+        // here.  A failure past here leaves it registered and half removed, and uninstalling it again finishes it.
+        if (BuiltinProvisioner.IsProvisioned(appId))
+        {
+            await uninstalledApps.AddAsync(appId);
+        }
+
         // Each delete also takes every other app's, circle's and connection's grant on the drive.  A drive the owner may
         // archive is archived first, which tells whoever follows its definition (the home page's cache of a channel
         // drive); a system drive can't be, and none of an uninstallable app's is a channel drive.
@@ -115,16 +122,6 @@ public class AppUninstallService(
 
         await clientRegistrationStorage.DeleteManyAsync(clientIds);
 
-        // With the registration: a provisioned app stays uninstalled across upgrades.  Until here a failure leaves it
-        // installed, and a later upgrade gives it back any drive already deleted, once that drive's purge has
-        // finished (BuiltinProvisioner.EnsureDrivesAsync leaves it until then), so uninstalling it again is safe.
-        await using var tx = await db.BeginStackedTransactionAsync();
-        if (BuiltinProvisioner.IsProvisioned(appId))
-        {
-            await uninstalledApps.AddAsync(appId);
-        }
-
         await appRegistrationService.DeleteRegistrationAsync(appId, odinContext);
-        tx.Commit();
     }
 }

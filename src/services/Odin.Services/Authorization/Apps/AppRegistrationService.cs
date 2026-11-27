@@ -11,6 +11,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
@@ -43,7 +44,8 @@ namespace Odin.Services.Authorization.Apps
         CircleDefinitionService circleDefinitionService,
         IDriveManager driveManager,
         Lazy<BuiltinProvisioner> builtinProvisioner,
-        UninstalledBuiltinApps uninstalledApps)
+        UninstalledBuiltinApps uninstalledApps,
+        ScopedIdentityConnectionFactory scopedConnectionFactory)
         : IAppRegistrationService
     {
 
@@ -71,73 +73,76 @@ namespace Odin.Services.Authorization.Apps
             }
 
             // Reinstalling: it comes off the list and its drives and circles come back first, so it can be granted
-            // them, all in one transaction with the save, so a refused install leaves it as it was.  Grants on its
-            // browser-made drives wait for the browser to make them.  Lazy: the provisioner registers the built-in
-            // apps through this service.
-            await using var reinstallTx = reinstalling ? await db.BeginStackedTransactionAsync() : null;
-            var notYetMade = reinstalling
-                ? await builtinProvisioner.Value.PrepareReinstallAsync(request.AppId, odinContext)
-                : [];
-            var requestedDrives = request.Drives?.Where(g => !notYetMade.Contains(g.PermissionedDrive.Drive)).ToList();
-            var circleMemberGrant = request.CircleMemberPermissionGrant == null || notYetMade.Count == 0
-                ? request.CircleMemberPermissionGrant
-                : new PermissionSetGrantRequest
+            // them, all in one transaction with the save, so a refused install leaves it as it was; the notifications
+            // below come after its commit.  Grants on its browser-made drives wait for the browser to make them.
+            // Lazy: the provisioner registers the built-in apps through this service.
+            AppRegistration appReg;
+            List<Guid> createdCircles;
+            await using (var reinstallTx = reinstalling ? await db.BeginStackedTransactionAsync() : null)
+            {
+                var notYetMade = reinstalling
+                    ? await builtinProvisioner.Value.PrepareReinstallAsync(request.AppId, odinContext)
+                    : [];
+                var requestedDrives = request.Drives?.Where(g => !notYetMade.Contains(g.PermissionedDrive.Drive)).ToList();
+                var circleMemberGrant = request.CircleMemberPermissionGrant == null || notYetMade.Count == 0
+                    ? request.CircleMemberPermissionGrant
+                    : new PermissionSetGrantRequest
+                    {
+                        PermissionSet = request.CircleMemberPermissionGrant.PermissionSet,
+                        Drives = request.CircleMemberPermissionGrant.Drives?
+                            .Where(g => !notYetMade.Contains(g.PermissionedDrive.Drive)).ToList()
+                    };
+
+                var masterKey = odinContext.Caller.GetMasterKey();
+                var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+                var (drives, icrKey) = await GrantInputsAsync(request.PermissionSet, requestedDrives, odinContext);
+
+                // Before anything is written: the install screen is shown once, so a declared circle refused after
+                // the save would never be offered again (#1939).
+                var declaredCircles = request.Circles ?? [];
+                await circleDefinitionService.AssertDeclaredCirclesAsync(declaredCircles, request.AppId, drives,
+                    request.PermissionSet!);
+                await AssertCirclesExistAsync(request.AuthorizedCircles);
+
+                var appGrant = await exchangeGrantService.CreateExchangeGrantAsync(
+                    keyStoreKey, request.PermissionSet!, drives, new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
+
+                //TODO: add check to ensure app name is unique
+
+                appReg = new AppRegistration()
                 {
-                    PermissionSet = request.CircleMemberPermissionGrant.PermissionSet,
-                    Drives = request.CircleMemberPermissionGrant.Drives?
-                        .Where(g => !notYetMade.Contains(g.PermissionedDrive.Drive)).ToList()
+                    AppId = request.AppId,
+                    AppSlug = appSlug,
+                    Name = request.Name,
+                    AppKeyStore = appGrant,
+
+                    CorsHostName = request.CorsHostName,
+                    CircleMemberPermissionGrant = circleMemberGrant,
+                    AuthorizedCircles = request.AuthorizedCircles
                 };
 
-            var masterKey = odinContext.Caller.GetMasterKey();
-            var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var (drives, icrKey) = await GrantInputsAsync(request.PermissionSet, requestedDrives, odinContext);
-
-            // Before anything is written: the install screen is shown once, so a declared circle refused after
-            // the save would never be offered again (#1939).
-            var declaredCircles = request.Circles ?? [];
-            await circleDefinitionService.AssertDeclaredCirclesAsync(declaredCircles, request.AppId, drives,
-                request.PermissionSet!);
-            await AssertCirclesExistAsync(request.AuthorizedCircles);
-
-            var appGrant = await exchangeGrantService.CreateExchangeGrantAsync(
-                keyStoreKey, request.PermissionSet!, drives, new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
-
-            //TODO: add check to ensure app name is unique
-
-            var appReg = new AppRegistration()
-            {
-                AppId = request.AppId,
-                AppSlug = appSlug,
-                Name = request.Name,
-                AppKeyStore = appGrant,
-
-                CorsHostName = request.CorsHostName,
-                CircleMemberPermissionGrant = circleMemberGrant,
-                AuthorizedCircles = request.AuthorizedCircles
-            };
-
-            List<Guid> createdCircles;
-            await using (var tx = await db.BeginStackedTransactionAsync())
-            {
-                // Insert only: a registration made since the checks above is refused by the database, not replaced.
-                // Either unique key refuses it, so say which.
-                if (!await db.AppRegistrations.TryInsertAsync(ToRecord(appReg)))
+                await using (var tx = await db.BeginStackedTransactionAsync())
                 {
-                    throw await GetAppRegistrationInternalAsync(request.AppId) != null
-                        ? AlreadyRegistered(request.AppId)
-                        : new OdinClientException($"The app slug '{appSlug}' was just taken by another app",
-                            OdinClientErrorCode.IdAlreadyExists);
+                    // Insert only: a registration made since the checks above is refused by the database, not replaced.
+                    // Either unique key refuses it, so say which.
+                    if (!await db.AppRegistrations.TryInsertAsync(ToRecord(appReg)))
+                    {
+                        throw await GetAppRegistrationInternalAsync(request.AppId) != null
+                            ? AlreadyRegistered(request.AppId)
+                            : new OdinClientException($"The app slug '{appSlug}' was just taken by another app",
+                                OdinClientErrorCode.IdAlreadyExists);
+                    }
+
+                    // After the save: a circle's owning app must exist.
+                    createdCircles = await circleDefinitionService.CreateDeclaredCirclesAsync(declaredCircles, request.AppId);
+                    tx.Commit();
                 }
 
-                // After the save: a circle's owning app must exist.
-                createdCircles = await circleDefinitionService.CreateDeclaredCirclesAsync(declaredCircles, request.AppId);
-                tx.Commit();
-            }
-
-            if (reinstallTx != null)
-            {
-                await builtinProvisioner.Value.RestoreOtherAppsGrantsOnItsDrivesAsync(request.AppId, odinContext);
-                reinstallTx.Commit();
+                if (reinstallTx != null)
+                {
+                    await builtinProvisioner.Value.RestoreOtherAppsGrantsOnItsDrivesAsync(request.AppId, odinContext);
+                    reinstallTx.Commit();
+                }
             }
 
             foreach (var circleId in createdCircles)
@@ -1059,6 +1064,13 @@ namespace Odin.Services.Authorization.Apps
         private async Task ResetAppPermissionContextCacheAsync()
         {
             await cache.ResetAsync();
+
+            // In a transaction (a reinstall restoring Chat's grants, a browser-made drive's app): a context rebuilt
+            // before the commit would be cached with the old grants, so again once it's committed
+            if (scopedConnectionFactory.HasTransaction)
+            {
+                scopedConnectionFactory.AddPostCommitAction(cache.ResetAsync);
+            }
         }
 
         /// <summary>

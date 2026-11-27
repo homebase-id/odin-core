@@ -1286,6 +1286,11 @@ its close (the broadcast removes sockets with no context; not changed by that br
   **And again** in the next full run on the same branch: `(App[Write],OK)` and `(Guest[Read],OK)`. The whole
   `V1TagTests` class (23 tests) then passed three times in a row alone. The test queries `QueryModified` with no
   `MinDate`, straight after setting the tags, so a timing window is the likelier cause than the branch (I: not traced).
+  **Clean tree:** on `origin/main` `ec8a85a38` (the branch's base) in a separate worktree, `V1TagTests` passed 5 of 5
+  runs alone. The four failed `main` CI runs since 2026-11-23 (45809837040, 45703175142, 45569517207, 45245045988)
+  each failed only `ASharesWritesReachTheOwnersDevicesAndItsMember`, not this test. So it is not shown failing on main;
+  it has failed only in full local runs on this branch, which changes nothing it touches (V: the branch diff has no
+  query, tag or local-metadata code).
 
 ---
 

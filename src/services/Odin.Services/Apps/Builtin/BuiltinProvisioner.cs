@@ -37,8 +37,7 @@ public class BuiltinProvisioner(
     IDriveManager driveManager,
     CircleDefinitionService circleDefinitionService,
     IAppRegistrationService appRegistrationService,
-    UninstalledBuiltinApps uninstalledApps,
-    DrivePurgeRegistry drivePurges)
+    UninstalledBuiltinApps uninstalledApps)
 {
     /// <summary>
     /// Drives that must exist even though their app is not built-in, because the Chat app
@@ -159,8 +158,7 @@ public class BuiltinProvisioner(
     public async Task EnsureDrivesAsync(IOdinContext odinContext)
     {
         var uninstalled = await uninstalledApps.GetAsync();
-        await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => !uninstalled.Contains(d.AppId!.Value)), skipBeingPurged: true,
-            odinContext);
+        await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => !uninstalled.Contains(d.AppId!.Value)), odinContext);
     }
 
     /// <summary>
@@ -172,12 +170,7 @@ public class BuiltinProvisioner(
         .Concat(CarryOverDrives)
         .DistinctBy(d => d.TargetDrive.Alias.Value);
 
-    /// <param name="skipBeingPurged">
-    /// Leave for a later pass a drive whose delete is still being purged, which can't be made again until it finishes:
-    /// an uninstall that failed after deleting it leaves its app installed.  Otherwise it refuses, with that reason.
-    /// </param>
-    private async Task EnsureDrivesAsync(IEnumerable<CreateDriveRequest> requests, bool skipBeingPurged,
-        IOdinContext odinContext)
+    private async Task EnsureDrivesAsync(IEnumerable<CreateDriveRequest> requests, IOdinContext odinContext)
     {
         // Non-anonymous first -- see EnsureAllAsync for why.
         foreach (var request in requests.OrderBy(d => d.AllowAnonymousReads))
@@ -186,12 +179,6 @@ public class BuiltinProvisioner(
 
             if (await driveManager.GetDriveAsync(request.TargetDrive.Alias) != null)
             {
-                continue;
-            }
-
-            if (skipBeingPurged && await drivePurges.GetAsync(request.TargetDrive.Alias) != null)
-            {
-                logger.LogInformation("Drive '{drive}' is still being deleted; it is made on a later pass", request.Name);
                 continue;
             }
 
@@ -303,7 +290,7 @@ public class BuiltinProvisioner(
     public async Task<List<TargetDrive>> PrepareReinstallAsync(Guid appId, IOdinContext odinContext)
     {
         await uninstalledApps.RemoveAsync(appId);
-        await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => d.AppId == appId), skipBeingPurged: false, odinContext);
+        await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => d.AppId == appId), odinContext);
 
         var missing = new List<TargetDrive>();
         foreach (var drive in BuiltinApps.BrowserMadeDrives.Where(d => d.AppId == appId))
