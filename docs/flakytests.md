@@ -305,6 +305,23 @@ observed before the first read returns the buffered bytes, the read is cancelled
 `bytesReceived == 0` and logged at Verbose instead of Warning. Details and candidate fixes in
 #1734. The test was added by `9d1315b7e` (PR #1732).
 
+### A third method, local only, 2026-11-27
+
+- `ResetConnection_IsNotLoggedAsWarning`
+
+**Where:** local only (macOS, SQLite, Debug), on branch `webdrop-block-enumeration-filesync-photos-builtin-2136` and
+on a clean `origin/main` (`ec8a85a38`) worktree: 3 of 3 alone on the branch, 1 of 1 on main. CI on `main` passed on the
+same commit (runs 45896225965, 45896225953, 45896226041).
+
+**Symptom:** `Assert.That(events, Is.Not.Empty)` after the 10 s wait: no PROXY event at Verbose was captured for a
+socket closed with RST (`LingerOption(true, 0)`).
+
+**Not caused by the change in flight:** it fails the same on clean main, and the branch touches nothing under Kestrel
+or the PROXY listener.
+
+**Cause, a guess not verified:** on macOS the loopback RST reaches Kestrel before or instead of the accept the
+middleware logs from, so no event is written; Linux and Windows CI see it.
+
 ### A second method in the same fixture, 2026-09-17
 
 - `HeaderFromUntrustedPeer_IsRejected`
