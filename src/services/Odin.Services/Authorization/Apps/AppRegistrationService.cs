@@ -42,7 +42,8 @@ namespace Odin.Services.Authorization.Apps
         OdinContextCache cache,
         CircleDefinitionService circleDefinitionService,
         IDriveManager driveManager,
-        Lazy<BuiltinProvisioner> builtinProvisioner)
+        Lazy<BuiltinProvisioner> builtinProvisioner,
+        UninstalledBuiltinApps uninstalledApps)
         : IAppRegistrationService
     {
 
@@ -66,7 +67,7 @@ namespace Odin.Services.Authorization.Apps
 
             // An app the owner uninstalled is being installed again: its drives come back first, so it can be
             // granted them (#2138).  Lazy: the provisioner registers the built-in apps through this service.
-            await builtinProvisioner.Value.ReinstallAsync(request.AppId, odinContext);
+            var reinstalling = await builtinProvisioner.Value.PrepareReinstallAsync(request.AppId, odinContext);
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -111,7 +112,19 @@ namespace Odin.Services.Authorization.Apps
 
                 // After the save: a circle's owning app must exist.
                 createdCircles = await circleDefinitionService.CreateDeclaredCirclesAsync(declaredCircles, request.AppId);
+
+                // With the save: a registration that failed leaves it uninstalled, so the provisioner still skips it.
+                if (reinstalling)
+                {
+                    await uninstalledApps.RemoveAsync(request.AppId);
+                }
+
                 tx.Commit();
+            }
+
+            if (reinstalling)
+            {
+                await builtinProvisioner.Value.RestoreGrantsOnItsDrivesAsync(request.AppId, odinContext);
             }
 
             foreach (var circleId in createdCircles)

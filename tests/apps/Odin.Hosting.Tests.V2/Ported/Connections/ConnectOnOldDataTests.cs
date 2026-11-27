@@ -332,7 +332,6 @@ public class ConnectOnOldDataTests : V2Fixture
         await scope.Resolve<TenantConfigService>().ForceVersionNumberAsync(OldDataVersion);
     }
 
-    /// <summary>The upgrade job the scheduler runs, as <c>SystemCircleRemovalMigrationTests</c> runs it.</summary>
     /// <summary>An owner-origin request, which the recipient does not auto-accept: it waits as pending.</summary>
     private static async Task SendPendingRequestAsync(OwnerSession sender, OwnerSession recipient)
     {

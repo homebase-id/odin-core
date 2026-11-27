@@ -60,13 +60,13 @@ Same guards. It drops pending transfers, then records the purge with the time of
 
 1. **Guards:** master key; not built-in (`AppUninstallService.IsBuiltIn`); not while the v13 registration move is pending (its blob copy would bring the app back).
    - Built-in means the owner console and the core apps: Chat, Contacts, Feed, HomePage, Recovery and System.
-   - Every other known app can be uninstalled (#2138), even one the platform provisions: Email, Location, Moments, WebDrop, Vault, Lists and Mail, and the unprovisioned Community and Social Sync. `WellknownAppDefinition.Uninstallable` says which.
+   - Every other known app can be uninstalled (#2138), even one the platform provisions: Email, Location, Moments, WebDrop and Vault; Lists and Mail, once their own install has registered them (the platform makes their drives but doesn't register them); and the unprovisioned Community and Social Sync. `WellknownAppDefinition.Uninstallable` says which.
 2. **Refused if the app owns circles or drives,** unless `DeleteOwnedCirclesAndDrives` is set.
-3. **A provisioned app is remembered as uninstalled** (`UninstalledBuiltinApps`, identity KeyValue), before anything is deleted:
-   - `BuiltinProvisioner` and `missing-drives` skip it and the drives and circles it owns, so an upgrade doesn't bring it back;
+3. **A provisioned app is remembered as uninstalled** (`UninstalledBuiltinApps`, one identity KeyValue row per app), with the registration delete, the last step:
+   - `BuiltinProvisioner` and `missing-drives` skip it and the drives and circles it owns, so an upgrade doesn't bring it back, and its browser-made drive can't be created;
    - built-in registrations, and the migrations that re-apply them, leave out grants on its drives;
-   - registering it again takes it off, and makes its drives and circles first, so the new registration can be granted them.
-4. **Then, in an order that can be re-run** (the registration goes last):
+   - registering it again makes its drives and circles first, so the new registration can be granted them, takes it off with the registration's save, and gives the other built-in apps back their grants on its drives (Chat's on Moments, Lists and Location). A drive still being purged refuses the install until the purge ends.
+4. **In an order that can be re-run** (the registration goes last):
    - its drives are deleted, as above, without archiving first. A system drive goes only this way, with its own uninstallable app;
    - it is removed from every connection: its grants, the grants it deposited, the enrollments it owns or requested;
    - its circles are removed from other apps, then their members, then the circles themselves. A built-in circle goes only this way, with its own uninstallable app;

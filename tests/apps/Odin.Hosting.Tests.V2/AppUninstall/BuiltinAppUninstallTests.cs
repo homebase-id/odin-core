@@ -16,6 +16,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
@@ -154,8 +155,74 @@ public class BuiltinAppUninstallTests : V2Fixture
             Assert.That(circles, Has.None.Matches<Guid>(expected.Contains), "its circles came before its drive");
         }
 
+        // Chat is given back what its registration declares on the app's drives, which the uninstall took off it.
+        var chatDeclared = SystemAppConstants.ChatAppRegistrationRequest;
+        var chat = (await scope.Resolve<IAppRegistrationService>().GetAppRegistration(SystemAppConstants.ChatAppId, ctx))!;
+        var returned = serverMade.Select(d => d.TargetDrive).ToList();
+        Assert.That(chat.Grant.DriveGrants.Select(g => g.PermissionedDrive.Drive),
+            Is.SupersetOf(chatDeclared.Drives.Select(g => g.PermissionedDrive.Drive).Where(returned.Contains)),
+            "Chat lost its grant on the app's drive");
+        Assert.That(chat.CircleMemberPermissionSetGrantRequest.Drives.Select(g => g.PermissionedDrive.Drive),
+            Is.SupersetOf(chatDeclared.CircleMemberPermissionGrant.Drives.Select(g => g.PermissionedDrive.Drive).Where(returned.Contains)),
+            "Chat's circle members lost their grant on the app's drive");
+
         await scope.Resolve<BuiltinProvisioner>().EnsureAllAsync(ctx);
         Assert.That(await owner.Admin.IsAppRegistered(appId), Is.True);
+    }
+
+    /// <summary>
+    /// Until its drive's purge ends, the drive can't be made again, so the install is refused with that reason, and the
+    /// app stays uninstalled: no upgrade brings it back in the meantime.
+    /// </summary>
+    [Test]
+    public async Task ReinstallingWhileItsDriveIsStillBeingDeletedIsRefusedAndLeavesItUninstalled()
+    {
+        var owner = await LoginAsOwner();
+        var appId = SystemAppConstants.MomentsAppId;
+        Assert.That(await owner.Admin.Uninstall(appId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
+
+        var refused = await owner.Admin.TryRegisterApp(appId, new PermissionSetGrantRequest());
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the drive is still being purged");
+        Assert.That(refused.Error?.Content, Does.Contain("being removed in the background"));
+
+        var (scope, ctx) = await MigrationContextAsync(owner);
+        var provisioner = scope.Resolve<BuiltinProvisioner>();
+        await RunPurgeAsync(owner);
+        await provisioner.EnsureAllAsync(ctx);
+        Assert.That(await owner.Admin.IsAppRegistered(appId), Is.False, "the failed install left it to the provisioner");
+        Assert.That(await scope.Resolve<IDriveManager>().GetDriveAsync(WellKnownAppDrives.MomentsDrive.Alias), Is.Null);
+
+        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        Assert.That(await scope.Resolve<IDriveManager>().GetDriveAsync(WellKnownAppDrives.MomentsDrive.Alias), Is.Not.Null);
+    }
+
+    /// <summary>
+    /// A browser-made drive (Vault) of an uninstalled app can't be created, so no system drive is left without its app;
+    /// once the app is installed again, the owner's browser is asked for it, and its circle follows.
+    /// </summary>
+    [Test]
+    public async Task AnUninstalledAppsBrowserMadeDriveWaitsForTheAppToBeInstalledAgain()
+    {
+        var (owner, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
+        await ZkOwnerSteps.CreateMissingDrivesAsync(owner, zkMasterKey);
+        Assert.That(await owner.Admin.Uninstall(SystemAppConstants.VaultAppId, deleteOwnedCirclesAndDrives: true),
+            Is.EqualTo(HttpStatusCode.OK));
+        await RunPurgeAsync(owner);
+
+        var vault = BuiltinApps.BrowserMadeDrives.Single(d => d.AppId == SystemAppConstants.VaultAppId);
+        var keys = ZkBrowser.MakeDriveKeys(vault.TargetDrive.Alias, zkMasterKey);
+        var refused = await owner.Admin.TryCreateDrive(vault.TargetDrive, vault.Name, allowAnonymousReads: false,
+            appId: vault.AppId, driveSlug: vault.DriveSlug, driveTypeSlug: vault.DriveTypeSlug, sharingModel: vault.SharingModel,
+            zkKeys: keys.Request);
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a Vault drive was made without its app");
+
+        await owner.Admin.RegisterApp(SystemAppConstants.VaultAppId, new PermissionSetGrantRequest());
+        var created = await ZkOwnerSteps.CreateMissingDrivesAsync(owner, zkMasterKey);
+        Assert.That(created.Keys, Does.Contain(vault.TargetDrive.Alias.Value), "the browser was not asked for the Vault drive");
+
+        var (scope, _) = await MigrationContextAsync(owner);
+        Assert.That(await scope.Resolve<CircleDefinitionService>().GetCircleAsync(BuiltinCircles.VaultCircle.Id), Is.Not.Null,
+            "the Vault circle didn't follow its drive");
     }
 
     [TestCase("community")]

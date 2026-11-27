@@ -6,6 +6,8 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -272,30 +274,119 @@ public class BuiltinProvisioner(
     }
 
     /// <summary>
-    /// The owner is installing <paramref name="appId"/> again, after uninstalling it: it comes off
-    /// <see cref="UninstalledBuiltinApps"/>, and its drives and circles are made as on a new identity, so the
-    /// registration being made can be granted them.  Nothing for an app that wasn't uninstalled.
+    /// The owner is installing <paramref name="appId"/> again, after uninstalling it: its drives and circles are made
+    /// as on a new identity, so the registration being made can be granted them.  True when it was uninstalled; the
+    /// registration takes it off <see cref="UninstalledBuiltinApps"/> once it is saved, so a failed one leaves it off
+    /// the provisioner's list still.
     /// </summary>
     /// <remarks>
     /// Its browser-made drives are left to the owner's browser, which <see cref="GetMissingZeroKnowledgeDrivesAsync"/>
-    /// now lists them to; its circles wait for them, as at setup.
+    /// lists them to once it is registered; its circles wait for them, as at setup.  A drive whose delete is still
+    /// being purged can't be made again yet, which refuses the install with that reason.
     /// </remarks>
-    public async Task ReinstallAsync(Guid appId, IOdinContext odinContext)
+    public async Task<bool> PrepareReinstallAsync(Guid appId, IOdinContext odinContext)
     {
         if (!(await uninstalledApps.GetAsync()).Contains(appId))
+        {
+            return false;
+        }
+
+        await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => d.AppId == appId), odinContext);
+
+        var browserMade = BuiltinApps.BrowserMadeDrives.Where(d => d.AppId == appId);
+        foreach (var drive in browserMade)
+        {
+            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null)
+            {
+                return true; // its circles follow the drive
+            }
+        }
+
+        foreach (var def in BuiltinApps.SeededCircles.Where(c => c.AppId == appId))
+        {
+            await circleDefinitionService.EnsureCircleExistsAsync(def);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// After <paramref name="appId"/> is installed again: the grants the other built-in registrations declare on its
+    /// drives, which its uninstall took off them (Chat's on Moments, Lists and Location), are given back, as a new
+    /// identity has them.  Only on drives that exist, and not to a revoked app, whose grant this would rebuild.
+    /// </summary>
+    public async Task RestoreGrantsOnItsDrivesAsync(Guid appId, IOdinContext odinContext)
+    {
+        var itsDrives = new List<TargetDrive>();
+        foreach (var (alias, owner) in OwningAppOfDrive.Where(kv => kv.Value == appId))
+        {
+            var drive = await driveManager.GetDriveAsync(alias);
+            if (drive != null)
+            {
+                itsDrives.Add(drive.TargetDriveInfo);
+            }
+        }
+
+        if (itsDrives.Count == 0)
         {
             return;
         }
 
-        await uninstalledApps.RemoveAsync(appId);
-        await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => d.AppId == appId), odinContext);
-
-        if (!(await AppsWaitingForTheirDriveAsync()).Contains(appId))
+        foreach (var (otherAppId, request) in Registrations.Where(r => r.Key != appId))
         {
-            foreach (var def in BuiltinApps.SeededCircles.Where(c => c.AppId == appId))
+            var registration = await appRegistrationService.GetAppRegistration(otherAppId, odinContext);
+            if (registration == null || registration.IsRevoked)
             {
-                await circleDefinitionService.EnsureCircleExistsAsync(def);
+                continue;
             }
+
+            var held = registration.Grant.DriveGrants.Select(g => new DriveGrantRequest { PermissionedDrive = g.PermissionedDrive })
+                .ToList();
+            var missing = Missing(request.Drives, held, itsDrives);
+            if (missing.Count > 0)
+            {
+                await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
+                {
+                    AppId = otherAppId,
+                    PermissionSet = registration.Grant.PermissionSet,
+                    Drives = [..held, ..missing]
+                }, odinContext);
+            }
+
+            var memberHeld = registration.CircleMemberPermissionSetGrantRequest?.Drives?.ToList() ?? [];
+            var memberMissing = Missing(request.CircleMemberPermissionGrant?.Drives, memberHeld, itsDrives);
+            if (memberMissing.Count > 0)
+            {
+                await appRegistrationService.UpdateAuthorizedCirclesAsync(new UpdateAuthorizedCirclesRequest
+                {
+                    AppId = otherAppId,
+                    AuthorizedCircles = registration.AuthorizedCircles ?? [],
+                    CircleMemberPermissionGrant = new PermissionSetGrantRequest
+                    {
+                        PermissionSet = registration.CircleMemberPermissionSetGrantRequest?.PermissionSet ?? new PermissionSet(),
+                        Drives = [..memberHeld, ..memberMissing]
+                    }
+                }, odinContext);
+            }
+        }
+    }
+
+    /// <summary>The declared grants on <paramref name="drives"/> that <paramref name="held"/> has none for.</summary>
+    private static List<DriveGrantRequest> Missing(IEnumerable<DriveGrantRequest> declared, List<DriveGrantRequest> held,
+        List<TargetDrive> drives) =>
+        (declared ?? [])
+        .Where(g => drives.Contains(g.PermissionedDrive.Drive) && held.All(h => h.PermissionedDrive.Drive != g.PermissionedDrive.Drive))
+        .ToList();
+
+    /// <summary>
+    /// Refuses to create a browser-made built-in drive (Vault, Email) whose app the owner uninstalled: it would be a
+    /// system drive no app owns, which nothing could delete.  Installing the app again comes first.
+    /// </summary>
+    public async Task AssertNotOfAnUninstalledAppAsync(TargetDrive drive)
+    {
+        if (IsOwnedByAny(drive, await uninstalledApps.GetAsync()))
+        {
+            throw new OdinClientException("The app that owns this drive was uninstalled; install it again first");
         }
     }
 
