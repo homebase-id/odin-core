@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,10 @@ using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Services.Configuration;
+using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.JobManagement;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
@@ -514,6 +519,58 @@ public abstract class V2Fixture
         var provisioner = scope.Resolve<BuiltinProvisioner>();
         await provisioner.EnsureCirclesAsync(odinContext);
         await provisioner.EnsureAppsAsync(odinContext);
+    }
+
+    /// <summary>
+    /// Runs the version upgrade from the identity's stored version, and fails unless it reached the release version.
+    /// </summary>
+    protected async Task RunUpgradeAsync(OwnerSession owner)
+    {
+        var (scope, _) = await MigrationContextAsync(owner);
+        var (iv, encryptedToken) = AesCbc.Encrypt(owner.Token.ToPortableBytes(),
+            scope.Resolve<TenantContext>().TemporalEncryptionKey);
+        await scope.Resolve<VersionUpgradeService>().UpgradeAsync(new VersionUpgradeJobData
+        {
+            Tenant = owner.Identity,
+            Iv = iv,
+            EncryptedToken = encryptedToken
+        }, CancellationToken.None);
+
+        // UpgradeAsync records a failure rather than throwing it; the log names the phase.
+        var config = scope.Resolve<TenantConfigService>();
+        var failure = await config.GetVersionFailureInfoAsync();
+        Assert.That(failure, Is.Null, $"the upgrade failed at v{failure?.FailedDataVersionNumber}; see the log");
+        Assert.That((await config.GetVersionInfoAsync()).DataVersionNumber, Is.EqualTo(Odin.Services.Version.DataVersionNumber));
+    }
+
+    protected IJobManager Jobs => Host.Server.Services.GetRequiredService<IJobManager>();
+
+    protected Guid IdentityId(string domain) =>
+        Host.GetTenantScope(domain).Resolve<TenantContext>().DotYouRegistryId;
+
+    /// <summary>
+    /// Runs the owner's drive purge jobs until none is left -- the test host does not run jobs on its own -- or for
+    /// <paramref name="maxRuns"/> rounds, and returns how many rounds it took. A finished purge job deletes itself.
+    /// </summary>
+    protected async Task<int> RunPurgeAsync(OwnerSession owner, int maxRuns = 20)
+    {
+        for (var runs = 0; runs < maxRuns; runs++)
+        {
+            var jobs = (await Jobs.GetJobsByIdentityIdAsync(IdentityId(owner.Identity.DomainName)))
+                .Where(j => j.jobType == DrivePurgeJob.JobTypeId.ToString())
+                .ToList();
+            if (jobs.Count == 0)
+            {
+                return runs;
+            }
+
+            foreach (var job in jobs)
+            {
+                await Jobs.RunJobNowAsync(job.id, CancellationToken.None);
+            }
+        }
+
+        return maxRuns;
     }
 
     /// <summary>

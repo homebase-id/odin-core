@@ -99,22 +99,8 @@ public class SystemCircleRemovalMigrationTests : V2Fixture
         var (scope, ctx) = await MigrationContextAsync(frodo);
         await SeedSystemCirclesAsync(scope, ctx, sam);
 
-        var config = scope.Resolve<TenantConfigService>();
-        await config.ForceVersionNumberAsync(0);
-
-        var (iv, encryptedToken) = AesCbc.Encrypt(frodo.Token.ToPortableBytes(),
-            scope.Resolve<TenantContext>().TemporalEncryptionKey);
-        await scope.Resolve<VersionUpgradeService>().UpgradeAsync(new VersionUpgradeJobData
-        {
-            Tenant = frodo.Identity,
-            Iv = iv,
-            EncryptedToken = encryptedToken
-        }, CancellationToken.None);
-
-        // UpgradeAsync records a failure rather than throwing it; the log names the phase.
-        var failure = await config.GetVersionFailureInfoAsync();
-        Assert.That(failure, Is.Null, $"the ladder failed at v{failure?.FailedDataVersionNumber}; see the log");
-        Assert.That((await config.GetVersionInfoAsync()).DataVersionNumber, Is.EqualTo(Odin.Services.Version.DataVersionNumber));
+        await scope.Resolve<TenantConfigService>().ForceVersionNumberAsync(0);
+        await RunUpgradeAsync(frodo);
 
         var definitions = scope.Resolve<CircleDefinitionService>();
         foreach (var id in V19ToV20VersionMigrationService.RetiredSystemCircleIds)

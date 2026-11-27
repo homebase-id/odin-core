@@ -224,23 +224,20 @@ public class BuiltinProvisioner(
     }
 
     /// <summary>
-    /// The registration to make: the constants carry no slug, so registering one as-is derives the slug
-    /// from the display name.  The tree is the authority, so it is applied here.  And no grant on a drive
-    /// whose app the owner uninstalled: that drive isn't there, and issuing a grant for it throws.
-    /// </summary>
-    /// <remarks>
-    /// Copied rather than assigned: the constants are shared statics, and provisioning runs per tenant.
-    /// </remarks>
-    private static AppRegistrationRequest ForProvisioning(AppRegistrationRequest request, OdinSlug appSlug,
-        IReadOnlySet<Guid> uninstalled) => WithoutDrivesOf(request, uninstalled, appSlug);
-
-    /// <summary>
     /// A built-in registration as this identity can be given it: without its grants on the drives of an app the owner
     /// uninstalled, which aren't there.  For a migration re-applying one.
     /// </summary>
     public async Task<AppRegistrationRequest> WithoutUninstalledDrivesAsync(AppRegistrationRequest request) =>
         WithoutDrivesOf(request, await uninstalledApps.GetAsync(), request.AppSlug);
 
+    /// <summary>
+    /// The registration to make, with this slug: the constants carry no slug, so registering one as-is derives the slug
+    /// from the display name.  The tree is the authority, so it is applied here.  And no grant on a drive
+    /// whose app the owner uninstalled: that drive isn't there, and issuing a grant for it throws.
+    /// </summary>
+    /// <remarks>
+    /// Copied rather than assigned: the constants are shared statics, and provisioning runs per tenant.
+    /// </remarks>
     private static AppRegistrationRequest WithoutDrivesOf(AppRegistrationRequest request, IReadOnlySet<Guid> uninstalled,
         OdinSlug appSlug) => new()
     {
@@ -353,6 +350,6 @@ public class BuiltinProvisioner(
         }
 
         logger.LogDebug("Registering built-in app {app} as {slug}", app.Name, app.AppSlug);
-        await appRegistrationService.RegisterAppAsync(ForProvisioning(request, app.AppSlug, uninstalled), odinContext);
+        await appRegistrationService.RegisterAppAsync(WithoutDrivesOf(request, uninstalled, app.AppSlug), odinContext);
     }
 }

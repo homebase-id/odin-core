@@ -66,8 +66,6 @@ public class BuiltinAppUninstallTests : V2Fixture
     private static readonly CreateDriveRequest[] KnownDrives =
         [..BuiltinApps.AllDrives, BuiltinDrives.ListsDrive, BuiltinDrives.MailDrive];
 
-    private IJobManager Jobs => Host.Server.Services.GetRequiredService<IJobManager>();
-
     /// <summary>
     /// A new app added to the tree has to be put on one side or the other here, so whether the owner may remove it
     /// is decided, not defaulted.
@@ -89,7 +87,7 @@ public class BuiltinAppUninstallTests : V2Fixture
     public async Task ACoreAppIsStillRefused(Guid appId)
     {
         var owner = await LoginAsOwner();
-        Assert.That(await UninstallAsync(owner, appId), Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await owner.Admin.Uninstall(appId), Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(await owner.Admin.IsAppRegistered(appId), Is.True);
     }
 
@@ -102,7 +100,7 @@ public class BuiltinAppUninstallTests : V2Fixture
         Assert.That(await scope.Resolve<IDriveManager>().GetDrivesByAppIdAsync(appId, ctx), Is.Not.Empty,
             "arrange: the app owns no drive");
 
-        Assert.That(await UninstallAsync(owner, appId, deleteOwned: true), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await owner.Admin.Uninstall(appId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await owner.Admin.IsAppRegistered(appId), Is.False);
         await AssertGoneAsync(owner, appId, "after the uninstall");
 
@@ -120,7 +118,7 @@ public class BuiltinAppUninstallTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         await InstallAsTheOwnerHasItAsync(owner, appId);
-        Assert.That(await UninstallAsync(owner, appId, deleteOwned: true), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await owner.Admin.Uninstall(appId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
         await RunPurgeAsync(owner);
 
         // Granted its own server-made drives, as its install asks: they have to be back before the grant is made.
@@ -174,7 +172,7 @@ public class BuiltinAppUninstallTests : V2Fixture
             await definitions.EnsureCircleExistsAsync(circle);
         }
 
-        Assert.That(await UninstallAsync(owner, app.AppId, deleteOwned: true), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await owner.Admin.Uninstall(app.AppId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
 
         Assert.That(await owner.Admin.IsAppRegistered(app.AppId), Is.False);
         foreach (var circle in app.Circles)
@@ -223,7 +221,7 @@ public class BuiltinAppUninstallTests : V2Fixture
             .Where(id => id != BuiltinCircles.MomentsCircle.Id.Value).ToList();
         Assert.That(otherCircles, Does.Contain(BuiltinCircles.ChatCircle.Id.Value), "arrange: Sam is not in Chat");
 
-        Assert.That(await UninstallAsync(frodo, SystemAppConstants.MomentsAppId, deleteOwned: true), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await frodo.Admin.Uninstall(SystemAppConstants.MomentsAppId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
 
         var after = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant;
         Assert.That(after.CircleGrants.Select(c => c.CircleId.Value), Is.EquivalentTo(otherCircles),
@@ -273,50 +271,7 @@ public class BuiltinAppUninstallTests : V2Fixture
     private async Task RunTheWholeLadderAsync(OwnerSession owner)
     {
         var (scope, _) = await MigrationContextAsync(owner);
-        var config = scope.Resolve<TenantConfigService>();
-        await config.ForceVersionNumberAsync(0);
-
-        var (iv, encryptedToken) = AesCbc.Encrypt(owner.Token.ToPortableBytes(), scope.Resolve<TenantContext>().TemporalEncryptionKey);
-        await scope.Resolve<VersionUpgradeService>().UpgradeAsync(new VersionUpgradeJobData
-        {
-            Tenant = owner.Identity,
-            Iv = iv,
-            EncryptedToken = encryptedToken
-        }, CancellationToken.None);
-
-        // UpgradeAsync records a failure rather than throwing it; the log names the phase.
-        var failure = await config.GetVersionFailureInfoAsync();
-        Assert.That(failure, Is.Null, $"the ladder failed at v{failure?.FailedDataVersionNumber}; see the log");
-        Assert.That((await config.GetVersionInfoAsync()).DataVersionNumber, Is.EqualTo(Odin.Services.Version.DataVersionNumber));
+        await scope.Resolve<TenantConfigService>().ForceVersionNumberAsync(0);
+        await RunUpgradeAsync(owner);
     }
-
-    /// <summary>Runs the owner's drive purge jobs until none is left: the test host does not run jobs on its own.</summary>
-    private async Task RunPurgeAsync(OwnerSession owner)
-    {
-        var identityId = Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().DotYouRegistryId;
-        for (var runs = 0; runs < 20; runs++)
-        {
-            var jobs = (await Jobs.GetJobsByIdentityIdAsync(identityId))
-                .Where(j => j.jobType == DrivePurgeJob.JobTypeId.ToString())
-                .ToList();
-            if (jobs.Count == 0)
-            {
-                return;
-            }
-
-            foreach (var job in jobs)
-            {
-                await Jobs.RunJobNowAsync(job.id, CancellationToken.None);
-            }
-        }
-
-        Assert.Fail("the purge didn't finish");
-    }
-
-    private static async Task<HttpStatusCode> UninstallAsync(OwnerSession owner, Guid appId, bool deleteOwned = false) =>
-        (await owner.RefitFor<IRefitOwnerAppRegistration>().Uninstall(new UninstallAppRequest
-        {
-            AppId = appId,
-            DeleteOwnedCirclesAndDrives = deleteOwned
-        })).StatusCode;
 }

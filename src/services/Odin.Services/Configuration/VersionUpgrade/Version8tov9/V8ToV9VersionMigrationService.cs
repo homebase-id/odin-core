@@ -324,22 +324,15 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
 
         // The app-level system-drive grants introduced in v9, by app. All are granted ReadWrite.  None on the drive
         // of an app the owner uninstalled (#2138): it isn't there.
-        private static TargetDrive[] RequiredSystemDriveGrants(RedactedAppRegistration app, IReadOnlySet<Guid> uninstalled) =>
-            RequiredSystemDriveGrants(app).Where(d => !BuiltinProvisioner.IsOwnedByAny(d, uninstalled)).ToArray();
-
-        private static TargetDrive[] RequiredSystemDriveGrants(RedactedAppRegistration app)
+        private static TargetDrive[] RequiredSystemDriveGrants(RedactedAppRegistration app, IReadOnlySet<Guid> uninstalled)
         {
-            if (app.AppId == SystemAppConstants.ChatAppId)
-            {
-                return [WellKnownAppDrives.StickerDrive, WellKnownAppDrives.ListsDrive, WellKnownAppDrives.LocationDrive];
-            }
-
-            if (app.AppId == SystemAppConstants.FeedAppId || app.AppId == SystemAppConstants.MailAppId)
-            {
-                return [WellKnownAppDrives.StickerDrive];
-            }
-
-            return [];
+            TargetDrive[] required =
+                app.AppId == SystemAppConstants.ChatAppId
+                    ? [WellKnownAppDrives.StickerDrive, WellKnownAppDrives.ListsDrive, WellKnownAppDrives.LocationDrive]
+                    : app.AppId == SystemAppConstants.FeedAppId || app.AppId == SystemAppConstants.MailAppId
+                        ? [WellKnownAppDrives.StickerDrive]
+                        : [];
+            return required.Where(d => !BuiltinProvisioner.IsOwnedByAny(d, uninstalled)).ToArray();
         }
 
         // The circle-member drive grants introduced in v9, by app. Members of the app's authorized
@@ -347,13 +340,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
         // SystemAppConstants. Today only the Chat app gains a grant (ListsDrive Write+React), unless the owner
         // uninstalled Lists.
         private static DriveGrantRequest[] RequiredCircleMemberDriveGrants(RedactedAppRegistration app,
-            IReadOnlySet<Guid> uninstalled) =>
-            RequiredCircleMemberDriveGrants(app)
-                .Where(g => !BuiltinProvisioner.IsOwnedByAny(g.PermissionedDrive.Drive, uninstalled)).ToArray();
-
-        private static DriveGrantRequest[] RequiredCircleMemberDriveGrants(RedactedAppRegistration app)
+            IReadOnlySet<Guid> uninstalled)
         {
-            if (app.AppId == SystemAppConstants.ChatAppId)
+            if (app.AppId == SystemAppConstants.ChatAppId && !BuiltinProvisioner.IsOwnedByAny(WellKnownAppDrives.ListsDrive, uninstalled))
             {
                 return
                 [

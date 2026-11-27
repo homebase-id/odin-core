@@ -40,7 +40,7 @@ public class AppUninstallTests : V2Fixture
         var bareAppId = await owner.Admin.RegisterBareApp();
         Assert.That((await registrations.GetRegisteredApp(new GetAppRequest { AppId = bareAppId })).Content!.IsBuiltIn, Is.False);
 
-        Assert.That(await UninstallAsync(owner, SystemAppConstants.ChatAppId), Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await owner.Admin.Uninstall(SystemAppConstants.ChatAppId), Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(await IsRegisteredAsync(owner, SystemAppConstants.ChatAppId), Is.True);
     }
 
@@ -52,7 +52,7 @@ public class AppUninstallTests : V2Fixture
         await owner.Admin.RegisterAppClient(appId);
         Assert.That(await AppClientRowsAsync(owner, appId), Is.EqualTo(1), "arrange: no client row");
 
-        Assert.That(await UninstallAsync(owner, appId), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await owner.Admin.Uninstall(appId), Is.EqualTo(HttpStatusCode.OK));
 
         Assert.That(await IsRegisteredAsync(owner, appId), Is.False);
         Assert.That(await AppClientRowsAsync(owner, appId), Is.EqualTo(0), "a client outlived its app");
@@ -66,10 +66,10 @@ public class AppUninstallTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "app drive", allowAnonymousReads: false, appId: appId);
 
-        Assert.That(await UninstallAsync(owner, appId), Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await owner.Admin.Uninstall(appId), Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(await IsRegisteredAsync(owner, appId), Is.True);
 
-        Assert.That(await UninstallAsync(owner, appId, deleteOwned: true), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await owner.Admin.Uninstall(appId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
 
         Assert.That(await IsRegisteredAsync(owner, appId), Is.False);
         Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.False, "the app's drive outlived it");
@@ -104,7 +104,7 @@ public class AppUninstallTests : V2Fixture
         Assert.That(before.CircleGrants.Any(c => c.CircleId == circleId), Is.True, "arrange: Sam is not in the circle");
         Assert.That(before.AppGrants.ContainsKey(appId), Is.True, "arrange: Sam holds no grant from the app");
 
-        Assert.That(await UninstallAsync(frodo, appId, deleteOwned: true), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await frodo.Admin.Uninstall(appId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
 
         var after = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant;
         Assert.That(after.CircleGrants.Any(c => c.CircleId == circleId), Is.False, "Sam is still in the app's circle");
@@ -133,7 +133,7 @@ public class AppUninstallTests : V2Fixture
         var send = await frodo.Connections.SendConnectionRequest(sam.Identity, [circleId]);
         Assert.That(send.IsSuccessStatusCode, Is.True, "arrange: sending the request failed");
 
-        Assert.That(await UninstallAsync(frodo, appId, deleteOwned: true), Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await frodo.Admin.Uninstall(appId, deleteOwnedCirclesAndDrives: true), Is.EqualTo(HttpStatusCode.OK));
 
         var accept = await sam.Connections.AcceptConnectionRequest(frodo.Identity);
         Assert.That(accept.IsSuccessStatusCode, Is.True, "accepting the request failed");
@@ -142,13 +142,6 @@ public class AppUninstallTests : V2Fixture
         Assert.That(grant.CircleGrants.Any(c => c.CircleId == circleId), Is.False, "the accepted request brought back the app's circle");
         Assert.That(grant.AppGrants.ContainsKey(appId), Is.False, "the accepted request brought back a grant from the app");
     }
-
-    private static async Task<HttpStatusCode> UninstallAsync(OwnerSession owner, Guid appId, bool deleteOwned = false) =>
-        (await owner.RefitFor<IRefitOwnerAppRegistration>().Uninstall(new UninstallAppRequest
-        {
-            AppId = appId,
-            DeleteOwnedCirclesAndDrives = deleteOwned
-        })).StatusCode;
 
     private static Task AuthorizeAsync(OwnerSession owner, Guid appId, Guid circleId) =>
         owner.RefitFor<IRefitOwnerAppRegistration>().UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest

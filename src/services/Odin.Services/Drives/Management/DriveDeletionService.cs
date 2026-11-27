@@ -163,29 +163,18 @@ public class DriveDeletionService(
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        if (uninstallingAppId is { } appId)
-        {
-            var owned = (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!;
-            if (owned.AppId != appId)
-            {
-                throw new OdinClientException($"Drive {driveId} is not owned by app {appId}");
-            }
-
-            if (BuiltinDrives.IsProtected(driveId) && !BuiltinApps.IsUninstallable(appId))
-            {
-                throw new OdinClientException("Cannot delete a system drive or its content");
-            }
-
-            return owned;
-        }
-
-        if (BuiltinDrives.IsProtected(driveId))
+        if (BuiltinDrives.IsProtected(driveId) && !(uninstallingAppId is { } uninstalling && BuiltinApps.IsUninstallable(uninstalling)))
         {
             throw new OdinClientException("Cannot delete a system drive or its content");
         }
 
-        // Archiving first is the owner's first "are you sure"; it also stops apps writing to the drive.
         var drive = (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!;
+        if (uninstallingAppId is { } appId)
+        {
+            return drive.AppId == appId ? drive : throw new OdinClientException($"Drive {driveId} is not owned by app {appId}");
+        }
+
+        // Archiving first is the owner's first "are you sure"; it also stops apps writing to the drive.
         if (!drive.IsArchived)
         {
             throw new OdinClientException("Archive the drive before emptying or deleting it");
