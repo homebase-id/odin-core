@@ -411,9 +411,12 @@ namespace Odin.Services.Membership.Circles
         /// Refused for any circle <see cref="AssertDeletableAsync"/> refuses, and for a circle with any
         /// member, identity or YouAuth domain -- deleting it would strand their grants.
         /// </remarks>
-        public async Task DeleteAsync(GuidId id)
+        public Task DeleteAsync(GuidId id) => DeleteAsync(id, uninstallingAppId: null);
+
+        /// <summary>As <see cref="DeleteAsync(GuidId)"/>, as part of uninstalling an app; see <see cref="AssertDeletableAsync(GuidId, Guid?)"/>.</summary>
+        public async Task DeleteAsync(GuidId id, Guid? uninstallingAppId)
         {
-            await AssertDeletableAsync(id);
+            await AssertDeletableAsync(id, uninstallingAppId);
 
             var members = await db.CircleMemberCached.GetCircleMembersAsync(id);
             if (members.Count > 0)
@@ -429,7 +432,14 @@ namespace Odin.Services.Membership.Circles
         /// Throws unless the circle exists and is one that may be deleted at all, members aside: not a
         /// built-in circle (provisioning and every upgrade assume it exists).
         /// </summary>
-        public async Task AssertDeletableAsync(GuidId id)
+        public Task AssertDeletableAsync(GuidId id) => AssertDeletableAsync(id, uninstallingAppId: null);
+
+        /// <summary>
+        /// As <see cref="AssertDeletableAsync(GuidId)"/>, but a built-in circle may go with the app that owns it, when
+        /// <paramref name="uninstallingAppId"/> is that app and the owner may uninstall it (#2138): uninstalling the
+        /// app is the one way to delete it.
+        /// </summary>
+        public async Task AssertDeletableAsync(GuidId id, Guid? uninstallingAppId)
         {
             var circle = await GetCircleAsync(id);
 
@@ -438,7 +448,8 @@ namespace Odin.Services.Membership.Circles
                 throw new OdinClientException($"Invalid circle {id}", OdinClientErrorCode.UnknownId);
             }
 
-            if (BuiltinApps.IsTreeDeclaredCircle(id))
+            var goesWithItsApp = uninstallingAppId is { } appId && circle.AppId == appId && BuiltinApps.IsUninstallable(appId);
+            if (BuiltinApps.IsTreeDeclaredCircle(id) && !goesWithItsApp)
             {
                 throw new OdinClientException($"Circle {id} is a built-in circle and cannot be deleted",
                     OdinClientErrorCode.CannotDeleteBuiltInCircle);

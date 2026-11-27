@@ -205,8 +205,9 @@ public static class BuiltinDrives
     };
 
     /// <summary>
-    /// Drives the owner may not rename, re-mode or archive.  <c>DriveManager</c> refuses those
-    /// operations for anything in here, and it is what the owner console shows as a system drive.
+    /// Drives the owner may not rename, re-mode, archive or delete.  <c>DriveManager</c> refuses those
+    /// operations for anything in here, and it is what the owner console shows as a system drive.  Uninstalling
+    /// the app that owns one, when the owner may uninstall it, is the one way it goes (#2138).
     /// </summary>
     /// <remarks>
     /// This is "we provisioned it", not "it is systemic".  ListsDrive and MomentsDrive are in the list

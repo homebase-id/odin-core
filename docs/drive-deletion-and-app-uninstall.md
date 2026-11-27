@@ -11,7 +11,7 @@ Notes on odin-core #1879 (issues #1869, #1870) and its owner-console counterpart
 | Empty a drive (keep the drive) | Background job | Archived, non-system drive |
 | Delete a drive | Request removes the drive and its grants; files go in a background job | Archived, non-system drive |
 | Revoke an app | In the request; reversible | Master key |
-| Uninstall an app | In the request, except the files of its drives (background) | Third-party app; owned circles and drives deleted with it |
+| Uninstall an app | In the request, except the files of its drives (background) | Not a core app; owned circles and drives deleted with it |
 
 All of these are **owner only** (master key) and **local only**: nothing is sent to peers, and copies they already received stay with them.
 
@@ -27,7 +27,7 @@ All of these are **owner only** (master key) and **local only**: nothing is sent
 | `POST appmanagement/uninstall` | 200 | `{ AppId, DeleteOwnedCirclesAndDrives }` |
 | ~~`POST appmanagement/deleteApp`~~ | — | **Removed.** It deleted only the registration row and left the app's clients behind |
 
-App registrations now carry `IsBuiltIn` (the owner console and platform apps), so the console can tell before asking that an app cannot be uninstalled.
+App registrations now carry `IsBuiltIn` (the owner console and the core apps), so the console can tell before asking that an app cannot be uninstalled.
 
 ## How a drive delete works
 
@@ -59,11 +59,17 @@ Same guards. It drops pending transfers, then records the purge with the time of
 ## How an app uninstall works
 
 1. **Guards:** master key; not built-in (`AppUninstallService.IsBuiltIn`); not while the v13 registration move is pending (its blob copy would bring the app back).
+   - Built-in means the owner console and the core apps: Chat, Contacts, Feed, HomePage, Recovery and System.
+   - Every other known app can be uninstalled (#2138), even one the platform provisions: Email, Location, Moments, WebDrop, Vault, Lists and Mail, and the unprovisioned Community and Social Sync. `WellknownAppDefinition.Uninstallable` says which.
 2. **Refused if the app owns circles or drives,** unless `DeleteOwnedCirclesAndDrives` is set.
-3. **Then, in an order that can be re-run** (the registration goes last):
-   - its drives are archived and deleted, as above;
+3. **A provisioned app is remembered as uninstalled** (`UninstalledBuiltinApps`, identity KeyValue), before anything is deleted:
+   - `BuiltinProvisioner` and `missing-drives` skip it and the drives and circles it owns, so an upgrade doesn't bring it back;
+   - built-in registrations, and the migrations that re-apply them, leave out grants on its drives;
+   - registering it again takes it off, and makes its drives and circles first, so the new registration can be granted them.
+4. **Then, in an order that can be re-run** (the registration goes last):
+   - its drives are deleted, as above, without archiving first. A system drive goes only this way, with its own uninstallable app;
    - it is removed from every connection: its grants, the grants it deposited, the enrollments it owns or requested;
-   - its circles are removed from other apps, then their members, then the circles themselves;
+   - its circles are removed from other apps, then their members, then the circles themselves. A built-in circle goes only this way, with its own uninstallable app;
    - its clients (live and expired) and their push subscriptions are deleted;
    - its registration is deleted.
 
@@ -87,6 +93,7 @@ Same guards. It drops pending transfers, then records the purge with the time of
 - **odin-core:**
   - `DriveDeletionTests`: batch hard delete, empty, delete, guards, alias lock, empty cutoff, batching, grant removal, purge status, retry.
   - `AppUninstallTests`: built-in refused, clients removed, owned drives and circles, connection grants.
+  - `BuiltinAppUninstallTests`: each optional provisioned app goes and stays gone across the whole version ladder, and comes back when registered again; core apps refused; system drives and built-in circles refused outside an uninstall; a connection loses only that app's circle; every built-in app states `Uninstallable`.
   - Storage tests for per-file cleanup, batched select and delete, and a coverage guard that fails if a drive-keyed table is not cleared.
 - **Each safeguard is shown to matter:** removing the alias lock, the cutoff, the per-file payload delete or the grant removal fails its test.
 - **Jobs are cleared before each test:** they live in the system database, which the per-test reset does not restore.

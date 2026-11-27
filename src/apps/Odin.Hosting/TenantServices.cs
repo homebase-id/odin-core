@@ -218,6 +218,7 @@ public static class TenantServices
 
         cb.RegisterType<IdentityReadyStateService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<BuiltinProvisioner>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<UninstalledBuiltinApps>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
         cb.RegisterType<TenantQuotaGuard>().AsSelf().InstancePerLifetimeScope();

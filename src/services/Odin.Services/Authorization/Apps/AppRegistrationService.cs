@@ -41,7 +41,8 @@ namespace Odin.Services.Authorization.Apps
         LegacyDefinitionStore legacyStore,
         OdinContextCache cache,
         CircleDefinitionService circleDefinitionService,
-        IDriveManager driveManager)
+        IDriveManager driveManager,
+        Lazy<BuiltinProvisioner> builtinProvisioner)
         : IAppRegistrationService
     {
 
@@ -62,6 +63,10 @@ namespace Odin.Services.Authorization.Apps
             {
                 throw AlreadyRegistered(request.AppId);
             }
+
+            // An app the owner uninstalled is being installed again: its drives come back first, so it can be
+            // granted them (#2138).  Lazy: the provisioner registers the built-in apps through this service.
+            await builtinProvisioner.Value.ReinstallAsync(request.AppId, odinContext);
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();

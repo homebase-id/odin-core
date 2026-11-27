@@ -22,15 +22,20 @@ namespace Odin.Services.Apps.Builtin;
 /// <para>
 /// <b>Not only first-run.</b>  <c>TenantConfigService.EnsureInitialOwnerSetupAsync</c> calls
 /// <see cref="EnsureAllAsync"/>, but the version ladder calls <see cref="EnsureDrivesAsync"/> on its own
-/// -- <c>VersionUpgradeService</c> does a single up-front pass so migrations can assume every drive
-/// exists rather than each creating what it needs.  Everything here is idempotent for that reason.
+/// -- <c>VersionUpgradeService</c> does a single up-front pass so migrations can assume every drive of an
+/// installed app exists rather than each creating what it needs.  Everything here is idempotent for that reason.
+/// </para>
+/// <para>
+/// <b>Except what the owner uninstalled</b> (#2138): every step skips an app in <see cref="UninstalledBuiltinApps"/>,
+/// the drives and circles it owns, and other apps' grants on those drives, so an upgrade doesn't bring it back.
 /// </para>
 /// </remarks>
 public class BuiltinProvisioner(
     ILogger<BuiltinProvisioner> logger,
     IDriveManager driveManager,
     CircleDefinitionService circleDefinitionService,
-    IAppRegistrationService appRegistrationService)
+    IAppRegistrationService appRegistrationService,
+    UninstalledBuiltinApps uninstalledApps)
 {
     /// <summary>
     /// Drives that must exist even though their app is not built-in, because the Chat app
@@ -52,6 +57,25 @@ public class BuiltinProvisioner(
         // is given, so that is a decision of its own rather than part of this list's upkeep.
         BuiltinDrives.MailDrive
     ];
+
+    /// <summary>The apps whose drives an identity is given: the built-in ones, and the owners of the carry-overs.</summary>
+    public static bool IsProvisioned(Guid appId) => ProvisionedAppIds.Contains(appId);
+
+    private static readonly HashSet<Guid> ProvisionedAppIds =
+    [
+        ..BuiltinApps.BuiltinAppIds,
+        ..CarryOverDrives.Select(d => d.AppId!.Value)
+    ];
+
+    /// <summary>The owning app of every drive this provisions or grants, by alias.</summary>
+    private static readonly Dictionary<Guid, Guid> OwningAppOfDrive = BuiltinApps.AllDrives
+        .Concat(CarryOverDrives)
+        .DistinctBy(d => d.TargetDrive.Alias.Value)
+        .ToDictionary(d => d.TargetDrive.Alias.Value, d => d.AppId!.Value);
+
+    /// <summary>True when one of <paramref name="appIds"/> owns this built-in drive.</summary>
+    public static bool IsOwnedByAny(TargetDrive drive, IReadOnlySet<Guid> appIds) =>
+        OwningAppOfDrive.TryGetValue(drive.Alias.Value, out var appId) && appIds.Contains(appId);
 
     /// <summary>
     /// The registration for each built-in app.  Not on the tree yet: a registration carries
@@ -99,8 +123,9 @@ public class BuiltinProvisioner(
     /// <summary>The built-in zero-knowledge drives the identity doesn't have yet, for the owner's browser to create.</summary>
     public async Task<List<CreateDriveRequest>> GetMissingZeroKnowledgeDrivesAsync()
     {
+        var uninstalled = await uninstalledApps.GetAsync();
         var missing = new List<CreateDriveRequest>();
-        foreach (var drive in BuiltinApps.BrowserMadeDrives)
+        foreach (var drive in BuiltinApps.BrowserMadeDrives.Where(d => !uninstalled.Contains(d.AppId!.Value)))
         {
             if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null)
             {
@@ -125,20 +150,28 @@ public class BuiltinProvisioner(
     }
 
     /// <summary>
-    /// Creates the drives of every built-in app, plus the carry-overs.  Idempotent.
+    /// Creates the drives of every built-in app, plus the carry-overs, but those of an app the owner uninstalled.
+    /// Idempotent.
     /// </summary>
     public async Task EnsureDrivesAsync(IOdinContext odinContext)
     {
-        // Non-anonymous first -- see EnsureAllAsync for why.
-        // A browser-made drive is created by the owner's browser (GetMissingZeroKnowledgeDrivesAsync), and its app
-        // and circles follow
-        var drives = BuiltinApps.DrivesMadeAtSetup
-            .Concat(CarryOverDrives)
-            .DistinctBy(d => d.TargetDrive.Alias.Value)
-            .OrderBy(d => d.AllowAnonymousReads)
-            .ToList();
+        var uninstalled = await uninstalledApps.GetAsync();
+        await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => !uninstalled.Contains(d.AppId!.Value)), odinContext);
+    }
 
-        foreach (var request in drives)
+    /// <summary>
+    /// What setup creates: the built-in drives, but the ones the owner's browser creates
+    /// (<see cref="GetMissingZeroKnowledgeDrivesAsync"/>, after which their app and circles follow), plus the
+    /// carry-overs.
+    /// </summary>
+    private static IEnumerable<CreateDriveRequest> DrivesMadeAtSetup => BuiltinApps.DrivesMadeAtSetup
+        .Concat(CarryOverDrives)
+        .DistinctBy(d => d.TargetDrive.Alias.Value);
+
+    private async Task EnsureDrivesAsync(IEnumerable<CreateDriveRequest> requests, IOdinContext odinContext)
+    {
+        // Non-anonymous first -- see EnsureAllAsync for why.
+        foreach (var request in requests.OrderBy(d => d.AllowAnonymousReads))
         {
             AssertAddressed(request);
 
@@ -158,12 +191,12 @@ public class BuiltinProvisioner(
     }
 
     /// <summary>
-    /// Creates the circles owned by every built-in app.  Idempotent.
+    /// Creates the circles owned by every built-in app, but one the owner uninstalled.  Idempotent.
     /// </summary>
     public async Task EnsureCirclesAsync(IOdinContext odinContext)
     {
-        var waiting = await AppsWaitingForTheirDriveAsync();
-        foreach (var def in BuiltinApps.SeededCircles.Where(c => c.AppId is not { } appId || !waiting.Contains(appId)))
+        var skipped = (await AppsWaitingForTheirDriveAsync()).Union(await uninstalledApps.GetAsync()).ToHashSet();
+        foreach (var def in BuiltinApps.SeededCircles.Where(c => c.AppId is not { } appId || !skipped.Contains(appId)))
         {
             await circleDefinitionService.EnsureCircleExistsAsync(def);
         }
@@ -191,33 +224,81 @@ public class BuiltinProvisioner(
     }
 
     /// <summary>
-    /// The registration constants carry no slug, so registering one as-is derives the slug from the
-    /// display name.  The tree is the authority, so it is applied here.
+    /// The registration to make: the constants carry no slug, so registering one as-is derives the slug
+    /// from the display name.  The tree is the authority, so it is applied here.  And no grant on a drive
+    /// whose app the owner uninstalled: that drive isn't there, and issuing a grant for it throws.
     /// </summary>
     /// <remarks>
     /// Copied rather than assigned: the constants are shared statics, and provisioning runs per tenant.
     /// </remarks>
-    private static AppRegistrationRequest WithSlug(AppRegistrationRequest request, OdinSlug appSlug) => new()
+    private static AppRegistrationRequest ForProvisioning(AppRegistrationRequest request, OdinSlug appSlug,
+        IReadOnlySet<Guid> uninstalled) => WithoutDrivesOf(request, uninstalled, appSlug);
+
+    /// <summary>
+    /// A built-in registration as this identity can be given it: without its grants on the drives of an app the owner
+    /// uninstalled, which aren't there.  For a migration re-applying one.
+    /// </summary>
+    public async Task<AppRegistrationRequest> WithoutUninstalledDrivesAsync(AppRegistrationRequest request) =>
+        WithoutDrivesOf(request, await uninstalledApps.GetAsync(), request.AppSlug);
+
+    private static AppRegistrationRequest WithoutDrivesOf(AppRegistrationRequest request, IReadOnlySet<Guid> uninstalled,
+        OdinSlug appSlug) => new()
     {
         AppId = request.AppId,
         Name = request.Name,
         AppSlug = appSlug,
         CorsHostName = request.CorsHostName,
         PermissionSet = request.PermissionSet,
-        Drives = request.Drives,
+        Drives = request.Drives?.Where(g => !IsOwnedByAny(g.PermissionedDrive.Drive, uninstalled)).ToList(),
         AuthorizedCircles = request.AuthorizedCircles,
-        CircleMemberPermissionGrant = request.CircleMemberPermissionGrant
+        CircleMemberPermissionGrant = request.CircleMemberPermissionGrant == null
+            ? null
+            : new PermissionSetGrantRequest
+            {
+                PermissionSet = request.CircleMemberPermissionGrant.PermissionSet,
+                Drives = request.CircleMemberPermissionGrant.Drives?
+                    .Where(g => !IsOwnedByAny(g.PermissionedDrive.Drive, uninstalled)).ToList()
+            }
     };
 
     /// <summary>
-    /// Registers every built-in app.  Idempotent.
+    /// Registers every built-in app, but one the owner uninstalled.  Idempotent.
     /// </summary>
     public async Task EnsureAppsAsync(IOdinContext odinContext)
     {
-        var waiting = await AppsWaitingForTheirDriveAsync();
-        foreach (var app in BuiltinApps.Builtin.Where(a => !waiting.Contains(a.AppId)))
+        var uninstalled = await uninstalledApps.GetAsync();
+        var skipped = (await AppsWaitingForTheirDriveAsync()).Union(uninstalled).ToHashSet();
+        foreach (var app in BuiltinApps.Builtin.Where(a => !skipped.Contains(a.AppId)))
         {
-            await EnsureAppAsync(app, odinContext);
+            await EnsureAppAsync(app, uninstalled, odinContext);
+        }
+    }
+
+    /// <summary>
+    /// The owner is installing <paramref name="appId"/> again, after uninstalling it: it comes off
+    /// <see cref="UninstalledBuiltinApps"/>, and its drives and circles are made as on a new identity, so the
+    /// registration being made can be granted them.  Nothing for an app that wasn't uninstalled.
+    /// </summary>
+    /// <remarks>
+    /// Its browser-made drives are left to the owner's browser, which <see cref="GetMissingZeroKnowledgeDrivesAsync"/>
+    /// now lists them to; its circles wait for them, as at setup.
+    /// </remarks>
+    public async Task ReinstallAsync(Guid appId, IOdinContext odinContext)
+    {
+        if (!(await uninstalledApps.GetAsync()).Contains(appId))
+        {
+            return;
+        }
+
+        await uninstalledApps.RemoveAsync(appId);
+        await EnsureDrivesAsync(DrivesMadeAtSetup.Where(d => d.AppId == appId), odinContext);
+
+        if (!(await AppsWaitingForTheirDriveAsync()).Contains(appId))
+        {
+            foreach (var def in BuiltinApps.SeededCircles.Where(c => c.AppId == appId))
+            {
+                await circleDefinitionService.EnsureCircleExistsAsync(def);
+            }
         }
     }
 
@@ -230,7 +311,8 @@ public class BuiltinProvisioner(
     {
         var app = BuiltinApps.Builtin.SingleOrDefault(a =>
             a.Drives.Any(d => d.SharingModel.IsZeroKnowledgeDrive() && d.TargetDrive.Alias.Value == driveId));
-        if (app == null)
+        var uninstalled = await uninstalledApps.GetAsync();
+        if (app == null || uninstalled.Contains(app.AppId))
         {
             return;
         }
@@ -248,10 +330,10 @@ public class BuiltinProvisioner(
             await circleDefinitionService.EnsureCircleExistsAsync(def);
         }
 
-        await EnsureAppAsync(app, odinContext);
+        await EnsureAppAsync(app, uninstalled, odinContext);
     }
 
-    private async Task EnsureAppAsync(WellknownAppDefinition app, IOdinContext odinContext)
+    private async Task EnsureAppAsync(WellknownAppDefinition app, IReadOnlySet<Guid> uninstalled, IOdinContext odinContext)
     {
         if (!Registrations.TryGetValue(app.AppId, out var request))
         {
@@ -271,6 +353,6 @@ public class BuiltinProvisioner(
         }
 
         logger.LogDebug("Registering built-in app {app} as {slug}", app.Name, app.AppSlug);
-        await appRegistrationService.RegisterAppAsync(WithSlug(request, app.AppSlug), odinContext);
+        await appRegistrationService.RegisterAppAsync(ForProvisioning(request, app.AppSlug, uninstalled), odinContext);
     }
 }

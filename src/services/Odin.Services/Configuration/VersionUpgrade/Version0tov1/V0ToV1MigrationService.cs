@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using Odin.Core.Exceptions;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
@@ -24,6 +25,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         CircleNetworkService circleNetworkService,
         TenantConfigService tenantConfigService,
         PublicPrivateKeyService publicPrivateKeyService,
+        BuiltinProvisioner builtinProvisioner,
         IdentityDatabase db)
     {
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -65,7 +67,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             logger.LogDebug("Verifying system apps have new circles and permissions...");
             // Mail is not updated or verified: the app is retired and a current identity does not register it.
-            await VerifyApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+            await VerifyApp(await builtinProvisioner.WithoutUninstalledDrivesAsync(SystemAppConstants.ChatAppRegistrationRequest),
+                odinContext);
             logger.LogDebug("Verifying system apps have new circles and permissions - OK");
             cancellationToken.ThrowIfCancellationRequested();
         }
@@ -155,7 +158,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             // Update the apps that use the new circle
             //
             logger.LogDebug("Updating system apps with new circles and permissions");
-            await UpdateApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+            // Without its grants on the drives of an app the owner uninstalled (#2138): they aren't there.
+            await UpdateApp(await builtinProvisioner.WithoutUninstalledDrivesAsync(SystemAppConstants.ChatAppRegistrationRequest),
+                odinContext);
             cancellationToken.ThrowIfCancellationRequested();
         }
 

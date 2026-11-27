@@ -242,7 +242,7 @@ public class TenantConfigService(
     /// <summary>
     /// Creates the drives an identity starts with.  Kept here because the version ladder calls it --
     /// <c>VersionUpgradeService</c> does a single up-front pass so migrations can assume every drive
-    /// exists.  The set itself comes from <see cref="BuiltinApps"/>.
+    /// exists, but those of an app the owner uninstalled.  The set itself comes from <see cref="BuiltinApps"/>.
     /// </summary>
     public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
     {
