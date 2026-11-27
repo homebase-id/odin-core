@@ -105,12 +105,11 @@ public class BuiltinProvisioner(
     /// <summary>The built-in zero-knowledge drives the identity doesn't have yet, for the owner's browser to create.</summary>
     public async Task<List<CreateDriveRequest>> GetMissingZeroKnowledgeDrivesAsync()
     {
+        // A drive whose deletion is still running can't be made again under its alias yet (DriveStillBeingDeleted)
         var missing = new List<CreateDriveRequest>();
-        foreach (var drive in BuiltinApps.BrowserMadeDrives)
+        foreach (var drive in await AbsentBrowserMadeDrivesAsync())
         {
-            // A drive whose deletion is still running can't be made again under its alias yet (DriveStillBeingDeleted)
-            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null &&
-                await drivePurges.GetAsync(drive.TargetDrive.Alias) is not { Kind: DrivePurgeKind.Delete })
+            if (await drivePurges.GetAsync(drive.TargetDrive.Alias) is not { Kind: DrivePurgeKind.Delete })
             {
                 missing.Add(drive);
             }
@@ -119,13 +118,28 @@ public class BuiltinProvisioner(
         return missing;
     }
 
+    private async Task<List<CreateDriveRequest>> AbsentBrowserMadeDrivesAsync()
+    {
+        var absent = new List<CreateDriveRequest>();
+        foreach (var drive in BuiltinApps.BrowserMadeDrives)
+        {
+            if (await driveManager.GetDriveAsync(drive.TargetDrive.Alias) == null)
+            {
+                absent.Add(drive);
+            }
+        }
+
+        return absent;
+    }
+
     /// <summary>
     /// The built-in apps whose zero-knowledge drive the browser hasn't created yet: their circles and registration wait
     /// for it, since a grant can't be issued for a drive that isn't there.
     /// </summary>
     private async Task<HashSet<Guid>> AppsWaitingForTheirDriveAsync()
     {
-        var missing = (await GetMissingZeroKnowledgeDrivesAsync()).Select(d => d.TargetDrive.Alias.Value).ToHashSet();
+        // Absent, whether or not the browser may make it yet: a drive still being deleted keeps its app waiting
+        var missing = (await AbsentBrowserMadeDrivesAsync()).Select(d => d.TargetDrive.Alias.Value).ToHashSet();
         return BuiltinApps.Builtin
             .Where(app => app.Drives.Any(d => missing.Contains(d.TargetDrive.Alias.Value)))
             .Select(app => app.AppId)
@@ -262,9 +276,10 @@ public class BuiltinProvisioner(
 
     /// <summary>
     /// For Filesync and Photos, which an owner could install before they became built-in (#2136): gives the app and its
-    /// circles the drive grants the tree declares, where the install left them different, and grants the circles'
-    /// members again.  An older install's circle granted Write, and a drive deleted and made again took every grant on
-    /// it with it.  Nothing for any other app.
+    /// circles the grants on the app's own drive the tree declares, where the install left them different, and grants
+    /// the circles' members again.  An older install's circle granted Write, and a drive deleted and made again took
+    /// every grant on it with it.  Grants on other drives, and the app's permission keys, stay as the install made them.
+    /// Nothing for any other app, or while its drive is missing: the browser's making it runs this again.
     /// </summary>
     public async Task ReconcileInstalledGrantsAsync(Guid appId, IOdinContext odinContext)
     {
@@ -274,31 +289,56 @@ public class BuiltinProvisioner(
         }
 
         var app = BuiltinApps.Builtin.Single(a => a.AppId == appId);
+        var ownDrives = app.Drives.Select(d => d.TargetDrive).ToHashSet();
+        foreach (var drive in ownDrives)
+        {
+            if (await driveManager.GetDriveAsync(drive.Alias) == null)
+            {
+                return;
+            }
+        }
+
         foreach (var def in app.Circles)
         {
             var circle = await circleDefinitionService.GetCircleAsync(def.Id) ??
                          await circleDefinitionService.GetCircleByAppSlugAsync(appId, def.Slug);
-            if (circle == null || SameGrants(circle.DriveGrants.Select(g => g.PermissionedDrive), def.DriveGrants))
+            if (circle == null)
+            {
+                continue;
+            }
+
+            var held = circle.DriveGrants.ToList();
+            if (SameGrants(held.Where(g => ownDrives.Contains(g.PermissionedDrive.Drive)).Select(g => g.PermissionedDrive),
+                    def.DriveGrants))
             {
                 continue;
             }
 
             logger.LogInformation("Granting the installed circle {circleId} what {app} declares", circle.Id, app.Name);
-            circle.DriveGrants = def.DriveGrants;
+            circle.DriveGrants = held.Where(g => !ownDrives.Contains(g.PermissionedDrive.Drive)).Concat(def.DriveGrants).ToList();
             await circleNetworkService.UpdateCircleDefinitionAsync(circle, odinContext);
         }
 
-        var request = Registrations[appId];
+        var declared = Registrations[appId].Drives;
         var registration = await appRegistrationService.GetAppRegistration(appId, odinContext);
-        if (registration != null &&
-            !SameGrants(registration.Grant.DriveGrants.Select(g => g.PermissionedDrive), request.Drives))
+        if (registration == null)
         {
-            logger.LogInformation("Granting the installed app {app} the drives it declares", app.Name);
+            return;
+        }
+
+        // The transient temp drive is one the grant adds for an app holding transit keys, not one it was asked for
+        var heldDrives = registration.Grant.DriveGrants.Select(g => g.PermissionedDrive)
+            .Where(d => d.Drive != SystemDriveConstants.TransientTempDrive).ToList();
+        if (!SameGrants(heldDrives.Where(d => ownDrives.Contains(d.Drive)), declared))
+        {
+            logger.LogInformation("Granting the installed app {app} the drive it declares", app.Name);
             await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
             {
                 AppId = appId,
-                PermissionSet = request.PermissionSet,
-                Drives = request.Drives
+                PermissionSet = registration.Grant.PermissionSet,
+                Drives = heldDrives.Where(d => !ownDrives.Contains(d.Drive))
+                    .Select(d => new DriveGrantRequest { PermissionedDrive = d })
+                    .Concat(declared).ToList()
             }, odinContext);
         }
     }

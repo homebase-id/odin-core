@@ -175,6 +175,59 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
     }
 
     /// <summary>
+    /// An identity that installed the apps, then deleted their drives: deleting a drive strips it from the app's and the
+    /// circles' grants.  The upgrade passes, and once the browser makes the drives again the app and circle hold what
+    /// they declare.
+    /// </summary>
+    [Test]
+    public async Task AnInstallWhoseDrivesWereDeletedPassesTheUpgrade_AndIsGrantedAgainWhenTheBrowserMakesThem()
+    {
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
+        var (scope, ctx) = await MigrationContextAsync(frodo);
+
+        foreach (var (appId, _, circle, _) in Apps)
+        {
+            var tree = BuiltinApps.Builtin.Single(a => a.AppId == appId);
+            await scope.Resolve<IAppRegistrationService>().RegisterAppAsync(new AppRegistrationRequest
+            {
+                AppId = appId,
+                Name = "installed first, drive since deleted",
+                AppSlug = tree.AppSlug,
+                // A key of its own, which the reconcile keeps
+                PermissionSet = new PermissionSet(PermissionKeys.ReadCircleMembership),
+                Drives = [],
+                Circles =
+                [
+                    new CreateAppCircleRequest
+                    {
+                        Name = circle.Name, Slug = circle.Slug, Description = circle.Description, Emoji = circle.Emoji,
+                        DriveGrants = [], Permissions = new PermissionSet(PermissionKeys.ReadCircleMembership)
+                    }
+                ]
+            }, ctx);
+        }
+
+        var migration = scope.Resolve<V21ToV22VersionMigrationService>();
+        await migration.ResetInstalledFilesyncAndPhotosDrivesAsync(ctx, CancellationToken.None);
+        Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
+
+        await ZkOwnerSteps.CreateMissingDrivesAsync(frodo, zkMasterKey);
+
+        var circles = (await frodo.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions(includeSystemCircle: true)).Content!;
+        var registrations = frodo.RefitFor<IRefitOwnerAppRegistration>();
+        foreach (var (appId, drive, _, circlePermission) in Apps)
+        {
+            var appCircle = circles.Single(c => c.AppId == appId);
+            Assert.That(appCircle.DriveGrants.Select(g => (g.PermissionedDrive.Drive, g.PermissionedDrive.Permission)),
+                Is.EqualTo(new[] { (drive, circlePermission) }), "the circle is granted the drive again");
+            var app = (await registrations.GetRegisteredApp(new GetAppRequest { AppId = appId })).Content!;
+            Assert.That(app.Grant.DriveGrants.Select(g => g.PermissionedDrive.Drive), Does.Contain(drive),
+                "the app is granted its drive again");
+            Assert.That(app.Grant.PermissionSet.Keys, Does.Contain(PermissionKeys.ReadCircleMembership), "and keeps its keys");
+        }
+    }
+
+    /// <summary>
     /// The old photo-app (<c>32f0bdbf…</c>) was on the tree, so it couldn't be uninstalled and its circle couldn't be
     /// deleted.  Its definitions are gone: it uninstalls like any app, and Photobase, which shares its drive slug, is
     /// untouched.
