@@ -1149,6 +1149,11 @@ was re-run.
 42092307328, the same `TearDown` NullReferenceException; the re-run passed. Filed as #2069, with a hypothesis: the
 multiplexer is disposed twice, once by FusionCache's Redis L2/backplane and once by the container.
 
+**Again 2026-11-26:** `ubuntu/sqlite/release` on PR #2210 (`feed-comment-notification-drive-type-2205`) commit
+`df029ecda`, run 45900169584, the same `TearDown` NullReferenceException and the job's only failure.
+`ubuntu/postgres/release` and `windows/sqlite/debug` passed on the same commit, which changes feed comment
+notifications, nothing in the cache, Redis or this fixture.
+
 ## `Odin.Hosting.Tests.V2.ZeroKnowledge.SelectiveShareTests`
 
 - `ASharesWritesReachTheOwnersDevicesAndItsMember`
