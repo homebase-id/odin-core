@@ -238,6 +238,12 @@ public static class BuiltinApps
 
     public static bool IsTreeDeclaredCircle(Guid circleId) => DeclaredCircleIds.Contains(circleId);
 
+    /// <summary>The app whose tree entry declares this circle, whatever app the stored circle now names; null for any other.</summary>
+    public static Guid? TreeOwnerOfCircle(Guid circleId) => TreeCircleOwners.TryGetValue(circleId, out var appId) ? appId : null;
+
+    private static readonly Dictionary<Guid, Guid> TreeCircleOwners =
+        All.SelectMany(a => a.Circles.Select(c => (CircleId: c.Id.Value, a.AppId))).ToDictionary(x => x.CircleId, x => x.AppId);
+
     /// <summary>
     /// True when the id names an app the platform ships, whether or not it is registered here.
     /// </summary>

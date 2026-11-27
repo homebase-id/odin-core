@@ -448,7 +448,10 @@ namespace Odin.Services.Membership.Circles
                 throw new OdinClientException($"Invalid circle {id}", OdinClientErrorCode.UnknownId);
             }
 
-            var goesWithItsApp = uninstallingAppId is { } appId && circle.AppId == appId && BuiltinApps.IsUninstallable(appId);
+            // By the tree, not only the stored owner, which the owner may move: a core circle moved onto an optional app
+            // must not go with it
+            var goesWithItsApp = uninstallingAppId is { } appId && circle.AppId == appId && BuiltinApps.IsUninstallable(appId) &&
+                                 BuiltinApps.TreeOwnerOfCircle(id) == appId;
             if (BuiltinApps.IsTreeDeclaredCircle(id) && !goesWithItsApp)
             {
                 throw new OdinClientException($"Circle {id} is a built-in circle and cannot be deleted",

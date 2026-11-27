@@ -66,7 +66,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
         ILogger<V17ToV18VersionMigrationService> logger,
         CircleNetworkService circleNetworkService,
         CircleDefinitionService circleDefinitionService,
-        ShamirConfigurationService shamirConfigurationService)
+        ShamirConfigurationService shamirConfigurationService,
+        UninstalledBuiltinApps uninstalledApps)
     {
         /// <summary>
         /// The circle refresh and all three passes, in order.  The ladder runs them as separate phases so a
@@ -334,6 +335,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
             if (await circleDefinitionService.GetCircleAsync(circleId) != null)
             {
                 return true;
+            }
+
+            // Its app was uninstalled, and the circle with it (#2138): nothing is missing
+            if (BuiltinApps.TreeOwnerOfCircle(circleId) is { } appId && (await uninstalledApps.GetAsync()).Contains(appId))
+            {
+                return false;
             }
 
             logger.LogWarning("v17->v18: the {circle} circle does not exist on this identity; nobody was added to it",

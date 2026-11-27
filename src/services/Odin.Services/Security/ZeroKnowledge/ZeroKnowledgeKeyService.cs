@@ -389,7 +389,6 @@ public class ZeroKnowledgeKeyService(
     public async Task<StorageDrive> CreateZeroKnowledgeDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
         await GetRecordOrFailAsync();
-        await builtinProvisioner.AssertNotOfAnUninstalledAppAsync(request.TargetDrive);
 
         // With the app and circles of a browser-made built-in drive (Vault, Email), which waited for it, in one
         // transaction: a failure leaves the drive missing, so the next login creates it again

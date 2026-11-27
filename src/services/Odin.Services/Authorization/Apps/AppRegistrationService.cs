@@ -65,13 +65,18 @@ namespace Odin.Services.Authorization.Apps
                 throw AlreadyRegistered(request.AppId);
             }
 
-            // An app the owner uninstalled is being installed again: its drives come back first, so it can be
-            // granted them (#2138).  Lazy: the provisioner registers the built-in apps through this service.
-            var reinstalling = await builtinProvisioner.Value.PrepareReinstallAsync(request.AppId, odinContext);
+            // An app the owner uninstalled is being installed again (#2138): it comes off the list and its drives and
+            // circles come back first, so it can be granted them, all in one transaction with the save, so a refused
+            // install leaves it as it was.  Lazy: the provisioner registers the built-in apps through this service.
+            var reinstalling = (await uninstalledApps.GetAsync()).Contains(request.AppId);
+            await using var reinstallTx = reinstalling ? await db.BeginStackedTransactionAsync() : null;
+            var requestedDrives = reinstalling
+                ? await builtinProvisioner.Value.PrepareReinstallAsync(request.AppId, request.Drives, odinContext)
+                : request.Drives;
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var (drives, icrKey) = await GrantInputsAsync(request.PermissionSet, request.Drives, odinContext);
+            var (drives, icrKey) = await GrantInputsAsync(request.PermissionSet, requestedDrives, odinContext);
 
             // Before anything is written: the install screen is shown once, so a declared circle refused after
             // the save would never be offered again (#1939).
@@ -112,19 +117,13 @@ namespace Odin.Services.Authorization.Apps
 
                 // After the save: a circle's owning app must exist.
                 createdCircles = await circleDefinitionService.CreateDeclaredCirclesAsync(declaredCircles, request.AppId);
-
-                // With the save: a registration that failed leaves it uninstalled, so the provisioner still skips it.
-                if (reinstalling)
-                {
-                    await uninstalledApps.RemoveAsync(request.AppId);
-                }
-
                 tx.Commit();
             }
 
-            if (reinstalling)
+            if (reinstallTx != null)
             {
                 await builtinProvisioner.Value.RestoreGrantsOnItsDrivesAsync(request.AppId, odinContext);
+                reinstallTx.Commit();
             }
 
             foreach (var circleId in createdCircles)

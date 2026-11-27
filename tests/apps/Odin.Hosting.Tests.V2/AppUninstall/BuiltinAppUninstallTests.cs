@@ -216,13 +216,72 @@ public class BuiltinAppUninstallTests : V2Fixture
             zkKeys: keys.Request);
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a Vault drive was made without its app");
 
-        await owner.Admin.RegisterApp(SystemAppConstants.VaultAppId, new PermissionSetGrantRequest());
+        // Asking, as its own install does, for its drive, which the browser hasn't made again yet
+        await owner.Admin.RegisterApp(SystemAppConstants.VaultAppId, new PermissionSetGrantRequest
+        {
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = vault.TargetDrive, Permission = DrivePermission.ReadWrite } }]
+        });
         var created = await ZkOwnerSteps.CreateMissingDrivesAsync(owner, zkMasterKey);
         Assert.That(created.Keys, Does.Contain(vault.TargetDrive.Alias.Value), "the browser was not asked for the Vault drive");
 
-        var (scope, _) = await MigrationContextAsync(owner);
+        var (scope, ctx) = await MigrationContextAsync(owner);
         Assert.That(await scope.Resolve<CircleDefinitionService>().GetCircleAsync(BuiltinCircles.VaultCircle.Id), Is.Not.Null,
             "the Vault circle didn't follow its drive");
+        var registration = await scope.Resolve<IAppRegistrationService>().GetAppRegistration(SystemAppConstants.VaultAppId, ctx);
+        Assert.That(registration!.Grant.DriveGrants.Select(g => g.PermissionedDrive.Drive), Does.Contain(vault.TargetDrive),
+            "the Vault app wasn't granted its drive once it was made");
+    }
+
+    [Test]
+    public async Task AnUninstalledAppsServerMadeDriveCanNotBeCreatedByHand()
+    {
+        var owner = await LoginAsOwner();
+        Assert.That(await owner.Admin.Uninstall(SystemAppConstants.MomentsAppId, deleteOwnedCirclesAndDrives: true),
+            Is.EqualTo(HttpStatusCode.OK));
+        await RunPurgeAsync(owner);
+
+        var moments = BuiltinDrives.MomentsDrive;
+        var refused = await owner.Admin.TryCreateDrive(moments.TargetDrive, moments.Name, allowAnonymousReads: false,
+            appId: moments.AppId, driveSlug: moments.DriveSlug, driveTypeSlug: moments.DriveTypeSlug);
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a Moments drive was made without its app");
+    }
+
+    /// <summary>A core circle the owner moved onto an optional app doesn't go with it: the tree says whose it is.</summary>
+    [Test]
+    public async Task ACoreCircleMovedOntoAnOptionalAppIsNotDeletedWithIt()
+    {
+        var owner = await LoginAsOwner();
+        var (scope, ctx) = await MigrationContextAsync(owner);
+        await scope.Resolve<CircleNetworkService>().ReassignCircleOwningAppAsync(BuiltinCircles.ChatCircle.Id,
+            SystemAppConstants.MomentsAppId, ctx);
+
+        Assert.That(await owner.Admin.Uninstall(SystemAppConstants.MomentsAppId, deleteOwnedCirclesAndDrives: true),
+            Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await scope.Resolve<CircleDefinitionService>().GetCircleAsync(BuiltinCircles.ChatCircle.Id), Is.Not.Null);
+        Assert.That(await owner.Admin.IsAppRegistered(SystemAppConstants.MomentsAppId), Is.True);
+    }
+
+    /// <summary>
+    /// An uninstall that failed after deleting a drive leaves its app installed: the upgrade's drive pass leaves the drive
+    /// while it is purged, rather than failing the upgrade, and makes it again once the purge is done.
+    /// </summary>
+    [Test]
+    public async Task TheDrivePassLeavesADriveStillBeingPurgedForALaterPass()
+    {
+        var owner = await LoginAsOwner();
+        var (scope, ctx) = await MigrationContextAsync(owner);
+        ((OdinContext)ctx).Tenant = owner.Identity; // the purge job is queued for it
+        await scope.Resolve<DriveDeletionService>().DeleteDriveAsync(WellKnownAppDrives.MomentsDrive.Alias,
+            SystemAppConstants.MomentsAppId, ctx);
+
+        var provisioner = scope.Resolve<BuiltinProvisioner>();
+        var drives = scope.Resolve<IDriveManager>();
+        await provisioner.EnsureDrivesAsync(ctx);
+        Assert.That(await drives.GetDriveAsync(WellKnownAppDrives.MomentsDrive.Alias), Is.Null, "made while being purged");
+
+        await RunPurgeAsync(owner);
+        await provisioner.EnsureDrivesAsync(ctx);
+        Assert.That(await drives.GetDriveAsync(WellKnownAppDrives.MomentsDrive.Alias), Is.Not.Null, "not made once purged");
     }
 
     [TestCase("community")]

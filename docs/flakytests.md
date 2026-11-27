@@ -1279,6 +1279,10 @@ its close (the broadcast removes sockets with no context; not changed by that br
   The `App` and `Guest` cases of the same test passed in that job, the `postgres/release` and `windows/sqlite/debug`
   jobs of the same commit passed, and all three cases pass locally on the branch. The branch only changes feed
   distribution for channel drives, which this test does not touch. Undiagnosed.
+  **Again 2026-11-27, locally (macOS, SQLite, Release):** the `(App[Write],OK)` case, in a full `Odin.Hosting.Tests.V2`
+  run on branch `uninstall-optional-builtin-apps-2138` (#2138), which changes app uninstall and built-in provisioning,
+  not tags or queries. All three cases passed when rerun alone straight after, and the previous full run on the
+  branch passed it. Undiagnosed.
 
 ---
 

@@ -109,7 +109,8 @@ public class AppUninstallService(
         await clientRegistrationStorage.DeleteManyAsync(clientIds);
 
         // With the registration: a provisioned app stays uninstalled across upgrades.  Until here a failure leaves it
-        // installed, and the next upgrade gives it back any drive already deleted, so uninstalling it again is safe.
+        // installed, and a later upgrade gives it back any drive already deleted, once that drive's purge has
+        // finished (BuiltinProvisioner.EnsureDrivesAsync leaves it until then), so uninstalling it again is safe.
         await using var tx = await db.BeginStackedTransactionAsync();
         if (BuiltinProvisioner.IsProvisioned(appId))
         {
