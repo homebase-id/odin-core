@@ -186,8 +186,6 @@ public static class BuiltinDrives
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
-    //
-
     // --- Filesync and Photobase ---
     // SelectiveShare, as their apps create them: the owner's browser makes each with its keys at a password login
     // (BuiltinApps.BrowserMadeDrives), never the server
