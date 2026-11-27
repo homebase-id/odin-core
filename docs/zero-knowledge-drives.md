@@ -331,8 +331,9 @@ without a way back. Steps 1 to 4 are built: plan A, keys and database
    same way the Shamir secret does, and the server deletes its copies.
 4. **Private drives and conversion,** Vault first (see
    [Private drives and conversion](#private-drives-and-conversion)). Vault, Email and Filesync convert from
-   their app; a new identity's Vault and Email are created Private, and every identity's Filesync and Photos drives
-   SelectiveShare, by the owner's browser at a password login; an app may ask for a new drive's model
+   their app; a new identity's Vault and Email are created Private, and a Filesync or Photos drive the identity
+   doesn't yet have is created Private Share, by the owner's browser at a password login (one installed earlier keeps
+   the model it has); an app may ask for a new drive's model
    (`ZkDriveConversionService`, `BuiltinDrives`, `CreateDriveRequest.SharingModel`) **(V)**.
    - Consent seals the app's zero-knowledge key to the app, which opens the keys of the zero-knowledge
      drives it is granted (see [Getting ZK drive keys to an app](#getting-zk-drive-keys-to-an-app)).

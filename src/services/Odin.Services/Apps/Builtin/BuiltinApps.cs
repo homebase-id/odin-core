@@ -211,9 +211,10 @@ public static class BuiltinApps
     public static IEnumerable<CircleDefinition> AllCircles => All.SelectMany(a => a.Circles);
 
     /// <summary>
-    /// True when the app tree declares this circle, and so re-applies its owner, grant rule and
-    /// designation on every version upgrade.  Known by its id, or by its address: an app that became built-in
-    /// after the owner installed it holds its declared circle under the id it was created with (#2136).
+    /// True when the app tree declares this circle.  Known by its id, when the tree re-applies its owner, grant rule
+    /// and designation on version upgrades; or, for a built-in app, by its address: an app that became built-in after
+    /// the owner installed it holds its declared circle under the id it was created with, which the upgrades, looking
+    /// circles up by id, leave as the install made it (#2136).
     /// </summary>
     /// <remarks>
     /// The distinction a client needs before offering to edit any of those: a change to a declared
@@ -229,7 +230,7 @@ public static class BuiltinApps
         AllCircles.Select(c => c.Id.Value).ToHashSet();
 
     private static readonly HashSet<(Guid AppId, OdinSlug Slug)> DeclaredCircleAddresses =
-        AllCircles.Select(c => (c.AppId!.Value, c.Slug)).ToHashSet();
+        SeededCircles.Select(c => (c.AppId!.Value, c.Slug)).ToHashSet();
 
     public static bool IsTreeDeclaredCircle(CircleDefinition circle) =>
         DeclaredCircleIds.Contains(circle.Id.Value) ||

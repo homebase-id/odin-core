@@ -577,13 +577,15 @@ public static class SystemAppConstants
     /// and no permission keys.
     /// </summary>
     public static readonly AppRegistrationRequest FilesyncAppRegistrationRequest =
-        OwnDriveOnly(FilesyncAppId, "Homebase Filesync", WellKnownAppDrives.FilesyncDrive);
+        OwnDriveOnly(FilesyncAppId, "Homebase Filesync", WellKnownAppDrives.FilesyncDrive,
+            DrivePermission.ReadWrite | DrivePermission.React | DrivePermission.Comment);
 
     /// <summary>Built-in (#2136), registered as Photobase registers itself (chat-kmp <c>photobaseAppRegistration</c>).</summary>
     public static readonly AppRegistrationRequest PhotobaseAppRegistrationRequest =
-        OwnDriveOnly(PhotobaseAppId, "Homebase Photos", WellKnownAppDrives.PhotobaseDrive);
+        OwnDriveOnly(PhotobaseAppId, "Homebase Photos", WellKnownAppDrives.PhotobaseDrive, DrivePermission.ReadWrite);
 
-    private static AppRegistrationRequest OwnDriveOnly(Guid appId, string name, TargetDrive drive) => new()
+    private static AppRegistrationRequest OwnDriveOnly(Guid appId, string name, TargetDrive drive, DrivePermission permission) =>
+        new()
     {
         AppId = appId,
         Name = name,
@@ -600,7 +602,7 @@ public static class SystemAppConstants
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = drive,
-                    Permission = DrivePermission.ReadWrite | DrivePermission.React | DrivePermission.Comment
+                    Permission = permission
                 }
             }
         ],

@@ -35,13 +35,14 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    private static readonly (Guid AppId, TargetDrive Drive, CircleDefinition Circle)[] Apps =
+    // CirclePermission is what each app's circle declares in chat-kmp (filesyncAppRegistration, photobaseAppRegistration)
+    private static readonly (Guid AppId, TargetDrive Drive, CircleDefinition Circle, DrivePermission CirclePermission)[] Apps =
     [
-        (SystemAppConstants.FilesyncAppId, WellKnownAppDrives.FilesyncDrive, BuiltinCircles.FilesyncCircle),
-        (SystemAppConstants.PhotobaseAppId, WellKnownAppDrives.PhotobaseDrive, BuiltinCircles.PhotobaseCircle)
+        (SystemAppConstants.FilesyncAppId, WellKnownAppDrives.FilesyncDrive, BuiltinCircles.FilesyncCircle,
+            DrivePermission.Read | DrivePermission.React | DrivePermission.Comment),
+        (SystemAppConstants.PhotobaseAppId, WellKnownAppDrives.PhotobaseDrive, BuiltinCircles.PhotobaseCircle,
+            DrivePermission.Read)
     ];
-
-    private const DrivePermission ReadReactComment = DrivePermission.Read | DrivePermission.React | DrivePermission.Comment;
 
     [Test]
     public async Task ANewIdentityGetsBothAppsAndCircles_AndTheirDrivesSelectiveShareAtAPasswordLogin()
@@ -55,11 +56,12 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
     }
 
     /// <summary>
-    /// The upgrade's pre-pass creates no zero-knowledge drive and the provisioner waits for one, so an existing identity
-    /// gets both from <c>missing-drives</c>, as a new one does.
+    /// The owner setup call (<c>EnsureInitialOwnerSetupAsync</c>, which runs <c>EnsureAllAsync</c>) creates no
+    /// zero-knowledge drive and the provisioner waits for one, so an existing identity gets both from
+    /// <c>missing-drives</c>, as a new one does.  The upgrade's pre-pass only creates server-made drives.
     /// </summary>
     [Test]
-    public async Task AnExistingIdentityWithoutThemGetsThemThroughTheUpgradeThenMissingDrives()
+    public async Task AnExistingIdentityWithoutThemGetsThemFromOwnerSetupThenMissingDrives()
     {
         var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
         var (scope, ctx) = await MigrationContextAsync(frodo);
@@ -85,7 +87,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
         // Installed as the apps install themselves before this: the drive made with the browser's keys, then the app
         // registered declaring its circle, which gets an id of its own.  Sam is a member.
         var installed = new Dictionary<Guid, (StorageDrive Drive, CircleDefinition Circle, RedactedAppRegistration App)>();
-        foreach (var (appId, drive, circle) in Apps)
+        foreach (var (appId, drive, circle, circlePermission) in Apps)
         {
             var tree = BuiltinApps.Builtin.Single(a => a.AppId == appId);
             var definition = tree.Drives.Single();
@@ -107,7 +109,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
                     new CreateAppCircleRequest
                     {
                         Name = circle.Name, Slug = circle.Slug, Description = circle.Description, Emoji = circle.Emoji,
-                        DriveGrants = [Grant(drive, ReadReactComment)], Permissions = new PermissionSet()
+                        DriveGrants = [Grant(drive, circlePermission)], Permissions = new PermissionSet()
                     }
                 ]
             }, ctx);
@@ -116,29 +118,29 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             Assert.That(appCircle!.Id.Value, Is.Not.EqualTo(circle.Id.Value), "precondition: the install made its own circle");
             await scope.Resolve<CircleNetworkService>().EnrollInCircleAsync(appCircle.Id, sam.Identity, ctx);
 
+            // The owner had blocked listing on it, which the drive keeps once it is a system drive
+            await scope.Resolve<DriveManager>().StoreBlockEnumerationAsync((await driveManager.GetDriveAsync(drive.Alias))!.Id, true, ctx);
+
             var app = (await registrations.GetRegisteredApp(new GetAppRequest { AppId = appId })).Content!;
             installed[appId] = ((await driveManager.GetDriveAsync(drive.Alias))!, appCircle, app);
         }
 
-        // Then the upgrade, and the browser's next password login
+        // Then the owner setup call, and the browser's next password login, which finds nothing missing
         await provisioner.EnsureAllAsync(ctx);
         var missing = (await ZkOwnerSteps.Client(frodo).GetMissingDrives()).Content!;
         Assert.That(missing.Select(d => d.TargetDrive), Has.None.AnyOf(Apps.Select(a => a.Drive).ToArray()));
-        foreach (var (_, drive, _) in Apps)
-        {
-            await provisioner.EnsureAppOfBrowserMadeDriveAsync(drive.Alias, ctx);
-        }
 
         var circles = (await frodo.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions(includeSystemCircle: true)).Content!;
         var samsCircles = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant.CircleGrants
             .Select(c => c.CircleId).ToList();
-        foreach (var (appId, drive, circle) in Apps)
+        foreach (var (appId, drive, circle, _) in Apps)
         {
             var (driveBefore, circleBefore, appBefore) = installed[appId];
             var driveAfter = (await driveManager.GetDriveAsync(drive.Alias))!;
             Assert.That(driveAfter.Data.ZkMasterKeyEncryptedStorageKey, Is.EqualTo(driveBefore.Data.ZkMasterKeyEncryptedStorageKey),
                 "the same drive key");
             Assert.That(driveAfter.Created, Is.EqualTo(driveBefore.Created));
+            Assert.That(driveAfter.BlockEnumeration, Is.True, "the owner's block on listing it stays");
 
             var appCircles = circles.Where(c => c.AppId == appId).ToList();
             Assert.That(appCircles.Select(c => c.Id.Value), Is.EqualTo(new[] { circleBefore.Id.Value }),
@@ -163,7 +165,6 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
     public async Task TheOldPhotoAppUninstallsWithItsDriveAndCircle_AndPhotobaseIsUntouched()
     {
         var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
-        await ZkOwnerSteps.CreateMissingDrivesAsync(frodo, zkMasterKey);
 
         var oldAppId = Guid.Parse("32f0bdbf-017f-4fc0-8004-2d4631182d1e");
         var oldDrive = new TargetDrive
@@ -180,6 +181,11 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             Drives = [Grant(oldDrive, DrivePermission.Read)],
             PermissionSet = new PermissionSet()
         }, oldAppId);
+
+        // Photobase's drive comes after the old one, with the same slug "photos" under another app
+        await ZkOwnerSteps.CreateMissingDrivesAsync(frodo, zkMasterKey);
+        Assert.That((await frodo.Admin.GetDrives()).Any(d => d.TargetDriveInfo == WellKnownAppDrives.PhotobaseDrive), Is.True,
+            "Photobase's drive is made beside the old one");
 
         var registrations = frodo.RefitFor<IRefitOwnerAppRegistration>();
         Assert.That((await registrations.GetRegisteredApp(new GetAppRequest { AppId = oldAppId })).Content!.IsBuiltIn, Is.False);
@@ -200,7 +206,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
     {
         var missing = (await ZkOwnerSteps.Client(owner).GetMissingDrives()).Content!;
         var registrations = owner.RefitFor<IRefitOwnerAppRegistration>();
-        foreach (var (appId, drive, _) in Apps)
+        foreach (var (appId, drive, _, _) in Apps)
         {
             var request = missing.SingleOrDefault(d => d.TargetDrive == drive);
             Assert.That(request?.SharingModel, Is.EqualTo(DriveSharingModel.SelectiveShare), $"{drive.Alias} is missing, SelectiveShare");
@@ -213,7 +219,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
     private static async Task AssertProvisionedAsync(OwnerSession owner)
     {
         var registrations = owner.RefitFor<IRefitOwnerAppRegistration>();
-        foreach (var (appId, drive, circle) in Apps)
+        foreach (var (appId, drive, circle, circlePermission) in Apps)
         {
             var created = await owner.Admin.GetDrive(drive);
             Assert.That(created.SharingModel, Is.EqualTo(DriveSharingModel.SelectiveShare));
@@ -226,7 +232,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             var definition = await owner.Admin.GetCircleDefinition(circle.Id);
             Assert.That(definition.AppId, Is.EqualTo(appId));
             var grant = definition.DriveGrants.Single().PermissionedDrive;
-            Assert.That((grant.Drive, grant.Permission), Is.EqualTo((drive, ReadReactComment)));
+            Assert.That((grant.Drive, grant.Permission), Is.EqualTo((drive, circlePermission)));
         }
 
         Assert.That((await ZkOwnerSteps.Client(owner).GetMissingDrives()).Content, Is.Empty);

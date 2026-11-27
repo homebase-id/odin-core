@@ -26,7 +26,7 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - **Server Share drives are zero knowledge at rest:** the server stores the drive key locked, and opens it only in
   memory while the owner, one of the owner's apps or a member is online and calling the API **(not traced for every
   key path, inferred)**.
-- **Zero-knowledge drives** (sharing model Private or Private Share: a new identity's Vault and Email, and every identity's Filesync and Photos drives, from the start
+- **Zero-knowledge drives** (sharing model Private or Private Share: a new identity's Vault and Email, and the Filesync and Photos drives the server now provisions, from the start
   (`BuiltinDrives`), an older identity's Vault, Email and Filesync and every identity's Shard Recovery once the
   browser converts them (`ZkDriveConversionService.ConvertibleDrives`), and apps' own, such as Filesync's Private Share
   drive) are zero knowledge: the server never holds a key that opens them, not even in memory. They have no master-key

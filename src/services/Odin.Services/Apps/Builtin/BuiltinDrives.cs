@@ -255,9 +255,9 @@ public static class BuiltinDrives
     public static bool IsProtected(Guid driveId) => Protected.Any(d => d.Alias == driveId);
 
     /// <summary>
-    /// What a system drive's built-in definition says of <see cref="StorageDrive.BlockEnumeration"/>, which is what the
-    /// drive has: the owner can't change it on a system drive, and one stored before the option existed has it off.
-    /// Null for every other drive.
+    /// What a system drive's built-in definition says of <see cref="StorageDrive.BlockEnumeration"/>: when true, the drive
+    /// blocks enumeration whatever is stored, since the owner can't change it on a system drive and one stored before the
+    /// option existed has it off.  Null for every other drive.
     /// </summary>
     public static bool? BlockEnumerationOf(TargetDrive drive) =>
         drive != null && ProtectedBlockEnumeration.Value.TryGetValue(drive, out var blockEnumeration) ? blockEnumeration : null;

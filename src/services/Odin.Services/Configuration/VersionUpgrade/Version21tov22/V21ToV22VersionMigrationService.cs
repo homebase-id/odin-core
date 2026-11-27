@@ -18,7 +18,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version21tov22
     /// A WebDrop drive made before the option existed already blocks enumeration: a system drive has what its built-in
     /// definition says (<see cref="StorageDrive.BlockEnumeration"/>).  But its stored value is still off, so anything that
     /// reads the stored details directly -- a report, a backup, an export -- sees a drive anyone may list.  Every drive of
-    /// WebDrop's type, the system one included, now stores what it does.  Except one that allows subscriptions, which can't
+    /// WebDrop's type, the system one included, now stores it, as the issue asks.  For the system drive that only records
+    /// what it does; an owner-made drive of the type stops being listable by anyone but the owner, its apps and the
+    /// server.  Except one that allows subscriptions, which can't
     /// block enumeration (<c>DriveManager.AssertListingFits</c>): storing it would throw and fail the upgrade on every
     /// attempt, so that drive is left as it is and logged.
     /// </remarks>
