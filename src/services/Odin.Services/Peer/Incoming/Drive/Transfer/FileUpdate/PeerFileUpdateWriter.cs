@@ -170,6 +170,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             // New inbox items carry the metadata on the inbox row (metadataOverride) and staged nothing on disk.
             // Legacy/in-flight items still have a .metadata file in the staging folder; read it (dual-read).
             FileMetadata incomingMetadata = metadataOverride;
+            if (incomingMetadata == null && sourceArea != StagingArea.Inbox)
+            {
+                // Only a pre-upgrade inbox item has its metadata in a file; a direct write passes it (#2223)
+                throw new OdinSystemException($"No metadata for file {file} staged in {sourceArea}");
+            }
+
             if (incomingMetadata == null)
             {
                 var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile",

@@ -57,6 +57,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // Legacy/in-flight items (queued before the metadata moved onto the row) still have a .metadata file in
             // the staging folder, so fall back to reading it. This is the dual-read transition.
             FileMetadata metadata = metadataOverride;
+            if (metadata == null && sourceArea != StagingArea.Inbox)
+            {
+                // Only a pre-upgrade inbox item has its metadata in a file; a direct write passes it (#2223)
+                throw new OdinSystemException($"No metadata for file {file} staged in {sourceArea}");
+            }
+
             if (metadata == null)
             {
                 var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>

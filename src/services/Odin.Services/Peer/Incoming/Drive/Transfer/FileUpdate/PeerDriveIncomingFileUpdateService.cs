@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -40,10 +39,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         private InternalDriveFileId _file;
         private bool _isDirectWrite;
 
-        // The metadata a direct write commits, as it arrived. Kept in memory: it used to be staged as a .metadata file and read
-        // back (#2223). Round-tripped through the serializer so the writer sees exactly what it read from that file.
-        private FileMetadata _directWriteMetadata;
-
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
         public async Task InitializeIncomingTransfer(EncryptedRecipientFileUpdateInstructionSet transferInstructionSet,
@@ -76,7 +71,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             _file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
             _updateInstructionSet = transferInstructionSet;
-            _directWriteMetadata = _isDirectWrite ? OdinSystemSerializer.DeserializeOrThrow<FileMetadata>(OdinSystemSerializer.Serialize(fileMetadata)) : null;
         }
 
         public async Task AcceptPayload(PayloadDescriptor descriptor, bool isEncrypted, Stream data, IOdinContext odinContext)
@@ -168,7 +162,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             await fileSystem.Storage.AssertCanWriteToDrive(_file.DriveId, odinContext);
 
-            var directWriteSuccess = await TryDirectWriteFileAsync(odinContext);
+            var directWriteSuccess = await TryDirectWriteFileAsync(fileMetadata, odinContext);
 
             if (directWriteSuccess)
             {
@@ -182,7 +176,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return await RouteToInboxAsync(fileMetadata, odinContext);
         }
 
-        private async Task<bool> TryDirectWriteFileAsync(IOdinContext odinContext)
+        private async Task<bool> TryDirectWriteFileAsync(FileMetadata fileMetadata, IOdinContext odinContext)
         {
             if (!_isDirectWrite)
             {
@@ -194,7 +188,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
             // S1110 unencrypted, S1205 with the storage key, as sent, or on a zero-knowledge drive: decided on arrival
             await updateWriter.UpsertFileAsync(_file, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null,
-                sourceArea: StagingArea.Upload, metadataOverride: _directWriteMetadata);
+                sourceArea: StagingArea.Upload, metadataOverride: fileMetadata);
             return true;
         }
 
