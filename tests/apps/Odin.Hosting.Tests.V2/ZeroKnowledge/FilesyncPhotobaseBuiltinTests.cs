@@ -269,8 +269,7 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
         var circles = (await frodo.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions(includeSystemCircle: true)).Content!;
         Assert.That(circles.Any(c => c.Id == oldCircleId), Is.False, "the old circle went with its app");
         Assert.That(circles.Any(c => c.Id == BuiltinCircles.PhotobaseCircle.Id), Is.True, "Photobase's circle stays");
-        Assert.That((await registrations.GetRegisteredApp(new GetAppRequest { AppId = SystemAppConstants.PhotobaseAppId })).Content,
-            Is.Not.Null, "Photobase stays");
+        Assert.That(await frodo.Admin.IsAppRegistered(SystemAppConstants.PhotobaseAppId), Is.True, "Photobase stays");
     }
 
     private static async Task AssertWaitingForTheirDrivesAsync(OwnerSession owner)

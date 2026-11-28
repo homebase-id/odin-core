@@ -50,7 +50,7 @@
 ## Double-check list as the feature grows
 
 - [ ] **Other apps with contact write access.** Re-scan `SystemAppConstants` (and any new system app)
-  before release: Owner app, Photo app, Feed app — do any gain `ContactDrive` write access? If so add
+  before release: Owner app, Feed app — do any gain `ContactDrive` write access? If so add
   `ManageContacts` to their defaults too. The migration already covers *any* app with contact write
   access, system or 3rd-party, so the migration is the safety net; the defaults are the per-app intent.
 - [ ] **Migration re-run safety.** `UpgradeAsync` is idempotent (skips apps that already have the
