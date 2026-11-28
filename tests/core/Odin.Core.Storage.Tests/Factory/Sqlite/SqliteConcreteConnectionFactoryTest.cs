@@ -1,5 +1,6 @@
 using System;
 using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -83,6 +84,47 @@ public class SqliteConcreteConnectionFactoryTest : IocTestBase
             $"the WAL should have grown past the limit while the reader held it: peak {peak} bytes");
         Assert.That(after, Is.LessThanOrEqualTo(SqliteConcreteConnectionFactory.JournalSizeLimitBytes),
             $"the WAL stayed at {after} bytes after the reader ended (peak {peak} bytes)");
+    }
+
+    [Test]
+    public async Task AWriterWaitingForTheLockGetsItSoonAfterItIsReleased()
+    {
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = Path.Combine(TempFolder, $"{Guid.NewGuid()}.db"),
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Cache = SqliteCacheMode.Private,
+            Pooling = false
+        }.ToString();
+
+        await using var holder = (SqliteConnection)await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
+        await using var waiter = (SqliteConnection)await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
+        await using (var cmd = holder.CreateCommand())
+        {
+            cmd.CommandText = "CREATE TABLE test (name TEXT);";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // The holder takes the write lock and keeps it for 30 ms
+        await using var holderTx = holder.BeginTransaction(deferred: false);
+        var release = Task.Run(async () =>
+        {
+            await Task.Delay(30);
+            holderTx.Commit();
+        });
+
+        // The waiter asks for the write lock while it is held. Without SQLite's busy timeout, Microsoft.Data.Sqlite sleeps
+        // 150 ms before it looks again, so this would take at least 150 ms.
+        var stopwatch = Stopwatch.StartNew();
+        await using (var waiterTx = await Task.Run(() => waiter.BeginTransaction(deferred: false)))
+        {
+            stopwatch.Stop();
+            waiterTx.Commit();
+        }
+
+        await release;
+        Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(150),
+            $"the waiter got the write lock {stopwatch.ElapsedMilliseconds} ms after asking; the holder released it after 30 ms");
     }
 
     private string NewDatabasePath() => Path.Combine(TempFolder, $"{Guid.NewGuid()}.db");

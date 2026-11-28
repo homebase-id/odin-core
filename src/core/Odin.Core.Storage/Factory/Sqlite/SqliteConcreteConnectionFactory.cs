@@ -11,6 +11,9 @@ internal static class SqliteConcreteConnectionFactory
 
     internal const long JournalSizeLimitBytes = 16 * 1024 * 1024;
 
+    // Microsoft.Data.Sqlite's default command timeout, 30 s
+    internal const int BusyTimeoutMs = 30_000;
+
     internal static async Task<DbConnection> CreateAsync(string connectionString)
     {
         var connection = new SqliteConnection(connectionString);
@@ -52,6 +55,12 @@ internal static class SqliteConcreteConnectionFactory
         // usually when the host stops. The limit is above the normal cycle (the autocheckpoint at 1000 pages, ~4 MB), so a
         // normal reset doesn't truncate.
         cmd.CommandText = $"PRAGMA journal_size_limit={JournalSizeLimitBytes};";
+        await cmd.ExecuteNonQueryAsync();
+
+        // Let SQLite wait for a busy lock itself, retrying within milliseconds of its release. Without this,
+        // Microsoft.Data.Sqlite retries a busy statement only every 150 ms, so a waiter keeps losing the lock to writers
+        // that arrive in between. Same budget as the command timeout, so nothing waits longer or fails sooner than before.
+        cmd.CommandText = $"PRAGMA busy_timeout={BusyTimeoutMs};";
         await cmd.ExecuteNonQueryAsync();
 
         return connection;
