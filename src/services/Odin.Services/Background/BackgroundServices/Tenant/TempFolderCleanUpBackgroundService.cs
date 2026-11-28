@@ -54,8 +54,9 @@ public static class UploadFolderCleanUp
 
     /// <summary>
     /// Files last written before this are removed: those older than <paramref name="ageThreshold"/>, and anything
-    /// staged before the process started. The upload folder is local to this host, so no request still running can
-    /// own a file from before the start (#2221: deletes still queued at shutdown are left behind).
+    /// staged before the process started. Upload staging is always on this host's local disk (docs/load-balancing.md),
+    /// so no request still running can own a file from before the start (#2221: deletes still queued at shutdown are
+    /// left behind).
     /// </summary>
     public static DateTime Cutoff(DateTime nowUtc, DateTime processStartedUtc, TimeSpan ageThreshold)
     {

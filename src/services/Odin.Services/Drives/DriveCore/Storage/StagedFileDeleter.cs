@@ -26,16 +26,17 @@ public sealed class StagedFileDeleter : IDisposable
 
     public void Enqueue(IEnumerable<string> paths)
     {
-        try
+        foreach (var path in paths)
         {
-            foreach (var path in paths)
+            try
             {
                 _queue.Add(path);
             }
-        }
-        catch (InvalidOperationException)
-        {
-            // The host is stopping: the temp-folder clean-up removes these after the next start
+            catch (InvalidOperationException) when (_queue.IsAddingCompleted)
+            {
+                // The host is stopping: the temp-folder clean-up removes these after the next start
+                return;
+            }
         }
     }
 
@@ -46,6 +47,10 @@ public sealed class StagedFileDeleter : IDisposable
             try
             {
                 File.Delete(path);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // Its folder is gone already (a drive purge removes the drive's whole upload folder)
             }
             catch (Exception e)
             {
