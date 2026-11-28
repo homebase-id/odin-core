@@ -31,6 +31,7 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 /// <summary>
 /// Filesync and Photobase are built-in (#2136): every identity has their apps and circles, and their SelectiveShare drives
 /// once the owner's browser makes them at a password login.  An identity that installed either first keeps what it has.
+/// The old photo-app's definitions are retired, so an identity that used it can uninstall it.
 /// </summary>
 [TestFixture]
 public class FilesyncPhotobaseBuiltinTests : V2Fixture
@@ -224,6 +225,59 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
                 "the app is granted its drive again");
             Assert.That(app.Grant.PermissionSet.Keys, Does.Contain(PermissionKeys.ReadCircleMembership), "and keeps its keys");
         }
+    }
+
+    /// <summary>
+    /// The old photo-app (<c>32f0bdbf…</c>) was on the tree, so it couldn't be uninstalled and its circle couldn't be
+    /// deleted.  Its definitions are gone: it uninstalls like any app, and Photobase, which shares its drive slug, is
+    /// untouched.
+    /// </summary>
+    [Test]
+    public async Task TheOldPhotoAppUninstallsWithItsDriveAndCircle_AndPhotobaseIsUntouched()
+    {
+        var (frodo, zkMasterKey) = await ZeroKnowledgeFrodoAsync();
+
+        var oldAppId = Guid.Parse("32f0bdbf-017f-4fc0-8004-2d4631182d1e");
+        var oldDrive = new TargetDrive
+        {
+            Alias = Guid.Parse("6483b7b1f71bd43eb6896c86148668cc"),
+            Type = Guid.Parse("2af68fe72fb84896f39f97c59d60813a")
+        };
+        var oldCircleId = Guid.Parse("d9471317728a431c94d9842118acb676");
+        await frodo.Admin.EnsureAppRegistered(oldAppId);
+        await frodo.Admin.CreateDrive(oldDrive, "Photo Library", allowAnonymousReads: false, appId: oldAppId,
+            driveSlug: new OdinSlug("photos"), driveTypeSlug: new OdinSlug("photos"));
+        await frodo.Admin.CreateCircle(oldCircleId, "Photos", new PermissionSetGrantRequest
+        {
+            Drives = [Grant(oldDrive, DrivePermission.Read)],
+            PermissionSet = new PermissionSet()
+        }, oldAppId);
+
+        // As a real one does, the old circle has a connected member, whose grant the uninstall takes away
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+        var enroll = await frodo.Connections.GrantCircle(oldCircleId, sam.Identity);
+        Assert.That(enroll.IsSuccessStatusCode, Is.True, enroll.Error?.Content);
+
+        // Photobase's drive comes after the old one, with the same slug "photos" under another app
+        await ZkOwnerSteps.CreateMissingDrivesAsync(frodo, zkMasterKey);
+        Assert.That((await frodo.Admin.GetDrives()).Any(d => d.TargetDriveInfo == WellKnownAppDrives.PhotobaseDrive), Is.True,
+            "Photobase's drive is made beside the old one");
+
+        var registrations = frodo.RefitFor<IRefitOwnerAppRegistration>();
+        Assert.That((await registrations.GetRegisteredApp(new GetAppRequest { AppId = oldAppId })).Content!.IsBuiltIn, Is.False);
+        var uninstall = await registrations.Uninstall(new UninstallAppRequest { AppId = oldAppId, DeleteOwnedCirclesAndDrives = true });
+        Assert.That(uninstall.StatusCode, Is.EqualTo(HttpStatusCode.OK), uninstall.Error?.Content);
+
+        var drives = await frodo.Admin.GetDrives();
+        Assert.That(drives.Any(d => d.TargetDriveInfo == oldDrive), Is.False, "the old drive went with its app");
+        Assert.That(drives.Any(d => d.TargetDriveInfo == WellKnownAppDrives.PhotobaseDrive), Is.True, "Photobase's drive stays");
+        var circles = (await frodo.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions(includeSystemCircle: true)).Content!;
+        Assert.That(circles.Any(c => c.Id == oldCircleId), Is.False, "the old circle went with its app");
+        Assert.That(circles.Any(c => c.Id == BuiltinCircles.PhotobaseCircle.Id), Is.True, "Photobase's circle stays");
+        var samsCircles = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant.CircleGrants;
+        Assert.That(samsCircles.Any(c => c.CircleId == oldCircleId), Is.False, "Sam no longer holds the old circle");
+        Assert.That(await frodo.Admin.IsAppRegistered(SystemAppConstants.PhotobaseAppId), Is.True, "Photobase stays");
     }
 
     private static async Task AssertWaitingForTheirDrivesAsync(OwnerSession owner)

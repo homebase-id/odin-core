@@ -244,37 +244,6 @@ public class ClientTypeAppController : BaseController
 
     //
 
-    // private const string PhotoDriveAlias = "6483b7b1f71bd43eb6896c86148668cc";
-    // private const string PhotoDriveType = "2af68fe72fb84896f39f97c59d60813a";
-    //
-    // private YouAuthAppParameters GetAppPhotosParams()
-    // {
-    //     var driveParams = new[]
-    //     {
-    //         new
-    //         {
-    //             a = PhotoDriveAlias,
-    //             t = PhotoDriveType,
-    //             n = "Photo Library",
-    //             d = "Place for your memories",
-    //             p = 3
-    //         },
-    //     };
-    //     var appParams = new YouAuthAppParameters
-    //     {
-    //         AppName = "Odin - Photos",
-    //         AppOrigin = "dev.dotyou.cloud:3005",
-    //         AppId = "32f0bdbf-017f-4fc0-8004-2d4631182d1e",
-    //         ClientFriendly = "Firefox | macOS",
-    //         DrivesParam = OdinSystemSerializer.Serialize(driveParams),
-    //         Return = "backend-will-decide",
-    //     };
-    //
-    //     return appParams;
-    // }
-
-    //
-
     private const string WhateverDriveAlias = "11111111111111111111111111111111";
     private const string WhateverDriveType = "22222222222222222222222222222222";
 

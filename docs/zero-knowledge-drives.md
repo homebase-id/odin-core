@@ -439,7 +439,7 @@ browser does at login **(I: client behaviour not read)**.
   | Shard Recovery | Private, converted by the owner's browser (at login, **I**) | Friends deposit shards |
   | Chat | Server Share; Private **(to build)** | Owner reads; others only deposit |
   | Contacts, Feed, Wallet, Mail | Server Share; whether they become Private is **Not decided** | Contacts, Feed and Wallet are `OwnerOnly` **(V)** |
-  | Photo Library, Sticker, Location, Moments | Server Share; Private Share is **Not decided**: converting a drive to Private Share may never be built ([selective-share-plan.md](selective-share-plan.md)) | Private, with chosen shares |
+  | Sticker, Location, Moments | Server Share; Private Share is **Not decided**: converting a drive to Private Share may never be built ([selective-share-plan.md](selective-share-plan.md)) | Private, with chosen shares |
   | Lists | Server Share **(V)** | marked as a community channel **(V)**, which a zero-knowledge drive can't be |
   | Homepage Config, Profile, WebDrop, Public Posts | Server Share **(V)** | public (`AllowAnonymousReads`) **(V)**, which a zero-knowledge drive can't be |
   | Community, transient temp | Server Share **(V)** | Members read everything; the transient drive stages sends |

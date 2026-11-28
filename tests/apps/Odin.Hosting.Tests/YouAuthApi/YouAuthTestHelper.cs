@@ -28,10 +28,6 @@ public static class YouAuthTestHelper
     public const string HomeCookieName = "XT32";
     public const string AppAuthTokenHeaderName = "BX0900";
     
-    public static readonly Guid PhotosAppId = Guid.Parse("32f0bdbf-017f-4fc0-8004-2d4631182d1e");
-    public static readonly Guid PhotosDriveType = Guid.Parse("2af68fe7-2fb8-4896-f39f-97c59d60813a");
-    public static readonly Guid PhotosDriveAlias = Guid.Parse("6483b7b1-f71b-d43e-b689-6c86148668cc");
-    
     //
 
     public static T Deserialize<T>(string json)
