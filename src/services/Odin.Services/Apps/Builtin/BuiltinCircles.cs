@@ -225,6 +225,41 @@ public static class BuiltinCircles
         Permissions = new PermissionSet { Keys = [] }
     };
 
+    // --- Filesync and Photobase ---
+    // As their apps declare them (chat-kmp filesyncAppRegistration, photobaseAppRegistration): Filesync's members read,
+    // react and comment, Photobase's only read.  No Write: drive Write lets a member add files anywhere, whatever their
+    // share rows say.  An identity that installed the app first holds
+    // the circle under another id; it is found by its slug (CircleDefinitionService.EnsureCircleExistsAsync).
+    private const DrivePermission ReadReactComment = DrivePermission.Read | DrivePermission.React | DrivePermission.Comment;
+
+    public static readonly CircleDefinition FilesyncCircle = new()
+    {
+        Id = Guid.Parse("0b0f1f3619d343c49ae1b812f93d9e8a"),
+        Name = "Filesync",
+        Slug = (OdinSlug)"filesync",
+        Description = "People who can see the files you share through Homebase Filesync",
+        Emoji = "📁",
+        AppId = SystemAppConstants.FilesyncAppId,
+        GrantOn = CircleGrantOn.None,
+        Designation = CircleDesignation.Personal,
+        DriveGrants = [Grant(WellKnownAppDrives.FilesyncDrive, ReadReactComment)],
+        Permissions = new PermissionSet { Keys = [] }
+    };
+
+    public static readonly CircleDefinition PhotobaseCircle = new()
+    {
+        Id = Guid.Parse("49f65048debb460ab5572095e9900125"),
+        Name = "Photos",
+        Slug = (OdinSlug)"photobase",
+        Description = "People who can see the photos you share through Homebase Photos",
+        Emoji = "📷",
+        AppId = SystemAppConstants.PhotobaseAppId,
+        GrantOn = CircleGrantOn.None,
+        Designation = CircleDesignation.Personal,
+        DriveGrants = [Grant(WellKnownAppDrives.PhotobaseDrive, DrivePermission.Read)],
+        Permissions = new PermissionSet { Keys = [] }
+    };
+
     // --- SocialSync ---
     public static readonly CircleDefinition SocialSyncCircle = new()
     {

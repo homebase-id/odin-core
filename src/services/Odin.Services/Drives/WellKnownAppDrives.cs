@@ -165,6 +165,13 @@ public static class WellKnownAppDrives
         Type = Guid.Parse("5da48122-e946-487a-8b9d-589642f3c91d")
     };
 
+    /// <summary>The Photobase app's drive (chat-kmp <c>PhotobaseProtocol</c>).</summary>
+    public static readonly TargetDrive PhotobaseDrive = new()
+    {
+        Alias = Guid.Parse("e3e5d4ed-462a-4fc0-835c-2d3722820be8"),
+        Type = Guid.Parse("764a8e3a-13b9-46e1-b53f-092679dc9953")
+    };
+
     /// <summary>The Webdrop app's drive (chat-kmp <c>webDropLabeledDrive</c>).</summary>
     public static readonly TargetDrive WebDropDrive = new()
     {

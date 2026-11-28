@@ -193,7 +193,22 @@ public static class BuiltinDrives
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
-    //
+    // --- Filesync and Photobase ---
+    // SelectiveShare, as their apps create them: the owner's browser makes each with its keys at a password login
+    // (BuiltinApps.BrowserMadeDrives), never the server
+    public static readonly CreateDriveRequest FilesyncDrive = new()
+    {
+        Name = "Filesync", TargetDrive = WellKnownAppDrives.FilesyncDrive, Metadata = "",
+        AppId = SystemAppConstants.FilesyncAppId, DriveSlug = (OdinSlug)"filesync", DriveTypeSlug = (OdinSlug)"filesync",
+        AllowAnonymousReads = false, OwnerOnly = false, SharingModel = DriveSharingModel.SelectiveShare
+    };
+
+    public static readonly CreateDriveRequest PhotobaseDrive = new()
+    {
+        Name = "Photos", TargetDrive = WellKnownAppDrives.PhotobaseDrive, Metadata = "",
+        AppId = SystemAppConstants.PhotobaseAppId, DriveSlug = (OdinSlug)"photos", DriveTypeSlug = (OdinSlug)"photos",
+        AllowAnonymousReads = false, OwnerOnly = false, SharingModel = DriveSharingModel.SelectiveShare
+    };
 
     // --- Webdrop ---
     public static readonly CreateDriveRequest WebDropDrive = new()
@@ -236,7 +251,9 @@ public static class BuiltinDrives
         WellKnownAppDrives.LocationDrive,
         WellKnownAppDrives.EmailAppDrive,
         WellKnownAppDrives.WebDropDrive,
-        WellKnownAppDrives.VaultDrive
+        WellKnownAppDrives.VaultDrive,
+        WellKnownAppDrives.FilesyncDrive,
+        WellKnownAppDrives.PhotobaseDrive
     ];
 
     /// <summary>
@@ -249,13 +266,23 @@ public static class BuiltinDrives
     /// drive has: the owner can't change it on a system drive, and one stored before the option existed has it off.
     /// Null for every other drive.
     /// </summary>
-    public static bool? BlockEnumerationOf(TargetDrive drive) =>
-        drive != null && ProtectedBlockEnumeration.Value.TryGetValue(drive, out var blockEnumeration) ? blockEnumeration : null;
+    public static bool? BlockEnumerationOf(TargetDrive drive) => DefinitionOf(drive)?.BlockEnumeration;
+
+    /// <summary>A system drive's built-in definition; null for every other drive.</summary>
+    public static CreateDriveRequest DefinitionOf(TargetDrive drive) =>
+        drive != null && ProtectedDefinitions.Value.TryGetValue(drive, out var definition) ? definition : null;
+
+    /// <summary>Whether the drive is unarchived and stores the settings its built-in definition gives.</summary>
+    public static bool MatchesDefinition(StorageDrive drive, CreateDriveRequest definition) =>
+        !drive.IsArchived &&
+        drive.Data.AllowAnonymousReads == definition.AllowAnonymousReads &&
+        drive.Data.AllowSubscriptions == definition.AllowSubscriptions &&
+        drive.Data.BlockEnumeration == definition.BlockEnumeration;
 
     // Built on first use: the app tree reads this class's fields, so reading it from a static initializer here could see
     // it half made
-    private static readonly Lazy<Dictionary<TargetDrive, bool>> ProtectedBlockEnumeration = new(() => BuiltinApps.AllDrives
+    private static readonly Lazy<Dictionary<TargetDrive, CreateDriveRequest>> ProtectedDefinitions = new(() => BuiltinApps.AllDrives
         .Where(d => Protected.Contains(d.TargetDrive))
         .DistinctBy(d => d.TargetDrive)
-        .ToDictionary(d => d.TargetDrive, d => d.BlockEnumeration));
+        .ToDictionary(d => d.TargetDrive));
 }

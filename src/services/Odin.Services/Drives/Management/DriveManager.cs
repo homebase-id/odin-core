@@ -319,6 +319,28 @@ public class DriveManager : IDriveManager
         }
     }
 
+    /// <summary>
+    /// The upgrades' reset of a drive the owner made before it became a system drive (Filesync, Photos: #2136), whose
+    /// settings an owner can no longer change: unarchives it and stores the settings its built-in definition gives.
+    /// </summary>
+    public async Task ResetToBuiltinDefinitionAsync(Guid driveId, IOdinContext odinContext)
+    {
+        var storageDrive = await DriveToChangeAsync(driveId, refuseSystemDrive: false, odinContext);
+        var definition = BuiltinDrives.DefinitionOf(storageDrive.TargetDriveInfo) ??
+                         throw new OdinSystemException($"Drive {driveId} has no built-in definition");
+
+        if (BuiltinDrives.MatchesDefinition(storageDrive, definition))
+        {
+            return;
+        }
+
+        storageDrive.IsArchived = false;
+        storageDrive.AllowAnonymousReads = definition.AllowAnonymousReads;
+        storageDrive.AllowSubscriptions = definition.AllowSubscriptions;
+        storageDrive.BlockEnumeration = definition.BlockEnumeration;
+        await SaveDriveChangeAsync(storageDrive, odinContext);
+    }
+
     public async Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext)
     {
         // Deliberately no system-drive or owner-only guard here, unlike the sibling setters. The

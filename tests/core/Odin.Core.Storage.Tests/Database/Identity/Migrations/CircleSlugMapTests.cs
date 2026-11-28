@@ -35,7 +35,11 @@ public class CircleSlugMapTests
             .Where(kv => !retiredSystemCircles.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
-        Assert.That(frozen, Is.EquivalentTo(live));
+        // Declared after the migration ran, so no existing row needed slugging (#2136)
+        var addedSince = new[] { BuiltinCircles.FilesyncCircle.Id.Value, BuiltinCircles.PhotobaseCircle.Id.Value };
+        var liveThen = live.Where(kv => !addedSince.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        Assert.That(frozen, Is.EquivalentTo(liveThen));
     }
 
     [Test]

@@ -88,6 +88,12 @@ public static class SystemAppConstants
     public static readonly Guid SocialSyncAppId = Guid.Parse("99bbae1f-4c99-4944-aecd-0356bfe8974e");
     public static readonly Guid WebdropAppId = Guid.Parse("17bbd664-eed2-44d9-a66c-ddd310762b32");
 
+    /// <summary>The id the Filesync desktop app and chat-kmp register with (filesync <c>app.rs</c>, <c>filesyncAppRegistration</c>).</summary>
+    public static readonly Guid FilesyncAppId = Guid.Parse("03ae1a49cdae483f9da7fedc0e8f20b9");
+
+    /// <summary>The id Photobase registers with (chat-kmp <c>PhotobaseProtocol.AppId</c>).</summary>
+    public static readonly Guid PhotobaseAppId = Guid.Parse("704334ede383476bb82e2b0d5bab36fd");
+
 
     public static readonly AppRegistrationRequest ChatAppRegistrationRequest = new()
     {
@@ -565,5 +571,42 @@ public static class SystemAppConstants
         PermissionSet = new PermissionSet(
             PermissionKeys.ReadConnections,
             PermissionKeys.SendPushNotifications)
+    };
+
+    /// <summary>
+    /// Built-in (#2136), registered as the app registers itself (chat-kmp <c>filesyncAppRegistration</c>): its own drive,
+    /// and no permission keys.
+    /// </summary>
+    public static readonly AppRegistrationRequest FilesyncAppRegistrationRequest =
+        OwnDriveOnly(FilesyncAppId, "Homebase Filesync", WellKnownAppDrives.FilesyncDrive,
+            DrivePermission.ReadWrite | DrivePermission.React | DrivePermission.Comment);
+
+    /// <summary>Built-in (#2136), registered as Photobase registers itself (chat-kmp <c>photobaseAppRegistration</c>).</summary>
+    public static readonly AppRegistrationRequest PhotobaseAppRegistrationRequest =
+        OwnDriveOnly(PhotobaseAppId, "Homebase Photos", WellKnownAppDrives.PhotobaseDrive, DrivePermission.ReadWrite);
+
+    private static AppRegistrationRequest OwnDriveOnly(Guid appId, string name, TargetDrive drive, DrivePermission permission) =>
+        new()
+    {
+        AppId = appId,
+        Name = name,
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = drive,
+                    Permission = permission
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet()
     };
 }

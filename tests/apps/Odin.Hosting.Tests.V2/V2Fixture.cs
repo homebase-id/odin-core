@@ -480,7 +480,7 @@ public abstract class V2Fixture
 
     /// <summary>
     /// The protected built-in drives a new identity has before its owner's browser has run: all but the ones the
-    /// browser creates zero knowledge (Vault, Email), which the server leaves out at setup.
+    /// browser creates zero knowledge (Vault, Email, Filesync, Photos), which the server leaves out at setup.
     /// </summary>
     protected static List<TargetDrive> ProtectedDrivesMadeAtSetup =>
         BuiltinDrives.Protected
@@ -495,13 +495,15 @@ public abstract class V2Fixture
     /// <summary>
     /// The Vault and Email drives an identity made before they were created private (docs/zero-knowledge-drive-api-plan.md,
     /// 4.7, 4.8) has: Collaborative, created by the server at setup, with their built-in apps and circles.  What the
-    /// upgrade tests start from; an identity made now has neither until the owner's browser creates them.
+    /// upgrade tests start from; an identity made now has neither until the owner's browser creates them.  Not Filesync's
+    /// or Photobase's: an older identity has those only if the owner installed the app.
     /// </summary>
     protected async Task GiveTheDrivesAnOlderIdentityHasAsync(OwnerSession owner)
     {
         var (scope, odinContext) = await MigrationContextAsync(owner);
         var driveManager = scope.Resolve<IDriveManager>();
-        foreach (var drive in BuiltinApps.BrowserMadeDrives)
+        foreach (var drive in BuiltinApps.BrowserMadeDrives.Where(d =>
+                     d.TargetDrive == WellKnownAppDrives.VaultDrive || d.TargetDrive == WellKnownAppDrives.EmailAppDrive))
         {
             await driveManager.CreateDriveAsync(new CreateDriveRequest
             {

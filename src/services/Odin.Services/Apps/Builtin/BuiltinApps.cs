@@ -137,6 +137,16 @@ public static class BuiltinApps
             Drives: [BuiltinDrives.VaultDrive],
             Circles: [BuiltinCircles.VaultCircle],
             Permissions: new PermissionSet()),
+
+        new(SystemAppConstants.FilesyncAppId, "Homebase Filesync", (OdinSlug)"filesync",
+            Drives: [BuiltinDrives.FilesyncDrive],
+            Circles: [BuiltinCircles.FilesyncCircle],
+            Permissions: new PermissionSet()),
+
+        new(SystemAppConstants.PhotobaseAppId, "Homebase Photos", (OdinSlug)"photobase",
+            Drives: [BuiltinDrives.PhotobaseDrive],
+            Circles: [BuiltinCircles.PhotobaseCircle],
+            Permissions: new PermissionSet()),
     ];
 
     /// <summary>
@@ -189,7 +199,7 @@ public static class BuiltinApps
     public static IEnumerable<CircleDefinition> SeededCircles => Builtin.SelectMany(a => a.Circles);
 
     /// <summary>
-    /// The seeded drives defined Private or SelectiveShare (Vault, Email): setup never creates one, since the server would make
+    /// The seeded drives defined Private or SelectiveShare (Vault, Email, Filesync, Photos): setup never creates one, since the server would make
     /// its key; the owner's browser creates it at a password login (docs/zero-knowledge-drive-api-plan.md, 4.7).
     /// </summary>
     public static IEnumerable<CreateDriveRequest> BrowserMadeDrives => SeededDrives.Where(d => d.SharingModel.IsZeroKnowledgeDrive());
@@ -205,13 +215,27 @@ public static class BuiltinApps
     /// <summary>Every circle any app owns, whether or not it is seeded.</summary>
     public static IEnumerable<CircleDefinition> AllCircles => All.SelectMany(a => a.Circles);
 
+    /// <summary>Apps an owner could install before they became built-in, so their declared circle may sit under another id.</summary>
+    public static bool BecameBuiltinAfterInstall(Guid appId) => AppsBuiltinAfterInstall.Contains(appId);
+
+    private static readonly HashSet<Guid> AppsBuiltinAfterInstall = [SystemAppConstants.FilesyncAppId, SystemAppConstants.PhotobaseAppId];
+
+    private static readonly HashSet<Guid> DeclaredCircleIds =
+        AllCircles.Select(c => c.Id.Value).ToHashSet();
+
+    private static readonly HashSet<(Guid AppId, OdinSlug Slug)> DeclaredCircleAddresses =
+        SeededCircles.Where(c => AppsBuiltinAfterInstall.Contains(c.AppId!.Value)).Select(c => (c.AppId!.Value, c.Slug)).ToHashSet();
+
     /// <summary>
-    /// True when the app tree declares this circle, and so re-applies its owner, grant rule and
-    /// designation on every version upgrade.
+    /// True when the app tree declares this circle.  Known by its id, when the tree re-applies its owner, grant rule
+    /// and designation on version upgrades; or, for Filesync and Photos, by its address: an app that became built-in after
+    /// the owner installed it holds its declared circle under the id it was created with, which the upgrades, looking
+    /// circles up by id, leave as the install made it (#2136).
     /// </summary>
     /// <remarks>
     /// The distinction a client needs before offering to edit any of those: a change to a declared
-    /// circle is undone by the next upgrade without saying so, while an app's runtime circle -- the
+    /// circle is undone by the next upgrade without saying so (one found by its address, Filesync's or Photos', has its
+    /// grants set to the tree's once, by v21->v22 and when its drive is made again), while an app's runtime circle -- the
     /// feed app minting one per channel, say -- is owned by an app but named by nobody and stays as
     /// the owner leaves it.  App ownership alone does not separate the two, which is the mistake
     /// this exists to stop a client making.
@@ -219,10 +243,9 @@ public static class BuiltinApps
     /// Built once: the tree is static, and this is asked per circle on a page that lists them.
     /// </para>
     /// </remarks>
-    private static readonly HashSet<Guid> DeclaredCircleIds =
-        AllCircles.Select(c => c.Id.Value).ToHashSet();
-
-    public static bool IsTreeDeclaredCircle(Guid circleId) => DeclaredCircleIds.Contains(circleId);
+    public static bool IsTreeDeclaredCircle(CircleDefinition circle) =>
+        DeclaredCircleIds.Contains(circle.Id.Value) ||
+        (circle.AppId is { } appId && circle.Slug.HasValue && DeclaredCircleAddresses.Contains((appId, circle.Slug)));
 
     /// <summary>
     /// True when the id names an app the platform ships, whether or not it is registered here.

@@ -235,7 +235,7 @@ public class VersionUpgradeService(
             // idempotent and version-independent, so a single up-front pass lets the version ladder assume
             // the invariant — migrations that grant a (possibly newly-introduced) system drive no longer
             // each need to create it first. New drives are added by appending to EnsureSystemDrivesExist.
-            // Except the browser-made ones (BuiltinApps.BrowserMadeDrives: Vault, Email), which the server can't create
+            // Except the browser-made ones (BuiltinApps.BrowserMadeDrives: Vault, Email, Filesync, Photos), which the server can't create
             // and the owner's browser does at a password login: a migration must not assume those exist.
             if (cancellationToken.IsCancellationRequested)
             {
@@ -807,6 +807,13 @@ public class VersionUpgradeService(
                     await using var webDropTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
                     await v22.StoreWebDropBlockEnumerationAsync(odinContext, ct);
                     webDropTx.Commit();
+                }, cancellationToken);
+
+                await RunPhaseAsync("v21->v22 reset-installed-filesync-photos-drives", async ct =>
+                {
+                    await using var resetTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v22.ResetInstalledFilesyncAndPhotosDrivesAsync(odinContext, ct);
+                    resetTx.Commit();
                 }, cancellationToken);
 
                 await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
