@@ -27,6 +27,22 @@ than guessing.
 
 ---
 
+## `Odin.Hosting.Tests.V2.Ported.Admin.AdminControllerTest`
+
+- `ItShouldSupersedeTheTenantEndpoint`
+
+**Where:** CI, `ubuntu/sqlite/release`, PR #2224 commit `34d68ccc8`, run 46178752674, 2026-11-28. `main` at the
+#2222 merge (`3000a32b0`) passed it.
+
+**Symptom:** `Assert.That(frodoMetrics.RegistrationSize, Is.EqualTo(tenant.RegistrationSize))`, expected 1585400, was
+1585448: the two endpoints, read one after the other, saw frodo's registration folder 48 bytes apart.
+
+**Cause, fixed:** since #2222 an upload's staged copy is deleted in the background, after the answer. The fixture's
+`CreatePayload` uploads the 37-byte string "What is happening with the encoding!?", 48 bytes once encrypted, and the
+size checks right after it read the registration folder, which holds the upload folder. Whether a read counts the
+staged copy depends on when the deleter gets to it. `CreatePayload` now waits for the queued deletes
+(`V2Fixture.StagedDeletesDoneAsync`) before the test reads any size.
+
 ## `Odin.Services.Tests.Dns.Health.DnsHealthServiceTest`
 
 - `ItShouldReportBrokenMailRecordsAsNeedingAttention`
@@ -1170,6 +1186,11 @@ same symptom), which changes the share rows a member's socket event carries (all
 passed alone, and the whole fixture passed 3 of 3 runs after. Not run on a clean tree for this sighting; the evidence
 that it predates the branch is the `main` CI failure above. The test's member is in one circle, so the change gives it
 the same single row as before (inferred from the diff).
+
+**Seen again:** CI, `ubuntu/postgres/release`, PR #2224 (`peer-staged-metadata-writes`, commit `34d68ccc8`), run
+46178752744, 2026-11-28: the same symptom ("Sam: the file, with his share: no FileModified matched; seen:" empty, 10 s).
+`windows/sqlite/debug` passed the same commit, and `AdminControllerTest` + `SelectiveShareTests` passed 3 of 3 locally
+on that branch (SQLite). #2224 changes only direct-write peer transfers; this test's share write is the owner's own.
 
 ## `Odin.Hosting.Tests._Universal.AppNotifications.ConnectionChangeNotificationTests`
 

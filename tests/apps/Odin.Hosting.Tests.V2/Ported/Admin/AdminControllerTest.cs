@@ -739,12 +739,18 @@ public class AdminControllerTest : V2Fixture
     /// wipes the payload tree, so the file genuinely has to be re-uploaded, but the session and the
     /// drive it uploads to come from the baseline.
     /// </summary>
-    private Task CreatePayload() =>
+    private async Task CreatePayload()
+    {
         // The literal this replaced was copied from DrivePayloadTests and is exactly what
         // SampleMetadataData.Create(200, allowDistribution: true) builds -- same FileType, null
         // GroupId and Tags, OwnerOnly ACL. The empty AppData.Content the remarks note is preserved:
         // Create leaves it empty, unlike CreateWithContent.
-        AppFileUploads.UploadEncryptedAsync(_frodo, _payloadDrive,
+        await AppFileUploads.UploadEncryptedAsync(_frodo, _payloadDrive,
             SampleMetadataData.Create(fileType: 200, allowDistribution: true),
             "What is happening with the encoding!?");
+
+        // The upload's staged copy (48 bytes) is deleted in the background (#2222); the size checks read the
+        // registration folder, so wait until it is gone
+        await StagedDeletesDoneAsync(_frodo);
+    }
 }
