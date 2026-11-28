@@ -186,6 +186,13 @@ public static class BuiltinDrives
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
+    public static readonly CreateDriveRequest PhotoLibraryDrive = new()
+    {
+        Name = "Photo Library", TargetDrive = WellKnownAppDrives.PhotoLibraryDrive, Metadata = "",
+        AppId = SystemAppConstants.PhotoAppId, DriveSlug = (OdinSlug)"photos", DriveTypeSlug = (OdinSlug)"photos",
+        AllowAnonymousReads = false, OwnerOnly = false
+    };
+
     // --- Filesync and Photobase ---
     // SelectiveShare, as their apps create them: the owner's browser makes each with its keys at a password login
     // (BuiltinApps.BrowserMadeDrives), never the server
