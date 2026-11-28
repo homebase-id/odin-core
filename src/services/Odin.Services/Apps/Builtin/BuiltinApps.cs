@@ -165,11 +165,6 @@ public static class BuiltinApps
             Circles: [BuiltinCircles.CommunityCircle],
             Permissions: new PermissionSet()),
         
-        new(SystemAppConstants.PhotoAppId, "Photo", (OdinSlug)"photo",
-            Drives: [BuiltinDrives.PhotoLibraryDrive],
-            Circles: [BuiltinCircles.PhotosCircle],
-            Permissions: new PermissionSet()),
-
         new(SystemAppConstants.SocialSyncAppId, "Social Sync", (OdinSlug)"social-sync",
             Drives: [],
             Circles: [BuiltinCircles.SocialSyncCircle],

@@ -132,13 +132,6 @@ public static class WellKnownAppDrives
     };
 
 
-    /// <summary>The Photo app's library drive.</summary>
-    public static readonly TargetDrive PhotoLibraryDrive = new()
-    {
-        Alias = Guid.Parse("6483b7b1f71bd43eb6896c86148668cc"),
-        Type = Guid.Parse("2af68fe72fb84896f39f97c59d60813a")
-    };
-
     /// <summary>The Vault app's drive.</summary>
     /// <summary>The Vault app's drive (chat-kmp <c>vaultLabeledDrive</c>).</summary>
     /// <remarks>

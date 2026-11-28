@@ -210,21 +210,6 @@ public static class BuiltinCircles
         Permissions = new PermissionSet { Keys = [] }
     };
 
-    // --- Photo ---
-    public static readonly CircleDefinition PhotosCircle = new()
-    {
-        Id = Guid.Parse("d9471317728a431c94d9842118acb676"),
-        Name = "Photos",
-        Slug = (OdinSlug)"photos",
-        Description = "Members can see your photos",
-        Emoji = "📷",
-        AppId = SystemAppConstants.PhotoAppId,
-        GrantOn = CircleGrantOn.OwnFlowConnect,
-        Designation = CircleDesignation.Personal,
-        DriveGrants = [],
-        Permissions = new PermissionSet { Keys = [] }
-    };
-
     // --- Filesync and Photobase ---
     // As their apps declare them (chat-kmp filesyncAppRegistration, photobaseAppRegistration): Filesync's members read,
     // react and comment, Photobase's only read.  No Write: drive Write lets a member add files anywhere, whatever their
