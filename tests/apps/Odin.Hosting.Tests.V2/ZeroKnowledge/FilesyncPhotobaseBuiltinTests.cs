@@ -253,6 +253,12 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
             PermissionSet = new PermissionSet()
         }, oldAppId);
 
+        // As a real one does, the old circle has a connected member, whose grant the uninstall takes away
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+        var enroll = await frodo.Connections.GrantCircle(oldCircleId, sam.Identity);
+        Assert.That(enroll.IsSuccessStatusCode, Is.True, enroll.Error?.Content);
+
         // Photobase's drive comes after the old one, with the same slug "photos" under another app
         await ZkOwnerSteps.CreateMissingDrivesAsync(frodo, zkMasterKey);
         Assert.That((await frodo.Admin.GetDrives()).Any(d => d.TargetDriveInfo == WellKnownAppDrives.PhotobaseDrive), Is.True,
@@ -269,6 +275,8 @@ public class FilesyncPhotobaseBuiltinTests : V2Fixture
         var circles = (await frodo.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions(includeSystemCircle: true)).Content!;
         Assert.That(circles.Any(c => c.Id == oldCircleId), Is.False, "the old circle went with its app");
         Assert.That(circles.Any(c => c.Id == BuiltinCircles.PhotobaseCircle.Id), Is.True, "Photobase's circle stays");
+        var samsCircles = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant.CircleGrants;
+        Assert.That(samsCircles.Any(c => c.CircleId == oldCircleId), Is.False, "Sam no longer holds the old circle");
         Assert.That(await frodo.Admin.IsAppRegistered(SystemAppConstants.PhotobaseAppId), Is.True, "Photobase stays");
     }
 
