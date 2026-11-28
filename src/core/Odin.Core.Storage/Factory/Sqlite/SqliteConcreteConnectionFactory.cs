@@ -11,9 +11,6 @@ internal static class SqliteConcreteConnectionFactory
 
     internal const long JournalSizeLimitBytes = 16 * 1024 * 1024;
 
-    // Microsoft.Data.Sqlite's default command timeout, 30 s
-    internal const int BusyTimeoutMs = 30_000;
-
     internal static async Task<DbConnection> CreateAsync(string connectionString)
     {
         var connection = new SqliteConnection(connectionString);
@@ -59,8 +56,8 @@ internal static class SqliteConcreteConnectionFactory
 
         // Let SQLite wait for a busy lock itself, retrying within milliseconds of its release. Without this,
         // Microsoft.Data.Sqlite retries a busy statement only every 150 ms, so a waiter keeps losing the lock to writers
-        // that arrive in between. Same budget as the command timeout, so nothing waits longer or fails sooner than before.
-        cmd.CommandText = $"PRAGMA busy_timeout={BusyTimeoutMs};";
+        // that arrive in between. The command timeout's budget (30 s by default), so nothing waits longer or fails sooner.
+        cmd.CommandText = $"PRAGMA busy_timeout={connection.DefaultTimeout * 1000};";
         await cmd.ExecuteNonQueryAsync();
 
         return connection;
