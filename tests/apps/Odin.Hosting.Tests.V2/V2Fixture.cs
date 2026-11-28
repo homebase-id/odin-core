@@ -445,16 +445,15 @@ public abstract class V2Fixture
     }
 
     /// <summary>
-    /// No payload bytes on <paramref name="owner"/>'s drive, stored or staged: a refused payload leaves none behind.  The
-    /// transfer's .metadata/.transferkeyheader staging files are written before any payload arrives and are not removed
-    /// when a peer transfer fails for any reason (pre-existing: #1897)
+    /// No payload bytes on <paramref name="owner"/>'s drive, stored or staged: a refused payload leaves none behind, and
+    /// nothing at all is left in the upload folder (#2223)
     /// </summary>
     protected async Task AssertNoPayloadFilesAsync(OwnerSession owner, TargetDrive drive)
     {
         await StagedDeletesDoneAsync(owner);
         var paths = TenantPaths(owner);
         var leftovers = FilesUnder(paths.GetDrivePayloadPath(drive.Alias), "*.payload")
-            .Concat(FilesUnder(paths.GetDriveUploadPath(drive.Alias), "*.payload"));
+            .Concat(FilesUnder(paths.GetDriveUploadPath(drive.Alias)));
         Assert.That(leftovers, Is.Empty, "a refused payload must not be left behind on the receiving server");
     }
 

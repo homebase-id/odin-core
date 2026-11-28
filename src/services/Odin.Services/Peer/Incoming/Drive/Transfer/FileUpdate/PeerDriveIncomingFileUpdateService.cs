@@ -40,6 +40,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         private InternalDriveFileId _file;
         private bool _isDirectWrite;
 
+        // The metadata a direct write commits, as it arrived. Kept in memory: it used to be staged as a .metadata file and read
+        // back (#2223). Round-tripped through the serializer so the writer sees exactly what it read from that file.
+        private FileMetadata _directWriteMetadata;
+
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
         public async Task InitializeIncomingTransfer(EncryptedRecipientFileUpdateInstructionSet transferInstructionSet,
@@ -72,7 +76,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             _file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
             _updateInstructionSet = transferInstructionSet;
-            await WriteInstructionsAndMetadataToDisk(fileMetadata, odinContext);
+            _directWriteMetadata = _isDirectWrite ? OdinSystemSerializer.DeserializeOrThrow<FileMetadata>(OdinSystemSerializer.Serialize(fileMetadata)) : null;
         }
 
         public async Task AcceptPayload(PayloadDescriptor descriptor, bool isEncrypted, Stream data, IOdinContext odinContext)
@@ -178,26 +182,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return await RouteToInboxAsync(fileMetadata, odinContext);
         }
 
-        private async Task WriteInstructionsAndMetadataToDisk(FileMetadata fileMetadata, IOdinContext odinContext)
-        {
-            logger.LogDebug("Writing metadata for file {file} (isDirectWrite: {isDirectWrite})", _file, _isDirectWrite);
-
-            // Inbox-routed transfers stage nothing on disk: the instruction set and metadata travel on the inbox
-            // row (TransferInboxItem.Data / .FileMetadata) and payloads stream straight to long-term. Only the
-            // direct-write path still uses the upload staging folder.
-            if (!_isDirectWrite)
-            {
-                return;
-            }
-
-            // Write the instruction set to disk
-            await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(_updateInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteUploadStream(_file, TenantPathManager.TransferInstructionSetExtension, stream, odinContext);
-
-            var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(fileMetadata)));
-            await fileSystem.Storage.WriteUploadStream(_file, TenantPathManager.MetadataExtension, metadataStream, odinContext);
-        }
-
         private async Task<bool> TryDirectWriteFileAsync(IOdinContext odinContext)
         {
             if (!_isDirectWrite)
@@ -210,7 +194,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
             // S1110 unencrypted, S1205 with the storage key, as sent, or on a zero-knowledge drive: decided on arrival
             await updateWriter.UpsertFileAsync(_file, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null,
-                sourceArea: StagingArea.Upload);
+                sourceArea: StagingArea.Upload, metadataOverride: _directWriteMetadata);
             return true;
         }
 
