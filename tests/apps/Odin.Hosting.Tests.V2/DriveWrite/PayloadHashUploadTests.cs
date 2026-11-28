@@ -187,7 +187,7 @@ public class PayloadHashUploadTests : V2Fixture
 
         DriveAsserts.AssertRejected(update, OdinClientErrorCode.PayloadHashMismatch);
         Assert.That((await owner.Drives.Reader.GetFileHeaderAsync(file.DriveId, file.FileId)).Content!.FileMetadata.Payloads, Is.Empty);
-        AssertNoStagedFiles(owner, spec.TargetDrive);
+        await AssertNoStagedFilesAsync(owner, spec.TargetDrive);
     }
 
     //
@@ -208,7 +208,7 @@ public class PayloadHashUploadTests : V2Fixture
         var rejected = await drive.UploadPayloads(file.File, file.NewVersionTag,
             new UploadManifest { PayloadDescriptors = [bad.ToPayloadDescriptor()] }, [bad]);
         DriveAsserts.AssertRejected(rejected, OdinClientErrorCode.PayloadHashMismatch);
-        AssertNoStagedFiles(owner, spec.TargetDrive);
+        await AssertNoStagedFilesAsync(owner, spec.TargetDrive);
 
         var good = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         var accepted = await drive.UploadPayloads(file.File, file.NewVersionTag,
@@ -386,7 +386,7 @@ public class PayloadHashUploadTests : V2Fixture
         var rejected = await owner.Drives.Writer.UpdateFileByFileId(file.DriveId, file.FileId,
             UpdateInstructions(missing.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite)), metadata, [missing]);
         DriveAsserts.AssertRejected(rejected, OdinClientErrorCode.PayloadHashMissing);
-        AssertNoStagedFiles(owner, spec.TargetDrive);
+        await AssertNoStagedFilesAsync(owner, spec.TargetDrive);
 
         var deferred = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Sha256);
         deferred.HashTrailer = HashTrailer.AfterPayload;
@@ -412,7 +412,7 @@ public class PayloadHashUploadTests : V2Fixture
         var rejected = await drive.UploadPayloads(file.File, file.NewVersionTag,
             new UploadManifest { PayloadDescriptors = [missing.ToPayloadDescriptor()] }, [missing]);
         DriveAsserts.AssertRejected(rejected, OdinClientErrorCode.PayloadHashMissing);
-        AssertNoStagedFiles(owner, spec.TargetDrive);
+        await AssertNoStagedFilesAsync(owner, spec.TargetDrive);
 
         var deferred = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         deferred.HashTrailer = HashTrailer.AfterPayload;
@@ -443,7 +443,7 @@ public class PayloadHashUploadTests : V2Fixture
             new UploadManifest { PayloadDescriptors = [empty.ToPayloadDescriptor()] }, [empty]);
 
         DriveAsserts.AssertRejected(rejected, expected);
-        AssertNoStagedFiles(owner, spec.TargetDrive);
+        await AssertNoStagedFilesAsync(owner, spec.TargetDrive);
     }
 
     [Test]
@@ -499,12 +499,12 @@ public class PayloadHashUploadTests : V2Fixture
         });
         Assert.That(files.Content!.SearchResults.Where(f => f.FileMetadata.Payloads.Any(p => p.Key == payload.Key)), Is.Empty,
             "a rejected upload must not create a file");
-        AssertNoStagedFiles(owner, drive);
+        await AssertNoStagedFilesAsync(owner, drive);
     }
 
-    private void AssertNoStagedFiles(OwnerSession owner, TargetDrive drive)
+    private async Task AssertNoStagedFilesAsync(OwnerSession owner, TargetDrive drive)
     {
-        Assert.That(FilesUnder(TenantPaths(owner).GetDriveUploadPath(drive.Alias)), Is.Empty,
+        Assert.That(await StagedFilesAsync(owner, drive.Alias), Is.Empty,
             "the rejected payload must not be left in the upload folder");
     }
 

@@ -123,8 +123,9 @@ public class UploadTempFileCleanupTests : V2Fixture
         }
 
         //
-        // verify payload temp files are gone
+        // verify payload temp files are gone, once the background deletes are done (#2221)
         //
+        await StagedDeletesDoneAsync(owner);
         foreach (var descriptor in header.FileMetadata.Payloads)
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
@@ -245,7 +246,8 @@ public class UploadTempFileCleanupTests : V2Fixture
         // verify payload temp files are gone
         //
 
-        // get the latest header of the updated file
+        // get the latest header of the updated file; the staged files go once the background deletes are done (#2221)
+        await StagedDeletesDoneAsync(owner);
         var getUpdatedHeaderResponse = await ownerDriveClient.GetFileHeader(uploadResult.File);
         foreach (var descriptor in getUpdatedHeaderResponse.Content!.FileMetadata.Payloads)
         {

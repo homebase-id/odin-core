@@ -75,7 +75,7 @@ public class PayloadHashPeerTests : V2Fixture
 
         await DriveAsserts.AssertTransferStatus(frodo, FileOf(sent, drive), sam.Identity, LatestTransferStatus.RecipientIdentityReturnedBadRequest);
         Assert.That(await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key), Is.Null);
-        AssertNoPayloadFiles(sam, drive);
+        await AssertNoPayloadFilesAsync(sam, drive);
     }
 
     [Test]
@@ -92,7 +92,7 @@ public class PayloadHashPeerTests : V2Fixture
 
         await DriveAsserts.AssertTransferStatus(frodo, FileOf(sent, drive), sam.Identity, LatestTransferStatus.RecipientIdentityReturnedBadRequest);
         Assert.That(await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key), Is.Null);
-        AssertNoPayloadFiles(sam, drive);
+        await AssertNoPayloadFilesAsync(sam, drive);
     }
 
     [Test]

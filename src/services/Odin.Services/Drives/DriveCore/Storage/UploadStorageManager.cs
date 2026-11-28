@@ -14,7 +14,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class UploadStorageManager(
         UploadFileStore uploadFileStore,
-        FileReaderWriter fileReaderWriter,
+        StagedFileDeleter stagedFileDeleter,
         ILogger<UploadStorageManager> logger,
         TenantContext tenantContext)
     {
@@ -43,26 +43,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Deletes all files matching <param name="file"></param> regardless of extension
+        /// Deletes the staged payload and thumbnail files of <paramref name="descriptors"/> in the background: the
+        /// request doesn't wait for the disk (#2221)
         /// </summary>
         public Task CleanupUploadFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
-            CleanupUploadFilesInternal(file, descriptors);
-            return Task.CompletedTask;
-        }
-
-        private void CleanupUploadFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
-        {
             try
             {
-                if (!descriptors?.Any() ?? false)
+                if (descriptors is not { Count: > 0 })
                 {
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 var targetFiles = new List<string>();
 
-                descriptors!.ForEach(descriptor =>
+                descriptors.ForEach(descriptor =>
                 {
                     var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
                     string payloadDirectoryAndFilename = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, payloadExtension);
@@ -79,12 +74,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     });
                 });
 
-                fileReaderWriter.DeleteFiles(targetFiles);
+                stagedFileDeleter.Enqueue(targetFiles);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Failure while cleaning up upload files");
             }
+
+            return Task.CompletedTask;
         }
     }
 }

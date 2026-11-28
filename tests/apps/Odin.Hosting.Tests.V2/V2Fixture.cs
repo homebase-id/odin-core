@@ -17,9 +17,11 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
+using Odin.Test.Helpers;
 using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2;
@@ -447,12 +449,37 @@ public abstract class V2Fixture
     /// transfer's .metadata/.transferkeyheader staging files are written before any payload arrives and are not removed
     /// when a peer transfer fails for any reason (pre-existing: #1897)
     /// </summary>
-    protected void AssertNoPayloadFiles(OwnerSession owner, TargetDrive drive)
+    protected async Task AssertNoPayloadFilesAsync(OwnerSession owner, TargetDrive drive)
     {
+        await StagedDeletesDoneAsync(owner);
         var paths = TenantPaths(owner);
         var leftovers = FilesUnder(paths.GetDrivePayloadPath(drive.Alias), "*.payload")
             .Concat(FilesUnder(paths.GetDriveUploadPath(drive.Alias), "*.payload"));
         Assert.That(leftovers, Is.Empty, "a refused payload must not be left behind on the receiving server");
+    }
+
+    /// <summary>
+    /// What <paramref name="owner"/>'s server still has staged for a drive, once the staged-file deletes queued so far
+    /// are done: they run in the background (#2221), so a listing right after a request could still see them
+    /// </summary>
+    protected static async Task<string[]> StagedFilesAsync(OwnerSession owner, Guid driveAlias)
+    {
+        await StagedDeletesDoneAsync(owner);
+        var paths = owner.Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
+        return FilesUnder(paths.GetDriveUploadPath(driveAlias));
+    }
+
+    /// <summary>
+    /// Waits for the staged-file deletes queued so far on <paramref name="owner"/>'s host. The deleter works through its
+    /// queue in order on one thread, so once a marker queued now is gone, every delete queued before it is done.
+    /// </summary>
+    protected static async Task StagedDeletesDoneAsync(OwnerSession owner)
+    {
+        var deleter = owner.Host.GetTenantScope(owner.Identity.DomainName).Resolve<StagedFileDeleter>();
+        var marker = System.IO.Path.GetTempFileName();
+        deleter.Enqueue([marker]);
+        await Poll.UntilAsync(() => Task.FromResult(!System.IO.File.Exists(marker)), TimeSpan.FromSeconds(30),
+            () => $"the staged-file deleter didn't reach the marker {marker}");
     }
 
     /// <summary>
