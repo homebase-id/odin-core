@@ -1,5 +1,6 @@
 using System;
 using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -83,6 +84,43 @@ public class SqliteConcreteConnectionFactoryTest : IocTestBase
             $"the WAL should have grown past the limit while the reader held it: peak {peak} bytes");
         Assert.That(after, Is.LessThanOrEqualTo(SqliteConcreteConnectionFactory.JournalSizeLimitBytes),
             $"the WAL stayed at {after} bytes after the reader ended (peak {peak} bytes)");
+    }
+
+    [Test]
+    public async Task AWriterWaitingForTheLockGetsItSoonAfterItIsReleased()
+    {
+        var connectionString = ConnectionString(NewDatabasePath());
+
+        await using var holder = (SqliteConnection)await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
+        await using var waiter = (SqliteConnection)await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
+        await ExecuteAsync(holder, "CREATE TABLE test (name TEXT);");
+
+        // The holder takes the write lock; the waiter asks for it while it is held, and the holder releases it 10 ms
+        // later. Without busy_timeout the waiter looks again only 150 ms after asking, ~140 ms after the release.
+        var clock = Stopwatch.StartNew();
+        await using var holderTx = holder.BeginTransaction(deferred: false);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        long askedAt = 0, acquiredAt = 0;
+        var waiting = Task.Run(() =>
+        {
+            askedAt = clock.ElapsedMilliseconds;
+            asking.SetResult();
+            using var waiterTx = waiter.BeginTransaction(deferred: false);
+            acquiredAt = clock.ElapsedMilliseconds;
+            waiterTx.Commit();
+        });
+
+        await asking.Task;
+        await Task.Delay(10);
+        var releasingAt = clock.ElapsedMilliseconds;
+        holderTx.Commit();
+        var releasedAt = clock.ElapsedMilliseconds;
+        await waiting;
+
+        Assert.That(askedAt, Is.LessThan(releasingAt),
+            $"the waiter asked at {askedAt} ms, after the holder began releasing at {releasingAt} ms: nothing was contended");
+        Assert.That(acquiredAt - releasedAt, Is.LessThan(100),
+            $"the waiter asked at {askedAt} ms, the holder released the lock at {releasedAt} ms, the waiter got it at {acquiredAt} ms");
     }
 
     private string NewDatabasePath() => Path.Combine(TempFolder, $"{Guid.NewGuid()}.db");

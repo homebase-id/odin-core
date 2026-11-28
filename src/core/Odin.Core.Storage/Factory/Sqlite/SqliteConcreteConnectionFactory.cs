@@ -16,6 +16,17 @@ internal static class SqliteConcreteConnectionFactory
         var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 
+        // First, so every statement below has it too: let SQLite wait for a busy lock itself. Its retries start at 1 ms
+        // and back off to 100 ms, so a short wait ends within milliseconds of the release. Without it, Microsoft.Data.Sqlite
+        // retries a busy statement only every 150 ms, so every contended write costs at least 150 ms and a waiter keeps
+        // losing the lock to writers that arrive in between. Each lock wait may take up to the connection's default command
+        // timeout (30 s by default).
+        await using (var busy = connection.CreateCommand())
+        {
+            busy.CommandText = $"PRAGMA busy_timeout={connection.DefaultTimeout * 1000};";
+            await busy.ExecuteNonQueryAsync();
+        }
+
         //
         // One-time per-database pragmas (persistent in the database file header)
         //
