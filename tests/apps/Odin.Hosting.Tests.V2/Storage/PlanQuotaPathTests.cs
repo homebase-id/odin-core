@@ -159,7 +159,8 @@ public class PlanQuotaPathTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var frodo = await LoginAsOwner(Identities.Frodo);
         var drive = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write);
-        var stagedBefore = await StagedUploadFilesAsync(frodo, drive);
+        // A direct-write peer transfer or update stages its instructions and metadata before any payload arrives
+        var stagedBefore = await StagedFilesAsync(frodo, drive.Alias);
         await SetPlanAsync(Identities.Frodo, FullPlan);
 
         var payloads = new List<TestPayloadDefinition> { SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1() };
@@ -181,7 +182,7 @@ public class PlanQuotaPathTests : V2Fixture
         Assert.That(inbox.TotalItems, Is.Zero, "nothing reached the full recipient's inbox");
         Assert.That((await frodo.V1.Drive.QueryByGlobalTransitId(send.Content!.GlobalTransitIdFileIdentifier)).Content!.SearchResults,
             Is.Empty, "no header without its payload");
-        Assert.That(await StagedUploadFilesAsync(frodo, drive), Is.EquivalentTo(stagedBefore), "and nothing half-received left on disk");
+        Assert.That(await StagedFilesAsync(frodo, drive.Alias), Is.EquivalentTo(stagedBefore), "and nothing half-received left on disk");
 
         await SetPlanAsync(Identities.Frodo, DevPlan);
         await DeliverDeferredAsync(sam, frodo, drive);
@@ -255,7 +256,7 @@ public class PlanQuotaPathTests : V2Fixture
         Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         await PeerFlow.DistributeAsync(sam, frodo, drive);
         var remoteFile = create.Content!.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
-        var stagedBefore = await StagedUploadFilesAsync(frodo, drive);
+        var stagedBefore = await StagedFilesAsync(frodo, drive.Alias);
 
         await SetPlanAsync(Identities.Frodo, FullPlan);
 
@@ -287,7 +288,7 @@ public class PlanQuotaPathTests : V2Fixture
 
         await PeerFlow.DistributeAsync(sam, frodo, drive);
         Assert.That(await PayloadKeysAsync(frodo, remoteFile), Is.Empty, "the payload is not on the full recipient");
-        Assert.That(await StagedUploadFilesAsync(frodo, drive), Is.EquivalentTo(stagedBefore), "and nothing half-received left on disk");
+        Assert.That(await StagedFilesAsync(frodo, drive.Alias), Is.EquivalentTo(stagedBefore), "and nothing half-received left on disk");
 
         await SetPlanAsync(Identities.Frodo, DevPlan);
         await DeliverDeferredAsync(sam, frodo, drive);
@@ -339,14 +340,5 @@ public class PlanQuotaPathTests : V2Fixture
     {
         var results = (await owner.V1.Drive.QueryByGlobalTransitId(remoteFile.ToGlobalTransitIdFileIdentifier())).Content!.SearchResults;
         return results.Single().FileMetadata.Payloads?.Select(p => p.Key).ToList() ?? [];
-    }
-
-    // A direct-write peer transfer or update stages its instructions and metadata here before any payload arrives
-    private static async Task<List<string>> StagedUploadFilesAsync(OwnerSession owner, TargetDrive drive)
-    {
-        await StagedDeletesDoneAsync(owner);
-        var paths = owner.Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
-        var folder = paths.GetDriveUploadPath(drive.Alias);
-        return Directory.Exists(folder) ? Directory.GetFiles(folder, "*", SearchOption.AllDirectories).ToList() : [];
     }
 }

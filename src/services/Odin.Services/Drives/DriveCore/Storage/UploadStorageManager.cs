@@ -48,17 +48,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task CleanupUploadFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
-            CleanupUploadFilesInternal(file, descriptors);
-            return Task.CompletedTask;
-        }
-
-        private void CleanupUploadFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
-        {
             try
             {
                 if (!descriptors?.Any() ?? false)
                 {
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 var targetFiles = new List<string>();
@@ -86,6 +80,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             {
                 logger.LogError(e, "Failure while cleaning up upload files");
             }
+
+            return Task.CompletedTask;
         }
     }
 }

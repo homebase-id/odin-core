@@ -21,6 +21,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
+using Odin.Test.Helpers;
 using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2;
@@ -458,28 +459,32 @@ public abstract class V2Fixture
     }
 
     /// <summary>
-    /// Files under <paramref name="directory"/> and its subdirectories; none when it does not exist
+    /// What <paramref name="owner"/>'s server still has staged for a drive, once the staged-file deletes queued so far
+    /// are done: they run in the background (#2221), so a listing right after a request could still see them
     /// </summary>
+    protected static async Task<string[]> StagedFilesAsync(OwnerSession owner, Guid driveAlias)
+    {
+        await StagedDeletesDoneAsync(owner);
+        var paths = owner.Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
+        return FilesUnder(paths.GetDriveUploadPath(driveAlias));
+    }
+
     /// <summary>
-    /// Staged files are deleted in the background (#2221), so a check right after a request can still see them. This
-    /// queues a marker file on <paramref name="owner"/>'s host and waits until it is gone: the deleter works through its
-    /// queue in order on one thread, so every delete queued before the marker is done by then.
+    /// Waits for the staged-file deletes queued so far on <paramref name="owner"/>'s host. The deleter works through its
+    /// queue in order on one thread, so once a marker queued now is gone, every delete queued before it is done.
     /// </summary>
     protected static async Task StagedDeletesDoneAsync(OwnerSession owner)
     {
         var deleter = owner.Host.GetTenantScope(owner.Identity.DomainName).Resolve<StagedFileDeleter>();
         var marker = System.IO.Path.GetTempFileName();
         deleter.Enqueue([marker]);
-        var waited = System.Diagnostics.Stopwatch.StartNew();
-        while (System.IO.File.Exists(marker) && waited.Elapsed < TimeSpan.FromSeconds(10))
-        {
-            await Task.Delay(10);
-        }
-
-        Assert.That(System.IO.File.Exists(marker), Is.False,
-            $"the staged-file deleter didn't reach the marker {marker} within {waited.Elapsed.TotalSeconds:0.0} s");
+        await Poll.UntilAsync(() => Task.FromResult(!System.IO.File.Exists(marker)), TimeSpan.FromSeconds(10),
+            () => $"the staged-file deleter didn't reach the marker {marker}");
     }
 
+    /// <summary>
+    /// Files under <paramref name="directory"/> and its subdirectories; none when it does not exist
+    /// </summary>
     protected static string[] FilesUnder(string directory, string pattern = "*") =>
         System.IO.Directory.Exists(directory)
             ? System.IO.Directory.GetFiles(directory, pattern, System.IO.SearchOption.AllDirectories)

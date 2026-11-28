@@ -504,8 +504,7 @@ public class PayloadHashUploadTests : V2Fixture
 
     private async Task AssertNoStagedFilesAsync(OwnerSession owner, TargetDrive drive)
     {
-        await StagedDeletesDoneAsync(owner);
-        Assert.That(FilesUnder(TenantPaths(owner).GetDriveUploadPath(drive.Alias)), Is.Empty,
+        Assert.That(await StagedFilesAsync(owner, drive.Alias), Is.Empty,
             "the rejected payload must not be left in the upload folder");
     }
 

@@ -1,10 +1,10 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Test.Helpers;
 
 namespace Odin.Services.Tests.Drives.DriveCore.Storage;
 
@@ -35,7 +35,8 @@ public class StagedFileDeleterTests
         var last = Touch("b.payload");
 
         deleter.Enqueue([first, undeletable, missing, last]);
-        await WaitUntilGoneAsync(last);
+        await Poll.UntilAsync(() => Task.FromResult(!File.Exists(last)), TimeSpan.FromSeconds(10),
+            () => $"{last} is still there");
 
         Assert.That(File.Exists(first), Is.False, "the first queued file is deleted");
         Assert.That(Directory.Exists(undeletable), Is.True, "File.Delete can't remove a directory, so it stays");
@@ -58,16 +59,5 @@ public class StagedFileDeleterTests
         var path = Path.Combine(_folder, name);
         File.WriteAllBytes(path, [1, 2, 3]);
         return path;
-    }
-
-    private static async Task WaitUntilGoneAsync(string path)
-    {
-        var waited = Stopwatch.StartNew();
-        while (File.Exists(path) && waited.Elapsed < TimeSpan.FromSeconds(10))
-        {
-            await Task.Delay(10);
-        }
-
-        Assert.That(File.Exists(path), Is.False, $"{path} still exists after {waited.Elapsed.TotalSeconds:0.0} s");
     }
 }
