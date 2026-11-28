@@ -188,7 +188,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
             // S1110 unencrypted, S1205 with the storage key, as sent, or on a zero-knowledge drive: decided on arrival
             await updateWriter.UpsertFileAsync(_file, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null,
-                sourceArea: StagingArea.Upload, metadataOverride: fileMetadata);
+                sourceArea: StagingArea.Upload,
+                // The writer changes the metadata it is given; it gets its own copy, as it did when it read a staged file (#2223)
+                metadataOverride: OdinSystemSerializer.SlowDeepCloneObject(fileMetadata));
             return true;
         }
 

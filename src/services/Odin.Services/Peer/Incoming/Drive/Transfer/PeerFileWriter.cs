@@ -59,8 +59,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata = metadataOverride;
             if (metadata == null && sourceArea != StagingArea.Inbox)
             {
-                // Only a pre-upgrade inbox item has its metadata in a file; a direct write passes it (#2223)
-                throw new OdinSystemException($"No metadata for file {file} staged in {sourceArea}");
+                // Only a pre-upgrade inbox item has its metadata in a file; every other caller passes it (#2223).
+                // This guard goes together with the fallback below.
+                throw new OdinSystemException($"metadataOverride is required outside StagingArea.Inbox (file {file}, source {sourceArea})");
             }
 
             if (metadata == null)

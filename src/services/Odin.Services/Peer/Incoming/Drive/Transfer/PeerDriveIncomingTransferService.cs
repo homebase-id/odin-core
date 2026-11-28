@@ -418,7 +418,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // S1110 unencrypted, S1205 with the storage key, as sent, or on a zero-knowledge drive: decided on arrival
             await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
                 odinContext, sourceArea: StagingArea.Upload, markComplete: writeShares,
-                metadataOverride: fileMetadata);
+                // The writer changes the metadata it is given; it gets its own copy, as it did when it read a staged file (#2223)
+                metadataOverride: OdinSystemSerializer.SlowDeepCloneObject(fileMetadata));
             _versionTagWritten = writer.VersionTagWritten;
             return true;
         }

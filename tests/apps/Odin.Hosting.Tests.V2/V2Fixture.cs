@@ -454,7 +454,7 @@ public abstract class V2Fixture
         var paths = TenantPaths(owner);
         var leftovers = FilesUnder(paths.GetDrivePayloadPath(drive.Alias), "*.payload")
             .Concat(FilesUnder(paths.GetDriveUploadPath(drive.Alias)));
-        Assert.That(leftovers, Is.Empty, "a refused payload must not be left behind on the receiving server");
+        Assert.That(leftovers, Is.Empty, "nothing from a refused write may be left on the receiving server");
     }
 
     /// <summary>
