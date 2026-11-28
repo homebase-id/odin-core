@@ -50,14 +50,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             try
             {
-                if (!descriptors?.Any() ?? false)
+                if (descriptors is not { Count: > 0 })
                 {
                     return Task.CompletedTask;
                 }
 
                 var targetFiles = new List<string>();
 
-                descriptors!.ForEach(descriptor =>
+                descriptors.ForEach(descriptor =>
                 {
                     var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
                     string payloadDirectoryAndFilename = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, payloadExtension);

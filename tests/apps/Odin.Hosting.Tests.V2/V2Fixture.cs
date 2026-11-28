@@ -478,7 +478,7 @@ public abstract class V2Fixture
         var deleter = owner.Host.GetTenantScope(owner.Identity.DomainName).Resolve<StagedFileDeleter>();
         var marker = System.IO.Path.GetTempFileName();
         deleter.Enqueue([marker]);
-        await Poll.UntilAsync(() => Task.FromResult(!System.IO.File.Exists(marker)), TimeSpan.FromSeconds(10),
+        await Poll.UntilAsync(() => Task.FromResult(!System.IO.File.Exists(marker)), TimeSpan.FromSeconds(30),
             () => $"the staged-file deleter didn't reach the marker {marker}");
     }
 

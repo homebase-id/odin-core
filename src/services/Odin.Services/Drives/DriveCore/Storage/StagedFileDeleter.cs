@@ -54,7 +54,7 @@ public sealed class StagedFileDeleter : IDisposable
             }
             catch (Exception e)
             {
-                _logger.LogWarning(e, "Couldn't delete staged file {path}; the temp-folder clean-up removes it later", path);
+                _logger.LogWarning(e, "Couldn't delete staged file {path}; the temp-folder clean-up tries again later", path);
             }
         }
     }
