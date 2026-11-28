@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,14 +18,10 @@ public sealed class TempFolderCleanUpBackgroundService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var uploadAgeThreshold = TimeSpan.FromHours(24);
-        var started = DateTime.UtcNow;
 
         // Delay initial run with some random time, so we don't all run at the same time, doing lots of synchronous IO
         await SleepAsync(TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(120), stoppingToken);
 
-        // The first run also removes what was staged before the start: the upload folder is local to this host, so no
-        // request still running can own it (#2221: deletes still queued at shutdown are left behind)
-        var threshold = DateTime.UtcNow - started;
         while (!stoppingToken.IsCancellationRequested)
         {
             logger.LogDebug("{service} is running", GetType().Name);
@@ -34,7 +31,7 @@ public sealed class TempFolderCleanUpBackgroundService(
                 UploadFolderCleanUp.Execute(
                     logger,
                     tenantContext.TenantPathManager.UploadDrivesPath,
-                    threshold,
+                    UploadFolderCleanUp.Cutoff(DateTime.UtcNow, UploadFolderCleanUp.ProcessStartedUtc, uploadAgeThreshold),
                     stoppingToken);
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -42,7 +39,6 @@ public sealed class TempFolderCleanUpBackgroundService(
                 logger.LogError(e, "UploadFolderCleanUp: {message}", e.Message);
             }
 
-            threshold = uploadAgeThreshold;
             var interval = TimeSpan.FromHours(24);
             logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
             await SleepAsync(interval, stoppingToken);
@@ -54,10 +50,23 @@ public sealed class TempFolderCleanUpBackgroundService(
 
 public static class UploadFolderCleanUp
 {
+    public static readonly DateTime ProcessStartedUtc = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+
+    /// <summary>
+    /// Files last written before this are removed: those older than <paramref name="ageThreshold"/>, and anything
+    /// staged before the process started. The upload folder is local to this host, so no request still running can
+    /// own a file from before the start (#2221: deletes still queued at shutdown are left behind).
+    /// </summary>
+    public static DateTime Cutoff(DateTime nowUtc, DateTime processStartedUtc, TimeSpan ageThreshold)
+    {
+        var byAge = nowUtc - ageThreshold;
+        return byAge > processStartedUtc ? byAge : processStartedUtc;
+    }
+
     public static void Execute(
         ILogger logger,
         string uploadDrivesPath,
-        TimeSpan ageThreshold,
+        DateTime cutoffUtc,
         CancellationToken stoppingToken = default)
     {
         if (!Directory.Exists(uploadDrivesPath))
@@ -71,13 +80,13 @@ public static class UploadFolderCleanUp
             stoppingToken.ThrowIfCancellationRequested();
 
             var uploadsPath = Path.Combine(drive, TenantPathManager.UploadFolder);
-            CleanUp(logger, uploadsPath, ageThreshold, stoppingToken);
+            CleanUp(logger, uploadsPath, cutoffUtc, stoppingToken);
         }
     }
 
     //
 
-    private static void CleanUp(ILogger logger, string folder, TimeSpan threshold, CancellationToken stoppingToken)
+    private static void CleanUp(ILogger logger, string folder, DateTime cutoffTime, CancellationToken stoppingToken)
     {
         if (!Directory.Exists(folder))
         {
@@ -94,7 +103,6 @@ public static class UploadFolderCleanUp
                 logger.LogError("Illegal subdirectories detected in {Folder}", folder);
             }
 
-            var cutoffTime = DateTime.UtcNow.Subtract(threshold);
             var files = Directory.GetFiles(folder);
 
             foreach (var file in files)
