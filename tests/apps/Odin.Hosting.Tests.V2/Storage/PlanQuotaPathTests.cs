@@ -159,8 +159,6 @@ public class PlanQuotaPathTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var frodo = await LoginAsOwner(Identities.Frodo);
         var drive = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write);
-        // A direct-write peer transfer or update stages its instructions and metadata before any payload arrives
-        var stagedBefore = await StagedFilesAsync(frodo, drive.Alias);
         await SetPlanAsync(Identities.Frodo, FullPlan);
 
         var payloads = new List<TestPayloadDefinition> { SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1() };
@@ -182,7 +180,7 @@ public class PlanQuotaPathTests : V2Fixture
         Assert.That(inbox.TotalItems, Is.Zero, "nothing reached the full recipient's inbox");
         Assert.That((await frodo.V1.Drive.QueryByGlobalTransitId(send.Content!.GlobalTransitIdFileIdentifier)).Content!.SearchResults,
             Is.Empty, "no header without its payload");
-        Assert.That(await StagedFilesAsync(frodo, drive.Alias), Is.EquivalentTo(stagedBefore), "and nothing half-received left on disk");
+        Assert.That(await StagedFilesAsync(frodo, drive.Alias), Is.Empty, "and nothing half-received left on disk");
 
         await SetPlanAsync(Identities.Frodo, DevPlan);
         await DeliverDeferredAsync(sam, frodo, drive);
@@ -256,7 +254,7 @@ public class PlanQuotaPathTests : V2Fixture
         Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         await PeerFlow.DistributeAsync(sam, frodo, drive);
         var remoteFile = create.Content!.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
-        var stagedBefore = await StagedFilesAsync(frodo, drive.Alias);
+        Assert.That(await StagedFilesAsync(frodo, drive.Alias), Is.Empty, "a delivered direct-write transfer leaves nothing staged (#2223)");
 
         await SetPlanAsync(Identities.Frodo, FullPlan);
 
@@ -288,7 +286,7 @@ public class PlanQuotaPathTests : V2Fixture
 
         await PeerFlow.DistributeAsync(sam, frodo, drive);
         Assert.That(await PayloadKeysAsync(frodo, remoteFile), Is.Empty, "the payload is not on the full recipient");
-        Assert.That(await StagedFilesAsync(frodo, drive.Alias), Is.EquivalentTo(stagedBefore), "and nothing half-received left on disk");
+        Assert.That(await StagedFilesAsync(frodo, drive.Alias), Is.Empty, "and nothing half-received left on disk");
 
         await SetPlanAsync(Identities.Frodo, DevPlan);
         await DeliverDeferredAsync(sam, frodo, drive);
