@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,7 +30,7 @@ public sealed class TempFolderCleanUpBackgroundService(
                 UploadFolderCleanUp.Execute(
                     logger,
                     tenantContext.TenantPathManager.UploadDrivesPath,
-                    UploadFolderCleanUp.Cutoff(DateTime.UtcNow, UploadFolderCleanUp.ProcessStartedUtc, uploadAgeThreshold),
+                    uploadAgeThreshold,
                     stoppingToken);
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -50,24 +49,10 @@ public sealed class TempFolderCleanUpBackgroundService(
 
 public static class UploadFolderCleanUp
 {
-    public static readonly DateTime ProcessStartedUtc = Process.GetCurrentProcess().StartTime.ToUniversalTime();
-
-    /// <summary>
-    /// Files last written before this are removed: those older than <paramref name="ageThreshold"/>, and anything
-    /// staged before the process started. Upload staging is always on this host's local disk (docs/load-balancing.md),
-    /// so no request still running can own a file from before the start (#2221: deletes still queued at shutdown are
-    /// left behind).
-    /// </summary>
-    public static DateTime Cutoff(DateTime nowUtc, DateTime processStartedUtc, TimeSpan ageThreshold)
-    {
-        var byAge = nowUtc - ageThreshold;
-        return byAge > processStartedUtc ? byAge : processStartedUtc;
-    }
-
     public static void Execute(
         ILogger logger,
         string uploadDrivesPath,
-        DateTime cutoffUtc,
+        TimeSpan ageThreshold,
         CancellationToken stoppingToken = default)
     {
         if (!Directory.Exists(uploadDrivesPath))
@@ -81,13 +66,13 @@ public static class UploadFolderCleanUp
             stoppingToken.ThrowIfCancellationRequested();
 
             var uploadsPath = Path.Combine(drive, TenantPathManager.UploadFolder);
-            CleanUp(logger, uploadsPath, cutoffUtc, stoppingToken);
+            CleanUp(logger, uploadsPath, ageThreshold, stoppingToken);
         }
     }
 
     //
 
-    private static void CleanUp(ILogger logger, string folder, DateTime cutoffTime, CancellationToken stoppingToken)
+    private static void CleanUp(ILogger logger, string folder, TimeSpan threshold, CancellationToken stoppingToken)
     {
         if (!Directory.Exists(folder))
         {
@@ -104,6 +89,7 @@ public static class UploadFolderCleanUp
                 logger.LogError("Illegal subdirectories detected in {Folder}", folder);
             }
 
+            var cutoffTime = DateTime.UtcNow.Subtract(threshold);
             var files = Directory.GetFiles(folder);
 
             foreach (var file in files)

@@ -51,7 +51,7 @@ public class StagedFileDeleterTests
         var file = Touch("late.payload");
 
         Assert.DoesNotThrow(() => deleter.Enqueue([file]), "enqueueing during shutdown is not an error");
-        Assert.That(File.Exists(file), Is.True, "nothing deletes it now; the temp-folder clean-up does after the next start");
+        Assert.That(File.Exists(file), Is.True, "nothing deletes it now; the temp-folder clean-up does once it is 24 h old");
     }
 
     private string Touch(string name)

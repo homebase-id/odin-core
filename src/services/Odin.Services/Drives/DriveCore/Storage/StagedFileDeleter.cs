@@ -9,9 +9,9 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 
 /// <summary>
 /// Deletes staged upload files on a thread of its own, so a request doesn't wait for the disk to remove them (#2221).
-/// Staged files are always on local disk, and each staged path belongs to one write only.
-/// A file that can't be deleted is skipped. Files still queued when the host stops stay behind, and the temp-folder
-/// clean-up removes them after the next start.
+/// Each staged path belongs to one write only, so a late delete can't remove another write's file.
+/// A file that can't be deleted is skipped. Files still queued when the host stops stay behind; the temp-folder
+/// clean-up removes them once they are 24 h old. That should be rare and few.
 /// </summary>
 public sealed class StagedFileDeleter : IDisposable
 {
@@ -34,7 +34,7 @@ public sealed class StagedFileDeleter : IDisposable
             }
             catch (InvalidOperationException) when (_queue.IsAddingCompleted)
             {
-                // The host is stopping: the temp-folder clean-up removes these after the next start
+                // The host is stopping: the temp-folder clean-up removes these once they are 24 h old
                 return;
             }
         }

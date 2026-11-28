@@ -47,29 +47,6 @@ public class TempFolderCleanUpBackgroundServiceTests
     }
 
     [Test]
-    public void WhatWasStagedBeforeTheProcessStartedIsRemoved()
-    {
-        SetupTestFolderStructure();
-        var uploads = Path.Combine(_testDrivesRoot, "drive1", "uploads");
-        var beforeStart = Path.Combine(uploads, "left_at_shutdown.payload");
-        var afterStart = Path.Combine(uploads, "in_flight.payload");
-
-        var now = DateTime.UtcNow;
-        var started = now.Subtract(TimeSpan.FromHours(1));
-        CreateFileWithTimestamp(beforeStart, started.Subtract(TimeSpan.FromMinutes(10)));
-        CreateFileWithTimestamp(afterStart, started.AddMinutes(10));
-
-        var cutoff = UploadFolderCleanUp.Cutoff(now, started, TimeSpan.FromHours(24));
-        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, cutoff);
-
-        Assert.That(cutoff, Is.EqualTo(started), "within 24 h of the start, the cutoff is the start");
-        Assert.That(File.Exists(beforeStart), Is.False, "a file staged before the start is a leftover");
-        Assert.That(File.Exists(afterStart), Is.True, "a file staged since the start may belong to a request still running");
-        Assert.That(UploadFolderCleanUp.Cutoff(now, now.AddDays(-3), TimeSpan.FromHours(24)), Is.EqualTo(now.AddHours(-24)),
-            "long after the start, files go after 24 h as before");
-    }
-
-    [Test]
     public void UploadFolderCleanUp_DeletesOldFiles_PreservesRecentFiles()
     {
         // Arrange
@@ -84,7 +61,7 @@ public class TempFolderCleanUpBackgroundServiceTests
         CreateFileWithTimestamp(newFile, DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(10)));
 
         // Act
-        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, DateTime.UtcNow - _uploadAgeThreshold);
+        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _uploadAgeThreshold);
 
         // Assert
         Assert.That(File.Exists(oldFile), Is.False, "Old upload file should be deleted");
@@ -101,7 +78,7 @@ public class TempFolderCleanUpBackgroundServiceTests
         Directory.CreateDirectory(Path.Combine(drive1UploadsPath, "illegal_subdir"));
 
         // Act
-        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, DateTime.UtcNow - _uploadAgeThreshold);
+        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _uploadAgeThreshold);
 
         // Assert
         _loggerMock.Verify(
@@ -131,7 +108,7 @@ public class TempFolderCleanUpBackgroundServiceTests
 
         // Act
         Assert.Throws<OperationCanceledException>(() =>
-            UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, DateTime.UtcNow - _uploadAgeThreshold, cts.Token));
+            UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _uploadAgeThreshold, cts.Token));
 
         // Assert
         Assert.That(File.Exists(oldFile), Is.True, "File should not be deleted when token is cancelled");
@@ -145,7 +122,7 @@ public class TempFolderCleanUpBackgroundServiceTests
 
         // Act & Assert — should not throw
         Assert.DoesNotThrow(() =>
-            UploadFolderCleanUp.Execute(_loggerMock.Object, nonExistentPath, DateTime.UtcNow - _uploadAgeThreshold));
+            UploadFolderCleanUp.Execute(_loggerMock.Object, nonExistentPath, _uploadAgeThreshold));
     }
 
     private void SetupTestFolderStructure()
