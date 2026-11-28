@@ -115,7 +115,7 @@ public class MaxPayloadSizeTests : V2Fixture
         var received = await TransitScenario.QueryByGlobalTransitIdAsync(sam,
             new GlobalTransitIdFileIdentifier { GlobalTransitId = sent.Content.GlobalTransitId!.Value, TargetDrive = drive });
         Assert.That(received, Is.Empty, "no file on Sam's drive");
-        AssertNoPayloadFiles(sam, drive);
+        await AssertNoPayloadFilesAsync(sam, drive);
     }
 
     private static TestPayloadDefinition PayloadOf(int size)

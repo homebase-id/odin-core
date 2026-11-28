@@ -89,7 +89,7 @@ public class PayloadDeletePerFileTests : V2Fixture
 
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "bytes stored here for a file whose payloads are remote");
         Assert.That(TestUtils.ParseProblemDetails(upload.Error!), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
-        AssertNoPayloadFiles(frodo, drive);
+        await AssertNoPayloadFilesAsync(frodo, drive);
     }
 
     [Test]

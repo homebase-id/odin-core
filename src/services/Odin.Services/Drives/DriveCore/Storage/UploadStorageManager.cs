@@ -14,7 +14,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class UploadStorageManager(
         UploadFileStore uploadFileStore,
-        FileReaderWriter fileReaderWriter,
+        StagedFileDeleter stagedFileDeleter,
         ILogger<UploadStorageManager> logger,
         TenantContext tenantContext)
     {
@@ -43,7 +43,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Deletes all files matching <param name="file"></param> regardless of extension
+        /// Deletes the staged payload and thumbnail files of <paramref name="descriptors"/> in the background: the
+        /// request doesn't wait for the disk (#2221)
         /// </summary>
         public Task CleanupUploadFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
@@ -79,7 +80,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     });
                 });
 
-                fileReaderWriter.DeleteFiles(targetFiles);
+                stagedFileDeleter.Enqueue(targetFiles);
             }
             catch (Exception e)
             {

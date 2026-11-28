@@ -74,6 +74,7 @@ public static class SystemServices
         services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
         services.AddSingleton<FileReaderWriter>();
+        services.AddSingleton<StagedFileDeleter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
         services.AddSingleton<ISystemDomains, SystemDomains>();
         services.AddSingleton<ILastSeenService, LastSeenService>();

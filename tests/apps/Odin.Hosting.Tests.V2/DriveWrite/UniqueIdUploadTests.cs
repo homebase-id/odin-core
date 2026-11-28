@@ -52,6 +52,7 @@ public class UniqueIdUploadTests : V2Fixture
         Assert.That(fileIds, Is.EqualTo(new[] { first.Content!.FileId }), "only the first file holds the uniqueId");
 
         // Cleanup, not ordering: a refusal after the payload was staged leaves nothing behind either
+        await StagedDeletesDoneAsync(owner);
         var staged = FilesUnder(TenantPaths(owner).GetDriveUploadPath(spec.TargetDrive.Alias));
         Assert.That(staged, Is.Empty, $"the refused upload left files in the upload folder: {string.Join(", ", staged)}");
     }

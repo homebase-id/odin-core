@@ -75,7 +75,7 @@ public class DataSourceUpdateTests : V2Fixture
 
         Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "bytes stored here for a file whose payloads are remote");
         Assert.That(TestUtils.ParseProblemDetails(update.Error!), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
-        AssertNoPayloadFiles(frodo, drive);
+        await AssertNoPayloadFilesAsync(frodo, drive);
         await AssertUnchangedAsync(frodo, file);
     }
 

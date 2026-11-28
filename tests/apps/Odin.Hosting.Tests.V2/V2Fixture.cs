@@ -17,6 +17,7 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
@@ -447,8 +448,9 @@ public abstract class V2Fixture
     /// transfer's .metadata/.transferkeyheader staging files are written before any payload arrives and are not removed
     /// when a peer transfer fails for any reason (pre-existing: #1897)
     /// </summary>
-    protected void AssertNoPayloadFiles(OwnerSession owner, TargetDrive drive)
+    protected async Task AssertNoPayloadFilesAsync(OwnerSession owner, TargetDrive drive)
     {
+        await StagedDeletesDoneAsync(owner);
         var paths = TenantPaths(owner);
         var leftovers = FilesUnder(paths.GetDrivePayloadPath(drive.Alias), "*.payload")
             .Concat(FilesUnder(paths.GetDriveUploadPath(drive.Alias), "*.payload"));
@@ -458,6 +460,26 @@ public abstract class V2Fixture
     /// <summary>
     /// Files under <paramref name="directory"/> and its subdirectories; none when it does not exist
     /// </summary>
+    /// <summary>
+    /// Staged files are deleted in the background (#2221), so a check right after a request can still see them. This
+    /// queues a marker file on <paramref name="owner"/>'s host and waits until it is gone: the deleter works through its
+    /// queue in order on one thread, so every delete queued before the marker is done by then.
+    /// </summary>
+    protected static async Task StagedDeletesDoneAsync(OwnerSession owner)
+    {
+        var deleter = owner.Host.GetTenantScope(owner.Identity.DomainName).Resolve<StagedFileDeleter>();
+        var marker = System.IO.Path.GetTempFileName();
+        deleter.Enqueue([marker]);
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        while (System.IO.File.Exists(marker) && waited.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.That(System.IO.File.Exists(marker), Is.False,
+            $"the staged-file deleter didn't reach the marker {marker} within {waited.Elapsed.TotalSeconds:0.0} s");
+    }
+
     protected static string[] FilesUnder(string directory, string pattern = "*") =>
         System.IO.Directory.Exists(directory)
             ? System.IO.Directory.GetFiles(directory, pattern, System.IO.SearchOption.AllDirectories)

@@ -17,10 +17,12 @@ public sealed class TempFolderCleanUpBackgroundService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var uploadAgeThreshold = TimeSpan.FromHours(24);
+        var started = DateTime.UtcNow;
 
         // Delay initial run with some random time, so we don't all run at the same time, doing lots of synchronous IO
         await SleepAsync(TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(120), stoppingToken);
 
+        var firstRun = true;
         while (!stoppingToken.IsCancellationRequested)
         {
             logger.LogDebug("{service} is running", GetType().Name);
@@ -30,7 +32,7 @@ public sealed class TempFolderCleanUpBackgroundService(
                 UploadFolderCleanUp.Execute(
                     logger,
                     tenantContext.TenantPathManager.UploadDrivesPath,
-                    uploadAgeThreshold,
+                    firstRun ? UploadFolderCleanUp.FirstRunAgeThreshold(started, DateTime.UtcNow, uploadAgeThreshold) : uploadAgeThreshold,
                     stoppingToken);
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -38,6 +40,7 @@ public sealed class TempFolderCleanUpBackgroundService(
                 logger.LogError(e, "UploadFolderCleanUp: {message}", e.Message);
             }
 
+            firstRun = false;
             var interval = TimeSpan.FromHours(24);
             logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
             await SleepAsync(interval, stoppingToken);
@@ -49,6 +52,16 @@ public sealed class TempFolderCleanUpBackgroundService(
 
 public static class UploadFolderCleanUp
 {
+    /// <summary>
+    /// The first run after a start also removes files last written before the start: the upload folder is local to
+    /// this host, so no request still running can own them (#2221: deletes still queued at shutdown are left behind)
+    /// </summary>
+    public static TimeSpan FirstRunAgeThreshold(DateTime startedUtc, DateTime nowUtc, TimeSpan ageThreshold)
+    {
+        var sinceStart = nowUtc - startedUtc;
+        return sinceStart < ageThreshold ? sinceStart : ageThreshold;
+    }
+
     public static void Execute(
         ILogger logger,
         string uploadDrivesPath,

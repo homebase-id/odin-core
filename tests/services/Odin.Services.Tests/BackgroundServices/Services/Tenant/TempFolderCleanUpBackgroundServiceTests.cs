@@ -47,6 +47,29 @@ public class TempFolderCleanUpBackgroundServiceTests
     }
 
     [Test]
+    public void TheFirstRunAfterAStartRemovesWhatWasStagedBeforeTheStart()
+    {
+        SetupTestFolderStructure();
+        var uploads = Path.Combine(_testDrivesRoot, "drive1", "uploads");
+        var beforeStart = Path.Combine(uploads, "left_at_shutdown.payload");
+        var afterStart = Path.Combine(uploads, "in_flight.payload");
+
+        var now = DateTime.UtcNow;
+        var started = now.Subtract(TimeSpan.FromHours(1));
+        CreateFileWithTimestamp(beforeStart, started.Subtract(TimeSpan.FromMinutes(10)));
+        CreateFileWithTimestamp(afterStart, started.AddMinutes(10));
+
+        var threshold = UploadFolderCleanUp.FirstRunAgeThreshold(started, now, TimeSpan.FromHours(24));
+        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, threshold);
+
+        Assert.That(threshold, Is.EqualTo(TimeSpan.FromHours(1)), "the first run reaches back to the start, not 24 h");
+        Assert.That(File.Exists(beforeStart), Is.False, "a file staged before the start is a leftover");
+        Assert.That(File.Exists(afterStart), Is.True, "a file staged since the start may belong to a request still running");
+        Assert.That(UploadFolderCleanUp.FirstRunAgeThreshold(now.AddDays(-3), now, TimeSpan.FromHours(24)),
+            Is.EqualTo(TimeSpan.FromHours(24)), "a first run long after the start keeps the usual threshold");
+    }
+
+    [Test]
     public void UploadFolderCleanUp_DeletesOldFiles_PreservesRecentFiles()
     {
         // Arrange
