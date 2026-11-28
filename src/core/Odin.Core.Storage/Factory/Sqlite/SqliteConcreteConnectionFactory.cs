@@ -16,6 +16,16 @@ internal static class SqliteConcreteConnectionFactory
         var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 
+        // First, so every statement below has it too: let SQLite wait for a busy lock itself, retrying within
+        // milliseconds of its release. Without it, Microsoft.Data.Sqlite retries a busy statement only every 150 ms, so a
+        // waiter keeps losing the lock to writers that arrive in between. Each lock wait may take up to the connection's
+        // default command timeout (30 s by default), the same budget Microsoft.Data.Sqlite's own retries have.
+        await using (var busy = connection.CreateCommand())
+        {
+            busy.CommandText = $"PRAGMA busy_timeout={connection.DefaultTimeout * 1000};";
+            await busy.ExecuteNonQueryAsync();
+        }
+
         //
         // One-time per-database pragmas (persistent in the database file header)
         //
@@ -52,12 +62,6 @@ internal static class SqliteConcreteConnectionFactory
         // usually when the host stops. The limit is above the normal cycle (the autocheckpoint at 1000 pages, ~4 MB), so a
         // normal reset doesn't truncate.
         cmd.CommandText = $"PRAGMA journal_size_limit={JournalSizeLimitBytes};";
-        await cmd.ExecuteNonQueryAsync();
-
-        // Let SQLite wait for a busy lock itself, retrying within milliseconds of its release. Without this,
-        // Microsoft.Data.Sqlite retries a busy statement only every 150 ms, so a waiter keeps losing the lock to writers
-        // that arrive in between. The command timeout's budget (30 s by default), so nothing waits longer or fails sooner.
-        cmd.CommandText = $"PRAGMA busy_timeout={connection.DefaultTimeout * 1000};";
         await cmd.ExecuteNonQueryAsync();
 
         return connection;

@@ -95,23 +95,29 @@ public class SqliteConcreteConnectionFactoryTest : IocTestBase
         await using var waiter = (SqliteConnection)await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
         await ExecuteAsync(holder, "CREATE TABLE test (name TEXT);");
 
-        // The holder takes the write lock; the waiter asks for it while it is held (>= 150 ms without busy_timeout)
+        // The holder takes the write lock; the waiter asks for it while it is held, and the holder releases it 30 ms
+        // later. Without busy_timeout the waiter looks again only 150 ms after asking, ~120 ms after the release.
+        var clock = Stopwatch.StartNew();
         await using var holderTx = holder.BeginTransaction(deferred: false);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        long askedAt = 0, acquiredAt = 0;
         var waiting = Task.Run(() =>
         {
-            var stopwatch = Stopwatch.StartNew();
+            askedAt = clock.ElapsedMilliseconds;
+            asking.SetResult();
             using var waiterTx = waiter.BeginTransaction(deferred: false);
-            stopwatch.Stop();
+            acquiredAt = clock.ElapsedMilliseconds;
             waiterTx.Commit();
-            return stopwatch.ElapsedMilliseconds;
         });
 
+        await asking.Task;
         await Task.Delay(30);
         holderTx.Commit();
-        var waitedMs = await waiting;
+        var releasedAt = clock.ElapsedMilliseconds;
+        await waiting;
 
-        Assert.That(waitedMs, Is.LessThan(150),
-            $"the waiter got the write lock {waitedMs} ms after asking; the holder released it after 30 ms");
+        Assert.That(acquiredAt - releasedAt, Is.LessThan(75),
+            $"the waiter asked at {askedAt} ms, the holder released the lock at {releasedAt} ms, the waiter got it at {acquiredAt} ms");
     }
 
     private string NewDatabasePath() => Path.Combine(TempFolder, $"{Guid.NewGuid()}.db");
