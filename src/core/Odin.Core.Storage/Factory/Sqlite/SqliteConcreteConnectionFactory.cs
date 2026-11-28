@@ -9,6 +9,8 @@ internal static class SqliteConcreteConnectionFactory
 {
     private static readonly ConcurrentDictionary<string, byte> PragmasExecuted = new();
 
+    internal const long JournalSizeLimitBytes = 16 * 1024 * 1024;
+
     internal static async Task<DbConnection> CreateAsync(string connectionString)
     {
         var connection = new SqliteConnection(connectionString);
@@ -43,6 +45,12 @@ internal static class SqliteConcreteConnectionFactory
 
         // Limit page cache to ~1000 KiB per connection (default is ~8 MB).
         cmd.CommandText = "PRAGMA cache_size=-1000;";
+        await cmd.ExecuteNonQueryAsync();
+
+        // Shrink the WAL file back to 16 MiB when it is reset. Without a limit it stays at the largest size it ever
+        // reached (it grows while readers hold the WAL), for as long as any connection is open: until the host stops.
+        // 16 MiB is above the normal cycle (the autocheckpoint at 1000 pages, ~4 MB), so a normal reset doesn't truncate.
+        cmd.CommandText = $"PRAGMA journal_size_limit={JournalSizeLimitBytes};";
         await cmd.ExecuteNonQueryAsync();
 
         return connection;
