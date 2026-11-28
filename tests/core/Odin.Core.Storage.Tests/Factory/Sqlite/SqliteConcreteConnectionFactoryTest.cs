@@ -32,7 +32,7 @@ public class SqliteConcreteConnectionFactoryTest : IocTestBase
         {
             await using var cmd = cn.CreateCommand();
             cmd.CommandText = "SELECT * FROM test;";
-            var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
             if (await reader.ReadAsync()) // Ensure you call ReadAsync before accessing data
             {
                 var name = reader["name"].ToString();
@@ -99,7 +99,11 @@ public class SqliteConcreteConnectionFactoryTest : IocTestBase
     {
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = sql;
-        cmd.Transaction = transaction;
+        if (transaction != null)
+        {
+            cmd.Transaction = transaction;
+        }
+
         await cmd.ExecuteNonQueryAsync();
     }
 }

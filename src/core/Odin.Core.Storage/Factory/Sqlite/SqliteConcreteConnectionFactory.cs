@@ -48,8 +48,9 @@ internal static class SqliteConcreteConnectionFactory
         await cmd.ExecuteNonQueryAsync();
 
         // Truncate the WAL file to this limit when it is reset. Without one it stays at the largest size it ever reached
-        // (it grows while readers hold the WAL) for as long as any connection is open: until the host stops. The limit
-        // is above the normal cycle (the autocheckpoint at 1000 pages, ~4 MB), so a normal reset doesn't truncate.
+        // (it grows while readers hold the WAL) until the last connection to the database closes, which with our pool is
+        // usually when the host stops. The limit is above the normal cycle (the autocheckpoint at 1000 pages, ~4 MB), so a
+        // normal reset doesn't truncate.
         cmd.CommandText = $"PRAGMA journal_size_limit={JournalSizeLimitBytes};";
         await cmd.ExecuteNonQueryAsync();
 
